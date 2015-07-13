@@ -19,9 +19,20 @@ func mergeMap(orig map[interface{}]interface{}, n map[interface{}]interface{}, n
 func mergeObj(orig interface{}, n interface{}, node string) interface{} {
 	switch t := n.(type) {
 	case map[interface{}]interface{}:
-		mergeMap(orig.(map[interface{}]interface{}), n.(map[interface{}]interface{}), node)
+		switch orig.(type) {
+		case map[interface{}]interface{}:
+			mergeMap(orig.(map[interface{}]interface{}), n.(map[interface{}]interface{}), node)
+		default:
+			orig = t
+		}
 	case []interface{}:
-		orig = mergeArray(orig.([]interface{}), n.([]interface{}), node)
+		switch orig.(type) {
+		case []interface{}:
+			orig = mergeArray(orig.([]interface{}), n.([]interface{}), node)
+		default:
+			orig = t
+		}
+
 	default:
 		orig = t
 	}

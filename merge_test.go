@@ -51,7 +51,28 @@ func TestMergeObj(t *testing.T) {
 			val := interface{}(nil)
 			So(mergeObj(orig, val, "node-path"), ShouldBeNil)
 		})
-
+		Convey("When passed a map, but original item is a scalar", func() {
+			orig := "value"
+			val := map[interface{}]interface{}{"key": "value"}
+			expect := map[interface{}]interface{}{"key": "value"}
+			So(mergeObj(orig, val, "node-path"), ShouldResemble, expect)
+		})
+		Convey("When passed a map, but original item is nil", func() {
+			val := map[interface{}]interface{}{"key": "value"}
+			expect := map[interface{}]interface{}{"key": "value"}
+			So(mergeObj(nil, val, "node-path"), ShouldResemble, expect)
+		})
+		Convey("When passed a slice, but original item is a scalar", func() {
+			orig := "value"
+			val := []interface{}{"one", "two"}
+			expect := []interface{}{"one", "two"}
+			So(mergeObj(orig, val, "node-path"), ShouldResemble, expect)
+		})
+		Convey("When passed a slice, but original item is nil", func() {
+			val := []interface{}{"one", "two"}
+			expect := []interface{}{"one", "two"}
+			So(mergeObj(nil, val, "node-path"), ShouldResemble, expect)
+		})
 	})
 }
 
