@@ -8,7 +8,7 @@ but there are a few key differences.
 
 ## Installation
 
-You can download a prebuilt binary for [64-bit linux](#FIXME: release binary) and [Mac OS X](#FIXME: release binary),
+You can download a [prebuilt binaries for 64-bit linux, or Mac OS X](https://github.com/geofffranks/spruce/releases/),
 or you can install via `go get` (provided you have installed go):
 
 ```
