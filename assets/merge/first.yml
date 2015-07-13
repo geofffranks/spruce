@@ -1,0 +1,6 @@
+key: value
+array:
+- one
+- two
+map:
+  key: value

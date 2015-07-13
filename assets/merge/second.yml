@@ -1,0 +1,6 @@
+key: overridden
+array:
+- (( merge ))
+- three
+map:
+  key2: val2
