@@ -30,7 +30,7 @@ go get github.com/geofffranks/spruce
 
 Merging in `spruce` is designed to be pretty intuiive. Files to merge are listed
 in-order on the command line. The first file serves as the base to the file structure,
-and subesquent files are merged on top, adding when keys are new, replacing when keys
+and subsequent files are merged on top, adding when keys are new, replacing when keys
 exist. This differs slightly in mentality from spiff, but hopefully the results are
 more predictable.
 
