@@ -54,6 +54,8 @@ That's a great question, and soon, spruce will support that!
 
 ## How About an Example?
 
+### Basic Example
+
 Here's a pretty broad example, that should cover all the functionality of spruce, to be used as a reference.
 
 If I start with this data:
@@ -116,7 +118,7 @@ othertop: you can add new top level keys too
 I would use `spruce` like this:
 
 ```
-$ ./spruce assets/examples/example.yml assets/examples/example2.yml
+$ spruce assets/examples/example.yml assets/examples/example2.yml
 othertop: you can add new top level keys too
 top:
   1: 430
@@ -151,6 +153,55 @@ top:
 
 $
 ```
+
+###Map replacements
+
+One of [spiff's](https://github.com/cloudfoundry-incubator/spiff) quirks was that it quite easily allowed you to completely replace an
+entire map, with new data (rather than merging by default). That result is still
+possible with `spruce`, but it takes a little bit more work, since the primary
+use case is to merge two maps together:
+
+We start with this yaml:
+
+```
+$ cat original.yml
+untouched:
+  map: stays
+  the: same
+map_to_replace:
+  has: upstream
+  data: that
+  we: do
+  not: want
+```
+
+Next, create a YAML file to clear out the map:
+```
+$ cat clear.yml
+map_to_replace: ~
+```
+
+Now, create a YAML file to insert the data you want in the end:
+```
+$ cat new.yml
+map_to_replace:
+  my: special
+  data: here
+```
+
+And finally, merge it all together:
+
+```
+$ spruce original.yml clear.yml new.yaml
+map_to_replace:
+  my: special
+  data: here
+untouched:
+  map: stays
+  the: same
+```
+
+*NOTE:* due to map key randomizations, the actual order of the above output will vary.
 
 ## Author
 
