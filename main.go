@@ -1,7 +1,7 @@
 package main
 
 import "errors"
-import "github.com/smallfish/simpleyaml"
+import "github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
 import "gopkg.in/yaml.v2"
 import "fmt"
 import "os"
