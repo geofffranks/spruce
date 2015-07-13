@@ -1,9 +1,12 @@
 package main
 
-import "fmt"
-import . "github.com/smartystreets/goconvey/convey"
-import "os"
-import "testing"
+import (
+	"fmt"
+	"os"
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+)
 
 func TestParseYAML(t *testing.T) {
 	Convey("parseYAML()", t, func() {

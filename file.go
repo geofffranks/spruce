@@ -1,7 +1,9 @@
 package main
 
-import "os"
-import "io/ioutil"
+import (
+	"io/ioutil"
+	"os"
+)
 
 func readFile(path string) ([]byte, error) {
 	file, err := os.Open(path)

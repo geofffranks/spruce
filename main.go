@@ -1,10 +1,13 @@
 package main
 
-import "errors"
-import "github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
-import "gopkg.in/yaml.v2"
-import "fmt"
-import "os"
+import (
+	"errors"
+	"fmt"
+	"os"
+
+	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
+	"gopkg.in/yaml.v2"
+)
 
 var printfStdOut = func(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stdout, format, args...)

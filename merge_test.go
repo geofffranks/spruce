@@ -1,7 +1,10 @@
 package main
 
-import "testing"
-import . "github.com/smartystreets/goconvey/convey"
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+)
 
 func TestShouldMergeArray(t *testing.T) {
 	Convey("We should merge arrays", t, func() {

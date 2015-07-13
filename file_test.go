@@ -1,7 +1,10 @@
 package main
 
-import "testing"
-import . "github.com/smartystreets/goconvey/convey"
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+)
 
 func TestReadFile(t *testing.T) {
 	Convey("When reading file <512 bytes", t, func() {
