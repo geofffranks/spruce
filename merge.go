@@ -1,7 +1,9 @@
 package main
 
-import "fmt"
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+)
 
 func mergeMap(orig map[interface{}]interface{}, n map[interface{}]interface{}, node string) {
 	for k, val := range n {
