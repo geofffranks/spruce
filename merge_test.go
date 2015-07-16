@@ -116,12 +116,12 @@ func TestMergeObj(t *testing.T) {
 
 func TestMergeMap(t *testing.T) {
 	Convey("with map elements updates original map", t, func() {
-		orig_map := map[interface{}]interface{}{"k1": "v1", "k2": "v2"}
-		new_map := map[interface{}]interface{}{"k3": "v3", "k2": "v2.new"}
-		expect_map := map[interface{}]interface{}{"k2": "v2.new", "k3": "v3", "k1": "v1"}
+		origMap := map[interface{}]interface{}{"k1": "v1", "k2": "v2"}
+		newMap := map[interface{}]interface{}{"k3": "v3", "k2": "v2.new"}
+		expectMap := map[interface{}]interface{}{"k2": "v2.new", "k3": "v3", "k1": "v1"}
 
-		mergeMap(orig_map, new_map, "node-path")
-		So(orig_map, ShouldResemble, expect_map)
+		mergeMap(origMap, newMap, "node-path")
+		So(origMap, ShouldResemble, expectMap)
 	})
 }
 
@@ -231,12 +231,12 @@ func TestMergeArray(t *testing.T) {
 			})
 		})
 		Convey("with map elements replaces entire array", func() {
-			orig_mapslice := map[string]string{"k1": "v1", "k2": "v2"}
-			new_mapslice := map[string]string{"k3": "v3", "k2": "v2.new"}
-			expect_mapslice := map[string]string{"k2": "v2.new", "k3": "v3"}
-			orig := []interface{}{orig_mapslice}
-			array := []interface{}{new_mapslice}
-			expect := []interface{}{expect_mapslice}
+			origMapSlice := map[string]string{"k1": "v1", "k2": "v2"}
+			newMapSlice := map[string]string{"k3": "v3", "k2": "v2.new"}
+			expectMapSlice := map[string]string{"k2": "v2.new", "k3": "v3"}
+			orig := []interface{}{origMapSlice}
+			array := []interface{}{newMapSlice}
+			expect := []interface{}{expectMapSlice}
 
 			So(mergeObj(orig, array, "node-path"), ShouldResemble, expect)
 		})

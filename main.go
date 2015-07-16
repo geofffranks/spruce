@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -51,7 +50,7 @@ func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 
 	doc, err := y.Map()
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("Root of YAML document is not a hash/map: %s\n", err))
+		return nil, fmt.Errorf("Root of YAML document is not a hash/map: %s\n", err.Error())
 	}
 
 	return doc, nil
@@ -61,12 +60,12 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 	for _, path := range paths {
 		data, err := readFile(path)
 		if err != nil {
-			return errors.New(fmt.Sprintf("Error reading file %s: %s\n", path, err.Error()))
+			return fmt.Errorf("Error reading file %s: %s\n", path, err.Error())
 		}
 
 		doc, err := parseYAML(data)
 		if err != nil {
-			return errors.New(fmt.Sprintf("%s: %s\n", path, err.Error()))
+			return fmt.Errorf("%s: %s\n", path, err.Error())
 		}
 
 		mergeMap(root, doc, "")
