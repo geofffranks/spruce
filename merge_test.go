@@ -6,16 +6,51 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestShouldMergeArray(t *testing.T) {
-	Convey("We should merge arrays", t, func() {
-		Convey("If the element is a string with the right token", func() {
-			So(shouldMergeArray("(( merge ))"), ShouldBeTrue)
+func TestShouldAppendToArray(t *testing.T) {
+	Convey("We should append to arrays", t, func() {
+		Convey("If the element is a string with the right append token", func() {
+			So(shouldAppendToArray([]interface{}{"(( append ))", "stuff"}), ShouldBeTrue)
 		})
 		Convey("But not if the element is a string with the wrong token", func() {
-			So(shouldMergeArray("not a magic token"), ShouldBeFalse)
+			So(shouldAppendToArray([]interface{}{"not a magic token"}), ShouldBeFalse)
 		})
 		Convey("But not if the element is not a string", func() {
-			So(shouldMergeArray(42), ShouldBeFalse)
+			So(shouldAppendToArray([]interface{}{42}), ShouldBeFalse)
+		})
+		Convey("But not if the slice has no elements", func() {
+			So(shouldInlineMergeArray([]interface{}{}), ShouldBeFalse)
+		})
+	})
+}
+func TestShouldPrependArray(t *testing.T) {
+	Convey("We should prepend to arrays", t, func() {
+		Convey("If the element is a string with the right prepend token", func() {
+			So(shouldPrependToArray([]interface{}{"(( prepend ))", "stuff"}), ShouldBeTrue)
+		})
+		Convey("But not if the element is a string with the wrong token", func() {
+			So(shouldPrependToArray([]interface{}{"not a magic token"}), ShouldBeFalse)
+		})
+		Convey("But not if the element is not a string", func() {
+			So(shouldPrependToArray([]interface{}{42}), ShouldBeFalse)
+		})
+		Convey("But not if the slice has no elements", func() {
+			So(shouldInlineMergeArray([]interface{}{}), ShouldBeFalse)
+		})
+	})
+}
+func TestShouldInlineMergeArray(t *testing.T) {
+	Convey("We should inline merge arrays", t, func() {
+		Convey("If the element is a string with the right inline-merge token", func() {
+			So(shouldInlineMergeArray([]interface{}{"(( inline ))", "stuff"}), ShouldBeTrue)
+		})
+		Convey("But not if the element is a string with the wrong token", func() {
+			So(shouldInlineMergeArray([]interface{}{"not a magic token"}), ShouldBeFalse)
+		})
+		Convey("But not if the element is not a string", func() {
+			So(shouldInlineMergeArray([]interface{}{42}), ShouldBeFalse)
+		})
+		Convey("But not if the slice has no elements", func() {
+			So(shouldInlineMergeArray([]interface{}{}), ShouldBeFalse)
 		})
 	})
 }
@@ -92,19 +127,108 @@ func TestMergeMap(t *testing.T) {
 
 func TestMergeArray(t *testing.T) {
 	Convey("mergeArray", t, func() {
-		Convey("with initial element '(( merge ))' appends new data", func() {
+		Convey("with initial element '(( prepend ))' prepends new data", func() {
 			orig := []interface{}{"first", "second"}
-			array := []interface{}{"zeroth", "(( merge ))"}
+			array := []interface{}{"(( prepend ))", "zeroth"}
 			expect := []interface{}{"zeroth", "first", "second"}
 
-			So(mergeObj(orig, array, "node-path"), ShouldResemble, expect)
+			So(mergeArray(orig, array, "node-path"), ShouldResemble, expect)
 		})
-		Convey("with final element '(( merge ))' prepends new data", func() {
+		Convey("with initial element '(( append ))' appends new data", func() {
 			orig := []interface{}{"first", "second"}
-			array := []interface{}{"(( merge ))", "third"}
+			array := []interface{}{"(( append ))", "third"}
 			expect := []interface{}{"first", "second", "third"}
 
-			So(mergeObj(orig, array, "node-path"), ShouldResemble, expect)
+			So(mergeArray(orig, array, "node-path"), ShouldResemble, expect)
+		})
+		Convey("with initial element '(( inline ))'", func() {
+			Convey("and len(orig) == len(new)", func() {
+				orig := []interface{}{
+					"orig_first",
+					[]interface{}{"subfirst", "subsecond"},
+					map[interface{}]interface{}{
+						"name": "original",
+						"val":  "original",
+					},
+					"orig_last",
+				}
+				array := []interface{}{
+					"(( inline ))",
+					"overwritten_first",
+					[]interface{}{"(( append ))", "subthird"},
+					map[interface{}]interface{}{
+						"val": "overwritten",
+					},
+					"overwritten_last",
+				}
+				expect := []interface{}{
+					"overwritten_first",
+					[]interface{}{"subfirst", "subsecond", "subthird"},
+					map[interface{}]interface{}{
+						"name": "original",
+						"val":  "overwritten",
+					},
+					"overwritten_last",
+				}
+				So(mergeArray(orig, array, "node-path"), ShouldResemble, expect)
+			})
+			Convey("and len(orig) > len(new)", func() {
+				orig := []interface{}{
+					"orig_first",
+					[]interface{}{"subfirst", "subsecond"},
+					map[interface{}]interface{}{
+						"name": "original",
+						"val":  "original",
+					},
+					"orig_last",
+				}
+				array := []interface{}{
+					"(( inline ))",
+					"overwritten_first",
+					[]interface{}{"(( append ))", "subthird"},
+					map[interface{}]interface{}{
+						"val": "overwritten",
+					},
+				}
+				expect := []interface{}{
+					"overwritten_first",
+					[]interface{}{"subfirst", "subsecond", "subthird"},
+					map[interface{}]interface{}{
+						"name": "original",
+						"val":  "overwritten",
+					},
+					"orig_last",
+				}
+				So(mergeArray(orig, array, "node-path"), ShouldResemble, expect)
+			})
+			Convey("and len(orig < len(new)", func() {
+				orig := []interface{}{
+					"orig_first",
+					[]interface{}{"subfirst", "subsecond"},
+				}
+				array := []interface{}{
+					"(( inline ))",
+					"overwritten_first",
+					[]interface{}{"(( append ))", "subthird"},
+					map[interface{}]interface{}{
+						"val": "overwritten",
+					},
+					"overwritten_last",
+				}
+				expect := []interface{}{
+					"overwritten_first",
+					[]interface{}{"subfirst", "subsecond", "subthird"},
+					map[interface{}]interface{}{
+						"val": "overwritten",
+					},
+					"overwritten_last",
+				}
+				So(mergeArray(orig, array, "node-path"), ShouldResemble, expect)
+			})
+			Convey("and empty orig slice", func() {
+			})
+			Convey("and empty new slice", func() {
+			})
 		})
 		Convey("with map elements replaces entire array", func() {
 			orig_mapslice := map[string]string{"k1": "v1", "k2": "v2"}

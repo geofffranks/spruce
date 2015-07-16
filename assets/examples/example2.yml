@@ -7,11 +7,11 @@ top:
     key2: ~
     key3:
       subkey3:
-      - (( merge ))
+      - (( append ))
       - nested element 3
   array1:
+  - (( prepend ))
   - prepend this
-  - (( merge ))
   array2:
   - over
   - ridden
@@ -21,3 +21,8 @@ top:
     even: drastically
     to:   from scalars to maps/lists
 othertop: you can add new top level keys too
+  inline_array_merge:
+  - (( inline ))
+  - this has been overwritten
+  - be: overwritten
+    merging: success!

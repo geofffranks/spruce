@@ -43,16 +43,48 @@ func mergeObj(orig interface{}, n interface{}, node string) interface{} {
 
 func mergeArray(orig []interface{}, n []interface{}, node string) []interface{} {
 	var merged []interface{}
-	if shouldMergeArray(n[0]) {
+	if shouldAppendToArray(n) {
 		merged = append(orig, n[1:]...)
-	} else if shouldMergeArray(n[len(n)-1]) {
-		merged = append(n[:len(n)-1], orig...)
+	} else if shouldPrependToArray(n) {
+		merged = append(n[1:], orig...)
+	} else if shouldInlineMergeArray(n) {
+		length := len(orig)
+		// len(n)-1 accounts for the "(( inline ))" initial element that should be dropped
+		if len(n)-1 > len(orig) {
+			length = len(n) - 1
+		}
+		merged = make([]interface{}, length, length)
+
+		var last int
+		for i := range orig {
+			// i+1 accounts for the "(( inline ))" initial element that should be dropped
+			if i+1 >= len(n) {
+				merged[i] = orig[i]
+			} else {
+				merged[i] = mergeObj(orig[i], n[i+1], node)
+			}
+			last = i
+		}
+
+		last++ // move to next index after finishing the orig slice
+
+		// grab the remainder of n (if any), accounting for the "(( inline ))" element
+		// and append the to the result
+		for i := last; i < len(n)-1; i++ {
+			merged[i] = n[i+1]
+		}
 	} else {
 		merged = n
 	}
 	return merged
 }
 
-func shouldMergeArray(obj interface{}) bool {
-	return reflect.TypeOf(obj).Kind() == reflect.String && obj.(string) == "(( merge ))"
+func shouldInlineMergeArray(obj []interface{}) bool {
+	return len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String && obj[0].(string) == "(( inline ))"
+}
+func shouldAppendToArray(obj []interface{}) bool {
+	return len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String && obj[0].(string) == "(( append ))"
+}
+func shouldPrependToArray(obj []interface{}) bool {
+	return len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String && obj[0].(string) == "(( prepend ))"
 }

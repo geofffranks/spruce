@@ -1,6 +1,14 @@
 key: overridden
-array:
-- (( merge ))
+array_append:
+- (( append ))
 - three
+array_prepend:
+- (( prepend ))
+- three
+array_inline:
+- (( inline ))
+- val: overwritten
+- second_elem was overwritten
+- third elem is appended
 map:
   key2: val2

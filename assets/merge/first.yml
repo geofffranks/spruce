@@ -1,6 +1,13 @@
 key: value
-array:
+array_append:
 - one
 - two
+array_prepend:
+- four
+- five
+array_inline:
+- name: first_elem
+  val: initial
+- second_elem_is_scalar
 map:
   key: value

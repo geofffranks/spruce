@@ -62,8 +62,14 @@ func TestMergeAllDocs(t *testing.T) {
 		Convey("Succeeds with valid files + yaml", func() {
 			target := map[interface{}]interface{}{}
 			expect := map[interface{}]interface{}{
-				"key":   "overridden",
-				"array": []interface{}{"one", "two", "three"},
+				"key":           "overridden",
+				"array_append":  []interface{}{"one", "two", "three"},
+				"array_prepend": []interface{}{"three", "four", "five"},
+				"array_inline": []interface{}{
+					map[interface{}]interface{}{"name": "first_elem", "val": "overwritten"},
+					"second_elem was overwritten",
+					"third elem is appended",
+				},
 				"map": map[interface{}]interface{}{
 					"key":  "value",
 					"key2": "val2",
@@ -117,10 +123,19 @@ func TestMain(t *testing.T) {
 			stdout = ""
 			stderr = ""
 			main()
-			So(stdout, ShouldEqual, `array:
+			So(stdout, ShouldEqual, `array_append:
 - one
 - two
 - three
+array_inline:
+- name: first_elem
+  val: overwritten
+- second_elem was overwritten
+- third elem is appended
+array_prepend:
+- three
+- four
+- five
 key: overridden
 map:
   key: value
