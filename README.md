@@ -44,8 +44,10 @@ the new keys in the file merged on top of the original.
 
 Arrays can be merged in three ways - prepending data, appending data, and completely replacing data.
 
-- To append data to an existing array, ensure that the first element in the new array is `(( merge ))`
-- To prepend the data to an existing array, ensure that the *last* element in the new array is `(( merge ))`
+- To append data to an existing array, ensure that the first element in the new array is `(( append ))`
+- To prepend the data to an existing array, ensure that the first element in the new array is `(( prepend ))`
+- To merge the two arrays together (each index of the new array will be merged into the original, additionals appended),
+  ensure that the first element in the new array is `(( inline ))`
 - To completely replace the array, don't do anything special - just make the new array what you want it to be!
 
 ### Hmm.. How about auto-calculating resource pool sizes, and static IPs?
@@ -85,6 +87,10 @@ top:
   - 2
   - 3
   - 4
+  inline_array_merge:
+  - will be overwritten
+  - this: will
+    be: merged
 ```
 
 And want to merge in this:
@@ -99,11 +105,11 @@ top:
     key2: ~
     key3:
       subkey3:
-      - (( merge ))
+      - (( append ))
       - nested element 3
   array1:
+  - (( prepend ))
   - prepend this
-  - (( merge ))
   array2:
   - over
   - ridden
@@ -112,6 +118,11 @@ top:
   2:
     even: drastically
     to:   from scalars to maps/lists
+  inline_array_merge:
+  - (( inline ))
+  - this has been overwritten
+  - be: overwritten
+    merging: success!
 othertop: you can add new top level keys too
 ```
 
@@ -136,6 +147,11 @@ top:
   - over
   - ridden
   - array
+  inline_array_merge:
+  - this has been overwritten
+  - this: will
+    be: overwritten
+    merge: success!
   map:
     key1: replaced key
     key2: null
