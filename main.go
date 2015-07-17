@@ -5,7 +5,9 @@ import (
 	"os"
 
 	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
+	"github.com/voxelbrain/goptions"
 	"gopkg.in/yaml.v2"
+	"strings"
 )
 
 var printfStdOut = func(format string, args ...interface{}) {
@@ -16,29 +18,71 @@ var printfStdErr = func(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, args...)
 }
 
+var getopts = func(o interface{}) {
+	err := goptions.Parse(o)
+	if err != nil {
+		usage()
+	}
+}
+
 var exit = func(code int) {
 	os.Exit(code)
 }
 
+var usage = func() {
+	goptions.PrintHelp()
+	exit(1)
+}
+
+var debug bool
+
+func DEBUG(format string, args ...interface{}) {
+	if debug {
+		printfStdErr(format, args...)
+	}
+}
+
 func main() {
-	if len(os.Args) > 1 {
-		root := make(map[interface{}]interface{})
+	var options struct {
+		Debug  bool `goptions:"-D, --debug, description='Enable debugging'"`
+		Action goptions.Verbs
+		Merge  struct {
+			Files goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml'"`
+		} `goptions:"merge"`
+	}
+	getopts(&options)
 
-		err := mergeAllDocs(root, os.Args[1:])
-		if err != nil {
-			printfStdErr(err.Error())
-			exit(2)
-		}
+	if os.Getenv("DEBUG") != "" && strings.ToLower(os.Getenv("DEBUG")) != "false" && os.Getenv("DEBUG") != "0" {
+		debug = true
+	}
+	if options.Debug {
+		debug = options.Debug
+	}
 
-		merged, err := yaml.Marshal(root)
-		if err != nil {
-			printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
-			exit(2)
+	DEBUG("Debugging enabled")
+
+	switch {
+	case options.Action == "merge":
+		if len(options.Merge.Files) >= 1 {
+			root := make(map[interface{}]interface{})
+
+			err := mergeAllDocs(root, options.Merge.Files)
+			if err != nil {
+				printfStdErr(err.Error())
+				exit(2)
+			}
+
+			merged, err := yaml.Marshal(root)
+			if err != nil {
+				printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
+				exit(2)
+			}
+			printfStdOut("%s\n", string(merged))
+		} else {
+			usage()
 		}
-		printfStdOut("%s\n", string(merged))
-	} else {
-		printfStdErr("Usage: %s <first.yml> ... <nth.yml>\n", os.Args[0])
-		exit(1)
+	default:
+		usage()
 	}
 }
 

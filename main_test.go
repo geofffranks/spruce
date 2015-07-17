@@ -98,16 +98,37 @@ func TestMain(t *testing.T) {
 			rc = code
 		}
 
-		Convey("Should output usage if no args", func() {
-			os.Args = []string{"program_name"}
+		usage = func() {
+			stderr = "usage was called"
+			exit(1)
+		}
+
+		Convey("Should output usage if bad args are passed", func() {
+			os.Args = []string{"spruce", "fdsafdada"}
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldEqual, "Usage: "+os.Args[0]+" <first.yml> ... <nth.yml>\n")
+			So(stderr, ShouldEqual, "usage was called")
+			So(rc, ShouldEqual, 1)
+		})
+		Convey("Should output usage if no args at all", func() {
+			os.Args = []string{"spruce"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "usage was called")
+			So(rc, ShouldEqual, 1)
+		})
+		Convey("Should output usage if no args to merge", func() {
+			os.Args = []string{"spruce", "merge"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "usage was called")
 			So(rc, ShouldEqual, 1)
 		})
 		Convey("Should panic on errors merging docs", func() {
-			os.Args = []string{"program_name", "assets/merge/bad.yml"}
+			os.Args = []string{"spruce", "merge", "assets/merge/bad.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -119,7 +140,7 @@ func TestMain(t *testing.T) {
 		})
 		*/
 		Convey("Should output merged yaml on success", func() {
-			os.Args = []string{"program_name", "assets/merge/first.yml", "assets/merge/second.yml"}
+			os.Args = []string{"spruce", "merge", "assets/merge/first.yml", "assets/merge/second.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -142,6 +163,84 @@ map:
   key2: val2
 
 `)
+		})
+	})
+}
+
+func TestDebug(t *testing.T) {
+	var stderr string
+	usage = func() {}
+	printfStdErr = func(format string, args ...interface{}) {
+		stderr = fmt.Sprintf(format, args...)
+	}
+	Convey("debug", t, func() {
+		Convey("Outputs when debug is set to true", func() {
+			stderr = ""
+			debug = true
+			DEBUG("test debugging")
+			So(stderr, ShouldEqual, "test debugging")
+		})
+		Convey("Doesn't output when debug is set to false", func() {
+			stderr = ""
+			debug = false
+			DEBUG("test debugging")
+			So(stderr, ShouldEqual, "")
+		})
+	})
+	Convey("debug flags:", t, func() {
+		Convey("-D enables debugging", func() {
+			os.Args = []string{"spruce", "-D"}
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "Debugging enabled")
+		})
+		Convey("--debug enables debugging", func() {
+			os.Args = []string{"spruce", "--debug"}
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "Debugging enabled")
+		})
+		Convey("DEBUG=\"tRuE\" enables debugging", func() {
+			os.Setenv("DEBUG", "tRuE")
+			os.Args = []string{"spruce"}
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "Debugging enabled")
+		})
+		Convey("DEBUG=1 enables debugging", func() {
+			os.Setenv("DEBUG", "1")
+			os.Args = []string{"spruce"}
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "Debugging enabled")
+		})
+		Convey("DEBUG=randomval enables debugging", func() {
+			os.Setenv("DEBUG", "randomval")
+			os.Args = []string{"spruce"}
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "Debugging enabled")
+		})
+		Convey("DEBUG=\"fAlSe\" disables debugging", func() {
+			os.Setenv("DEBUG", "fAlSe")
+			os.Args = []string{"spruce"}
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "Debugging enabled")
+		})
+		Convey("DEBUG=0 disables debugging", func() {
+			os.Setenv("DEBUG", "0")
+			os.Args = []string{"spruce"}
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "Debugging enabled")
+		})
+		Convey("DEBUG=\"\" disables debugging", func() {
+			os.Setenv("DEBUG", "")
+			os.Args = []string{"spruce"}
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "Debugging enabled")
 		})
 	})
 }
