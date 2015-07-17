@@ -178,7 +178,13 @@ func TestDebug(t *testing.T) {
 			stderr = ""
 			debug = true
 			DEBUG("test debugging")
-			So(stderr, ShouldEqual, "test debugging")
+			So(stderr, ShouldEqual, "DEBUG> test debugging\n")
+		})
+		Convey("Multi-line debug inputs are each prefixed", func() {
+			stderr = ""
+			debug = true
+			DEBUG("test debugging\nsecond line")
+			So(stderr, ShouldEqual, "DEBUG> test debugging\nDEBUG> second line\n")
 		})
 		Convey("Doesn't output when debug is set to false", func() {
 			stderr = ""
@@ -190,57 +196,57 @@ func TestDebug(t *testing.T) {
 	Convey("debug flags:", t, func() {
 		Convey("-D enables debugging", func() {
 			os.Args = []string{"spruce", "-D"}
-			stderr = ""
+			debug = false
 			main()
-			So(stderr, ShouldEqual, "Debugging enabled")
+			So(debug, ShouldBeTrue)
 		})
 		Convey("--debug enables debugging", func() {
 			os.Args = []string{"spruce", "--debug"}
-			stderr = ""
+			debug = false
 			main()
-			So(stderr, ShouldEqual, "Debugging enabled")
+			So(debug, ShouldBeTrue)
 		})
 		Convey("DEBUG=\"tRuE\" enables debugging", func() {
 			os.Setenv("DEBUG", "tRuE")
 			os.Args = []string{"spruce"}
-			stderr = ""
+			debug = false
 			main()
-			So(stderr, ShouldEqual, "Debugging enabled")
+			So(debug, ShouldBeTrue)
 		})
 		Convey("DEBUG=1 enables debugging", func() {
 			os.Setenv("DEBUG", "1")
 			os.Args = []string{"spruce"}
-			stderr = ""
+			debug = false
 			main()
-			So(stderr, ShouldEqual, "Debugging enabled")
+			So(debug, ShouldBeTrue)
 		})
 		Convey("DEBUG=randomval enables debugging", func() {
 			os.Setenv("DEBUG", "randomval")
 			os.Args = []string{"spruce"}
-			stderr = ""
+			debug = false
 			main()
-			So(stderr, ShouldEqual, "Debugging enabled")
+			So(debug, ShouldBeTrue)
 		})
 		Convey("DEBUG=\"fAlSe\" disables debugging", func() {
 			os.Setenv("DEBUG", "fAlSe")
 			os.Args = []string{"spruce"}
-			stderr = ""
+			debug = false
 			main()
-			So(stderr, ShouldEqual, "Debugging enabled")
+			So(debug, ShouldBeFalse)
 		})
 		Convey("DEBUG=0 disables debugging", func() {
 			os.Setenv("DEBUG", "0")
 			os.Args = []string{"spruce"}
-			stderr = ""
+			debug = false
 			main()
-			So(stderr, ShouldEqual, "Debugging enabled")
+			So(debug, ShouldBeFalse)
 		})
 		Convey("DEBUG=\"\" disables debugging", func() {
 			os.Setenv("DEBUG", "")
 			os.Args = []string{"spruce"}
-			stderr = ""
+			debug = false
 			main()
-			So(stderr, ShouldEqual, "Debugging enabled")
+			So(debug, ShouldBeFalse)
 		})
 	})
 }

@@ -6,14 +6,18 @@ import (
 )
 
 func mergeMap(orig map[interface{}]interface{}, n map[interface{}]interface{}, node string) {
+	if node == "" {
+		node = "$"
+	}
+
 	for k, val := range n {
-		key := fmt.Sprintf("%v", k)
-		path := node + "." + key
-		_, exists := orig[key]
+		path := fmt.Sprintf("%s.%v", node, k)
+		_, exists := orig[k]
 		if exists {
-			orig[key] = mergeObj(orig[key], val, path)
+			orig[k] = mergeObj(orig[k], val, path)
 		} else {
-			orig[key] = val
+			DEBUG("%s: not found upstream, adding it", path)
+			orig[k] = val
 		}
 	}
 }
@@ -23,19 +27,24 @@ func mergeObj(orig interface{}, n interface{}, node string) interface{} {
 	case map[interface{}]interface{}:
 		switch orig.(type) {
 		case map[interface{}]interface{}:
+			DEBUG("%s: performing map merge", node)
 			mergeMap(orig.(map[interface{}]interface{}), n.(map[interface{}]interface{}), node)
 		default:
+			DEBUG("%s: replacing with new data (original was not a map)", node)
 			orig = t
 		}
 	case []interface{}:
 		switch orig.(type) {
 		case []interface{}:
+			DEBUG("%s: performing array merge", node)
 			orig = mergeArray(orig.([]interface{}), n.([]interface{}), node)
 		default:
+			DEBUG("%s: replacing with new data (original was not an array)", node)
 			orig = t
 		}
 
 	default:
+		DEBUG("%s: replacing with new data (new data is neither map nor array)", node)
 		orig = t
 	}
 	return orig
@@ -44,10 +53,13 @@ func mergeObj(orig interface{}, n interface{}, node string) interface{} {
 func mergeArray(orig []interface{}, n []interface{}, node string) []interface{} {
 	var merged []interface{}
 	if shouldAppendToArray(n) {
+		DEBUG("%s: appending %d new elements to existing array, starting at index %d", node, len(n)-1, len(orig))
 		merged = append(orig, n[1:]...)
 	} else if shouldPrependToArray(n) {
+		DEBUG("%s: prepending %d new elements to existing array", node, len(n)-1)
 		merged = append(n[1:], orig...)
 	} else if shouldInlineMergeArray(n) {
+		DEBUG("%s: performing inline array merge", node)
 		length := len(orig)
 		// len(n)-1 accounts for the "(( inline ))" initial element that should be dropped
 		if len(n)-1 > len(orig) {
@@ -61,7 +73,7 @@ func mergeArray(orig []interface{}, n []interface{}, node string) []interface{} 
 			if i+1 >= len(n) {
 				merged[i] = orig[i]
 			} else {
-				merged[i] = mergeObj(orig[i], n[i+1], node)
+				merged[i] = mergeObj(orig[i], n[i+1], fmt.Sprintf("%s.%d", node, i))
 			}
 			last = i
 		}
@@ -71,9 +83,11 @@ func mergeArray(orig []interface{}, n []interface{}, node string) []interface{} 
 		// grab the remainder of n (if any), accounting for the "(( inline ))" element
 		// and append the to the result
 		for i := last; i < len(n)-1; i++ {
+			DEBUG("%s.%d: appending new data to existing array", node, i)
 			merged[i] = n[i+1]
 		}
 	} else {
+		DEBUG("%s: replacing with new data (no specific array merge behavior requested)", node)
 		merged = n
 	}
 	return merged

@@ -36,9 +36,16 @@ var usage = func() {
 
 var debug bool
 
+// DEBUG - Prints out a debug message
 func DEBUG(format string, args ...interface{}) {
 	if debug {
-		printfStdErr(format, args...)
+		content := fmt.Sprintf(format, args...)
+		lines := strings.Split(content, "\n")
+		for i, line := range lines {
+			lines[i] = "DEBUG> " + line
+		}
+		content = strings.Join(lines, "\n")
+		printfStdErr("%s\n", content)
 	}
 }
 
@@ -58,8 +65,6 @@ func main() {
 	if options.Debug {
 		debug = options.Debug
 	}
-
-	DEBUG("Debugging enabled")
 
 	switch {
 	case options.Action == "merge":
@@ -102,6 +107,7 @@ func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 
 func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 	for _, path := range paths {
+		DEBUG("Processing file '%s'", path)
 		data, err := readFile(path)
 		if err != nil {
 			return fmt.Errorf("Error reading file %s: %s\n", path, err.Error())
@@ -113,6 +119,8 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 		}
 
 		mergeMap(root, doc, "")
+		tmpYaml, _ := yaml.Marshal(root) // we don't care about errors for debugging
+		DEBUG("Current data after processing '%s':\n%s", path, tmpYaml)
 	}
 	return nil
 }
