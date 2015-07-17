@@ -20,9 +20,9 @@ top:
   2:
     even: drastically
     to:   from scalars to maps/lists
-othertop: you can add new top level keys too
   inline_array_merge:
   - (( inline ))
   - this has been overwritten
   - be: overwritten
     merging: success!
+othertop: you can add new top level keys too
