@@ -1,0 +1,12 @@
+language: go
+sudo: false
+
+before_install:
+    - go get golang.org/x/tools/cmd/vet
+    - go get golang.org/x/tools/cmd/cover
+    - go get github.com/golang/lint/golint
+
+script:
+    - go vet -x ./...
+    - $HOME/gopath/bin/golint ./...
+    - go test -v ./...

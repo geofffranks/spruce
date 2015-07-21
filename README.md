@@ -9,6 +9,8 @@
       ^^^[_]^^^                                                   ^^^[_]^^^
 ```
 
+[![Build Status](https://img.shields.io/travis/geofffranks/spruce.svg)](https://travis-ci.org/geofffranks/spruce)
+
 ## Introducing Spruce
 
 `spruce` is a domain-specific YAML merging tool, for generating [BOSH](http://bosh.io) manifests.
