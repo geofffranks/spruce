@@ -1,2 +1,12 @@
 language: go
 sudo: false
+
+before_install:
+    - go get code.google.com/p/go.tools/cmd/vet
+    - go get code.google.com/p/go.tools/cmd/cover
+    - go get github.com/golang/lint/golint
+
+script:
+    - go vet -x ./...
+    - $HOME/gopath/bin/golint ./...
+    - go test -v ./...
