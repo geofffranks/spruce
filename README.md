@@ -46,12 +46,15 @@ the new keys in the file merged on top of the original.
 
 Arrays can be merged in three ways - prepending data, appending data, and completely replacing data.
 
-- To append data to an existing array, ensure that the first element in the new array is `(( append ))`
-- To prepend the data to an existing array, ensure that the first element in the new array is `(( prepend ))`
+- To append data to an existing array, ensure that the first element in the new array is
+  ```- (( append ))```
+- To prepend the data to an existing array, ensure that the first element in the new array is
+  ```- (( prepend ))```
 - To merge the two arrays together (each index of the new array will be merged into the original, additionals appended),
-  ensure that the first element in the new array is `(( inline ))`
+  ensure that the first element in the new array is
+  ```- (( inline ))```
 - To merge two arrays of maps together (using a specific key for identifying like objects), ensure that the first element
-  in the new array is either `(( merge ))` or `(( merge on <key>`. The first merges using `name` as the key to determine
+  in the new array is either `- (( merge ))` or `- (( merge on <key> ))`. The first merges using `name` as the key to determine
   like objects in the array elements. The second is used to customize which key to use. See [Merging Arrays of Maps](#mapmerge)
   for an example.
 - To completely replace the array, don't do anything special - just make the new array what you want it to be!
