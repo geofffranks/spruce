@@ -50,6 +50,10 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
 - To prepend the data to an existing array, ensure that the first element in the new array is `(( prepend ))`
 - To merge the two arrays together (each index of the new array will be merged into the original, additionals appended),
   ensure that the first element in the new array is `(( inline ))`
+- To merge two arrays of maps together (using a specific key for identifying like objects), ensure that the first element
+  in the new array is either `(( merge ))` or `(( merge on <key>`. The first merges using `name` as the key to determine
+  like objects in the array elements. The second is used to customize which key to use. See [Merging Arrays of Maps](#mapmerge)
+  for an example.
 - To completely replace the array, don't do anything special - just make the new array what you want it to be!
 
 ### Hmm.. How about auto-calculating resource pool sizes, and static IPs?
@@ -131,7 +135,7 @@ othertop: you can add new top level keys too
 I would use `spruce` like this:
 
 ```
-$ spruce assets/examples/example.yml assets/examples/example2.yml
+$ spruce merge assets/examples/example.yml assets/examples/example2.yml
 othertop: you can add new top level keys too
 top:
   1: 430
@@ -210,7 +214,7 @@ map_to_replace:
 And finally, merge it all together:
 
 ```
-$ spruce original.yml clear.yml new.yaml
+$ spruce merge original.yml clear.yml new.yaml
 map_to_replace:
   my: special
   data: here
@@ -220,6 +224,64 @@ untouched:
 ```
 
 *NOTE:* due to map key randomizations, the actual order of the above output will vary.
+
+###<a name="mapmerge"></a>Merging Arrays of Maps
+
+Let's say you have a list of maps that you would like to merge into another list of maps, while preserving
+as much data as possible.
+
+Given this `original.yml`:
+```
+jobs:
+- name: concatenator_z1
+  network: generic1
+  resource_pool: small
+  properties:
+    spruce: is cool
+- oldjob_z1
+  network: generic1
+  resource_pool: small
+  properties:
+    this: will show up in the end
+```
+
+And this `new.yml`:
+```
+$ cat new.yml
+jobs:
+- name: newjob_z1
+  network: generic1
+  resource_pool: small
+  properties:
+    this: is a job defined solely in new.yml
+- name: concatenator_z1
+  properties:
+    this: is a new property added to an existing job
+```
+
+You would get this when merged:
+```
+$ spruce merge original.yml new.yml
+jobs:
+- name: concatenator_z1
+  network: generic1
+  properties:
+    spruce: is cool
+    this: is a new property added to an existing job
+  resource_pool: small
+- name: oldjob_z1
+  network: generic1
+  properties:
+    this: will show up in the end
+  resource_pool: small
+- name: newjob_z1
+  network: generic1
+  properties:
+    this: is a job defined solely in new.yml
+  resource_pool: small
+```
+
+Pretty sweet, huh?
 
 ## Author
 
