@@ -247,7 +247,6 @@ jobs:
 
 And this `new.yml`:
 ```
-$ cat new.yml
 jobs:
 - name: newjob_z1
   network: generic1
