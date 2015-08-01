@@ -20,9 +20,23 @@ func TestShouldAppendToArray(t *testing.T) {
 		Convey("But not if the slice has no elements", func() {
 			So(shouldInlineMergeArray([]interface{}{}), ShouldBeFalse)
 		})
+		Convey("Is whitespace agnostic", func() {
+			Convey("No surrounding whitespace", func() {
+				yes := shouldAppendToArray([]interface{}{"((append))"})
+				So(yes, ShouldBeTrue)
+			})
+			Convey("Surrounding tabs", func() {
+				yes := shouldAppendToArray([]interface{}{"((	append	))"})
+				So(yes, ShouldBeTrue)
+			})
+			Convey("Multiple surrounding whitespaces", func() {
+				yes := shouldAppendToArray([]interface{}{"((  append  ))"})
+				So(yes, ShouldBeTrue)
+			})
+		})
 	})
 }
-func TestShouldPrependArray(t *testing.T) {
+func TestShouldPrependToArray(t *testing.T) {
 	Convey("We should prepend to arrays", t, func() {
 		Convey("If the element is a string with the right prepend token", func() {
 			So(shouldPrependToArray([]interface{}{"(( prepend ))", "stuff"}), ShouldBeTrue)
@@ -35,6 +49,20 @@ func TestShouldPrependArray(t *testing.T) {
 		})
 		Convey("But not if the slice has no elements", func() {
 			So(shouldInlineMergeArray([]interface{}{}), ShouldBeFalse)
+		})
+		Convey("Is whitespace agnostic", func() {
+			Convey("No surrounding whitespace", func() {
+				yes := shouldPrependToArray([]interface{}{"((prepend))"})
+				So(yes, ShouldBeTrue)
+			})
+			Convey("Surrounding tabs", func() {
+				yes := shouldPrependToArray([]interface{}{"((	prepend	))"})
+				So(yes, ShouldBeTrue)
+			})
+			Convey("Multiple surrounding whitespaces", func() {
+				yes := shouldPrependToArray([]interface{}{"((  prepend  ))"})
+				So(yes, ShouldBeTrue)
+			})
 		})
 	})
 }
@@ -51,6 +79,20 @@ func TestShouldInlineMergeArray(t *testing.T) {
 		})
 		Convey("But not if the slice has no elements", func() {
 			So(shouldInlineMergeArray([]interface{}{}), ShouldBeFalse)
+		})
+		Convey("Is whitespace agnostic", func() {
+			Convey("No surrounding whitespace", func() {
+				yes := shouldInlineMergeArray([]interface{}{"((inline))"})
+				So(yes, ShouldBeTrue)
+			})
+			Convey("Surrounding tabs", func() {
+				yes := shouldInlineMergeArray([]interface{}{"((	inline	))"})
+				So(yes, ShouldBeTrue)
+			})
+			Convey("Multiple surrounding whitespaces", func() {
+				yes := shouldInlineMergeArray([]interface{}{"((  inline  ))"})
+				So(yes, ShouldBeTrue)
+			})
 		})
 	})
 }
