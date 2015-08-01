@@ -59,6 +59,11 @@ func TestMergeAllDocs(t *testing.T) {
 			err := mergeAllDocs(target, []string{"assets/merge/first.yml", "assets/merge/bad.yml"})
 			So(err.Error(), ShouldStartWith, "assets/merge/bad.yml: Root of YAML document is not a hash/map:")
 		})
+		Convey("Fails with mergeMap error", func() {
+			target := map[interface{}]interface{}{}
+			err := mergeAllDocs(target, []string{"assets/merge/first.yml", "assets/merge/error.yml"})
+			So(err.Error(), ShouldStartWith, "assets/merge/error.yml: $.array_inline.0: new object is a string, not a map - cannot merge using keys")
+		})
 		Convey("Succeeds with valid files + yaml", func() {
 			target := map[interface{}]interface{}{}
 			expect := map[interface{}]interface{}{

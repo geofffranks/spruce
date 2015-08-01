@@ -118,7 +118,10 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 			return fmt.Errorf("%s: %s\n", path, err.Error())
 		}
 
-		mergeMap(root, doc, "")
+		err = mergeMap(root, doc, "")
+		if err != nil {
+			return fmt.Errorf("%s: %s\n", path, err.Error())
+		}
 		tmpYaml, _ := yaml.Marshal(root) // we don't care about errors for debugging
 		DEBUG("Current data after processing '%s':\n%s", path, tmpYaml)
 	}
