@@ -47,16 +47,27 @@ the new keys in the file merged on top of the original.
 Arrays can be merged in three ways - prepending data, appending data, and completely replacing data.
 
 - To append data to an existing array, ensure that the first element in the new array is <br>
-  ```yaml
+  ```yml
   - (( append ))
   ```
 - To prepend the data to an existing array, ensure that the first element in the new array is <br>
-  ```- (( prepend ))```
+  ```yml
+  - (( prepend ))
+  ```
 - To merge the two arrays together (each index of the new array will be merged into the original, additionals appended),
   ensure that the first element in the new array is <br>
-  ```- (( inline ))```
+  ```yml
+  - (( inline ))
+  ```
 - To merge two arrays of maps together (using a specific key for identifying like objects), ensure that the first element
-  in the new array is either <br>`- (( merge ))`<br> or <br>`- (( merge on <key> ))`<br> The first merges using `name` as the key to determine
+  in the new array is either <br>
+  ```yml
+  - (( merge ))
+  ```<br> or <br>
+  ```yml
+  - (( merge on <key> ))
+  ````
+  <br> The first merges using `name` as the key to determine
   like objects in the array elements. The second is used to customize which key to use. See [Merging Arrays of Maps](#mapmerge)
   for an example.
 - To completely replace the array, don't do anything special - just make the new array what you want it to be!
@@ -73,7 +84,7 @@ Here's a pretty broad example, that should cover all the functionality of spruce
 
 If I start with this data:
 
-```
+```yml
 top:
   orig_key: This is a string attached to a key
   number: 50
@@ -106,7 +117,7 @@ top:
 
 And want to merge in this:
 
-```
+```yml
 top:
   new_key: this is added
   orig_key: this is replaced
@@ -139,7 +150,7 @@ othertop: you can add new top level keys too
 
 I would use `spruce` like this:
 
-```
+```yml
 $ spruce merge assets/examples/example.yml assets/examples/example2.yml
 othertop: you can add new top level keys too
 top:
@@ -177,8 +188,6 @@ top:
   new_key: this is added
   number: 50
   orig_key: this is replaced
-
-$
 ```
 
 ###Map replacements
@@ -190,7 +199,7 @@ use case is to merge two maps together:
 
 We start with this yaml:
 
-```
+```yml
 $ cat original.yml
 untouched:
   map: stays
@@ -203,13 +212,13 @@ map_to_replace:
 ```
 
 Next, create a YAML file to clear out the map:
-```
+```yml
 $ cat clear.yml
 map_to_replace: ~
 ```
 
 Now, create a YAML file to insert the data you want in the end:
-```
+```yml
 $ cat new.yml
 map_to_replace:
   my: special
@@ -218,7 +227,7 @@ map_to_replace:
 
 And finally, merge it all together:
 
-```
+```yml
 $ spruce merge original.yml clear.yml new.yaml
 map_to_replace:
   my: special
@@ -236,7 +245,7 @@ Let's say you have a list of maps that you would like to merge into another list
 as much data as possible.
 
 Given this `original.yml`:
-```
+```yml
 jobs:
 - name: concatenator_z1
   network: generic1
@@ -251,7 +260,7 @@ jobs:
 ```
 
 And this `new.yml`:
-```
+```yml
 jobs:
 - name: newjob_z1
   network: generic1
@@ -264,7 +273,7 @@ jobs:
 ```
 
 You would get this when merged:
-```
+```yml
 $ spruce merge original.yml new.yml
 jobs:
 - name: concatenator_z1
