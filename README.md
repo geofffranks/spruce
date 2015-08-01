@@ -47,7 +47,9 @@ the new keys in the file merged on top of the original.
 Arrays can be merged in three ways - prepending data, appending data, and completely replacing data.
 
 - To append data to an existing array, ensure that the first element in the new array is <br>
-  ```- (( append ))```
+  ```yaml
+  - (( append ))
+  ```
 - To prepend the data to an existing array, ensure that the first element in the new array is <br>
   ```- (( prepend ))```
 - To merge the two arrays together (each index of the new array will be merged into the original, additionals appended),
