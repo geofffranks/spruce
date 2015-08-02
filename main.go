@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+var VERSION string = "0.3" // SED MARKER FOR AUTO VERSION BUMPING
+
 var printfStdOut = func(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stdout, format, args...)
 }
@@ -51,9 +53,10 @@ func DEBUG(format string, args ...interface{}) {
 
 func main() {
 	var options struct {
-		Debug  bool `goptions:"-D, --debug, description='Enable debugging'"`
-		Action goptions.Verbs
-		Merge  struct {
+		Debug   bool `goptions:"-D, --debug, description='Enable debugging'"`
+		Version bool `goptions:"-v, --version, description='Display version information'"`
+		Action  goptions.Verbs
+		Merge   struct {
 			Files goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml'"`
 		} `goptions:"merge"`
 	}
@@ -66,28 +69,33 @@ func main() {
 		debug = options.Debug
 	}
 
-	switch {
-	case options.Action == "merge":
-		if len(options.Merge.Files) >= 1 {
-			root := make(map[interface{}]interface{})
+	if options.Version {
+		printfStdErr("%s - Version %s\n", os.Args[0], VERSION)
+		exit(0)
+	} else {
+		switch {
+		case options.Action == "merge":
+			if len(options.Merge.Files) >= 1 {
+				root := make(map[interface{}]interface{})
 
-			err := mergeAllDocs(root, options.Merge.Files)
-			if err != nil {
-				printfStdErr(err.Error())
-				exit(2)
-			}
+				err := mergeAllDocs(root, options.Merge.Files)
+				if err != nil {
+					printfStdErr(err.Error())
+					exit(2)
+				}
 
-			merged, err := yaml.Marshal(root)
-			if err != nil {
-				printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
-				exit(2)
+				merged, err := yaml.Marshal(root)
+				if err != nil {
+					printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
+					exit(2)
+				}
+				printfStdOut("%s\n", string(merged))
+			} else {
+				usage()
 			}
-			printfStdOut("%s\n", string(merged))
-		} else {
+		default:
 			usage()
 		}
-	default:
-		usage()
 	}
 }
 

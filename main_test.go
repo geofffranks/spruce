@@ -132,6 +132,26 @@ func TestMain(t *testing.T) {
 			So(stderr, ShouldEqual, "usage was called")
 			So(rc, ShouldEqual, 1)
 		})
+		Convey("Should output version", func() {
+			Convey("When '-v' is specified", func() {
+				os.Args = []string{"spruce", "-v"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stdout, ShouldEqual, "")
+				So(stderr, ShouldEqual, "spruce - Version 0.3\n") // SED MARKER FOR AUTO VERSION BUMPING
+				So(rc, ShouldEqual, 0)
+			})
+			Convey("When '--version' is specified", func() {
+				os.Args = []string{"spruce", "--version"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stdout, ShouldEqual, "")
+				So(stderr, ShouldEqual, "spruce - Version 0.3\n") // SED MARKER FOR AUTO VERSION BUMPING
+				So(rc, ShouldEqual, 0)
+			})
+		})
 		Convey("Should panic on errors merging docs", func() {
 			os.Args = []string{"spruce", "merge", "assets/merge/bad.yml"}
 			stdout = ""
