@@ -1,0 +1,27 @@
+---
+jobs:
+- name: build-task-image
+  public: true
+  serial: true
+  plan:
+  - get: git-boshrelease
+    trigger: true
+  - put: docker-image
+    params:
+      build: git-boshrelease/ci/ci_image
+
+resources:
+- name: git-boshrelease
+  type: git
+  source:
+    uri: https://github.com/longnguyen11288/spruce.git
+    branch: master
+    paths: [ci/ci_image/*]
+
+- name: docker-image
+  type: docker-image
+  source:
+    email: {{docker-hub-email}}
+    username: {{docker-hub-username}}
+    password: {{docker-hub-password}}
+    repository: {{docker-create-hub-task-image}}
