@@ -188,6 +188,21 @@ map:
   key2: val2
 
 `)
+			So(stderr, ShouldEqual, "")
+		})
+		Convey("Should not fail when handling concourse-style yaml and --concourse", func() {
+			os.Args = []string{"spruce", "--concourse", "merge", "assets/concourse/first.yml", "assets/concourse/second.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `jobs:
+- curlies: {{my-variable_123}}
+  name: thing1
+- curlies: {{more}}
+  name: thing2
+
+`)
+			So(stderr, ShouldEqual, "")
 		})
 	})
 }
@@ -272,6 +287,39 @@ func TestDebug(t *testing.T) {
 			debug = false
 			main()
 			So(debug, ShouldBeFalse)
+		})
+	})
+}
+
+func TestQuoteConcourse(t *testing.T) {
+	Convey("quoteConcourse()", t, func() {
+		Convey("Correctly double-quotes incoming {{\\S}} patterns", func() {
+			Convey("adds quotes", func() {
+				input := []byte("name: {{var-_1able}}")
+				So(string(quoteConcourse(input)), ShouldEqual, "name: \"{{var-_1able}}\"")
+			})
+		})
+		Convey("doesn't affect regularly quoted things", func() {
+			input := []byte("name: \"my value\"")
+			So(string(quoteConcourse(input)), ShouldEqual, "name: \"my value\"")
+		})
+	})
+}
+func TestDequoteConcourse(t *testing.T) {
+	Convey("dequoteConcourse()", t, func() {
+		Convey("Correctly removes quotes from incoming {{\\S}} patterns", func() {
+			Convey("with single quotes", func() {
+				input := []byte("name: '{{var-_1able}}'")
+				So(dequoteConcourse(input), ShouldEqual, "name: {{var-_1able}}")
+			})
+			Convey("with double quotes", func() {
+				input := []byte("name: \"{{var-_1able}}\"")
+				So(dequoteConcourse(input), ShouldEqual, "name: {{var-_1able}}")
+			})
+		})
+		Convey("doesn't affect regularly quoted things", func() {
+			input := []byte("name: \"my value\"")
+			So(dequoteConcourse(input), ShouldEqual, "name: \"my value\"")
 		})
 	})
 }

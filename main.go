@@ -7,6 +7,7 @@ import (
 	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
 	"github.com/voxelbrain/goptions"
 	"gopkg.in/yaml.v2"
+	"regexp"
 	"strings"
 )
 
@@ -37,6 +38,7 @@ var usage = func() {
 }
 
 var debug bool
+var handleConcourseQuoting bool
 
 // DEBUG - Prints out a debug message
 func DEBUG(format string, args ...interface{}) {
@@ -53,10 +55,11 @@ func DEBUG(format string, args ...interface{}) {
 
 func main() {
 	var options struct {
-		Debug   bool `goptions:"-D, --debug, description='Enable debugging'"`
-		Version bool `goptions:"-v, --version, description='Display version information'"`
-		Action  goptions.Verbs
-		Merge   struct {
+		Debug     bool `goptions:"-D, --debug, description='Enable debugging'"`
+		Version   bool `goptions:"-v, --version, description='Display version information'"`
+		Concourse bool `goptions:"--concourse, description='Pre/Post-process YAML for Concourse CI (handles {{ }} quoting)'"`
+		Action    goptions.Verbs
+		Merge     struct {
 			Files goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml'"`
 		} `goptions:"merge"`
 	}
@@ -68,6 +71,8 @@ func main() {
 	if options.Debug {
 		debug = options.Debug
 	}
+
+	handleConcourseQuoting = options.Concourse
 
 	if options.Version {
 		printfStdErr("%s - Version %s\n", os.Args[0], VERSION)
@@ -83,13 +88,18 @@ func main() {
 					printfStdErr(err.Error())
 					exit(2)
 				}
-
 				merged, err := yaml.Marshal(root)
 				if err != nil {
 					printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
 					exit(2)
 				}
-				printfStdOut("%s\n", string(merged))
+				var output string
+				if handleConcourseQuoting {
+					output = dequoteConcourse(merged)
+				} else {
+					output = string(merged)
+				}
+				printfStdOut("%s\n", output)
 			} else {
 				usage()
 			}
@@ -121,6 +131,10 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 			return fmt.Errorf("Error reading file %s: %s\n", path, err.Error())
 		}
 
+		if handleConcourseQuoting {
+			data = quoteConcourse(data)
+		}
+
 		doc, err := parseYAML(data)
 		if err != nil {
 			return fmt.Errorf("%s: %s\n", path, err.Error())
@@ -134,4 +148,16 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 		DEBUG("Current data after processing '%s':\n%s", path, tmpYaml)
 	}
 	return nil
+}
+
+var concourseRegex = `\{\{([-\w\p{L}]+)\}\}`
+
+func quoteConcourse(input []byte) []byte {
+	re := regexp.MustCompile("(" + concourseRegex + ")")
+	return re.ReplaceAll(input, []byte("\"$1\""))
+}
+
+func dequoteConcourse(input []byte) string {
+	re := regexp.MustCompile("['\"](" + concourseRegex + ")[\"']")
+	return re.ReplaceAllString(string(input), "$1")
 }

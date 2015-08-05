@@ -1,0 +1,4 @@
+jobs:
+- (( append ))
+- name: thing2
+  curlies: {{more}}
