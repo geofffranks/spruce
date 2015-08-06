@@ -4,18 +4,18 @@ jobs:
   public: true
   serial: true
   plan:
-  - get: git-boshrelease
+  - get: git-spruce-release
     trigger: true
   - put: docker-image
     params:
-      build: git-boshrelease/ci/ci_image
+      build: git-spruce-release/ci/ci_image
 
 resources:
-- name: git-boshrelease
+- name: git-spruce-release
   type: git
   source:
-    uri: https://github.com/longnguyen11288/spruce.git
-    branch: master
+    uri: https://github.com/geofffranks/spruce.git
+    branch: pipeline
     paths: [ci/ci_image/*]
 
 - name: docker-image
