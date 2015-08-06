@@ -133,7 +133,7 @@ resources:
   type: git
   source:
     uri: git@github.com:geofffranks/spruce.git
-    branch: pipeline
+    branch: master
     private_key: {{github-private-key}}
 
 - name: git-spruce-release-changes

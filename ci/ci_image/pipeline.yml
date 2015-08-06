@@ -15,7 +15,7 @@ resources:
   type: git
   source:
     uri: https://github.com/geofffranks/spruce.git
-    branch: pipeline
+    branch: master
     paths: [ci/ci_image/*]
 
 - name: docker-image
