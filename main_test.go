@@ -139,7 +139,7 @@ func TestMain(t *testing.T) {
 				stderr = ""
 				main()
 				So(stdout, ShouldEqual, "")
-				So(stderr, ShouldEqual, "spruce - Version 0.3\n") // SED MARKER FOR AUTO VERSION BUMPING
+				So(stderr, ShouldEqual, fmt.Sprintf("spruce - Version %s\n", VERSION))
 				So(rc, ShouldEqual, 0)
 			})
 			Convey("When '--version' is specified", func() {
@@ -148,7 +148,7 @@ func TestMain(t *testing.T) {
 				stderr = ""
 				main()
 				So(stdout, ShouldEqual, "")
-				So(stderr, ShouldEqual, "spruce - Version 0.3\n") // SED MARKER FOR AUTO VERSION BUMPING
+				So(stderr, ShouldEqual, fmt.Sprintf("spruce - Version %s\n", VERSION))
 				So(rc, ShouldEqual, 0)
 			})
 		})
