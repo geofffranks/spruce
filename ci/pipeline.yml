@@ -1,0 +1,151 @@
+groups:
+- name: build
+  jobs:
+  - testflight
+  - rc
+  - shipit
+- name: version
+  jobs:
+  - patch
+  - minor
+  - major
+
+jobs:
+- name: testflight
+  public: true
+  serial: true
+  plan:
+  - do:
+    - aggregate:
+      - get: spruce
+        resource: git-spruce
+      - get: git-spruce-release-changes
+        trigger: true
+    - task: run_tests
+      config:
+        platform: linux
+        image: {{docker-hub-task-image}}
+        inputs:
+        - name: spruce
+          path: .
+        run:
+          path: ./ci/scripts/run_tests.sh
+          args: []
+
+- name: rc
+  public: true
+  plan:
+  - aggregate:
+    - get: spruce
+      resource: git-spruce
+      passed: [testflight]
+      trigger: true
+    - get: version
+      trigger: false
+      params: {bump: minor, pre: rc}
+  - put: version
+    params: {file: version/number}
+
+- name: patch
+  public: true
+  plan:
+  - aggregate:
+    - get: version
+      trigger: false
+      params: {bump: patch}
+  - put: version
+    params: {file: version/number}
+
+- name: minor
+  public: true
+  plan:
+  - aggregate:
+    - get: version
+      trigger: false
+      params: {bump: minor}
+  - put: version
+    params: {file: version/number}
+
+- name: major
+  public: true
+  plan:
+  - aggregate:
+    - get: version
+      trigger: false
+      params: {bump: major}
+  - put: version
+    params: {file: version/number}
+
+- name: shipit
+  public: true
+  serial: true
+  plan:
+  - aggregate:
+    - get: version
+      passed: [rc]
+      params: {bump: final}
+    - get: spruce
+      resource: git-spruce
+      passed: [rc]
+  - task: create-final-release
+    config:
+      platform: linux
+      image: {{docker-hub-task-image}}
+      inputs:
+      - name: spruce
+      - name: version
+      run:
+        path: ./spruce/ci/scripts/shipit.sh
+        args: []
+      params:
+        release_name: "Spruce Release"
+        promotion_branch: master
+  - put: git-spruce
+    params:
+      repository: create-final-release/spruce
+      rebase: true
+  - aggregate:
+    - put: version
+      params: {file: version/number}
+    - put: github-final-release
+      params:
+        name: create-final-release/spruce/releases/name
+        tag: create-final-release/spruce/releases/tag
+        body: create-final-release/spruce/releases/notes.md
+        globs:
+        - create-final-release/spruce/releases/**/spruce_*.tar.gz
+        - create-final-release/spruce/releases/**/spruce_*.zip
+        - create-final-release/spruce/releases/**/LICENSE
+        - create-final-release/spruce/releases/**/README.md
+
+
+resources:
+- name: version
+  type: semver
+  source:
+    key: current-version
+    bucket: {{pipeline-aws-bucket}}
+    access_key_id: {{pipeline-aws-access-key-id}}
+    secret_access_key: {{pipeline-aws-secret-access-key}}
+    initial_version: 0.2.0
+
+- name: git-spruce
+  type: git
+  source:
+    uri: git@github.com:geofffranks/spruce.git
+    branch: master
+    private_key: {{github-private-key}}
+
+- name: git-spruce-release-changes
+  type: git
+  source:
+    uri: https://github.com/geofffranks/spruce.git
+    branch: master
+    paths: ["*.go"]
+
+- name: github-final-release
+  type: github-release
+  source:
+    user: geofffranks
+    repository: spruce
+    access_token: {{github-access-token}}
