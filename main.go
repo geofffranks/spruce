@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-var VERSION string = "0.3.0" // SED MARKER FOR AUTO VERSION BUMPING
+var VERSION string = "0.4.0" // SED MARKER FOR AUTO VERSION BUMPING
 
 var printfStdOut = func(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stdout, format, args...)
