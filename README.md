@@ -263,7 +263,7 @@ jobs:
   resource_pool: small
   properties:
     spruce: is cool
-- oldjob_z1
+- name: oldjob_z1
   network: generic1
   resource_pool: small
   properties:
