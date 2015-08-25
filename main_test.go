@@ -16,7 +16,7 @@ asdf: fdsa
 - asdf: fdsa
 `
 			obj, err := parseYAML([]byte(data))
-			So(err.Error(), ShouldStartWith, "unmarshal []byte to yaml failed:")
+			So(err.Error(), ShouldStartWith, "unmarshal []byte to yaml failed")
 			So(obj, ShouldBeNil)
 		})
 		Convey("returns error if yaml was not a top level map", func() {
