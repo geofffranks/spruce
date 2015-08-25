@@ -204,6 +204,22 @@ map:
 `)
 			So(stderr, ShouldEqual, "")
 		})
+
+		Convey("Should handle pruning", func() {
+			os.Args = []string{"spruce", "merge", "assets/prune/first.yml", "assets/prune/second.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `level2:
+  level3:
+    retained: yea
+  retained: yea
+retained: yea
+
+`)
+
+			So(stderr, ShouldEqual, "")
+		})
 	})
 }
 

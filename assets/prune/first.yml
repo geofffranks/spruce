@@ -1,0 +1,8 @@
+retained: yea
+pruned: still here for some reason
+level2:
+  retained: yea
+  pruned: still here for some reason
+  level3:
+    retained: yea
+    pruned: still here for some reason

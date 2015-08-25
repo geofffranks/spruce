@@ -76,12 +76,21 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
 
   ```yml
   - (( merge on <key> ))
-  ````
+  ```
 
 <br> The first merges using `name` as the key to determine
   like objects in the array elements. The second is used to customize which key to use. See [Merging Arrays of Maps](#mapmerge)
   for an example.
+
 - To completely replace the array, don't do anything special - just make the new array what you want it to be!
+
+### Cleaning Up After Yourself
+
+- To prune a map key from the final output<br>
+
+  ```yml
+  useless: (( prune ))
+  ```
 
 ### Hmm.. How about auto-calculating resource pool sizes, and static IPs?
 
@@ -201,7 +210,7 @@ top:
   orig_key: this is replaced
 ```
 
-###Map replacements
+### Map Replacements
 
 One of [spiff's](https://github.com/cloudfoundry-incubator/spiff) quirks was that it quite easily allowed you to completely replace an
 entire map, with new data (rather than merging by default). That result is still
@@ -249,6 +258,47 @@ untouched:
 ```
 
 *NOTE:* due to map key randomizations, the actual order of the above output will vary.
+
+### Key Removal
+
+How about deleting keys outright?
+
+```yml
+---
+# original.yml
+meta:
+  thing: &thing
+    foo: 1
+    bar: 2
+
+things:
+  - <<: *thing
+    name: first-thing
+  - <<: *thing
+    name: second-thing
+```
+
+The `meta` key is only useful for holding the `*thing` referent,
+so we'd really rather not see it in the final output:
+
+```yml
+---
+# prune.yml
+meta: (( prune ))
+```
+
+```yml
+$ spruce merge original.yml prune.yml
+things:
+  - name: first-thing
+    foo: 1
+    bar: 2
+  - name: second-thing
+    foo: 1
+    bar: 2
+
+```
+
 
 ###<a name="mapmerge"></a>Merging Arrays of Maps
 
