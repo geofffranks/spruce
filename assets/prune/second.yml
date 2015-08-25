@@ -1,0 +1,5 @@
+pruned: (( prune ))
+level2:
+  pruned: ((prune))
+  level3:
+    pruned: ((		prune   ))
