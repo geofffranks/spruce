@@ -220,6 +220,32 @@ retained: yea
 
 			So(stderr, ShouldEqual, "")
 		})
+
+		Convey("Should handle de-referencing", func() {
+			os.Args = []string{"spruce", "merge", "assets/dereference/first.yml", "assets/dereference/second.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `jobs:
+- name: my-server
+  static_ips:
+  - 192.168.1.0
+properties:
+  client:
+    servers:
+    - 192.168.1.0
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+		Convey("Should output error on bad de-reference", func() {
+			os.Args = []string{"spruce", "merge", "assets/dereference/bad.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldStartWith, "$.bad.dereference: Unable to resolve `(( my.value ))`")
+			So(rc, ShouldEqual, 2)
+		})
 	})
 }
 

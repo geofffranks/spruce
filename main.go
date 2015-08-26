@@ -11,7 +11,8 @@ import (
 	"strings"
 )
 
-var VERSION string = "0.4.0" // SED MARKER FOR AUTO VERSION BUMPING
+// Current version of spruce
+var VERSION = "0.5.0" // SED MARKER FOR AUTO VERSION BUMPING
 
 var printfStdOut = func(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stdout, format, args...)
@@ -88,11 +89,17 @@ func main() {
 					printfStdErr(err.Error())
 					exit(2)
 				}
+				err = postProcessMap(root, root, "")
+				if err != nil {
+					printfStdErr(err.Error())
+					exit(2)
+				}
 				merged, err := yaml.Marshal(root)
 				if err != nil {
 					printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
 					exit(2)
 				}
+
 				var output string
 				if handleConcourseQuoting {
 					output = dequoteConcourse(merged)

@@ -184,7 +184,7 @@ func mergeArray(orig []interface{}, n []interface{}, node string) ([]interface{}
 
 func shouldInlineMergeArray(obj []interface{}) bool {
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("\\Q((\\E\\s*inline\\s*\\Q))\\E")
+		re := regexp.MustCompile("^\\Q((\\E\\s*inline\\s*\\Q))\\E$")
 		if re.MatchString(obj[0].(string)) {
 			return true
 		}
@@ -193,7 +193,7 @@ func shouldInlineMergeArray(obj []interface{}) bool {
 }
 func shouldAppendToArray(obj []interface{}) bool {
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("\\Q((\\E\\s*append\\s*\\Q))\\E")
+		re := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
 		if re.MatchString(obj[0].(string)) {
 			return true
 		}
@@ -202,7 +202,7 @@ func shouldAppendToArray(obj []interface{}) bool {
 }
 func shouldPrependToArray(obj []interface{}) bool {
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("\\Q((\\E\\s*prepend\\s*\\Q))\\E")
+		re := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
 		if re.MatchString(obj[0].(string)) {
 			return true
 		}
@@ -213,7 +213,7 @@ func shouldKeyMergeArray(obj []interface{}) (bool, string) {
 	key := "name"
 
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("\\Q((\\E\\s*merge(?:\\s+on\\s+(.*?))?\\s*\\Q))\\E")
+		re := regexp.MustCompile("^\\Q((\\E\\s*merge(?:\\s+on\\s+(.*?))?\\s*\\Q))\\E$")
 
 		if re.MatchString(obj[0].(string)) {
 			keys := re.FindStringSubmatch(obj[0].(string))
