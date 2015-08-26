@@ -31,6 +31,7 @@ func postProcessMap(m map[interface{}]interface{}, root map[interface{}]interfac
 		}
 		m[k] = newVal
 	}
+	DEBUG("%s: done post-processing", node)
 	return nil
 }
 
@@ -47,6 +48,7 @@ func postProcessArray(a []interface{}, root map[interface{}]interface{}, node st
 		}
 		a[i] = newVal
 	}
+	DEBUG("%s: done post-processing", node)
 	return nil
 }
 
@@ -55,14 +57,21 @@ func postProcessObj(o interface{}, root map[interface{}]interface{}, node string
 	case string:
 		findPath, should := shouldResolveString(o.(string))
 		if should {
-			DEBUG("%s: resolving from %s", findPath)
+			DEBUG("%s: resolving from %s", node, findPath)
 			newVal, err := resolveNode(findPath, root)
 			if err != nil {
 				return nil, fmt.Errorf("%s: Unable to resolve `(( %s ))`: `%s", node, findPath, err.Error())
 			}
-			return newVal, nil
+			DEBUG("%s: setting to %#v", node, newVal)
+			var retVal interface{}
+			if newVal != nil && reflect.TypeOf(newVal).Kind() == reflect.Map {
+				retVal = make(map[interface{}]interface{})
+				deepCopy(retVal, newVal)
+			} else {
+				retVal = newVal
+			}
+			return retVal, nil
 		}
-		DEBUG("%s: does not need to be resolved", node)
 		err := NoResolveRequestedError(node)
 		return nil, &err
 	case map[interface{}]interface{}:
@@ -102,6 +111,7 @@ func resolveNode(target string, lookup map[interface{}]interface{}) (interface{}
 
 func resolveNodeObj(keys []string, lookup interface{}) (interface{}, error) {
 	toFind, keys := keys[0], keys[1:]
+	DEBUG("   RESOLVE: searching for %s", toFind)
 	switch lookup.(type) {
 	case map[interface{}]interface{}:
 		m := lookup.(map[interface{}]interface{})
@@ -147,4 +157,12 @@ func recursiveResolve(current string, keys []string, lookup interface{}) (interf
 		return val, nil
 	}
 	return lookup, nil
+}
+
+func deepCopy(dst, src interface{}) {
+	dv, sv := reflect.ValueOf(dst), reflect.ValueOf(src)
+
+	for _, k := range sv.MapKeys() {
+		dv.SetMapIndex(k, sv.MapIndex(k))
+	}
 }

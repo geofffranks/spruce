@@ -238,6 +238,38 @@ properties:
 `)
 			So(stderr, ShouldEqual, "")
 		})
+		Convey("De-referencing shouldn't result in cyclical data structures", func() {
+			os.Args = []string{"spruce", "merge", "assets/dereference/cyclic-data.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `people:
+  anne:
+    givenName: Anne
+    spouse:
+      givenName: Bartholomew
+      spouse: (( people.anne ))
+      ssn: 456789
+      surName: Jennings
+    ssn: 123456
+    surName: Bolswenn
+  bart:
+    givenName: Bartholomew
+    spouse:
+      givenName: Anne
+      spouse:
+        givenName: Bartholomew
+        spouse: (( people.anne ))
+        ssn: 456789
+        surName: Jennings
+      ssn: 123456
+      surName: Bolswenn
+    ssn: 456789
+    surName: Jennings
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
 		Convey("Should output error on bad de-reference", func() {
 			os.Args = []string{"spruce", "merge", "assets/dereference/bad.yml"}
 			stdout = ""

@@ -94,6 +94,8 @@ func main() {
 					printfStdErr(err.Error())
 					exit(2)
 				}
+				DEBUG("Converting the following data back to YML:")
+				DEBUG("%#v", root)
 				merged, err := yaml.Marshal(root)
 				if err != nil {
 					printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
