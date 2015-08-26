@@ -60,7 +60,7 @@ func postProcessObj(o interface{}, root map[interface{}]interface{}, node string
 			DEBUG("%s: resolving from %s", node, findPath)
 			newVal, err := resolveNode(findPath, root)
 			if err != nil {
-				return nil, fmt.Errorf("%s: Unable to resolve `(( %s ))`: `%s", node, findPath, err.Error())
+				return nil, fmt.Errorf("%s: Unable to resolve `%s`: `%s", node, findPath, err.Error())
 			}
 			DEBUG("%s: setting to %#v", node, newVal)
 			var retVal interface{}
@@ -93,7 +93,7 @@ func postProcessObj(o interface{}, root map[interface{}]interface{}, node string
 }
 
 func shouldResolveString(s string) (string, bool) {
-	re := regexp.MustCompile("^\\Q((\\E\\s*(\\S+?)\\s*\\Q))\\E$")
+	re := regexp.MustCompile("^\\Q((\\E\\s*grab\\s+(\\S+?)\\s*\\Q))\\E$")
 	if re.MatchString(s) {
 		keys := re.FindStringSubmatch(s)
 		if keys[1] != "" {

@@ -9,7 +9,7 @@ func TestPostProcessMap(t *testing.T) {
 	Convey("postProcessMap()", t, func() {
 		Convey("returns errors when postProcessObj() fails", func() {
 			data := map[interface{}]interface{}{
-				"reference": "(( value.to.reference ))",
+				"reference": "(( grab value.to.reference ))",
 			}
 			root := map[interface{}]interface{}{
 				"value": map[interface{}]interface{}{
@@ -19,13 +19,13 @@ func TestPostProcessMap(t *testing.T) {
 
 			err := postProcessMap(data, root, "nodepath")
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldStartWith, "nodepath.reference: Unable to resolve `(( value.to.reference ))`")
+			So(err.Error(), ShouldStartWith, "nodepath.reference: Unable to resolve `value.to.reference`")
 		})
 		Convey("Under normal circumstances", func() {
 			data := map[interface{}]interface{}{
 				"leave":     "me alone",
-				"reference": "(( value.to.reference ))",
-				"nilval":    "(( value.nilval ))",
+				"reference": "(( grab value.to.reference ))",
+				"nilval":    "(( grab value.nilval ))",
 			}
 			root := map[interface{}]interface{}{
 				"value": map[interface{}]interface{}{
@@ -54,7 +54,7 @@ func TestPostProcessArray(t *testing.T) {
 	Convey("postProcessArray()", t, func() {
 		Convey("returns errors when postProcessObj() fails", func() {
 			data := []interface{}{
-				"(( value.to.reference ))",
+				"(( grab value.to.reference ))",
 			}
 			root := map[interface{}]interface{}{
 				"value": map[interface{}]interface{}{
@@ -64,13 +64,13 @@ func TestPostProcessArray(t *testing.T) {
 
 			err := postProcessArray(data, root, "nodepath")
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldStartWith, "nodepath.[0]: Unable to resolve `(( value.to.reference ))`")
+			So(err.Error(), ShouldStartWith, "nodepath.[0]: Unable to resolve `value.to.reference`")
 		})
 		Convey("Under normal circumstances", func() {
 			data := []interface{}{
 				"leave me alone",
-				"(( value.to.reference ))",
-				"(( value.nil ))",
+				"(( grab value.to.reference ))",
+				"(( grab value.nil ))",
 			}
 			root := map[interface{}]interface{}{
 				"value": map[interface{}]interface{}{
@@ -103,8 +103,8 @@ func TestPostProcessObj(t *testing.T) {
 			Convey("Post-processes as a map under normal conditions", func() {
 				data := map[interface{}]interface{}{
 					"leave":     "me alone",
-					"reference": "(( value.to.reference ))",
-					"nilval":    "(( value.nil ))",
+					"reference": "(( grab value.to.reference ))",
+					"nilval":    "(( grab value.nil ))",
 				}
 				root := map[interface{}]interface{}{
 					"value": map[interface{}]interface{}{
@@ -130,7 +130,7 @@ func TestPostProcessObj(t *testing.T) {
 			})
 			Convey("Returns an error when postProcessMap() throws an error", func() {
 				data := map[interface{}]interface{}{
-					"reference": "(( value.to.reference ))",
+					"reference": "(( grab value.to.reference ))",
 				}
 				root := map[interface{}]interface{}{
 					"value": map[interface{}]interface{}{
@@ -140,7 +140,7 @@ func TestPostProcessObj(t *testing.T) {
 
 				got, err := postProcessObj(data, root, "nodepath")
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldStartWith, "nodepath.reference: Unable to resolve `(( value.to.reference ))`")
+				So(err.Error(), ShouldStartWith, "nodepath.reference: Unable to resolve `value.to.reference`")
 				So(got, ShouldBeNil)
 			})
 		})
@@ -148,8 +148,8 @@ func TestPostProcessObj(t *testing.T) {
 			Convey("Post-processes as an array under normal conditions", func() {
 				data := []interface{}{
 					"leave me alone",
-					"(( value.to.reference ))",
-					"(( value.nil ))",
+					"(( grab value.to.reference ))",
+					"(( grab value.nil ))",
 				}
 				root := map[interface{}]interface{}{
 					"value": map[interface{}]interface{}{
@@ -175,7 +175,7 @@ func TestPostProcessObj(t *testing.T) {
 			})
 			Convey("Returns an error when postProcessArray() throws an error", func() {
 				data := []interface{}{
-					"(( value.to.reference ))",
+					"(( grab value.to.reference ))",
 				}
 				root := map[interface{}]interface{}{
 					"value": map[interface{}]interface{}{
@@ -185,7 +185,7 @@ func TestPostProcessObj(t *testing.T) {
 
 				val, err := postProcessObj(data, root, "nodepath")
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldStartWith, "nodepath.[0]: Unable to resolve `(( value.to.reference ))`")
+				So(err.Error(), ShouldStartWith, "nodepath.[0]: Unable to resolve `value.to.reference`")
 				So(val, ShouldBeNil)
 			})
 		})
@@ -199,15 +199,15 @@ func TestPostProcessObj(t *testing.T) {
 			}
 			Convey("That matches the resolve token", func() {
 				Convey("returns resolved data if no issues were encountered", func() {
-					got, err := postProcessObj("(( value.to.reference ))", root, "nodepath")
+					got, err := postProcessObj("(( grab value.to.reference ))", root, "nodepath")
 					So(got, ShouldEqual, "referenced value")
 					So(err, ShouldBeNil)
 				})
 				Convey("Returns nil, and an error if issues were encountered resolving", func() {
-					got, err := postProcessObj("(( stuff ))", root, "nodepath")
+					got, err := postProcessObj("(( grab stuff ))", root, "nodepath")
 					So(got, ShouldBeNil)
 					So(err, ShouldNotBeNil)
-					So(err.Error(), ShouldStartWith, "nodepath: Unable to resolve `(( stuff ))`")
+					So(err.Error(), ShouldStartWith, "nodepath: Unable to resolve `stuff`")
 				})
 			})
 			Convey("That doesn't match the resolve token", func() {
@@ -238,17 +238,17 @@ func TestPostProcessObj(t *testing.T) {
 func TestShouldResolveString(t *testing.T) {
 	Convey("shouldResolveString()", t, func() {
 		Convey("returns resolve text + true on match", func() {
-			str, should := shouldResolveString("(( my.property ))")
+			str, should := shouldResolveString("(( grab my.property ))")
 			So(str, ShouldEqual, "my.property")
 			So(should, ShouldBeTrue)
 		})
 		Convey("front and back whitespace optional", func() {
-			str, should := shouldResolveString("((my.property))")
+			str, should := shouldResolveString("((grab my.property))")
 			So(str, ShouldEqual, "my.property")
 			So(should, ShouldBeTrue)
 		})
 		Convey("front and back whitespace can be huge", func() {
-			str, should := shouldResolveString("((    my.property		))")
+			str, should := shouldResolveString("((    grab   my.property		))")
 			So(str, ShouldEqual, "my.property")
 			So(should, ShouldBeTrue)
 		})
@@ -258,7 +258,7 @@ func TestShouldResolveString(t *testing.T) {
 			So(should, ShouldBeFalse)
 		})
 		Convey("Is anchored such that quoting (( .* )) returns no match", func() {
-			str, should := shouldResolveString("\"(( my.property ))\"")
+			str, should := shouldResolveString("\"(( grab my.property ))\"")
 			So(str, ShouldEqual, "")
 			So(should, ShouldBeFalse)
 		})

@@ -4,9 +4,9 @@ people:
     givenName: Anne
     surName:   Bolswenn
     ssn:       123456
-    spouse:    (( people.bart ))
+    spouse:    (( grab people.bart ))
   bart:
     givenName: Bartholomew
     surName:   Jennings
     ssn:       456789
-    spouse:    (( people.anne ))
+    spouse:    (( grab people.anne ))

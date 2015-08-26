@@ -1,2 +1,2 @@
 bad:
-  dereference: (( my.value ))
+  dereference: (( grab my.value ))

@@ -248,7 +248,7 @@ properties:
     givenName: Anne
     spouse:
       givenName: Bartholomew
-      spouse: (( people.anne ))
+      spouse: (( grab people.anne ))
       ssn: 456789
       surName: Jennings
     ssn: 123456
@@ -259,7 +259,7 @@ properties:
       givenName: Anne
       spouse:
         givenName: Bartholomew
-        spouse: (( people.anne ))
+        spouse: (( grab people.anne ))
         ssn: 456789
         surName: Jennings
       ssn: 123456
@@ -275,7 +275,7 @@ properties:
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldStartWith, "$.bad.dereference: Unable to resolve `(( my.value ))`")
+			So(stderr, ShouldStartWith, "$.bad.dereference: Unable to resolve `my.value`")
 			So(rc, ShouldEqual, 2)
 		})
 	})
