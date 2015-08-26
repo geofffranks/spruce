@@ -86,13 +86,27 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
 
 ### Cleaning Up After Yourself
 
-- To prune a map key from the final output<br>
+To prune a map key from the final output<br>
 
   ```yml
   useless: (( prune ))
   ```
 
-### Hmm.. How about auto-calculating resource pool sizes, and static IPs?
+### Referencing Other Data
+
+Need to reference existing data in your datastructure? No problem! `spruce` will wait until
+all the data is merged together before dereferencing anything, but to handle this, you can
+use the `(( grab <thing> )) syntax:
+
+```yml
+data:
+  color: blue
+
+pen:
+  color: (( grab data.color ))
+```
+
+###Hmm.. How about auto-calculating resource pool sizes, and static IPs?
 
 That's a great question, and soon, spruce will support that!
 
