@@ -239,21 +239,17 @@ properties:
 			So(stderr, ShouldStartWith, "$.bad.dereference: Unable to resolve `my.value`")
 			So(rc, ShouldEqual, 2)
 		})
-		/*
-			Convey("Pruning should happen after de-referencing", func() {
-				os.Args = []string{"spruce", "merge", "assets/dereference/first.yml", "assets/dereference/second.yml", "assets/dereference/prune.yml"}
-				stdout = ""
-				stderr = ""
-				main()
-				So(stderr, ShouldEqual, "")
-					So(stdout, ShouldEqual, `properties:
-			  client:
-			    servers:
-			    - 193.168.1.0
+		Convey("Pruning should happen after de-referencing", func() {
+			os.Args = []string{"spruce", "merge", "--prune", "jobs", "--prune", "properties.client.servers", "assets/dereference/first.yml", "assets/dereference/second.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `properties:
+  client: {}
 
-			`)
-			})
-		*/
+`)
+		})
 	})
 }
 
