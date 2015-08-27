@@ -89,26 +89,29 @@ func main() {
 					printfStdErr(err.Error())
 					exit(2)
 				}
-				err = postProcessMap(root, root, "")
+
+				deref := DeReferencer{root: root}
+				err = walkTree(root, deref, "")
 				if err != nil {
 					printfStdErr(err.Error())
 					exit(2)
-				}
-				DEBUG("Converting the following data back to YML:")
-				DEBUG("%#v", root)
-				merged, err := yaml.Marshal(root)
-				if err != nil {
-					printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
-					exit(2)
-				}
-
-				var output string
-				if handleConcourseQuoting {
-					output = dequoteConcourse(merged)
 				} else {
-					output = string(merged)
+					DEBUG("Converting the following data back to YML:")
+					DEBUG("%#v", root)
+					merged, err := yaml.Marshal(root)
+					if err != nil {
+						printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
+						exit(2)
+					}
+
+					var output string
+					if handleConcourseQuoting {
+						output = dequoteConcourse(merged)
+					} else {
+						output = string(merged)
+					}
+					printfStdOut("%s\n", output)
 				}
-				printfStdOut("%s\n", output)
 			} else {
 				usage()
 			}

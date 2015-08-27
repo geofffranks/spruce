@@ -15,14 +15,6 @@ func mergeMap(orig map[interface{}]interface{}, n map[interface{}]interface{}, n
 		path := fmt.Sprintf("%s.%v", node, k)
 		_, exists := orig[k]
 		if exists {
-			// check the value of the object to see if it is '(( prune ))'
-			if reflect.TypeOf(val).Kind() == reflect.String {
-				re := regexp.MustCompile(`\Q((\E\s*prune\s*\Q))\E`)
-				if re.MatchString(val.(string)) {
-					delete(orig, k)
-					continue
-				}
-			}
 			o, err := mergeObj(orig[k], val, path)
 			if err != nil {
 				return err

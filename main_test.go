@@ -205,22 +205,6 @@ map:
 			So(stderr, ShouldEqual, "")
 		})
 
-		Convey("Should handle pruning", func() {
-			os.Args = []string{"spruce", "merge", "assets/prune/first.yml", "assets/prune/second.yml"}
-			stdout = ""
-			stderr = ""
-			main()
-			So(stdout, ShouldEqual, `level2:
-  level3:
-    retained: yea
-  retained: yea
-retained: yea
-
-`)
-
-			So(stderr, ShouldEqual, "")
-		})
-
 		Convey("Should handle de-referencing", func() {
 			os.Args = []string{"spruce", "merge", "assets/dereference/first.yml", "assets/dereference/second.yml"}
 			stdout = ""
@@ -238,37 +222,14 @@ properties:
 `)
 			So(stderr, ShouldEqual, "")
 		})
-		Convey("De-referencing shouldn't result in cyclical data structures", func() {
+		Convey("De-referencing cyclical datastructures should throw an error", func() {
 			os.Args = []string{"spruce", "merge", "assets/dereference/cyclic-data.yml"}
 			stdout = ""
 			stderr = ""
 			main()
-			So(stdout, ShouldEqual, `people:
-  anne:
-    givenName: Anne
-    spouse:
-      givenName: Bartholomew
-      spouse: (( grab people.anne ))
-      ssn: 456789
-      surName: Jennings
-    ssn: 123456
-    surName: Bolswenn
-  bart:
-    givenName: Bartholomew
-    spouse:
-      givenName: Anne
-      spouse:
-        givenName: Bartholomew
-        spouse: (( grab people.anne ))
-        ssn: 456789
-        surName: Jennings
-      ssn: 123456
-      surName: Bolswenn
-    ssn: 456789
-    surName: Jennings
-
-`)
-			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, "")
+			So(stderr, ShouldEndWith, "hit max recursion depth. You seem to have a self-referencing dataset.")
+			So(rc, ShouldEqual, 2)
 		})
 		Convey("Should output error on bad de-reference", func() {
 			os.Args = []string{"spruce", "merge", "assets/dereference/bad.yml"}
@@ -278,6 +239,21 @@ properties:
 			So(stderr, ShouldStartWith, "$.bad.dereference: Unable to resolve `my.value`")
 			So(rc, ShouldEqual, 2)
 		})
+		/*
+			Convey("Pruning should happen after de-referencing", func() {
+				os.Args = []string{"spruce", "merge", "assets/dereference/first.yml", "assets/dereference/second.yml", "assets/dereference/prune.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+					So(stdout, ShouldEqual, `properties:
+			  client:
+			    servers:
+			    - 193.168.1.0
+
+			`)
+			})
+		*/
 	})
 }
 
