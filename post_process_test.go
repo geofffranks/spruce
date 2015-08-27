@@ -114,16 +114,16 @@ func TestWalkTree(t *testing.T) {
 				"s-car": "go",
 			},
 		}
-		Convey("Resets CURRENT_DEPTH", func() {
+		Convey("Resets CurrentDepth", func() {
 			Convey("When node is ''", func() {
-				CURRENT_DEPTH = 10
+				CurrentDepth = 10
 				walkTree(tree, MockPostProcessor{action: "ignore"}, "")
-				So(CURRENT_DEPTH, ShouldEqual, 0)
+				So(CurrentDepth, ShouldEqual, 0)
 			})
 			Convey("but not when node is specified", func() {
-				CURRENT_DEPTH = 10
+				CurrentDepth = 10
 				walkTree(tree, MockPostProcessor{action: "ignore"}, "node")
-				So(CURRENT_DEPTH, ShouldEqual, 10)
+				So(CurrentDepth, ShouldEqual, 10)
 			})
 		})
 		Convey("Sets node to dollar-sign", func() {
@@ -146,7 +146,7 @@ func TestWalkTree(t *testing.T) {
 			err := walkTree(tree, MockPostProcessor{action: "ignore"}, "")
 			delete(tree, "recurse")
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEndWith, "hit max recursion depth. You seem to have a self-referencing dataset.")
+			So(err.Error(), ShouldEndWith, "hit max recursion depth. You seem to have a self-referencing dataset")
 		})
 		Convey("Replaces values in maps if postprocessor told it to", func() {
 			Convey("Regular values are just assigned", func() {

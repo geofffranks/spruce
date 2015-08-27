@@ -228,7 +228,7 @@ properties:
 			stderr = ""
 			main()
 			So(stdout, ShouldEqual, "")
-			So(stderr, ShouldEndWith, "hit max recursion depth. You seem to have a self-referencing dataset.")
+			So(stderr, ShouldEndWith, "hit max recursion depth. You seem to have a self-referencing dataset")
 			So(rc, ShouldEqual, 2)
 		})
 		Convey("Should output error on bad de-reference", func() {

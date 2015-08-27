@@ -8,13 +8,17 @@ import (
 	"strings"
 )
 
+// PostProcessor interface to allow for flexible post-processing of the tree
 type PostProcessor interface {
 	PostProcess(interface{}, string) (interface{}, string, error)
 	Action() string
 }
 
-var CURRENT_DEPTH = 0
-var MAX_DEPTH = 32
+// Current recursion depth
+var CurrentDepth = 0
+
+// Maximum recursion depth
+var MaxDepth = 32
 
 func deepCopy(dst, src interface{}) {
 	dv, sv := reflect.ValueOf(dst), reflect.ValueOf(src)
@@ -27,13 +31,13 @@ func deepCopy(dst, src interface{}) {
 func walkTree(root interface{}, p PostProcessor, node string) error {
 	if node == "" {
 		node = "$"
-		CURRENT_DEPTH = 0
+		CurrentDepth = 0
 	}
 
-	if CURRENT_DEPTH >= MAX_DEPTH {
-		return fmt.Errorf("%s: hit max recursion depth. You seem to have a self-referencing dataset.", node)
+	if CurrentDepth >= MaxDepth {
+		return fmt.Errorf("%s: hit max recursion depth. You seem to have a self-referencing dataset", node)
 	}
-	CURRENT_DEPTH++
+	CurrentDepth++
 
 	switch root.(type) {
 	case map[interface{}]interface{}:
@@ -84,18 +88,21 @@ func walkTree(root interface{}, p PostProcessor, node string) error {
 			}
 		}
 	}
-	CURRENT_DEPTH--
+	CurrentDepth--
 	return nil
 }
 
+// DeReferencer is an implementation of PostProcessor to de-reference (( grab me.data )) calls
 type DeReferencer struct {
 	root map[interface{}]interface{}
 }
 
+// Action returns the Action string for the Dereferencer
 func (d DeReferencer) Action() string {
 	return "dereference"
 }
 
+// PostProcess - resolves a value by seeing if it matches (( grab me.data )) and retrieves me.data's value
 func (d DeReferencer) PostProcess(o interface{}, node string) (interface{}, string, error) {
 	if reflect.TypeOf(o).Kind() == reflect.String {
 		re := regexp.MustCompile("^\\Q((\\E\\s*grab\\s+(\\S+?)\\s*\\Q))\\E$")
