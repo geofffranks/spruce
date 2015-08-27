@@ -18,7 +18,7 @@ if [[ "${release_name}X" == "X" ]]; then
   exit 1
 fi
 
-sed -i -e "s/var VERSION string = \".*\"/var VERSION string = \"${version}\"/" main.go
+sed -i -e "s/var VERSION = \".*\"/var VERSION = \"${version}\"/" main.go
 
 git config --global user.email "drnic+bot@starkandwayne.com"
 git config --global user.name "CI Bot"
