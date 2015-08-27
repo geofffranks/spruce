@@ -1,0 +1,3 @@
+properties:
+  client:
+    servers: (( grab jobs.my-server.static_ips ))

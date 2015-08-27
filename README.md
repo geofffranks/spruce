@@ -86,13 +86,25 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
 
 ### Cleaning Up After Yourself
 
-- To prune a map key from the final output<br>
+To prune a map key from the final output<br>
 
-  ```yml
-  useless: (( prune ))
-  ```
+```spruce merge --prune key.1.to.prune --prune key.2.to.prune file1.yml file2.yml```
 
-### Hmm.. How about auto-calculating resource pool sizes, and static IPs?
+### Referencing Other Data
+
+Need to reference existing data in your datastructure? No problem! `spruce` will wait until
+all the data is merged together before dereferencing anything, but to handle this, you can
+use the `(( grab <thing> )) syntax:
+
+```yml
+data:
+  color: blue
+
+pen:
+  color: (( grab data.color ))
+```
+
+###Hmm.. How about auto-calculating resource pool sizes, and static IPs?
 
 That's a great question, and soon, spruce will support that!
 
@@ -261,43 +273,37 @@ untouched:
 
 ### Key Removal
 
-How about deleting keys outright?
+How about deleting keys outright? Use the --prune flag to the merge command:
 
 ```yml
 ---
 # original.yml
-meta:
-  thing: &thing
+deleteme:
+  thing:
     foo: 1
     bar: 2
-
-things:
-  - <<: *thing
-    name: first-thing
-  - <<: *thing
-    name: second-thing
 ```
-
-The `meta` key is only useful for holding the `*thing` referent,
-so we'd really rather not see it in the final output:
-
 ```yml
 ---
-# prune.yml
-meta: (( prune ))
-```
-
-```yml
-$ spruce merge original.yml prune.yml
+# things.yml
 things:
-  - name: first-thing
-    foo: 1
-    bar: 2
-  - name: second-thing
-    foo: 1
-    bar: 2
+- name: first-thing
+  foo: (( deleteme.thing.foo ))
+- name: second-thing
+  bar: (( deleteme.thing.bar ))
+```
 
 ```
+$ spruce merge --prune deleteme original.yml things.yml
+things:
+- name: first-thing
+  foo: 1
+- name: second-thing
+  bar: 2
+```
+
+The `deleteme` key is only useful for holding a temporary value,
+so we'd really rather not see it in the final output. `--prune` drops it.
 
 
 ###<a name="mapmerge"></a>Merging Arrays of Maps

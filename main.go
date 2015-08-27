@@ -11,7 +11,8 @@ import (
 	"strings"
 )
 
-var VERSION string = "0.4.0" // SED MARKER FOR AUTO VERSION BUMPING
+// Current version of spruce
+var VERSION = "0.4.0" // SED MARKER FOR AUTO VERSION BUMPING
 
 var printfStdOut = func(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stdout, format, args...)
@@ -60,6 +61,7 @@ func main() {
 		Concourse bool `goptions:"--concourse, description='Pre/Post-process YAML for Concourse CI (handles {{ }} quoting)'"`
 		Action    goptions.Verbs
 		Merge     struct {
+			Prune []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once'"`
 			Files goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml'"`
 		} `goptions:"merge"`
 	}
@@ -88,18 +90,46 @@ func main() {
 					printfStdErr(err.Error())
 					exit(2)
 				}
-				merged, err := yaml.Marshal(root)
+
+				deref := DeReferencer{root: root}
+				err = walkTree(root, deref, "")
 				if err != nil {
-					printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
+					printfStdErr(err.Error())
 					exit(2)
-				}
-				var output string
-				if handleConcourseQuoting {
-					output = dequoteConcourse(merged)
 				} else {
-					output = string(merged)
+
+					for _, toPrune := range options.Merge.Prune {
+						DEBUG("%s: Pruning", toPrune)
+						keys := strings.Split(toPrune, ".")
+						if len(keys) > 1 {
+							parent := strings.Join(keys[0:(len(keys)-1)], ".")
+							target := keys[(len(keys) - 1)]
+							node, _ := resolveNode(parent, root)
+							if _, ok := node.(map[interface{}]interface{}); ok {
+								DEBUG("   PRUNED %q from %q", target, parent)
+								delete(node.(map[interface{}]interface{}), target)
+							}
+						} else {
+							DEBUG("   PRUNED %q from \"$\"", keys[0])
+							delete(root, keys[0])
+						}
+					}
+					DEBUG("Converting the following data back to YML:")
+					DEBUG("%#v", root)
+					merged, err := yaml.Marshal(root)
+					if err != nil {
+						printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
+						exit(2)
+					}
+
+					var output string
+					if handleConcourseQuoting {
+						output = dequoteConcourse(merged)
+					} else {
+						output = string(merged)
+					}
+					printfStdOut("%s\n", output)
 				}
-				printfStdOut("%s\n", output)
 			} else {
 				usage()
 			}

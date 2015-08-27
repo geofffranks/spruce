@@ -15,14 +15,6 @@ func mergeMap(orig map[interface{}]interface{}, n map[interface{}]interface{}, n
 		path := fmt.Sprintf("%s.%v", node, k)
 		_, exists := orig[k]
 		if exists {
-			// check the value of the object to see if it is '(( prune ))'
-			if reflect.TypeOf(val).Kind() == reflect.String {
-				re := regexp.MustCompile(`\Q((\E\s*prune\s*\Q))\E`)
-				if re.MatchString(val.(string)) {
-					delete(orig, k)
-					continue
-				}
-			}
 			o, err := mergeObj(orig[k], val, path)
 			if err != nil {
 				return err
@@ -184,7 +176,7 @@ func mergeArray(orig []interface{}, n []interface{}, node string) ([]interface{}
 
 func shouldInlineMergeArray(obj []interface{}) bool {
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("\\Q((\\E\\s*inline\\s*\\Q))\\E")
+		re := regexp.MustCompile("^\\Q((\\E\\s*inline\\s*\\Q))\\E$")
 		if re.MatchString(obj[0].(string)) {
 			return true
 		}
@@ -193,7 +185,7 @@ func shouldInlineMergeArray(obj []interface{}) bool {
 }
 func shouldAppendToArray(obj []interface{}) bool {
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("\\Q((\\E\\s*append\\s*\\Q))\\E")
+		re := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
 		if re.MatchString(obj[0].(string)) {
 			return true
 		}
@@ -202,7 +194,7 @@ func shouldAppendToArray(obj []interface{}) bool {
 }
 func shouldPrependToArray(obj []interface{}) bool {
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("\\Q((\\E\\s*prepend\\s*\\Q))\\E")
+		re := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
 		if re.MatchString(obj[0].(string)) {
 			return true
 		}
@@ -213,7 +205,7 @@ func shouldKeyMergeArray(obj []interface{}) (bool, string) {
 	key := "name"
 
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("\\Q((\\E\\s*merge(?:\\s+on\\s+(.*?))?\\s*\\Q))\\E")
+		re := regexp.MustCompile("^\\Q((\\E\\s*merge(?:\\s+on\\s+(.*?))?\\s*\\Q))\\E$")
 
 		if re.MatchString(obj[0].(string)) {
 			keys := re.FindStringSubmatch(obj[0].(string))

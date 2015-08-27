@@ -1,0 +1,2 @@
+bad:
+  dereference: (( grab my.value ))

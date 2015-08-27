@@ -205,20 +205,50 @@ map:
 			So(stderr, ShouldEqual, "")
 		})
 
-		Convey("Should handle pruning", func() {
-			os.Args = []string{"spruce", "merge", "assets/prune/first.yml", "assets/prune/second.yml"}
+		Convey("Should handle de-referencing", func() {
+			os.Args = []string{"spruce", "merge", "assets/dereference/first.yml", "assets/dereference/second.yml"}
 			stdout = ""
 			stderr = ""
 			main()
-			So(stdout, ShouldEqual, `level2:
-  level3:
-    retained: yea
-  retained: yea
-retained: yea
+			So(stdout, ShouldEqual, `jobs:
+- name: my-server
+  static_ips:
+  - 192.168.1.0
+properties:
+  client:
+    servers:
+    - 192.168.1.0
 
 `)
-
 			So(stderr, ShouldEqual, "")
+		})
+		Convey("De-referencing cyclical datastructures should throw an error", func() {
+			os.Args = []string{"spruce", "merge", "assets/dereference/cyclic-data.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, "")
+			So(stderr, ShouldEndWith, "hit max recursion depth. You seem to have a self-referencing dataset")
+			So(rc, ShouldEqual, 2)
+		})
+		Convey("Should output error on bad de-reference", func() {
+			os.Args = []string{"spruce", "merge", "assets/dereference/bad.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldStartWith, "$.bad.dereference: Unable to resolve `my.value`")
+			So(rc, ShouldEqual, 2)
+		})
+		Convey("Pruning should happen after de-referencing", func() {
+			os.Args = []string{"spruce", "merge", "--prune", "jobs", "--prune", "properties.client.servers", "assets/dereference/first.yml", "assets/dereference/second.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `properties:
+  client: {}
+
+`)
 		})
 	})
 }
