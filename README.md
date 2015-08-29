@@ -104,9 +104,19 @@ pen:
   color: (( grab data.color ))
 ```
 
-###Hmm.. How about auto-calculating resource pool sizes, and static IPs?
+###Hmm.. How about auto-calculating static IPs for a BOSH manifest?
 
-That's a great question, and soon, spruce will support that!
+`spruce` supports that too! Just use the same `(( static_ips(x, y, z) ))` syntax
+that you're used to with [spiff](https://github.com/cloudfoundry-incubator/spiff),
+to specify the offsets in the static IP range for a job's network.
+
+Behind the scenes, there are a couple behavior improvements upon spiff. First, 
+since all the merging is done first, then post-processing, there's no need
+to worry about getting the instances + networks defined before `(( static_ips() ))`
+is merged in. Second, the error messaging output should be a lot better to aid in
+tracking down why `static_ips()` calls fail.
+
+Check out the [static_ips() example](#static_ips)
 
 ## How About an Example?
 
@@ -315,12 +325,12 @@ Given this `original.yml`:
 ```yml
 jobs:
 - name: concatenator_z1
-  network: generic1
+  instances: 5
   resource_pool: small
   properties:
     spruce: is cool
 - name: oldjob_z1
-  network: generic1
+  instances: 4
   resource_pool: small
   properties:
     this: will show up in the end
@@ -330,7 +340,7 @@ And this `new.yml`:
 ```yml
 jobs:
 - name: newjob_z1
-  network: generic1
+  instances: 3
   resource_pool: small
   properties:
     this: is a job defined solely in new.yml
@@ -343,25 +353,103 @@ You would get this when merged:
 ```yml
 $ spruce merge original.yml new.yml
 jobs:
-- name: concatenator_z1
-  network: generic1
+- instances: 5
+  name: concatenator_z1
   properties:
     spruce: is cool
     this: is a new property added to an existing job
   resource_pool: small
-- name: oldjob_z1
-  network: generic1
+- instances: 4
+  name: oldjob_z1
   properties:
     this: will show up in the end
   resource_pool: small
-- name: newjob_z1
-  network: generic1
+- instances: 3
+  name: newjob_z1
   properties:
     this: is a job defined solely in new.yml
   resource_pool: small
 ```
 
 Pretty sweet, huh?
+
+###<a name="staticips"></a>Static IPs Example
+
+Lets define our `jobs.yml`:
+
+```yml
+---
+jobs:
+- name: staticIP_z1
+  instances: 3
+  networks:
+  - name: net1
+    static_ips: (( static_ips(1, 3, 5) ))
+- name: api_z1
+  instances: 3
+  networks:
+  - name: net1
+    static_ips: (( static_ips(2, 4, 6) ))
+```
+
+Next, we'll define our `properties.yml`:
+
+```yml
+---
+properties:
+  staticIP_servers: (( grab jobs.staticIP_z1.networks.net1.static_ips ))
+  api_servers: (( grab jobs.api_z1.networks.net1.static_ips ))
+```
+
+And lastly, define our `networks.yml`:
+
+```yml
+---
+networks:
+- name: net1
+  subnets:
+  - cloud_properties: random
+    static:
+    - 192.168.0.2 - 192.168.0.10
+```
+
+Merge it all together, and see what we get:
+
+```yml
+$ spruce merge jobs.yml properties.yml networks.yml
+jobs:
+- instances: 3
+  name: staticIP_z1
+  networks:
+  - name: net1
+    static_ips:
+    - 192.168.0.2
+    - 192.168.0.4
+    - 192.168.0.6
+- instances: 3
+  name: api_z1
+  networks:
+  - name: net1
+    static_ips:
+    - 192.168.0.3
+    - 192.168.0.5
+    - 192.168.0.7
+networks:
+- name: net1
+  subnets:
+  - cloud_properties: random
+    static:
+    - 192.168.0.2 - 192.168.0.10
+properties:
+  api_servers:
+  - 192.168.0.3
+  - 192.168.0.5
+  - 192.168.0.7
+  staticIP_servers:
+  - 192.168.0.2
+  - 192.168.0.4
+  - 192.168.0.6
+```
 
 ## Author
 
