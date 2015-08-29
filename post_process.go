@@ -64,6 +64,11 @@ func walkTree(root interface{}, p PostProcessor, node string) error {
 	case []interface{}:
 		for i, e := range root.([]interface{}) {
 			path := fmt.Sprintf("%s.[%d]", node, i)
+			if eMap, ok := e.(map[interface{}]interface{}); ok {
+				if name, ok := eMap["name"]; ok {
+					path = fmt.Sprintf("%s.%s", node, name)
+				}
+			}
 			val, action, err := p.PostProcess(e, path)
 			if err != nil {
 				return err

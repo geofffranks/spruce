@@ -104,6 +104,11 @@ pen:
   color: (( grab data.color ))
 ```
 
+You can even reference multiple values at once, getting back an array of their data,
+for things like getting all IPs of multi-AZ jobs in a BOSH manifest, just do it like so:
+
+```(( grab jobs.myJob_z1.networks.myNet1.static_ips jobs.myJob_z2.networks.myNet2.static_ips ))```
+
 ###Hmm.. How about auto-calculating static IPs for a BOSH manifest?
 
 `spruce` supports that too! Just use the same `(( static_ips(x, y, z) ))` syntax

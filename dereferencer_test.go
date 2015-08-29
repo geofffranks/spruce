@@ -20,6 +20,11 @@ func TestDeReferencerPostProcess(t *testing.T) {
 					"find": "dereferenced value",
 				},
 			},
+			"othervalue": map[interface{}]interface{}{
+				"to": map[interface{}]interface{}{
+					"find": "other value",
+				},
+			},
 		}}
 		Convey("returns nil, \"ignore\", nil", func() {
 			Convey("when given anything other than a string", func() {
@@ -57,6 +62,31 @@ func TestDeReferencerPostProcess(t *testing.T) {
 		Convey("Returns value, \"replace\", nil on successful dereference", func() {
 			val, action, err := deref.PostProcess("(( grab value.to.find ))", "nodepath")
 			So(val, ShouldEqual, "dereferenced value")
+			So(err, ShouldBeNil)
+			So(action, ShouldEqual, "replace")
+		})
+		Convey("Handles multiple dereference requests inline by returning an array", func() {
+			val, action, err := deref.PostProcess("(( grab value.to.find othervalue.to.find ))", "nodepath")
+			So(val, ShouldResemble, []interface{}{
+				"dereferenced value",
+				"other value",
+			})
+			So(err, ShouldBeNil)
+			So(action, ShouldEqual, "replace")
+		})
+		Convey("Errors on first problem of a multiple reference request", func() {
+			val, action, err := deref.PostProcess("(( grab value.to.find undefined.val othervalue.to.find ))", "nodepath")
+			So(val, ShouldBeNil)
+			So(action, ShouldEqual, "error")
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "nodepath: Unable to resolve `undefined.val`: `undefined` could not be found in the YAML datastructure")
+		})
+		Convey("Extra whitespace is ok", func() {
+			val, action, err := deref.PostProcess("((	  grab value.to.find		othervalue.to.find     ))", "nodepath")
+			So(val, ShouldResemble, []interface{}{
+				"dereferenced value",
+				"other value",
+			})
 			So(err, ShouldBeNil)
 			So(action, ShouldEqual, "replace")
 		})

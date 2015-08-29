@@ -1,0 +1,26 @@
+jobs:
+- name: api_z1
+  instances: 1
+  networks:
+  - name: net1
+    static_ips: (( static_ips(1, 2, 3) ))
+- name: api_z2
+  instances: 1
+  networks:
+  - name: net2
+    static_ips: (( static_ips(1, 2, 3) ))
+
+networks:
+- name: net1
+  subnets:
+  - cloud_properties: random
+    static:
+    - 192.168.1.2 - 192.168.1.30
+- name: net2
+  subnets:
+  - cloud_properties: random
+    static:
+    - 192.168.2.2 - 192.168.2.30
+
+properties:
+  api_servers: (( grab jobs.api_z1.networks.net1.static_ips jobs.api_z2.networks.net2.static_ips ))
