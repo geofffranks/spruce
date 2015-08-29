@@ -9,16 +9,20 @@ import (
 	"strings"
 )
 
+// StaticIPGenerator is an implementation of PostProcessor to calcualte static_ips for BOSH jobs
+// using the (( static_ips(x, y, x) )) syntax
 type StaticIPGenerator struct {
 	root map[interface{}]interface{}
 }
 
+// Action returns the Action string for the StaticIPGenerator
 func (s StaticIPGenerator) Action() string {
 	return "generate static IPs for"
 }
 
 var seenIP = map[string]string{}
 
+// PostProcess - resolves (( static_ips() )) calls to static IPs for BOSH jobs
 func (s StaticIPGenerator) PostProcess(o interface{}, node string) (interface{}, string, error) {
 	if reflect.TypeOf(o).Kind() == reflect.String {
 		staticIPs := []string{}
@@ -59,9 +63,8 @@ func (s StaticIPGenerator) PostProcess(o interface{}, node string) (interface{},
 					staticIPs = append(staticIPs, ip)
 				}
 				return staticIPs, "replace", nil
-			} else {
-				return nil, "error", fmt.Errorf("%s: Could not parse out any offsets to use for resolving static IPs from '%s'", node, o.(string))
 			}
+			return nil, "error", fmt.Errorf("%s: Could not parse out any offsets to use for resolving static IPs from '%s'", node, o.(string))
 		}
 	}
 	return nil, "ignore", nil
