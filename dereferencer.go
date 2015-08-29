@@ -33,25 +33,24 @@ func (d DeReferencer) PostProcess(o interface{}, node string) (interface{}, stri
 					}
 					DEBUG("%s: setting to %#v", node, val)
 					return val, "replace", nil
-				} else {
-					val := []interface{}{}
-					for _, target := range targets {
-						DEBUG("%s: resolving from %s", node, target)
-						v, err := resolveNode(target, d.root)
-						if err != nil {
-							return nil, "error", fmt.Errorf("%s: Unable to resolve `%s`: `%s", node, target, err.Error())
-						}
-						if reflect.TypeOf(v).Kind() == reflect.Slice {
-							for i := 0; i < reflect.ValueOf(v).Len(); i++ {
-								val = append(val, reflect.ValueOf(v).Index(i).Interface())
-							}
-						} else {
-							val = append(val, v)
-						}
-					}
-					DEBUG("%s: setting to %#v", node, val)
-					return val, "replace", nil
 				}
+				val := []interface{}{}
+				for _, target := range targets {
+					DEBUG("%s: resolving from %s", node, target)
+					v, err := resolveNode(target, d.root)
+					if err != nil {
+						return nil, "error", fmt.Errorf("%s: Unable to resolve `%s`: `%s", node, target, err.Error())
+					}
+					if reflect.TypeOf(v).Kind() == reflect.Slice {
+						for i := 0; i < reflect.ValueOf(v).Len(); i++ {
+							val = append(val, reflect.ValueOf(v).Index(i).Interface())
+						}
+					} else {
+						val = append(val, v)
+					}
+				}
+				DEBUG("%s: setting to %#v", node, val)
+				return val, "replace", nil
 			}
 		}
 	}
