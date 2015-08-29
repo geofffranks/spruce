@@ -250,6 +250,42 @@ properties:
 
 `)
 		})
+		Convey("static_ips() failures return errors to the user", func() {
+			os.Args = []string{"spruce", "merge", "assets/static_ips/jobs.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "$.jobs.[0].networks.[0].static_ips: `$.networks` could not be found in the YAML datastructure")
+			So(stdout, ShouldEqual, "")
+		})
+		Convey("static_ips() get resolved, and are resolved prior to dereferencing", func() {
+			os.Args = []string{"spruce", "merge", "assets/static_ips/properties.yml", "assets/static_ips/jobs.yml", "assets/static_ips/network.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `jobs:
+- instances: 3
+  name: api_z1
+  networks:
+  - name: net1
+    static_ips:
+    - 10.0.0.2
+    - 10.0.0.3
+    - 10.0.0.4
+networks:
+- name: net1
+  subnets:
+  - static:
+    - 10.0.0.2 - 10.0.0.20
+properties:
+  api_servers:
+  - 10.0.0.2
+  - 10.0.0.3
+  - 10.0.0.4
+
+`)
+		})
 	})
 }
 
