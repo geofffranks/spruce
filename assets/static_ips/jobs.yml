@@ -1,0 +1,6 @@
+jobs:
+- name: api_z1
+  instances: 3
+  networks:
+  - name: net1
+    static_ips: (( static_ips(1, 2, 3) ))
