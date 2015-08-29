@@ -231,6 +231,51 @@ properties:
 			So(stderr, ShouldEndWith, "hit max recursion depth. You seem to have a self-referencing dataset")
 			So(rc, ShouldEqual, 2)
 		})
+		Convey("Dereferencing multiple values should behave as desired", func() {
+			os.Args = []string{"spruce", "merge", "assets/dereference/multi-value.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `jobs:
+- instances: 1
+  name: api_z1
+  networks:
+  - name: net1
+    static_ips:
+    - 192.168.1.2
+    - 192.168.1.3
+    - 192.168.1.4
+- instances: 1
+  name: api_z2
+  networks:
+  - name: net2
+    static_ips:
+    - 192.168.2.2
+    - 192.168.2.3
+    - 192.168.2.4
+networks:
+- name: net1
+  subnets:
+  - cloud_properties: random
+    static:
+    - 192.168.1.2 - 192.168.1.30
+- name: net2
+  subnets:
+  - cloud_properties: random
+    static:
+    - 192.168.2.2 - 192.168.2.30
+properties:
+  api_servers:
+  - 192.168.1.2
+  - 192.168.1.3
+  - 192.168.1.4
+  - 192.168.2.2
+  - 192.168.2.3
+  - 192.168.2.4
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
 		Convey("Should output error on bad de-reference", func() {
 			os.Args = []string{"spruce", "merge", "assets/dereference/bad.yml"}
 			stdout = ""
@@ -255,7 +300,7 @@ properties:
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldEqual, "$.jobs.[0].networks.[0].static_ips: `$.networks` could not be found in the YAML datastructure")
+			So(stderr, ShouldEqual, "$.jobs.api_z1.networks.net1.static_ips: `$.networks` could not be found in the YAML datastructure")
 			So(stdout, ShouldEqual, "")
 		})
 		Convey("static_ips() get resolved, and are resolved prior to dereferencing", func() {
