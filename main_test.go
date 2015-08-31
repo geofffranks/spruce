@@ -368,6 +368,16 @@ storage: 4096
 `)
 			So(stderr, ShouldEqual, "")
 		})
+		Convey("string concatenation works", func() {
+			os.Args = []string{"spruce", "merge", "--prune", "local", "--prune", "env", "--prune", "cluster", "assets/string/concat.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `ident: c=mjolnir/prod;1234567890-abcdef
+
+`)
+		})
 	})
 }
 
