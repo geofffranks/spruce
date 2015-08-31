@@ -1,0 +1,4 @@
+networks: specified
+storage: 4096
+cpu: 3
+# nested key is missing!

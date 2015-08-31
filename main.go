@@ -105,6 +105,23 @@ func main() {
 						exit(2)
 					} else {
 
+						for _, toPrune := range options.Merge.Prune {
+							DEBUG("%s: Pruning", toPrune)
+							keys := strings.Split(toPrune, ".")
+							if len(keys) > 1 {
+								parent := strings.Join(keys[0:(len(keys)-1)], ".")
+								target := keys[(len(keys) - 1)]
+								node, _ := resolveNode(parent, root)
+								if _, ok := node.(map[interface{}]interface{}); ok {
+									DEBUG("   PRUNED %q from %q", target, parent)
+									delete(node.(map[interface{}]interface{}), target)
+								}
+							} else {
+								DEBUG("   PRUNED %q from \"$\"", keys[0])
+								delete(root, keys[0])
+							}
+						}
+
 						over := ParamChecker{}
 						err = walkTree(root, over, "")
 						if err != nil {
@@ -112,22 +129,6 @@ func main() {
 							exit(2)
 						} else {
 
-							for _, toPrune := range options.Merge.Prune {
-								DEBUG("%s: Pruning", toPrune)
-								keys := strings.Split(toPrune, ".")
-								if len(keys) > 1 {
-									parent := strings.Join(keys[0:(len(keys)-1)], ".")
-									target := keys[(len(keys) - 1)]
-									node, _ := resolveNode(parent, root)
-									if _, ok := node.(map[interface{}]interface{}); ok {
-										DEBUG("   PRUNED %q from %q", target, parent)
-										delete(node.(map[interface{}]interface{}), target)
-									}
-								} else {
-									DEBUG("   PRUNED %q from \"$\"", keys[0])
-									delete(root, keys[0])
-								}
-							}
 							DEBUG("Converting the following data back to YML:")
 							DEBUG("%#v", root)
 							merged, err := yaml.Marshal(root)

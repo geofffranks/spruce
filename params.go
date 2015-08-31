@@ -22,7 +22,7 @@ func (over ParamChecker) PostProcess(o interface{}, node string) (interface{}, s
 		if re.MatchString(o.(string)) {
 			keys := re.FindStringSubmatch(o.(string))
 			if keys[1] != "" {
-				return nil, "error", fmt.Errorf("Missing param at %s: %s", node, keys[1])
+				return nil, "error", fmt.Errorf("%s: %s", node, keys[1])
 			}
 		}
 	}

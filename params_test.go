@@ -32,7 +32,7 @@ func TestParamCheckerPostProcess(t *testing.T) {
 			val, action, err := over.PostProcess(`(( param "error message here" ))`, "nodepath")
 			So(val, ShouldBeNil)
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldStartWith, "Missing param at nodepath: error message here")
+			So(err.Error(), ShouldStartWith, "nodepath: error message here")
 			So(action, ShouldEqual, "error")
 		})
 
@@ -40,7 +40,7 @@ func TestParamCheckerPostProcess(t *testing.T) {
 			val, action, err := over.PostProcess(`(( param error message here ))`, "nodepath")
 			So(val, ShouldBeNil)
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldStartWith, "Missing param at nodepath: error message here")
+			So(err.Error(), ShouldStartWith, "nodepath: error message here")
 			So(action, ShouldEqual, "error")
 		})
 	})

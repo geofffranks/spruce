@@ -1,0 +1,7 @@
+networks:
+  - yes
+storage: 4096
+cpu: 3
+nested:
+  key:
+    override: yes
