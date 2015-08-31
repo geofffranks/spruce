@@ -30,7 +30,7 @@ func (s StringReferencer) Action() string {
 
 // PostProcess - resolves a value by seeing if it matches (( grab me.data )) and retrieves me.data's value
 func (s StringReferencer) PostProcess(o interface{}, node string) (interface{}, string, error) {
-	if reflect.TypeOf(o).Kind() == reflect.String {
+	if o != nil && reflect.TypeOf(o).Kind() == reflect.String {
 		re := regexp.MustCompile(`^\Q((\E\s*string\s+(.+)\s*\Q))\E$`)
 		if re.MatchString(o.(string)) {
 			keys := re.FindStringSubmatch(o.(string))
