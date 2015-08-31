@@ -332,6 +332,42 @@ properties:
 
 `)
 		})
+		Convey("Parameters override their requirement", func() {
+			os.Args = []string{"spruce", "merge", "assets/params/global.yml", "assets/params/good.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `cpu: 3
+nested:
+  key:
+    override: true
+networks:
+- true
+storage: 4096
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+		Convey("Parameters must be specified", func() {
+			os.Args = []string{"spruce", "merge", "assets/params/global.yml", "assets/params/fail.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, "")
+			So(stderr, ShouldEqual, "$.nested.key.override: provide nested override")
+		})
+		Convey("Pruning takes place before parameters", func() {
+			os.Args = []string{"spruce", "merge", "--prune", "nested", "assets/params/global.yml", "assets/params/fail.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `cpu: 3
+networks: specified
+storage: 4096
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
 	})
 }
 

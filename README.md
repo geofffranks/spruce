@@ -456,6 +456,42 @@ properties:
   - 192.168.0.6
 ```
 
+### Parameters
+
+Sometimes, you may want to start with a good starting-point
+template, but require other YAML files to provide certain values.
+Parameters to the rescue!
+
+```yml
+# global.yml
+disks:
+  small: 4096
+  medium: 8192
+  large:  102400
+networks: (( param "please define the networks" ))
+os:
+  - ubuntu
+  - centos
+  - fedora
+```
+
+And then combine that with these local definitions:
+
+```yml
+# local.yml
+
+disks:
+  medium: 16384
+networks:
+  - name: public
+    range: 10.40.0.0/24
+  - name: inside
+    range: 10.60.0.0/16
+```
+
+This works, but if `local.yml` forgot to specify the top-level
+*networks* key, or an error should be emitted.
+
 ## Author
 
 Written By Geoff Franks, inspired by [spiff](https://github.com/cloudfoundry-incubator/spiff)

@@ -121,21 +121,30 @@ func main() {
 								delete(root, keys[0])
 							}
 						}
-						DEBUG("Converting the following data back to YML:")
-						DEBUG("%#v", root)
-						merged, err := yaml.Marshal(root)
-						if err != nil {
-							printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
-							exit(2)
-						}
 
-						var output string
-						if handleConcourseQuoting {
-							output = dequoteConcourse(merged)
+						over := ParamChecker{}
+						err = walkTree(root, over, "")
+						if err != nil {
+							printfStdErr(err.Error())
+							exit(2)
 						} else {
-							output = string(merged)
+
+							DEBUG("Converting the following data back to YML:")
+							DEBUG("%#v", root)
+							merged, err := yaml.Marshal(root)
+							if err != nil {
+								printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
+								exit(2)
+							}
+
+							var output string
+							if handleConcourseQuoting {
+								output = dequoteConcourse(merged)
+							} else {
+								output = string(merged)
+							}
+							printfStdOut("%s\n", output)
 						}
-						printfStdOut("%s\n", output)
 					}
 				}
 			} else {
