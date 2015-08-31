@@ -643,16 +643,68 @@ func TestMergeArray(t *testing.T) {
 				So(err.Error(), ShouldEqual, "node-path.0.val.0: new object is a string, not a map - cannot merge using keys")
 			})
 		})
-		Convey("with map elements replaces entire array", func() {
-			origMapSlice := map[string]string{"k1": "v1", "k2": "v2"}
-			newMapSlice := map[string]string{"k3": "v3", "k2": "v2.new"}
-			expectMapSlice := map[string]string{"k2": "v2.new", "k3": "v3"}
+		Convey("arrays of maps can be merged inline", func() {
+			origMapSlice := map[interface{}]interface{}{"k1": "v1", "k2": "v2"}
+			newMapSlice := map[interface{}]interface{}{"k3": "v3", "k2": "v2.new"}
+			expectMapSlice := map[interface{}]interface{}{"k1": "v1", "k2": "v2.new", "k3": "v3"}
+			orig := []interface{}{origMapSlice}
+			array := []interface{}{newMapSlice}
+			expect := []interface{}{expectMapSlice}
+
+			o, err := mergeArrayInline(orig, array, "node-path")
+			So(o, ShouldResemble, expect)
+			So(err, ShouldBeNil)
+		})
+		Convey("merges arrays of maps by default", func() {
+			origMapSlice := map[interface{}]interface{}{"k1": "v1", "k2": "v2"}
+			newMapSlice := map[interface{}]interface{}{"k3": "v3", "k2": "v2.new"}
+			expectMapSlice := map[interface{}]interface{}{"k1": "v1", "k2": "v2.new", "k3": "v3"}
 			orig := []interface{}{origMapSlice}
 			array := []interface{}{newMapSlice}
 			expect := []interface{}{expectMapSlice}
 
 			o, err := mergeObj(orig, array, "node-path")
 			So(o, ShouldResemble, expect)
+			So(err, ShouldBeNil)
+		})
+		Convey("uses key-merge if possible", func() {
+			first := []interface{}{
+				map[interface{}]interface{}{
+					"name": "first",
+					"k1":   "v1",
+				},
+				map[interface{}]interface{}{
+					"name": "second",
+					"done": "yes",
+				},
+			}
+			second := []interface{}{
+				map[interface{}]interface{}{
+					"name": "second",
+					"2":    "best",
+					"test": "test",
+				},
+				map[interface{}]interface{}{
+					"name": "first",
+					"k1":   "1",
+					"k2":   "2",
+				},
+			}
+
+			o, err := mergeObj(first, second, "an.inlined.merge")
+			So(o, ShouldResemble, []interface{}{
+				map[interface{}]interface{}{
+					"name": "first",
+					"k1":   "1",
+					"k2":   "2",
+				},
+				map[interface{}]interface{}{
+					"name": "second",
+					"2":    "best",
+					"done": "yes",
+					"test": "test",
+				},
+			})
 			So(err, ShouldBeNil)
 		})
 		Convey("without magical merge token replaces entire array", func() {
