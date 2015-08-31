@@ -11,11 +11,6 @@ type DeReferencer struct {
 	root map[interface{}]interface{}
 }
 
-// Action returns the Action string for the Dereferencer
-func (d DeReferencer) Action() string {
-	return "dereference"
-}
-
 // PostProcess - resolves a value by seeing if it matches (( grab me.data )) and retrieves me.data's value
 func (d DeReferencer) PostProcess(o interface{}, node string) (interface{}, string, error) {
 	if reflect.TypeOf(o).Kind() == reflect.String {
@@ -26,7 +21,7 @@ func (d DeReferencer) PostProcess(o interface{}, node string) (interface{}, stri
 				wsSquasher := regexp.MustCompile("\\s+")
 				targets := wsSquasher.Split(keys[1], -1)
 				if len(targets) <= 1 {
-					DEBUG("%s: resolving from %s", node, targets[0])
+					DEBUG("%s: dereferencing value '%s'", node, targets[0])
 					val, err := resolveNode(targets[0], d.root)
 					if err != nil {
 						return nil, "error", fmt.Errorf("%s: Unable to resolve `%s`: `%s", node, targets[0], err.Error())
@@ -36,7 +31,7 @@ func (d DeReferencer) PostProcess(o interface{}, node string) (interface{}, stri
 				}
 				val := []interface{}{}
 				for _, target := range targets {
-					DEBUG("%s: resolving from %s", node, target)
+					DEBUG("%s: dereferencing value '%s'", node, target)
 					v, err := resolveNode(target, d.root)
 					if err != nil {
 						return nil, "error", fmt.Errorf("%s: Unable to resolve `%s`: `%s", node, target, err.Error())

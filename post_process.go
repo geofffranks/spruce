@@ -8,7 +8,6 @@ import (
 // PostProcessor interface to allow for flexible post-processing of the tree
 type PostProcessor interface {
 	PostProcess(interface{}, string) (interface{}, string, error)
-	Action() string
 }
 
 // Current recursion depth
@@ -55,7 +54,6 @@ func walkTree(root interface{}, p PostProcessor, node string) error {
 				root.(map[interface{}]interface{})[k] = replacement
 			}
 
-			DEBUG("%s: scanning for values to %s", path, p.Action())
 			err = walkTree(root.(map[interface{}]interface{})[k], p, path)
 			if err != nil {
 				return err
@@ -83,7 +81,6 @@ func walkTree(root interface{}, p PostProcessor, node string) error {
 				}
 				root.([]interface{})[i] = replacement
 			}
-			DEBUG("%s: scanning for values needing to be resolved", path)
 			err = walkTree(root.([]interface{})[i], p, path)
 			if err != nil {
 				return err

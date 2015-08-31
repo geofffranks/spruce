@@ -15,29 +15,27 @@ type StaticIPGenerator struct {
 	root map[interface{}]interface{}
 }
 
-// Action returns the Action string for the StaticIPGenerator
-func (s StaticIPGenerator) Action() string {
-	return "generate static IPs for"
-}
-
 var seenIP = map[string]string{}
 
 // PostProcess - resolves (( static_ips() )) calls to static IPs for BOSH jobs
 func (s StaticIPGenerator) PostProcess(o interface{}, node string) (interface{}, string, error) {
 	if reflect.TypeOf(o).Kind() == reflect.String {
-		staticIPs := []string{}
+		staticIPs := []interface{}{}
 		re := regexp.MustCompile("^\\Q((\\E\\s*static_ips\\Q(\\E(.*?)\\Q)\\E\\s*\\Q))\\E$")
 		if re.MatchString(o.(string)) {
 			matches := re.FindStringSubmatch(o.(string))
 			if matches[1] != "" {
+				DEBUG("%s: Resolving static IPs", node)
 				instances, err := instancesForNode(node, s.root)
 				if err != nil {
 					return nil, "error", err
 				}
+				DEBUG("%s: Have %d instances", node, instances)
 				offsets, err := offsetsForNode(matches[1], node)
 				if err != nil {
 					return nil, "error", err
 				}
+				DEBUG("%s: have %d offsets specified", node, len(offsets))
 				if len(offsets) < instances {
 					return nil, "error", fmt.Errorf("%s: Not enough static IP offsets are defined (need at least %d for the proposed manifest)", node, instances)
 				}
@@ -50,18 +48,23 @@ func (s StaticIPGenerator) PostProcess(o interface{}, node string) (interface{},
 				if err != nil {
 					return nil, "error", fmt.Errorf("%s: %s", node, err.Error())
 				}
+				DEBUG("%s: have %d IPs in the static_ip pool", node, len(pool))
 
 				if len(offsets) > len(pool) {
 					return nil, "error", fmt.Errorf("%s: Not enough static IP are defined in the IP ranges (need at least %d for the proposed manifest)", node, len(offsets))
 				}
 				for _, offset := range offsets {
-					ip := pool[offset-1]
+					if offset >= len(pool) {
+						return nil, "error", fmt.Errorf("%s: You tried to use static_ip offset '%d' but only have %d static IPs available (offsets are used in a zero-based array)", node, offset, len(pool))
+					}
+					ip := pool[offset]
 					if thief, taken := seenIP[ip]; taken {
 						return nil, "error", fmt.Errorf("%s: Tried to use IP '%s', but that is already in use by %s", node, ip, thief)
 					}
 					seenIP[ip] = node
 					staticIPs = append(staticIPs, ip)
 				}
+				DEBUG("%s: Setting static IPs to %#v", node, staticIPs)
 				return staticIPs, "replace", nil
 			}
 			return nil, "error", fmt.Errorf("%s: Could not parse out any offsets to use for resolving static IPs from '%s'", node, o.(string))

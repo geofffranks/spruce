@@ -5,13 +5,6 @@ import (
 	"testing"
 )
 
-func TestStaticIPGeneratorAction(t *testing.T) {
-	Convey("staticIPGenerator.Action() returns correct string", t, func() {
-		sipg := StaticIPGenerator{root: map[interface{}]interface{}{}}
-		So(sipg.Action(), ShouldEqual, "generate static IPs for")
-	})
-}
-
 func TestStaticIPPostProcess(t *testing.T) {
 	Convey("staticIPGenerator.PostProcess()", t, func() {
 		goodRoot := map[interface{}]interface{}{
@@ -49,7 +42,7 @@ func TestStaticIPPostProcess(t *testing.T) {
 			So(err, ShouldBeNil)
 		})
 		Convey("Errors if instancesForNode() errored", func() {
-			val, action, err := s.PostProcess("(( static_ips(1) ))", "jobs.fakeJob_z1.networks.net_z1.static_ips")
+			val, action, err := s.PostProcess("(( static_ips(0) ))", "jobs.fakeJob_z1.networks.net_z1.static_ips")
 			So(action, ShouldEqual, "error")
 			So(val, ShouldBeNil)
 			So(err, ShouldNotBeNil)
@@ -85,7 +78,7 @@ func TestStaticIPPostProcess(t *testing.T) {
 				},
 			}
 			s.root = badRoot
-			val, action, err := s.PostProcess("(( static_ips(1) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
+			val, action, err := s.PostProcess("(( static_ips(0) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
 			s.root = goodRoot
 			So(action, ShouldEqual, "error")
 			So(val, ShouldBeNil)
@@ -93,18 +86,25 @@ func TestStaticIPPostProcess(t *testing.T) {
 			So(err.Error(), ShouldEqual, "jobs.staticIPs_z1.networks.net_z1.static_ips: Not enough static IP offsets are defined (need at least 5 for the proposed manifest)")
 		})
 		Convey("Errors if ipRangesForNode() errored", func() {
-			val, action, err := s.PostProcess("(( static_ips(1) ))", "jobs.staticIPs_z1.networks.fakeNet_z1.static_ips")
+			val, action, err := s.PostProcess("(( static_ips(0) ))", "jobs.staticIPs_z1.networks.fakeNet_z1.static_ips")
 			So(action, ShouldEqual, "error")
 			So(val, ShouldBeNil)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "jobs.staticIPs_z1.networks.fakeNet_z1.static_ips: `$.networks.fakeNet_z1` could not be found in the YAML datastructure")
 		})
 		Convey("Errors if offsets exceeds IP Pool", func() {
-			val, action, err := s.PostProcess("(( static_ips(1, 2) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
+			val, action, err := s.PostProcess("(( static_ips(0, 1) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
 			So(action, ShouldEqual, "error")
 			So(val, ShouldBeNil)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "jobs.staticIPs_z1.networks.net_z1.static_ips: Not enough static IP are defined in the IP ranges (need at least 2 for the proposed manifest)")
+		})
+		Convey("Errors if you specify an offset greater than the availability in the IP Pool", func() {
+			val, action, err := s.PostProcess("(( static_ips(1) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
+			So(action, ShouldEqual, "error")
+			So(val, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldStartWith, "jobs.staticIPs_z1.networks.net_z1.static_ips: You tried to use static_ip offset '1' but only have 1 static IPs available")
 		})
 		Convey("Errors if staticIPPool() errored", func() {
 			badRoot := map[interface{}]interface{}{
@@ -129,7 +129,7 @@ func TestStaticIPPostProcess(t *testing.T) {
 				},
 			}
 			s.root = badRoot
-			val, action, err := s.PostProcess("(( static_ips(1) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
+			val, action, err := s.PostProcess("(( static_ips(0) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
 			s.root = goodRoot
 
 			So(action, ShouldEqual, "error")
@@ -138,12 +138,12 @@ func TestStaticIPPostProcess(t *testing.T) {
 			So(err.Error(), ShouldEqual, "jobs.staticIPs_z1.networks.net_z1.static_ips: Could not parse an IP out of '502.294.312.324'")
 		})
 		Convey("Errors if IPs get double-defined", func() {
-			val, action, err := s.PostProcess("(( static_ips(1) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
+			val, action, err := s.PostProcess("(( static_ips(0) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
 			So(action, ShouldEqual, "replace")
-			So(val, ShouldResemble, []string{"10.0.0.5"})
+			So(val, ShouldResemble, []interface{}{"10.0.0.5"})
 			So(err, ShouldBeNil)
 
-			val, action, err = s.PostProcess("(( static_ips(1) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
+			val, action, err = s.PostProcess("(( static_ips(0) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
 			So(action, ShouldEqual, "error")
 			So(val, ShouldResemble, nil)
 			So(err, ShouldNotBeNil)
@@ -151,16 +151,16 @@ func TestStaticIPPostProcess(t *testing.T) {
 		})
 		Convey("Returns staticIP list, replace, no error for succssful static_ips()", func() {
 			seenIP = map[string]string{}
-			val, action, err := s.PostProcess("(( static_ips(1) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
+			val, action, err := s.PostProcess("(( static_ips(0) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
 			So(action, ShouldEqual, "replace")
-			So(val, ShouldResemble, []string{"10.0.0.5"})
+			So(val, ShouldResemble, []interface{}{"10.0.0.5"})
 			So(err, ShouldBeNil)
 		})
 		Convey("Returns staticIP list, replace, no error for succssful static_ips() (whitespace optional)", func() {
 			seenIP = map[string]string{}
-			val, action, err := s.PostProcess("((static_ips(1)))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
+			val, action, err := s.PostProcess("((static_ips(0)))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
 			So(action, ShouldEqual, "replace")
-			So(val, ShouldResemble, []string{"10.0.0.5"})
+			So(val, ShouldResemble, []interface{}{"10.0.0.5"})
 			So(err, ShouldBeNil)
 		})
 	})

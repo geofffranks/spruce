@@ -5,13 +5,6 @@ import (
 	"testing"
 )
 
-func TestDeReferencerAction(t *testing.T) {
-	Convey("dereferencer.Action() returns correct string", t, func() {
-		deref := DeReferencer{root: map[interface{}]interface{}{}}
-		So(deref.Action(), ShouldEqual, "dereference")
-	})
-}
-
 func TestDeReferencerPostProcess(t *testing.T) {
 	Convey("dereferencer.PostProces()", t, func() {
 		deref := DeReferencer{root: map[interface{}]interface{}{

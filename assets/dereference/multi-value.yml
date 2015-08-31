@@ -3,12 +3,12 @@ jobs:
   instances: 1
   networks:
   - name: net1
-    static_ips: (( static_ips(1, 2, 3) ))
+    static_ips: (( static_ips(0, 1, 2) ))
 - name: api_z2
   instances: 1
   networks:
   - name: net2
-    static_ips: (( static_ips(1, 2, 3) ))
+    static_ips: (( static_ips(0, 1, 2) ))
 
 networks:
 - name: net1
@@ -24,3 +24,4 @@ networks:
 
 properties:
   api_servers: (( grab jobs.api_z1.networks.net1.static_ips jobs.api_z2.networks.net2.static_ips ))
+  api_server_primary: (( grab jobs.api_z1.networks.net1.static_ips.[0] ))
