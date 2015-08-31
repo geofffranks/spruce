@@ -58,11 +58,11 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
   - (( prepend ))
   ```
 
-- To merge the two arrays together (each index of the new array will be merged into the original, additionals appended),
+- To replace the first array with the second,
   ensure that the first element in the new array is <br>
 
   ```yml
-  - (( inline ))
+  - (( replace ))
   ```
 
 - To merge two arrays of maps together (using a specific key for identifying like objects), ensure that the first element
@@ -82,7 +82,9 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
   like objects in the array elements. The second is used to customize which key to use. See [Merging Arrays of Maps](#mapmerge)
   for an example.
 
-- To completely replace the array, don't do anything special - just make the new array what you want it to be!
+- If you don't specify a specific merge strategy, the array will
+  be merged automatically; using keys if they exist, and array
+  indices otherwise.
 
 ### Cleaning Up After Yourself
 
