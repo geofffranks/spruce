@@ -109,7 +109,7 @@ for things like getting all IPs of multi-AZ jobs in a BOSH manifest, just do it 
 
 ```(( grab jobs.myJob_z1.networks.myNet1.static_ips jobs.myJob_z2.networks.myNet2.static_ips ))```
 
-###Hmm.. How about auto-calculating static IPs for a BOSH manifest?
+### Hmm.. How about auto-calculating static IPs for a BOSH manifest?
 
 `spruce` supports that too! Just use the same `(( static_ips(x, y, z) ))` syntax
 that you're used to with [spiff](https://github.com/cloudfoundry-incubator/spiff),
@@ -122,6 +122,19 @@ is merged in. Second, the error messaging output should be a lot better to aid i
 tracking down why `static_ips()` calls fail.
 
 Check out the [static_ips() example](#static_ips)
+
+### But I Want To Make Strings!!
+
+Yeah, `spruce` can do that!
+
+```yml
+env: production
+cluster:
+  name: mjolnir
+ident: (( string cluster.name "//" env ))
+```
+
+Which will give you an `ident:` key of "mjolnir/production"
 
 ## How About an Example?
 
