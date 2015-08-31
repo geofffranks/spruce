@@ -389,12 +389,12 @@ jobs:
   instances: 3
   networks:
   - name: net1
-    static_ips: (( static_ips(1, 3, 5) ))
+    static_ips: (( static_ips(0, 2, 4) ))
 - name: api_z1
   instances: 3
   networks:
   - name: net1
-    static_ips: (( static_ips(2, 4, 6) ))
+    static_ips: (( static_ips(1, 3, 5) ))
 ```
 
 Next, we'll define our `properties.yml`:
