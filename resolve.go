@@ -16,7 +16,7 @@ func resolveNode(target string, lookup map[interface{}]interface{}) (interface{}
 
 func resolveNodeObj(keys []string, lookup interface{}) (interface{}, error) {
 	toFind, keys := keys[0], keys[1:]
-	DEBUG("   RESOLVE: searching for %s", toFind)
+	DEBUG("   RESOLVE: searching for %q", toFind)
 	switch lookup.(type) {
 	case map[interface{}]interface{}:
 		m := lookup.(map[interface{}]interface{})
@@ -46,6 +46,8 @@ func resolveNodeObj(keys []string, lookup interface{}) (interface{}, error) {
 				}
 			}
 		}
+	default:
+		return nil, fmt.Errorf("Tried to reference unspported value type '%s'. This is a post-processing bug", reflect.TypeOf(lookup).String())
 	}
 	return nil, fmt.Errorf("%s` could not be found in the YAML datastructure", toFind)
 }

@@ -265,6 +265,7 @@ networks:
     static:
     - 192.168.2.2 - 192.168.2.30
 properties:
+  api_server_primary: 192.168.1.2
   api_servers:
   - 192.168.1.2
   - 192.168.1.3

@@ -11,9 +11,6 @@ type MockPostProcessor struct {
 	value  interface{}
 }
 
-func (p MockPostProcessor) Action() string {
-	return p.action
-}
 func (p MockPostProcessor) PostProcess(i interface{}, node string) (interface{}, string, error) {
 	if _, ok := i.(string); ok && i.(string) == "(( mock ))" {
 		if p.action == "error" {
