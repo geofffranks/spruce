@@ -9,5 +9,15 @@ array_inline:
 - name: first_elem
   val: initial
 - second_elem_is_scalar
+array_default:
+- first
+- second
+- third
+array_map_default:
+- name: AAA
+  k1:   key 1
+  k2:   key 2
+- name: BBB
+  k3:   original
 map:
   key: value

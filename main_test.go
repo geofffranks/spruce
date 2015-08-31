@@ -75,6 +75,23 @@ func TestMergeAllDocs(t *testing.T) {
 					"second_elem was overwritten",
 					"third elem is appended",
 				},
+				"array_default": []interface{}{
+					"FIRST",
+					"SECOND",
+					"third",
+				},
+				"array_map_default": []interface{}{
+					map[interface{}]interface{}{
+						"name": "AAA",
+						"k1":   "key 1",
+						"k2":   "updated",
+					},
+					map[interface{}]interface{}{
+						"name": "BBB",
+						"k2":   "final",
+						"k3":   "original",
+					},
+				},
 				"map": map[interface{}]interface{}{
 					"key":  "value",
 					"key2": "val2",
@@ -173,11 +190,22 @@ func TestMain(t *testing.T) {
 - one
 - two
 - three
+array_default:
+- FIRST
+- SECOND
+- third
 array_inline:
 - name: first_elem
   val: overwritten
 - second_elem was overwritten
 - third elem is appended
+array_map_default:
+- k1: key 1
+  k2: updated
+  name: AAA
+- k2: final
+  k3: original
+  name: BBB
 array_prepend:
 - three
 - four
