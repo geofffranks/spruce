@@ -17,7 +17,7 @@ func (over ParamChecker) Action() string {
 
 // PostProcess - check if stale (( param "error msg" )) references exist, and error out
 func (over ParamChecker) PostProcess(o interface{}, node string) (interface{}, string, error) {
-	if reflect.TypeOf(o).Kind() == reflect.String {
+	if o != nil && reflect.TypeOf(o).Kind() == reflect.String {
 		re := regexp.MustCompile(`^\Q((\E\s*param\s+"?(.+?)"?\s*\Q))\E$`)
 		if re.MatchString(o.(string)) {
 			keys := re.FindStringSubmatch(o.(string))

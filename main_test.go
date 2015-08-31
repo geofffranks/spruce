@@ -296,6 +296,16 @@ properties:
 
 `)
 		})
+		Convey("can dereference ~ / null values", func() {
+			os.Args = []string{"spruce", "merge", "--prune", "meta", "assets/dereference/null.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `value: null
+
+`)
+		})
 		Convey("static_ips() failures return errors to the user", func() {
 			os.Args = []string{"spruce", "merge", "assets/static_ips/jobs.yml"}
 			stdout = ""

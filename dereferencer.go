@@ -13,7 +13,7 @@ type DeReferencer struct {
 
 // PostProcess - resolves a value by seeing if it matches (( grab me.data )) and retrieves me.data's value
 func (d DeReferencer) PostProcess(o interface{}, node string) (interface{}, string, error) {
-	if reflect.TypeOf(o).Kind() == reflect.String {
+	if o != nil && reflect.TypeOf(o).Kind() == reflect.String {
 		re := regexp.MustCompile("^\\Q((\\E\\s*grab\\s+(.+?)\\s*\\Q))\\E$")
 		if re.MatchString(o.(string)) {
 			keys := re.FindStringSubmatch(o.(string))

@@ -19,7 +19,7 @@ var seenIP = map[string]string{}
 
 // PostProcess - resolves (( static_ips() )) calls to static IPs for BOSH jobs
 func (s StaticIPGenerator) PostProcess(o interface{}, node string) (interface{}, string, error) {
-	if reflect.TypeOf(o).Kind() == reflect.String {
+	if o != nil && reflect.TypeOf(o).Kind() == reflect.String {
 		staticIPs := []interface{}{}
 		re := regexp.MustCompile("^\\Q((\\E\\s*static_ips\\Q(\\E(.*?)\\Q)\\E\\s*\\Q))\\E$")
 		if re.MatchString(o.(string)) {
