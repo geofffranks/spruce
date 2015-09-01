@@ -112,10 +112,8 @@ func parseWords(src string) []Token {
 		if re.MatchString(s) {
 			keys := re.FindStringSubmatch(s)
 			tokens[i] = Token{Type: TokenLiteral, Value: keys[1]}
-			fmt.Printf("found literal {%s}\n", keys[1])
 		} else {
 			tokens[i] = Token{Type: TokenReference, Value: s}
-			fmt.Printf("found reference [%s]\n", s)
 		}
 	}
 
