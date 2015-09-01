@@ -10,5 +10,16 @@ array_inline:
 - val: overwritten
 - second_elem was overwritten
 - third elem is appended
+array_replace:
+- (( replace ))
+- [1,2,3]
+array_default:
+- FIRST
+- SECOND
+array_map_default:
+- name: BBB
+  k2:   final
+- name: AAA
+  k2:   updated
 map:
   key2: val2

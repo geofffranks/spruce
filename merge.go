@@ -80,97 +80,128 @@ func mergeArray(orig []interface{}, n []interface{}, node string) ([]interface{}
 	} else if shouldPrependToArray(n) {
 		DEBUG("%s: prepending %d new elements to existing array", node, len(n)-1)
 		merged = append(n[1:], orig...)
-	} else if shouldInlineMergeArray(n) {
-		DEBUG("%s: performing inline array merge", node)
-		length := len(orig)
-		// len(n)-1 accounts for the "(( inline ))" initial element that should be dropped
-		if len(n)-1 > len(orig) {
-			length = len(n) - 1
-		}
-		merged = make([]interface{}, length, length)
 
-		var last int
-		for i := range orig {
-			// i+1 accounts for the "(( inline ))" initial element that should be dropped
-			if i+1 >= len(n) {
-				merged[i] = orig[i]
-			} else {
-				o, err := mergeObj(orig[i], n[i+1], fmt.Sprintf("%s.%d", node, i))
+	} else if shouldInlineMergeArray(n) {
+		DEBUG("%s: performing explicit inline array merge", node)
+		var err error
+		merged, err = mergeArrayInline(orig, n[1:], node)
+		if err != nil {
+			return nil, err
+		}
+
+	} else if shouldReplaceArray(n) {
+		DEBUG("%s: replacing with new data", node)
+		merged = n[1:]
+
+	} else if should, key := shouldKeyMergeArray(n); should {
+		DEBUG("%s: performing key-based array merge, using key '%s'", node, key)
+
+		err := canKeyMergeArray("new", n[1:], node, key)
+		if err != nil {
+			return nil, err
+		}
+		err = canKeyMergeArray("original", orig, node, key)
+		if err != nil {
+			return nil, err
+		}
+
+		merged, err = mergeArrayByKey(orig, n[1:], node, key)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		DEBUG("%s: performing index-based array merge", node)
+		var err error
+
+		merged = nil
+		if err = canKeyMergeArray("original", orig, node, "name"); err == nil {
+			if err = canKeyMergeArray("new", n, node, "name"); err == nil {
+				merged, err = mergeArrayByKey(orig, n, node, "name")
 				if err != nil {
 					return nil, err
 				}
-				merged[i] = o
 			}
-			last = i
 		}
 
-		if len(orig) > 0 {
-			last++ // move to next index after finishing the orig slice - but only if we looped
+		if merged == nil {
+			merged, err = mergeArrayInline(orig, n, node)
+			if err != nil {
+				return nil, err
+			}
 		}
+	}
+	return merged, nil
+}
 
-		// grab the remainder of n (if any), accounting for the "(( inline ))" element
-		// and append the to the result
-		for i := last; i < len(n)-1; i++ {
-			DEBUG("%s.%d: appending new data to existing array", node, i)
-			o, err := mergeObj(nil, n[i+1], fmt.Sprintf("%s.%d", node, i))
+func mergeArrayInline(orig []interface{}, n []interface{}, node string) (merged []interface{}, err error) {
+	length := len(orig)
+	if len(n) > len(orig) {
+		length = len(n)
+	}
+	merged = make([]interface{}, length, length)
+
+	var last int
+	for i := range orig {
+		if i >= len(n) {
+			merged[i] = orig[i]
+		} else {
+			o, err := mergeObj(orig[i], n[i], fmt.Sprintf("%s.%d", node, i))
 			if err != nil {
 				return nil, err
 			}
 			merged[i] = o
 		}
-	} else if should, key := shouldKeyMergeArray(n); should {
-		DEBUG("%s: performing key-based array merge, using key '%s'", node, key)
-		merged = make([]interface{}, len(orig), len(orig))
-
-		newArray := n[1:]
-
-		newMap := make(map[interface{}]interface{})
-		for i, o := range newArray {
-			if reflect.TypeOf(o).Kind() != reflect.Map {
-				return nil, fmt.Errorf("%s.%d: new object is a %s, not a map - cannot merge using keys", node, i, reflect.TypeOf(o).Kind().String())
-			}
-			obj := o.(map[interface{}]interface{})
-			if _, ok := obj[key]; !ok {
-				return nil, fmt.Errorf("%s.%d: new object does not contain the key '%s' - cannot merge", node, i, key)
-			}
-
-			newMap[obj[key]] = obj
-		}
-
-		for i, obj := range orig {
-			if reflect.TypeOf(obj).Kind() != reflect.Map {
-				return nil, fmt.Errorf("%s.%d: original object is a %s, not a map - cannot merge using keys", node, i, reflect.TypeOf(obj).Kind().String())
-			}
-			obj := obj.(map[interface{}]interface{})
-			if _, ok := obj[key]; !ok {
-				return nil, fmt.Errorf("%s.%d: original object does not contain the key '%s' - cannot merge", node, i, key)
-			}
-
-			if _, ok := newMap[obj[key]]; ok {
-				o, err := mergeObj(obj, newMap[obj[key]], fmt.Sprintf("%s.%d", node, i))
-				if err != nil {
-					return nil, err
-				}
-				merged[i] = o
-				delete(newMap, obj[key])
-			} else {
-				merged[i] = obj
-			}
-		}
-
-		i := 0
-		for _, obj := range newArray {
-			obj := obj.(map[interface{}]interface{})
-			if _, ok := newMap[obj[key]]; ok {
-				DEBUG("%s.%d: appending new data to merged array", node, i)
-				merged = append(merged, obj)
-				i++
-			}
-		}
-	} else {
-		DEBUG("%s: replacing with new data (no specific array merge behavior requested)", node)
-		merged = n
+		last = i
 	}
+
+	if len(orig) > 0 {
+		last++ // move to next index after finishing the orig slice - but only if we looped
+	}
+
+	// grab the remainder of n (if any) and append the to the result
+	for i := last; i < len(n); i++ {
+		DEBUG("%s.%d: appending new data to existing array", node, i)
+		o, err := mergeObj(nil, n[i], fmt.Sprintf("%s.%d", node, i))
+		if err != nil {
+			return nil, err
+		}
+		merged[i] = o
+	}
+
+	return merged, nil
+}
+
+func mergeArrayByKey(orig []interface{}, n []interface{}, node string, key string) (merged []interface{}, err error) {
+	merged = make([]interface{}, len(orig), len(orig))
+	newMap := make(map[interface{}]interface{})
+	for _, o := range n {
+		obj := o.(map[interface{}]interface{})
+		newMap[obj[key]] = obj
+	}
+	for i, o := range orig {
+		obj := o.(map[interface{}]interface{})
+		if _, ok := newMap[obj[key]]; ok {
+			o, err := mergeObj(obj, newMap[obj[key]], fmt.Sprintf("%s.%d", node, i))
+			if err != nil {
+				return nil, err
+			}
+			merged[i] = o
+			delete(newMap, obj[key])
+		} else {
+			merged[i] = obj
+		}
+	}
+
+	i := 0
+	for _, obj := range n {
+		obj := obj.(map[interface{}]interface{})
+		if _, ok := newMap[obj[key]]; ok {
+			DEBUG("%s.%d: appending new data to merged array", node, i)
+			merged = append(merged, obj)
+			i++
+		}
+	}
+
 	return merged, nil
 }
 
@@ -183,6 +214,7 @@ func shouldInlineMergeArray(obj []interface{}) bool {
 	}
 	return false
 }
+
 func shouldAppendToArray(obj []interface{}) bool {
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
 		re := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
@@ -216,4 +248,32 @@ func shouldKeyMergeArray(obj []interface{}) (bool, string) {
 		}
 	}
 	return false, ""
+}
+
+func canKeyMergeArray(disp string, array []interface{}, node string, key string) error {
+	// ensure that all elements of `array` are maps,
+	// and that they contain the key `key`
+
+	for i, o := range array {
+		if reflect.TypeOf(o).Kind() != reflect.Map {
+			return fmt.Errorf("%s.%d: %s object is a %s, not a map - cannot merge using keys", node, i, disp, reflect.TypeOf(o).Kind().String())
+		}
+
+		obj := o.(map[interface{}]interface{})
+		if _, ok := obj[key]; !ok {
+			return fmt.Errorf("%s.%d: %s object does not contain the key '%s' - cannot merge", node, i, disp, key)
+		}
+	}
+	return nil
+}
+
+func shouldReplaceArray(obj []interface{}) bool {
+	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
+		re := regexp.MustCompile(`^\Q((\E\s*replace\s*\Q))\E$`)
+
+		if re.MatchString(obj[0].(string)) {
+			return true
+		}
+	}
+	return false
 }
