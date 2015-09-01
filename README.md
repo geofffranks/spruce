@@ -65,6 +65,13 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
   - (( replace ))
   ```
 
+- To merge two arrays by way of their index, just make the first
+  element <br>
+
+  ```yml
+  - (( inline ))
+  ```
+
 - To merge two arrays of maps together (using a specific key for identifying like objects), ensure that the first element
   in the new array is either <br>
 
@@ -83,8 +90,8 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
   for an example.
 
 - If you don't specify a specific merge strategy, the array will
-  be merged automatically; using keys if they exist, and array
-  indices otherwise.
+  be merged automatically; using keys if they exist (i.e. `((
+  merge ))`, and array indices otherwise (``(( inline ))`).
 
 ### Cleaning Up After Yourself
 
