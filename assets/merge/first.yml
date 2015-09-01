@@ -13,6 +13,10 @@ array_default:
 - first
 - second
 - third
+array_replace:
+- a
+- b
+- c
 array_map_default:
 - name: AAA
   k1:   key 1

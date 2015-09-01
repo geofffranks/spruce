@@ -10,6 +10,9 @@ array_inline:
 - val: overwritten
 - second_elem was overwritten
 - third elem is appended
+array_replace:
+- (( replace ))
+- [1,2,3]
 array_default:
 - FIRST
 - SECOND

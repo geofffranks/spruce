@@ -6,6 +6,36 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func TestShouldReplaceArray(t *testing.T) {
+	Convey("We should replace arrays", t, func() {
+		Convey("If the element is a string with the right append token", func() {
+			So(shouldReplaceArray([]interface{}{"(( replace ))", "stuff"}), ShouldBeTrue)
+		})
+		Convey("But not if the element is a string with the wrong token", func() {
+			So(shouldReplaceArray([]interface{}{"not a magic token"}), ShouldBeFalse)
+		})
+		Convey("But not if the element is not a string", func() {
+			So(shouldReplaceArray([]interface{}{42}), ShouldBeFalse)
+		})
+		Convey("But not if the slice has no elements", func() {
+			So(shouldReplaceArray([]interface{}{}), ShouldBeFalse)
+		})
+		Convey("Is whitespace agnostic", func() {
+			Convey("No surrounding whitespace", func() {
+				yes := shouldReplaceArray([]interface{}{"((replace))"})
+				So(yes, ShouldBeTrue)
+			})
+			Convey("Surrounding tabs", func() {
+				yes := shouldReplaceArray([]interface{}{"((	replace	))"})
+				So(yes, ShouldBeTrue)
+			})
+			Convey("Multiple surrounding whitespaces", func() {
+				yes := shouldReplaceArray([]interface{}{"((  replace  ))"})
+				So(yes, ShouldBeTrue)
+			})
+		})
+	})
+}
 func TestShouldAppendToArray(t *testing.T) {
 	Convey("We should append to arrays", t, func() {
 		Convey("If the element is a string with the right append token", func() {
@@ -18,7 +48,7 @@ func TestShouldAppendToArray(t *testing.T) {
 			So(shouldAppendToArray([]interface{}{42}), ShouldBeFalse)
 		})
 		Convey("But not if the slice has no elements", func() {
-			So(shouldInlineMergeArray([]interface{}{}), ShouldBeFalse)
+			So(shouldAppendToArray([]interface{}{}), ShouldBeFalse)
 		})
 		Convey("Is whitespace agnostic", func() {
 			Convey("No surrounding whitespace", func() {

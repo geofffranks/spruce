@@ -70,6 +70,7 @@ func TestMergeAllDocs(t *testing.T) {
 				"key":           "overridden",
 				"array_append":  []interface{}{"one", "two", "three"},
 				"array_prepend": []interface{}{"three", "four", "five"},
+				"array_replace": []interface{}{[]interface{}{1, 2, 3}},
 				"array_inline": []interface{}{
 					map[interface{}]interface{}{"name": "first_elem", "val": "overwritten"},
 					"second_elem was overwritten",
@@ -210,6 +211,10 @@ array_prepend:
 - three
 - four
 - five
+array_replace:
+- - 1
+  - 2
+  - 3
 key: overridden
 map:
   key: value

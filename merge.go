@@ -90,8 +90,8 @@ func mergeArray(orig []interface{}, n []interface{}, node string) ([]interface{}
 		}
 
 	} else if shouldReplaceArray(n) {
-		DEBUG("%s: replacing with new data (no specific array merge behavior requested)", node)
-		merged = n
+		DEBUG("%s: replacing with new data", node)
+		merged = n[1:]
 
 	} else if should, key := shouldKeyMergeArray(n); should {
 		DEBUG("%s: performing key-based array merge, using key '%s'", node, key)
