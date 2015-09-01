@@ -1,0 +1,7 @@
+local:
+  sites:
+    - uuid: 1234567890-abcdef
+env: prod
+cluster:
+  name: mjolnir
+ident: (( concat "c=" cluster.name "/" env ";" local.sites.[42].uuid ))

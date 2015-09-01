@@ -378,6 +378,24 @@ storage: 4096
 `)
 			So(stderr, ShouldEqual, "")
 		})
+		Convey("string concatenation works", func() {
+			os.Args = []string{"spruce", "merge", "--prune", "local", "--prune", "env", "--prune", "cluster", "assets/concat/concat.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `ident: c=mjolnir/prod;1234567890-abcdef
+
+`)
+		})
+		Convey("string concatenation failure detected", func() {
+			os.Args = []string{"spruce", "merge", "assets/concat/fail.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldStartWith, "$.ident: Unable to resolve `local.sites.[42].uuid`:")
+			So(stdout, ShouldEqual, "")
+		})
 	})
 }
 
