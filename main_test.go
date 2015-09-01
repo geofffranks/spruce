@@ -378,6 +378,14 @@ storage: 4096
 
 `)
 		})
+		Convey("string concatenation failure detected", func() {
+			os.Args = []string{"spruce", "merge", "assets/string/fail.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldStartWith, "$.ident: Unable to resolve `local.sites.[42].uuid`:")
+			So(stdout, ShouldEqual, "")
+		})
 	})
 }
 

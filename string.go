@@ -35,11 +35,7 @@ func (s StringReferencer) PostProcess(o interface{}, node string) (interface{}, 
 		if re.MatchString(o.(string)) {
 			keys := re.FindStringSubmatch(o.(string))
 
-			tokens, err := parseWords(keys[1])
-			if err != nil {
-				return nil, "error", err
-			}
-
+			tokens := parseWords(keys[1])
 			str := ""
 			for _, token := range tokens {
 				if token.Type == TokenLiteral {
@@ -62,7 +58,7 @@ func (s StringReferencer) PostProcess(o interface{}, node string) (interface{}, 
 	return nil, "ignore", nil
 }
 
-func splitQuoted(src string) ([]string, error) {
+func splitQuoted(src string) []string {
 	list := make([]string, 0, 0)
 
 	buf := ""
@@ -105,15 +101,11 @@ func splitQuoted(src string) ([]string, error) {
 		list = append(list, buf)
 	}
 
-	return list, nil
+	return list
 }
 
-func parseWords(src string) ([]Token, error) {
-	raw, err := splitQuoted(src)
-	if err != nil {
-		return nil, err
-	}
-
+func parseWords(src string) []Token {
+	raw := splitQuoted(src)
 	re := regexp.MustCompile(`^"(.*)"$`)
 	tokens := make([]Token, len(raw), len(raw))
 	for i, s := range raw {
@@ -127,5 +119,5 @@ func parseWords(src string) ([]Token, error) {
 		}
 	}
 
-	return tokens, nil
+	return tokens
 }
