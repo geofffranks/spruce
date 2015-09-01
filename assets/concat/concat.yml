@@ -6,4 +6,4 @@ local:
 env: prod
 cluster:
   name: mjolnir
-ident: (( string "c=" cluster.name "/" env ";" local.sites.[1].uuid ))
+ident: (( concat "c=" cluster.name "/" env ";" local.sites.[1].uuid ))

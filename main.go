@@ -105,7 +105,7 @@ func main() {
 						exit(2)
 					} else {
 
-						sref := StringReferencer{root: root}
+						sref := Concatenator{root: root}
 						err = walkTree(root, sref, "")
 						if err != nil {
 							printfStdErr(err.Error())

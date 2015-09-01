@@ -131,7 +131,7 @@ Yeah, `spruce` can do that!
 env: production
 cluster:
   name: mjolnir
-ident: (( string cluster.name "//" env ))
+ident: (( concat cluster.name "//" env ))
 ```
 
 Which will give you an `ident:` key of "mjolnir/production"

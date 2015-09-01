@@ -18,20 +18,20 @@ type Token struct {
 	Value string
 }
 
-// StringReference is an implementation of PostProcessor to de-reference (( grab me.data )) calls
-type StringReferencer struct {
+// Concatenator is an implementation of PostProcessor to de-reference (( grab me.data )) calls
+type Concatenator struct {
 	root map[interface{}]interface{}
 }
 
-// Action returns the Action string for the Dereferencer
-func (s StringReferencer) Action() string {
-	return "string-referencer"
+// Action returns the Action string for the Concatenator
+func (s Concatenator) Action() string {
+	return "concatenator"
 }
 
 // PostProcess - resolves a value by seeing if it matches (( grab me.data )) and retrieves me.data's value
-func (s StringReferencer) PostProcess(o interface{}, node string) (interface{}, string, error) {
+func (s Concatenator) PostProcess(o interface{}, node string) (interface{}, string, error) {
 	if o != nil && reflect.TypeOf(o).Kind() == reflect.String {
-		re := regexp.MustCompile(`^\Q((\E\s*string\s+(.+)\s*\Q))\E$`)
+		re := regexp.MustCompile(`^\Q((\E\s*concat\s+(.+)\s*\Q))\E$`)
 		if re.MatchString(o.(string)) {
 			keys := re.FindStringSubmatch(o.(string))
 

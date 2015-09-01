@@ -369,7 +369,7 @@ storage: 4096
 			So(stderr, ShouldEqual, "")
 		})
 		Convey("string concatenation works", func() {
-			os.Args = []string{"spruce", "merge", "--prune", "local", "--prune", "env", "--prune", "cluster", "assets/string/concat.yml"}
+			os.Args = []string{"spruce", "merge", "--prune", "local", "--prune", "env", "--prune", "cluster", "assets/concat/concat.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -379,7 +379,7 @@ storage: 4096
 `)
 		})
 		Convey("string concatenation failure detected", func() {
-			os.Args = []string{"spruce", "merge", "assets/string/fail.yml"}
+			os.Args = []string{"spruce", "merge", "assets/concat/fail.yml"}
 			stdout = ""
 			stderr = ""
 			main()
