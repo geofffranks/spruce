@@ -1,73 +1,35 @@
-# Added support for static_ips() and referencing multiple values at once
+# New Features
+1. Added support for requiring values to be specified in a later template. This
+   was something that you could do implicitly with `spiff`, via (( merge )), and getting
+   failure if you didn't define the value. In `spruce`, this is now something that you can
+   explicitly require from downstream templates:
 
-You can now do things like this:
+   ```(( param "Your custom error message here" ))```
 
-```yml
-jobs:
-- name: api_z1
-  instances: 1
-  networks:
-  - name: net1
-    static_ips: (( static_ips(1, 2, 3) ))
-- name: api_z2
-  instances: 1
-  networks:
-  - name: net2
-    static_ips: (( static_ips(1, 2, 3) ))
+2. Added support for concatenating values together, either strings, references, or both:
 
-networks:
-- name: net1
-  subnets:
-  - cloud_properties: random
-    static:
-    - 192.168.1.2 - 192.168.1.30
-- name: net2
-  subnets:
-  - cloud_properties: random
-    static:
-    - 192.168.2.2 - 192.168.2.30
+   ``` (( concat properties.myjob.protocol properties.myjob.host ":" properties.myjob.port ```
 
-properties:
-  api_servers: (( grab jobs.api_z1.networks.net1.static_ips jobs.api_z2.networks.net2.static_ips ))
-```
+   Concatenation is done after dereferencing, in case any of the properties reference something like
+   a static_ip from another node.
 
-And get back the following YAML:
+3. Made merging arrays the default behavior (previously, they replaced by default). Since
+   everything else merged by default, and most cases want merging this just made sense. When
+   merging arrays, `spruce` will try to do a key-based merge, on the `name` key, and failing that,
+   does an index-based merge.
 
-```yml
-jobs:
-- instances: 1
-  name: api_z1
-  networks:
-  - name: net1
-    static_ips:
-    - 192.168.1.2
-    - 192.168.1.3
-    - 192.168.1.4
-- instances: 1
-  name: api_z2
-  networks:
-  - name: net2
-    static_ips:
-    - 192.168.2.2
-    - 192.168.2.3
-    - 192.168.2.4
-networks:
-- name: net1
-  subnets:
-  - cloud_properties: random
-    static:
-    - 192.168.1.2 - 192.168.1.30
-- name: net2
-  subnets:
-  - cloud_properties: random
-    static:
-    - 192.168.2.2 - 192.168.2.30
-properties:
-  api_servers:
-  - 192.168.1.2
-  - 192.168.1.3
-  - 192.168.1.4
-  - 192.168.2.2
-  - 192.168.2.3
-  - 192.168.2.4
-```
+# Bug Fixes
+
+1. Fixed issue resulting in a panic if specifying `static_ips(0)` - this should have been a 0-based
+   index lookup for greater compatibility with spiff templates.
+2. Fixed an issue where you could not resolve a static IP defined with `static_ips()`, when
+   targeting specific elements in the array - `(( jobs.myjob.networks.mynet.static_ips ))` worked,
+   but `(( jobs.myjob.networks.mynet.static_ips.[0] ))` did not. It now does. Yay!
+3. Fixed an issue where a panic would occur during postprocessing of keys that had null (`~`) values). Oops!
+
+# Acknowledgements
+
+Thanks to [James Hunt](https://github.com/filefrog) for the hard work on param support, array-merge-by-default,
+value concatenation, and the nil-reference panic bugfix!
+
+Thanks to [Long Nguyen](https://github.com/longnguyen11288) for all the bug reports + field testing!
