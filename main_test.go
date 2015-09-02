@@ -331,6 +331,19 @@ properties:
 
 `)
 		})
+		Convey("can dereference nestedly", func() {
+			os.Args = []string{"spruce", "merge", "assets/dereference/multi.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `name1: name
+name2: name
+name3: name
+name4: name
+
+`)
+		})
 		Convey("static_ips() failures return errors to the user", func() {
 			os.Args = []string{"spruce", "merge", "assets/static_ips/jobs.yml"}
 			stdout = ""
@@ -420,6 +433,27 @@ storage: 4096
 			main()
 			So(stderr, ShouldStartWith, "$.ident: Unable to resolve `local.sites.[42].uuid`:")
 			So(stdout, ShouldEqual, "")
+		})
+		Convey("string concatentation handles multiple levels of reference", func() {
+			os.Args = []string{"spruce", "merge", "assets/concat/multi.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `bar: quux.bar
+baz: quux.bar.baz
+foo: quux.bar.baz.foo
+quux: quux
+
+`)
+			Convey("string concatenation handles infinite loop self-reference", func() {
+				os.Args = []string{"spruce", "merge", "assets/concat/loop.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldContainSubstring, "possible recursion detected in call to (( concat ))")
+				So(stdout, ShouldEqual, "")
+			})
 		})
 	})
 }
