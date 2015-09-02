@@ -276,16 +276,12 @@ properties:
   - name: net1
     static_ips:
     - 192.168.1.2
-    - 192.168.1.3
-    - 192.168.1.4
 - instances: 1
   name: api_z2
   networks:
   - name: net2
     static_ips:
     - 192.168.2.2
-    - 192.168.2.3
-    - 192.168.2.4
 networks:
 - name: net1
   subnets:
@@ -301,11 +297,7 @@ properties:
   api_server_primary: 192.168.1.2
   api_servers:
   - 192.168.1.2
-  - 192.168.1.3
-  - 192.168.1.4
   - 192.168.2.2
-  - 192.168.2.3
-  - 192.168.2.4
 
 `)
 			So(stderr, ShouldEqual, "")

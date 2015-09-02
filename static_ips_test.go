@@ -163,6 +163,53 @@ func TestStaticIPPostProcess(t *testing.T) {
 			So(val, ShouldResemble, []interface{}{"10.0.0.5"})
 			So(err, ShouldBeNil)
 		})
+		Convey("Only returns number of static IPs required by the number of instances in play", func() {
+			seenIP = map[string]string{}
+			newRoot := map[interface{}]interface{}{
+				"jobs": []interface{}{
+					map[interface{}]interface{}{
+						"name":      "staticIPs_z1",
+						"instances": 3,
+					},
+				},
+				"networks": []interface{}{
+					map[interface{}]interface{}{
+						"name": "net_z1",
+						"subnets": []interface{}{
+							map[interface{}]interface{}{
+								"type": "manual",
+								"static": []interface{}{
+									"10.0.0.5 - 10.0.0.20",
+								},
+							},
+						},
+					},
+				},
+			}
+			s.root = newRoot
+			val, action, err := s.PostProcess("(( static_ips(0, 1, 2, 3, 4) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
+			s.root = goodRoot
+			So(action, ShouldEqual, "replace")
+			So(val, ShouldResemble, []interface{}{"10.0.0.5", "10.0.0.6", "10.0.0.7"})
+			So(err, ShouldBeNil)
+		})
+		Convey("Returns empty list when no instances are defined, even if no networks were defined (cause why bother looking up something you don't care about)", func() {
+			seenIP = map[string]string{}
+			newRoot := map[interface{}]interface{}{
+				"jobs": []interface{}{
+					map[interface{}]interface{}{
+						"name":      "staticIPs_z1",
+						"instances": 0,
+					},
+				},
+			}
+			s.root = newRoot
+			val, action, err := s.PostProcess("(( static_ips(0, 1, 2, 3, 4) ))", "jobs.staticIPs_z1.networks.net_z1.static_ips")
+			s.root = goodRoot
+			So(action, ShouldEqual, "replace")
+			So(val, ShouldResemble, []interface{}{})
+			So(err, ShouldBeNil)
+		})
 	})
 }
 

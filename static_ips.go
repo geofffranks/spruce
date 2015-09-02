@@ -30,6 +30,10 @@ func (s StaticIPGenerator) PostProcess(o interface{}, node string) (interface{},
 				if err != nil {
 					return nil, "error", err
 				}
+				if instances == 0 {
+					DEBUG("%s: No instances of this job in play, skipping entirely", node)
+					return staticIPs, "replace", nil
+				}
 				DEBUG("%s: Have %d instances", node, instances)
 				offsets, err := offsetsForNode(matches[1], node)
 				if err != nil {
@@ -64,8 +68,11 @@ func (s StaticIPGenerator) PostProcess(o interface{}, node string) (interface{},
 					seenIP[ip] = node
 					staticIPs = append(staticIPs, ip)
 				}
-				DEBUG("%s: Setting static IPs to %#v", node, staticIPs)
-				return staticIPs, "replace", nil
+
+				DEBUG("%s: Static IP Pool is %#v", node, staticIPs)
+				desiredIPs := staticIPs[0:instances]
+				DEBUG("%s: Only have %d instances, returning IPs: %#v", node, instances, desiredIPs)
+				return desiredIPs, "replace", nil
 			}
 			return nil, "error", fmt.Errorf("%s: Could not parse out any offsets to use for resolving static IPs from '%s'", node, o.(string))
 		}
