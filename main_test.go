@@ -261,7 +261,7 @@ properties:
 			stderr = ""
 			main()
 			So(stdout, ShouldEqual, "")
-			So(stderr, ShouldEndWith, "hit max recursion depth. You seem to have a self-referencing dataset")
+			So(stderr, ShouldEndWith, "hit max recursion depth. You seem to have a self-referencing dataset\n")
 			So(rc, ShouldEqual, 2)
 		})
 		Convey("Dereferencing multiple values should behave as desired", func() {
@@ -336,7 +336,7 @@ properties:
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldEqual, "$.jobs.api_z1.networks.net1.static_ips: `$.networks` could not be found in the YAML datastructure")
+			So(stderr, ShouldEqual, "$.jobs.api_z1.networks.net1.static_ips: `$.networks` could not be found in the YAML datastructure\n")
 			So(stdout, ShouldEqual, "")
 		})
 		Convey("static_ips() get resolved, and are resolved prior to dereferencing", func() {
@@ -389,7 +389,7 @@ storage: 4096
 			stderr = ""
 			main()
 			So(stdout, ShouldEqual, "")
-			So(stderr, ShouldEqual, "$.nested.key.override: provide nested override")
+			So(stderr, ShouldEqual, "$.nested.key.override: provide nested override\n")
 		})
 		Convey("Pruning takes place before parameters", func() {
 			os.Args = []string{"spruce", "merge", "--prune", "nested", "assets/params/global.yml", "assets/params/fail.yml"}

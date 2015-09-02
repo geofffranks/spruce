@@ -87,28 +87,28 @@ func main() {
 
 				err := mergeAllDocs(root, options.Merge.Files)
 				if err != nil {
-					printfStdErr(err.Error())
+					printfStdErr("%s\n", err.Error())
 					exit(2)
 				}
 
 				statics := StaticIPGenerator{root: root}
 				err = walkTree(root, statics, "")
 				if err != nil {
-					printfStdErr(err.Error())
+					printfStdErr("%s\n", err.Error())
 					exit(2)
 				} else {
 
 					deref := DeReferencer{root: root}
 					err = walkTree(root, deref, "")
 					if err != nil {
-						printfStdErr(err.Error())
+						printfStdErr("%s\n", err.Error())
 						exit(2)
 					} else {
 
 						sref := Concatenator{root: root}
 						err = walkTree(root, sref, "")
 						if err != nil {
-							printfStdErr(err.Error())
+							printfStdErr("%s\n", err.Error())
 							exit(2)
 						} else {
 
@@ -132,7 +132,7 @@ func main() {
 							over := ParamChecker{}
 							err = walkTree(root, over, "")
 							if err != nil {
-								printfStdErr(err.Error())
+								printfStdErr("%s\n", err.Error())
 								exit(2)
 							} else {
 
