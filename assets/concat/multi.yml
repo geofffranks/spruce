@@ -1,0 +1,5 @@
+# foo shoud be 'quux.bar.baz.foo'
+foo: (( concat baz ".foo" ))
+bar: (( concat quux ".bar" ))
+baz: (( concat bar ".baz" ))
+quux: "quux"
