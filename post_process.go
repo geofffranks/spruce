@@ -10,12 +10,6 @@ type PostProcessor interface {
 	PostProcess(interface{}, string) (interface{}, string, error)
 }
 
-// Current recursion depth
-var CurrentDepth = 0
-
-// Maximum recursion depth
-var MaxDepth = 32
-
 func deepCopy(dst, src interface{}) {
 	dv, sv := reflect.ValueOf(dst), reflect.ValueOf(src)
 
@@ -24,25 +18,29 @@ func deepCopy(dst, src interface{}) {
 	}
 }
 
-func walkTree(root interface{}, p PostProcessor, node string) error {
-	if node == "" {
-		node = "$"
-		CurrentDepth = 0
-	}
+func (m *Merger) Visit(root interface{}, p PostProcessor) {
+	m.visit(root, p, "$", 32)
+}
 
-	if CurrentDepth >= MaxDepth {
-		return fmt.Errorf("%s: hit max recursion depth. You seem to have a self-referencing dataset", node)
+func (m *Merger) visit(root interface{}, p PostProcessor, node string, depth int) bool {
+	DEBUG("visit(root, p, %q, %d)", node, depth)
+	if depth == 0 {
+		m.Errors.Push(fmt.Errorf("%s: hit max recursion depth. You seem to have a self-referencing dataset", node))
+		DEBUG("cycle detected!")
+		return false
 	}
-	CurrentDepth++
 
 	switch root.(type) {
 	case map[interface{}]interface{}:
 		for k, v := range root.(map[interface{}]interface{}) {
 			path := fmt.Sprintf("%s.%v", node, k)
+
 			val, action, err := p.PostProcess(v, path)
 			if err != nil {
-				return err
+				m.Errors.Push(err)
+				return true
 			}
+
 			if action == "replace" {
 				var replacement interface{}
 				if val != nil && reflect.TypeOf(val).Kind() == reflect.Map {
@@ -54,9 +52,8 @@ func walkTree(root interface{}, p PostProcessor, node string) error {
 				root.(map[interface{}]interface{})[k] = replacement
 			}
 
-			err = walkTree(root.(map[interface{}]interface{})[k], p, path)
-			if err != nil {
-				return err
+			if ok := m.visit(root.(map[interface{}]interface{})[k], p, path, depth-1); !ok {
+				return false
 			}
 		}
 	case []interface{}:
@@ -67,10 +64,13 @@ func walkTree(root interface{}, p PostProcessor, node string) error {
 					path = fmt.Sprintf("%s.%s", node, name)
 				}
 			}
+
 			val, action, err := p.PostProcess(e, path)
 			if err != nil {
-				return err
+				m.Errors.Push(err)
+				return true
 			}
+
 			if action == "replace" {
 				var replacement interface{}
 				if val != nil && reflect.TypeOf(val).Kind() == reflect.Map {
@@ -81,12 +81,11 @@ func walkTree(root interface{}, p PostProcessor, node string) error {
 				}
 				root.([]interface{})[i] = replacement
 			}
-			err = walkTree(root.([]interface{})[i], p, path)
-			if err != nil {
-				return err
+			if ok := m.visit(root.([]interface{})[i], p, path, depth-1); !ok {
+				return false
 			}
 		}
 	}
-	CurrentDepth--
-	return nil
+
+	return true
 }

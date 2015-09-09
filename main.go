@@ -91,68 +91,49 @@ func main() {
 					exit(2)
 				}
 
-				statics := StaticIPGenerator{root: root}
-				err = walkTree(root, statics, "")
-				if err != nil {
+				m := &Merger{}
+				m.Visit(root, &StaticIPGenerator{root: root})
+				m.Visit(root, &DeReferencer{root: root})
+				m.Visit(root, &Concatenator{root: root})
+
+				for _, toPrune := range options.Merge.Prune {
+					DEBUG("%s: Pruning", toPrune)
+					keys := strings.Split(toPrune, ".")
+					if len(keys) > 1 {
+						parent := strings.Join(keys[0:(len(keys)-1)], ".")
+						target := keys[(len(keys) - 1)]
+						node, _ := resolveNode(parent, root)
+						if _, ok := node.(map[interface{}]interface{}); ok {
+							DEBUG("   PRUNED %q from %q", target, parent)
+							delete(node.(map[interface{}]interface{}), target)
+						}
+					} else {
+						DEBUG("   PRUNED %q from \"$\"", keys[0])
+						delete(root, keys[0])
+					}
+				}
+
+				m.Visit(root, &ParamChecker{})
+
+				if err := m.Error(); err != nil {
 					printfStdErr("%s\n", err.Error())
 					exit(2)
-				} else {
 
-					deref := DeReferencer{root: root}
-					err = walkTree(root, deref, "")
+				} else {
+					DEBUG("Converting the following data back to YML:")
+					DEBUG("%#v", root)
+					merged, err := yaml.Marshal(root)
 					if err != nil {
-						printfStdErr("%s\n", err.Error())
+						printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
 						exit(2)
 					} else {
-
-						sref := Concatenator{root: root}
-						err = walkTree(root, sref, "")
-						if err != nil {
-							printfStdErr("%s\n", err.Error())
-							exit(2)
+						var output string
+						if handleConcourseQuoting {
+							output = dequoteConcourse(merged)
 						} else {
-
-							for _, toPrune := range options.Merge.Prune {
-								DEBUG("%s: Pruning", toPrune)
-								keys := strings.Split(toPrune, ".")
-								if len(keys) > 1 {
-									parent := strings.Join(keys[0:(len(keys)-1)], ".")
-									target := keys[(len(keys) - 1)]
-									node, _ := resolveNode(parent, root)
-									if _, ok := node.(map[interface{}]interface{}); ok {
-										DEBUG("   PRUNED %q from %q", target, parent)
-										delete(node.(map[interface{}]interface{}), target)
-									}
-								} else {
-									DEBUG("   PRUNED %q from \"$\"", keys[0])
-									delete(root, keys[0])
-								}
-							}
-
-							over := ParamChecker{}
-							err = walkTree(root, over, "")
-							if err != nil {
-								printfStdErr("%s\n", err.Error())
-								exit(2)
-							} else {
-
-								DEBUG("Converting the following data back to YML:")
-								DEBUG("%#v", root)
-								merged, err := yaml.Marshal(root)
-								if err != nil {
-									printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
-									exit(2)
-								}
-
-								var output string
-								if handleConcourseQuoting {
-									output = dequoteConcourse(merged)
-								} else {
-									output = string(merged)
-								}
-								printfStdOut("%s\n", output)
-							}
+							output = string(merged)
 						}
+						printfStdOut("%s\n", output)
 					}
 				}
 			} else {
@@ -179,6 +160,8 @@ func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 }
 
 func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
+	m := &Merger{}
+
 	for _, path := range paths {
 		DEBUG("Processing file '%s'", path)
 		data, err := readFile(path)
@@ -195,14 +178,13 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 			return fmt.Errorf("%s: %s\n", path, err.Error())
 		}
 
-		err = mergeMap(root, doc, "")
-		if err != nil {
-			return fmt.Errorf("%s: %s\n", path, err.Error())
-		}
+		m.Merge(root, doc)
+
 		tmpYaml, _ := yaml.Marshal(root) // we don't care about errors for debugging
 		DEBUG("Current data after processing '%s':\n%s", path, tmpYaml)
 	}
-	return nil
+
+	return m.Error()
 }
 
 var concourseRegex = `\{\{([-\w\p{L}]+)\}\}`

@@ -38,7 +38,8 @@ func TestDeepCopy(t *testing.T) {
 }
 
 func TestWalkTree(t *testing.T) {
-	Convey("walkTree()", t, func() {
+	Convey("Visit()", t, func() {
+		m := &Merger{}
 		tree := map[interface{}]interface{}{
 			"color": "blue",
 			"array": []interface{}{
@@ -52,44 +53,36 @@ func TestWalkTree(t *testing.T) {
 				"s-car": "go",
 			},
 		}
-		Convey("Resets CurrentDepth", func() {
-			Convey("When node is ''", func() {
-				CurrentDepth = 10
-				walkTree(tree, MockPostProcessor{action: "ignore"}, "")
-				So(CurrentDepth, ShouldEqual, 0)
-			})
-			Convey("but not when node is specified", func() {
-				CurrentDepth = 10
-				walkTree(tree, MockPostProcessor{action: "ignore"}, "node")
-				So(CurrentDepth, ShouldEqual, 10)
-			})
-		})
 		Convey("Sets node to dollar-sign", func() {
 			Convey("When node is empty string", func() {
 				tree["error"] = "(( mock ))"
-				err := walkTree(tree, MockPostProcessor{action: "error"}, "")
+				m.Visit(tree, MockPostProcessor{action: "error"})
+				err := m.Error()
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "$.error: fake error")
+				So(err.Error(), ShouldContainSubstring, "$.error: fake error")
 			})
 			Convey("but not when node is specified", func() {
 				tree["error"] = "(( mock ))"
-				err := walkTree(tree, MockPostProcessor{action: "error"}, "node")
+				m.Visit(tree, MockPostProcessor{action: "error"})
+				err := m.Error()
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldStartWith, "node.error")
-				So(err.Error(), ShouldEndWith, ": fake error")
+				So(err.Error(), ShouldContainSubstring, "error")
+				So(err.Error(), ShouldContainSubstring, ": fake error")
 			})
 		})
 		Convey("Bails out if recursion gets too high", func() {
 			tree["recurse"] = tree
-			err := walkTree(tree, MockPostProcessor{action: "ignore"}, "")
+			m.Visit(tree, MockPostProcessor{action: "ignore"})
+			err := m.Error()
 			delete(tree, "recurse")
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEndWith, "hit max recursion depth. You seem to have a self-referencing dataset")
+			So(err.Error(), ShouldContainSubstring, "hit max recursion depth. You seem to have a self-referencing dataset")
 		})
 		Convey("Replaces values in maps if postprocessor told it to", func() {
 			Convey("Regular values are just assigned", func() {
 				tree["replaceme"] = "(( mock ))"
-				err := walkTree(tree, MockPostProcessor{action: "replace", value: "1234"}, "")
+				m.Visit(tree, MockPostProcessor{action: "replace", value: "1234"})
+				err := m.Error()
 				So(err, ShouldBeNil)
 				So(tree["replaceme"], ShouldEqual, "1234")
 				delete(tree, "replaceme")
@@ -99,7 +92,8 @@ func TestWalkTree(t *testing.T) {
 					"newKey": "newVal",
 				}
 				tree["replaceme"] = "(( mock ))"
-				err := walkTree(tree, MockPostProcessor{action: "replace", value: newMap}, "")
+				m.Visit(tree, MockPostProcessor{action: "replace", value: newMap})
+				err := m.Error()
 				So(err, ShouldBeNil)
 				So(tree["replaceme"], ShouldResemble, newMap)
 				So(tree["replaceme"], ShouldNotEqual, newMap)
@@ -115,7 +109,8 @@ func TestWalkTree(t *testing.T) {
 			}
 			Convey("Regular values are just assigned", func() {
 				tree["replaceme"] = array
-				err := walkTree(tree, MockPostProcessor{action: "replace", value: "1234"}, "")
+				m.Visit(tree, MockPostProcessor{action: "replace", value: "1234"})
+				err := m.Error()
 				So(err, ShouldBeNil)
 				So(tree["replaceme"].([]interface{})[2], ShouldEqual, "1234")
 				delete(tree, "replaceme")
@@ -125,7 +120,8 @@ func TestWalkTree(t *testing.T) {
 				newMap := map[interface{}]interface{}{
 					"newKey": "newVal",
 				}
-				err := walkTree(tree, MockPostProcessor{action: "replace", value: newMap}, "")
+				m.Visit(tree, MockPostProcessor{action: "replace", value: newMap})
+				err := m.Error()
 				So(err, ShouldBeNil)
 				So(tree["replaceme"].([]interface{})[2], ShouldResemble, newMap)
 				So(tree["replaceme"].([]interface{})[2], ShouldNotEqual, newMap)
@@ -133,16 +129,18 @@ func TestWalkTree(t *testing.T) {
 			})
 		})
 		Convey("Does nothing for values postprocessor ignores", func() {
-			err := walkTree(tree, MockPostProcessor{action: "replace", value: 1}, "")
+			m.Visit(tree, MockPostProcessor{action: "replace", value: 1})
+			err := m.Error()
 			So(tree["color"], ShouldEqual, "blue")
 			So(err, ShouldBeNil)
 		})
 		Convey("Returns errors if the postprocessor has a problem", func() {
 			Convey("when recursing over maps", func() {
 				tree["error"] = "(( mock ))"
-				err := walkTree(tree, MockPostProcessor{action: "error"}, "")
+				m.Visit(tree, MockPostProcessor{action: "error"})
+				err := m.Error()
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "$.error: fake error")
+				So(err.Error(), ShouldContainSubstring, "$.error: fake error")
 				delete(tree, "error")
 			})
 			Convey("when recursing over arrays", func() {
@@ -152,9 +150,10 @@ func TestWalkTree(t *testing.T) {
 					"(( mock ))",
 					3,
 				}
-				err := walkTree(tree, MockPostProcessor{action: "error"}, "")
+				m.Visit(tree, MockPostProcessor{action: "error"})
+				err := m.Error()
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "$.error.[2]: fake error")
+				So(err.Error(), ShouldContainSubstring, "$.error.[2]: fake error")
 				delete(tree, "error")
 			})
 		})
