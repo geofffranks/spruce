@@ -139,8 +139,6 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 
 		return m.mergeArrayInline(orig, n, node)
 	}
-
-	return nil
 }
 
 func (m *Merger) mergeArrayInline(orig []interface{}, n []interface{}, node string) []interface{} {
