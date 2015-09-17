@@ -12,7 +12,7 @@ import (
 )
 
 // Current version of spruce
-var VERSION = "0.7.0" // SED MARKER FOR AUTO VERSION BUMPING
+var VERSION = "0.7.1" // SED MARKER FOR AUTO VERSION BUMPING
 
 var printfStdOut = func(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stdout, format, args...)
