@@ -38,7 +38,7 @@ func (m *Merger) visit(root interface{}, p PostProcessor, node string, depth int
 			val, action, err := p.PostProcess(v, path)
 			if err != nil {
 				m.Errors.Push(err)
-				return true
+				continue
 			}
 
 			if action == "replace" {

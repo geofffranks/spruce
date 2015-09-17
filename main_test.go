@@ -475,6 +475,21 @@ quux: quux
 				"\n\n"+
 				"")
 		})
+
+		Convey("multiple errors of the same type on the same level are displayed", func() {
+			os.Args = []string{"spruce", "merge", "assets/errors/multi2.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, "")
+			So(stderr, ShouldEqual, ""+
+				"3 error(s) detected:\n"+
+				" - $.a: first\n"+
+				" - $.b: second\n"+
+				" - $.c: third\n"+
+				"\n\n"+
+				"")
+		})
 	})
 }
 
