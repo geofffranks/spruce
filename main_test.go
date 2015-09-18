@@ -16,7 +16,8 @@ asdf: fdsa
 - asdf: fdsa
 `
 			obj, err := parseYAML([]byte(data))
-			So(err.Error(), ShouldStartWith, "unmarshal []byte to yaml failed:")
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "unmarshal []byte to yaml failed:")
 			So(obj, ShouldBeNil)
 		})
 		Convey("returns error if yaml was not a top level map", func() {
@@ -25,7 +26,8 @@ asdf: fdsa
 - 2
 `
 			obj, err := parseYAML([]byte(data))
-			So(err.Error(), ShouldStartWith, "Root of YAML document is not a hash/map:")
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "Root of YAML document is not a hash/map:")
 			So(obj, ShouldBeNil)
 		})
 		Convey("returns expected datastructure from valid yaml", func() {
@@ -52,17 +54,20 @@ func TestMergeAllDocs(t *testing.T) {
 		Convey("Fails with readFile error on bad first doc", func() {
 			target := map[interface{}]interface{}{}
 			err := mergeAllDocs(target, []string{"assets/merge/nonexistent.yml", "assets/merge/second.yml"})
-			So(err.Error(), ShouldStartWith, "Error reading file assets/merge/nonexistent.yml:")
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "Error reading file assets/merge/nonexistent.yml:")
 		})
 		Convey("Fails with parseYAML error on bad second doc", func() {
 			target := map[interface{}]interface{}{}
 			err := mergeAllDocs(target, []string{"assets/merge/first.yml", "assets/merge/bad.yml"})
-			So(err.Error(), ShouldStartWith, "assets/merge/bad.yml: Root of YAML document is not a hash/map:")
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "assets/merge/bad.yml: Root of YAML document is not a hash/map:")
 		})
 		Convey("Fails with mergeMap error", func() {
 			target := map[interface{}]interface{}{}
 			err := mergeAllDocs(target, []string{"assets/merge/first.yml", "assets/merge/error.yml"})
-			So(err.Error(), ShouldStartWith, "assets/merge/error.yml: $.array_inline.0: new object is a string, not a map - cannot merge using keys")
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "$.array_inline.0: new object is a string, not a map - cannot merge using keys")
 		})
 		Convey("Succeeds with valid files + yaml", func() {
 			target := map[interface{}]interface{}{}
@@ -175,7 +180,7 @@ func TestMain(t *testing.T) {
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldStartWith, "assets/merge/bad.yml: Root of YAML document is not a hash/map:")
+			So(stderr, ShouldContainSubstring, "assets/merge/bad.yml: Root of YAML document is not a hash/map:")
 			So(rc, ShouldEqual, 2)
 		})
 		/* Fixme - how to trigger this?
@@ -261,7 +266,7 @@ properties:
 			stderr = ""
 			main()
 			So(stdout, ShouldEqual, "")
-			So(stderr, ShouldEndWith, "hit max recursion depth. You seem to have a self-referencing dataset\n")
+			So(stderr, ShouldContainSubstring, "hit max recursion depth. You seem to have a self-referencing dataset\n")
 			So(rc, ShouldEqual, 2)
 		})
 		Convey("Dereferencing multiple values should behave as desired", func() {
@@ -307,7 +312,7 @@ properties:
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldStartWith, "$.bad.dereference: Unable to resolve `my.value`")
+			So(stderr, ShouldContainSubstring, "$.bad.dereference: Unable to resolve `my.value`")
 			So(rc, ShouldEqual, 2)
 		})
 		Convey("Pruning should happen after de-referencing", func() {
@@ -349,7 +354,7 @@ name4: name
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldEqual, "$.jobs.api_z1.networks.net1.static_ips: `$.networks` could not be found in the YAML datastructure\n")
+			So(stderr, ShouldContainSubstring, "$.jobs.api_z1.networks.net1.static_ips: `$.networks` could not be found in the YAML datastructure\n")
 			So(stdout, ShouldEqual, "")
 		})
 		Convey("static_ips() get resolved, and are resolved prior to dereferencing", func() {
@@ -402,7 +407,7 @@ storage: 4096
 			stderr = ""
 			main()
 			So(stdout, ShouldEqual, "")
-			So(stderr, ShouldEqual, "$.nested.key.override: provide nested override\n")
+			So(stderr, ShouldContainSubstring, "$.nested.key.override: provide nested override\n")
 		})
 		Convey("Pruning takes place before parameters", func() {
 			os.Args = []string{"spruce", "merge", "--prune", "nested", "assets/params/global.yml", "assets/params/fail.yml"}
@@ -431,7 +436,7 @@ storage: 4096
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldStartWith, "$.ident: Unable to resolve `local.sites.[42].uuid`:")
+			So(stderr, ShouldContainSubstring, "$.ident: Unable to resolve `local.sites.[42].uuid`:")
 			So(stdout, ShouldEqual, "")
 		})
 		Convey("string concatentation handles multiple levels of reference", func() {
@@ -454,6 +459,36 @@ quux: quux
 				So(stderr, ShouldContainSubstring, "possible recursion detected in call to (( concat ))")
 				So(stdout, ShouldEqual, "")
 			})
+		})
+
+		Convey("all errors are displayed", func() {
+			os.Args = []string{"spruce", "merge", "assets/errors/multi.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, "")
+			So(stderr, ShouldEqual, ""+
+				"3 error(s) detected:\n"+
+				" - $.an-error: missing param!\n"+
+				" - $.another-error: Unable to resolve `meta.enoent`: `meta` could not be found in the YAML datastructure\n"+
+				" - $.last-problem: Unable to resolve `meta.missing.host`: `meta` could not be found in the YAML datastructure\n"+
+				"\n\n"+
+				"")
+		})
+
+		Convey("multiple errors of the same type on the same level are displayed", func() {
+			os.Args = []string{"spruce", "merge", "assets/errors/multi2.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, "")
+			So(stderr, ShouldEqual, ""+
+				"3 error(s) detected:\n"+
+				" - $.a: first\n"+
+				" - $.b: second\n"+
+				" - $.c: third\n"+
+				"\n\n"+
+				"")
 		})
 	})
 }

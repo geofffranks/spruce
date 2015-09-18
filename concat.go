@@ -64,7 +64,7 @@ func (s Concatenator) resolve(node string, tokens []Token) (string, error) {
 func (s Concatenator) resolveKey(key string) (string, error) {
 	val, err := resolveNode(key, s.root)
 	if err != nil {
-		return "", fmt.Errorf("Unable to resolve `%s`: %s", key, err)
+		return "", fmt.Errorf("Unable to resolve `%s`: `%s", key, err)
 	}
 
 	if should, args := parseConcatOp(val); should {
