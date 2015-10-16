@@ -21,7 +21,9 @@ but there are a few key differences.
 
 ## Installation
 
-You can download a [prebuilt binaries for 64-bit Linux, or Mac OS X](https://github.com/geofffranks/spruce/releases/),
+Spruce is now available via Homebrew, just `brew tap starkandwayne/cf; brew install spruce`
+
+Alternatively,  ou can download a [prebuilt binaries for 64-bit Linux, or Mac OS X](https://github.com/geofffranks/spruce/releases/),
 or you can install via `go get` (provided you have installed go):
 
 ```
