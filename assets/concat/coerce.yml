@@ -1,0 +1,5 @@
+local:
+  domain: "domain.example.com"
+  version: 1.3
+  rev: 42
+url: (( concat "http://" local.domain "/?v=" local.version "&rev=" local.rev ))
