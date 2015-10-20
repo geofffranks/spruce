@@ -431,6 +431,16 @@ storage: 4096
 
 `)
 		})
+		Convey("string concatenation handles non-strings correctly", func() {
+			os.Args = []string{"spruce", "merge", "--prune", "local", "assets/concat/coerce.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `url: http://domain.example.com/?v=1.3&rev=42
+
+`)
+		})
 		Convey("string concatenation failure detected", func() {
 			os.Args = []string{"spruce", "merge", "assets/concat/fail.yml"}
 			stdout = ""

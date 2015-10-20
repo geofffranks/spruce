@@ -78,8 +78,7 @@ func (s Concatenator) resolveKey(key string) (string, error) {
 		}
 		return str, nil
 	}
-	// error if val is not a string
-	return val.(string), err
+	return fmt.Sprintf("%v", val), nil
 }
 
 // PostProcess - resolves a value by seeing if it matches (( concat me.data )) and retrieves me.data's value
