@@ -1,14 +1,9 @@
-# New Features
-
-`spruce` now accumulates all errors with your templates, and spits them out all at once,
-to reduce churn when fixing large numbers of problems. This may not sound like much,
-but it's a huge time saver.
-
 # Bug Fixes
 
-None!
+`(( concat value "string" ))` previously would crash spruce, if `value` was not a string in the yml output.
+This has been resolved
 
 # Acknowledgements
 
-The error aggregation feature was implemented by [James Hunt](https://github.com/filefrog)
-and you should thank him for that!
+Thanks to [Ruben Koster](https://github.com/rkoster) for reporting the issue, and [James Hunt](https://github.com/filefrog)
+for providing a quick fix!
