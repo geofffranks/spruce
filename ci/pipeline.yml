@@ -42,7 +42,7 @@ jobs:
       trigger: true
     - get: version
       trigger: false
-      params: {bump: minor, pre: rc}
+      params: {pre: rc}
   - put: version
     params: {file: version/number}
 
