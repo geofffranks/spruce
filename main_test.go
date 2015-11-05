@@ -266,14 +266,16 @@ properties:
 			stderr = ""
 			main()
 			So(stdout, ShouldEqual, "")
-			So(stderr, ShouldContainSubstring, "hit max recursion depth. You seem to have a self-referencing dataset\n")
+			So(stderr, ShouldContainSubstring, "max recursion depth. You seem to have a self-referencing dataset\n")
 			So(rc, ShouldEqual, 2)
 		})
 		Convey("Dereferencing multiple values should behave as desired", func() {
+			UsedIPs = map[string]string{} // required because of globalness
 			os.Args = []string{"spruce", "merge", "assets/dereference/multi-value.yml"}
 			stdout = ""
 			stderr = ""
 			main()
+			So(stderr, ShouldEqual, "")
 			So(stdout, ShouldEqual, `jobs:
 - instances: 1
   name: api_z1
@@ -305,7 +307,6 @@ properties:
   - 192.168.2.2
 
 `)
-			So(stderr, ShouldEqual, "")
 		})
 		Convey("Should output error on bad de-reference", func() {
 			os.Args = []string{"spruce", "merge", "assets/dereference/bad.yml"}
@@ -354,7 +355,7 @@ name4: name
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldContainSubstring, "$.jobs.api_z1.networks.net1.static_ips: `$.networks` could not be found in the YAML datastructure\n")
+			So(stderr, ShouldContainSubstring, ".static_ips: `$.networks` could not be found in the YAML datastructure\n")
 			So(stdout, ShouldEqual, "")
 		})
 		Convey("static_ips() get resolved, and are resolved prior to dereferencing", func() {
@@ -414,12 +415,12 @@ storage: 4096
 			stdout = ""
 			stderr = ""
 			main()
+			So(stderr, ShouldEqual, "")
 			So(stdout, ShouldEqual, `cpu: 3
 networks: specified
 storage: 4096
 
 `)
-			So(stderr, ShouldEqual, "")
 		})
 		Convey("string concatenation works", func() {
 			os.Args = []string{"spruce", "merge", "--prune", "local", "--prune", "env", "--prune", "cluster", "assets/concat/concat.yml"}
@@ -446,8 +447,8 @@ storage: 4096
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldContainSubstring, "$.ident: Unable to resolve `local.sites.[42].uuid`:")
 			So(stdout, ShouldEqual, "")
+			So(stderr, ShouldContainSubstring, "$.ident: Unable to resolve `local.sites.42.uuid`:")
 		})
 		Convey("string concatentation handles multiple levels of reference", func() {
 			os.Args = []string{"spruce", "merge", "assets/concat/multi.yml"}
@@ -466,8 +467,8 @@ quux: quux
 				stdout = ""
 				stderr = ""
 				main()
-				So(stderr, ShouldContainSubstring, "possible recursion detected in call to (( concat ))")
 				So(stdout, ShouldEqual, "")
+				So(stderr, ShouldContainSubstring, "cycle detected")
 			})
 		})
 
@@ -480,8 +481,8 @@ quux: quux
 			So(stderr, ShouldEqual, ""+
 				"3 error(s) detected:\n"+
 				" - $.an-error: missing param!\n"+
-				" - $.another-error: Unable to resolve `meta.enoent`: `meta` could not be found in the YAML datastructure\n"+
-				" - $.last-problem: Unable to resolve `meta.missing.host`: `meta` could not be found in the YAML datastructure\n"+
+				" - $.another-error: Unable to resolve `meta.enoent`: `$.meta` could not be found in the YAML datastructure\n"+
+				" - $.last-problem: Unable to resolve `meta.missing.host`: `$.meta` could not be found in the YAML datastructure\n"+
 				"\n\n"+
 				"")
 		})

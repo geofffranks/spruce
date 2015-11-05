@@ -79,6 +79,8 @@ func main() {
 	if options.Version {
 		printfStdErr("%s - Version %s\n", os.Args[0], VERSION)
 		exit(0)
+		return
+
 	} else {
 		switch {
 		case options.Action == "merge":
@@ -89,58 +91,44 @@ func main() {
 				if err != nil {
 					printfStdErr("%s\n", err.Error())
 					exit(2)
+					return
 				}
 
-				m := &Merger{}
-				m.Visit(root, &StaticIPGenerator{root: root})
-				m.Visit(root, &DeReferencer{root: root})
-				m.Visit(root, &Concatenator{root: root})
-
-				for _, toPrune := range options.Merge.Prune {
-					DEBUG("%s: Pruning", toPrune)
-					keys := strings.Split(toPrune, ".")
-					if len(keys) > 1 {
-						parent := strings.Join(keys[0:(len(keys)-1)], ".")
-						target := keys[(len(keys) - 1)]
-						node, _ := resolveNode(parent, root)
-						if _, ok := node.(map[interface{}]interface{}); ok {
-							DEBUG("   PRUNED %q from %q", target, parent)
-							delete(node.(map[interface{}]interface{}), target)
-						}
-					} else {
-						DEBUG("   PRUNED %q from \"$\"", keys[0])
-						delete(root, keys[0])
-					}
-				}
-
-				m.Visit(root, &ParamChecker{})
-
-				if err := m.Error(); err != nil {
+				ev := &Evaluator{ Tree: root }
+				err = ev.Run(options.Merge.Prune)
+				if err != nil {
 					printfStdErr("%s\n", err.Error())
 					exit(2)
-
-				} else {
-					DEBUG("Converting the following data back to YML:")
-					DEBUG("%#v", root)
-					merged, err := yaml.Marshal(root)
-					if err != nil {
-						printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), root)
-						exit(2)
-					} else {
-						var output string
-						if handleConcourseQuoting {
-							output = dequoteConcourse(merged)
-						} else {
-							output = string(merged)
-						}
-						printfStdOut("%s\n", output)
-					}
+					return
 				}
+
+				DEBUG("Converting the following data back to YML:")
+				DEBUG("%#v", ev.Tree)
+				merged, err := yaml.Marshal(ev.Tree)
+				if err != nil {
+					printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), ev.Tree)
+					exit(2)
+					return
+
+				}
+
+				var output string
+				if handleConcourseQuoting {
+					output = dequoteConcourse(merged)
+				} else {
+					output = string(merged)
+				}
+				printfStdOut("%s\n", output)
+
 			} else {
 				usage()
+				return
 			}
+
 		default:
 			usage()
+			return
+
 		}
 	}
 }

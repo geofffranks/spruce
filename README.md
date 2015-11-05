@@ -480,7 +480,50 @@ properties:
   - 192.168.0.6
 ```
 
-### Parameters
+###<a name="inject"></a>Injecting Values
+
+One of the great things about YAML is the oft-overlooked `<<`
+inject operator, which lets you start with a copy of another part
+of the YAML tree and override keys, like this:
+
+```yml
+meta:
+  template: &template
+    color: blue
+    size: small
+
+green:
+  <<: *template
+  color: green
+```
+
+Here, `$.green.size` will be `small`, but `$.green.color` stays as
+`green`
+
+That works great if you are in the same file, but what if you want
+to inject data from a different file into your current map and
+then override some things?
+
+That's where `(( inject ... ))` really shines.
+
+```yml
+# templates.yml
+meta:
+  template:
+    color: blue
+    size: small
+
+# green.yml
+green:
+  woot: (( inject meta.template ))
+  color: green
+```
+
+**Note:** The key used for the `(( inject ... ))` call (in this
+case, `woot`) is removed from the final tree as part of the
+injection operator.
+
+###<a name="params"></a>Parameters
 
 Sometimes, you may want to start with a good starting-point
 template, but require other YAML files to provide certain values.
@@ -518,7 +561,10 @@ This works, but if `local.yml` forgot to specify the top-level
 
 ## Author
 
-Written By Geoff Franks, inspired by [spiff](https://github.com/cloudfoundry-incubator/spiff)
+Written By Geoff Franks and James Hunt, inspired by [spiff](https://github.com/cloudfoundry-incubator/spiff)
+
+Thanks to Long Nguyen for breaking it repeatedly in the interest
+of improvement and quality assurance.
 
 ## License
 

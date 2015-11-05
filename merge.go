@@ -35,6 +35,15 @@ type Merger struct {
 	depth  int
 }
 
+func Merge(l ...map[interface{}]interface{}) (map[interface{}]interface{}, error) {
+	m := &Merger{}
+	root := map[interface{}]interface{}{}
+	for _, next := range l {
+		m.Merge(root, next)
+	}
+	return root, m.Error()
+}
+
 func (m *Merger) Error() error {
 	if m.Errors.Count() > 0 {
 		return m.Errors
