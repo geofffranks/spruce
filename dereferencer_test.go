@@ -109,7 +109,62 @@ func TestDeReferencerPostProcess(t *testing.T) {
 				So(val, ShouldBeNil)
 				So(action, ShouldEqual, "error")
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldEqual, "nodepath: possible recursion detected in call to (( grab ))")
+				So(err.Error(), ShouldEqual, "nodepath: possible infinite recursion detected in dereferencing")
+			})
+		})
+		Convey("when given a (( grab_if_exists .* )) string", func() {
+			Convey("Returns nil if the reference cannot be resolved", func() {
+				val, action, err := deref.PostProcess("(( grab_if_exists value.to.retrieve ))", "nodepath")
+				So(val, ShouldBeNil)
+				So(err, ShouldBeNil)
+				So(action, ShouldEqual, "replace")
+			})
+			Convey("Returns value, \"replace\", nil on successful dereference", func() {
+				val, action, err := deref.PostProcess("(( grab_if_exists value.to.find ))", "nodepath")
+				So(val, ShouldEqual, "dereferenced value")
+				So(err, ShouldBeNil)
+				So(action, ShouldEqual, "replace")
+			})
+			Convey("Handles multiple dereference requests inline by returning an array", func() {
+				val, action, err := deref.PostProcess("(( grab_if_exists value.to.find othervalue.to.find ))", "nodepath")
+				So(val, ShouldResemble, []interface{}{
+					"dereferenced value",
+					"other value",
+				})
+				So(err, ShouldBeNil)
+				So(action, ShouldEqual, "replace")
+			})
+			Convey("Handles references that grab other references", func() {
+				val, action, err := deref.PostProcess("(( grab_if_exists references.other.value ))", "nodepath")
+				So(val, ShouldEqual, "other value")
+				So(err, ShouldBeNil)
+				So(action, ShouldEqual, "replace")
+			})
+			Convey("Replaces unresolvable references with null values, and other refernces normally, in a multiple reference request", func() {
+				val, action, err := deref.PostProcess("(( grab_if_exists value.to.find undefined.val othervalue.to.find ))", "nodepath")
+				So(val, ShouldResemble, []interface{}{
+					"dereferenced value",
+					nil,
+					"other value",
+				})
+				So(action, ShouldEqual, "replace")
+				So(err, ShouldBeNil)
+			})
+			Convey("Extra whitespace is ok", func() {
+				val, action, err := deref.PostProcess("((	  grab_if_exists value.to.find		othervalue.to.find     ))", "nodepath")
+				So(val, ShouldResemble, []interface{}{
+					"dereferenced value",
+					"other value",
+				})
+				So(err, ShouldBeNil)
+				So(action, ShouldEqual, "replace")
+			})
+			Convey("Avoids infinite recursion", func() {
+				val, action, err := deref.PostProcess("(( grab_if_exists recursion ))", "nodepath")
+				So(val, ShouldBeNil)
+				So(action, ShouldEqual, "error")
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "nodepath: possible infinite recursion detected in dereferencing")
 			})
 		})
 	})
