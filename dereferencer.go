@@ -20,35 +20,9 @@ func NewDereferencer(root map[interface{}]interface{}) *dereferencer {
 	}
 }
 
-// parseGrabOp - determine if an object is a (( grab ... )) call
-func parseGrabOp(o interface{}) (bool, string) {
-	if o != nil && reflect.TypeOf(o).Kind() == reflect.String {
-		re := regexp.MustCompile(`^\Q((\E\s*grab\s+(.+)\s*\Q))\E$`)
-		if re.MatchString(o.(string)) {
-			keys := re.FindStringSubmatch(o.(string))
-			return true, keys[1]
-		}
-	}
-	return false, ""
-}
-
-// parseGrabIfExistsOp - determine if an object is a (( grab_if_exists ... )) call
-func parseGrabIfExistsOp(o interface{}) (bool, string) {
-	if o != nil && reflect.TypeOf(o).Kind() == reflect.String {
-		re := regexp.MustCompile(`^\Q((\E\s*grab_if_exists\s+(.+)\s*\Q))\E$`)
-		if re.MatchString(o.(string)) {
-			keys := re.FindStringSubmatch(o.(string))
-			return true, keys[1]
-		}
-	}
-	return false, ""
-}
-
 // resolveGrab - resolves a set of tokens (literals or references), co-recursively with resolveKey()
 func (d *dereferencer) resolveGrab(node string, args string) (interface{}, error) {
-	DEBUG("%s: resolving (( grab %s )))", node, args)
-	re := regexp.MustCompile(`\s+`)
-	targets := re.Split(strings.Trim(args, " \t\r\n"), -1)
+	targets := spaceRegexp.Split(strings.Trim(args, " \t\r\n"), -1)
 
 	if len(targets) <= 1 {
 		val, err := d.resolveKey(targets[0])
@@ -74,8 +48,7 @@ func (d *dereferencer) resolveGrab(node string, args string) (interface{}, error
 // resolveGrabIfExists - resolves a set of tokens (literals or references), co-recursively with resolveKey()
 func (d *dereferencer) resolveGrabIfExists(node string, args string) (interface{}, error) {
 	DEBUG("%s: resolving (( grab_if_exists %s )))", node, args)
-	re := regexp.MustCompile(`\s+`)
-	targets := re.Split(strings.Trim(args, " \t\r\n"), -1)
+	targets := spaceRegexp.Split(strings.Trim(args, " \t\r\n"), -1)
 
 	if len(targets) <= 1 {
 		val, err := d.resolveKey(targets[0])
@@ -167,4 +140,30 @@ func (b *recursiveCallBounder) call(f func() (interface{}, error)) (interface{},
 
 func (b *recursiveCallBounder) reset() {
 	b.ttl = maxRecursiveCallLimit
+}
+
+var (
+	grabRegexp         = regexp.MustCompile(`^\Q((\E\s*grab\s+(.+)\s*\Q))\E$`)
+	grabIfExistsRegexp = regexp.MustCompile(`^\Q((\E\s*grab_if_exists\s+(.+)\s*\Q))\E$`)
+	spaceRegexp        = regexp.MustCompile(`\s+`)
+)
+
+// parseGrabOp - determine if an object is a (( grab ... )) call
+func parseGrabOp(o interface{}) (bool, string) {
+	return parseOpFromRegexp(o, grabRegexp)
+}
+
+// parseGrabIfExistsOp - determine if an object is a (( grab_if_exists ... )) call
+func parseGrabIfExistsOp(o interface{}) (bool, string) {
+	return parseOpFromRegexp(o, grabIfExistsRegexp)
+}
+
+func parseOpFromRegexp(o interface{}, re *regexp.Regexp) (bool, string) {
+	if o != nil && reflect.TypeOf(o).Kind() == reflect.String {
+		if re.MatchString(o.(string)) {
+			keys := re.FindStringSubmatch(o.(string))
+			return true, keys[1]
+		}
+	}
+	return false, ""
 }
