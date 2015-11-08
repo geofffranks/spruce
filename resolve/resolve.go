@@ -1,4 +1,4 @@
-package main
+package resolve
 
 import (
 	"fmt"
@@ -6,9 +6,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/geofffranks/spruce/utils"
 )
 
-func resolveNode(target string, lookup map[interface{}]interface{}) (interface{}, error) {
+func ResolveNode(target string, lookup map[interface{}]interface{}) (interface{}, error) {
 	keys := strings.Split(target, ".")
 
 	return resolveNodeObj(keys, lookup)
@@ -16,7 +18,7 @@ func resolveNode(target string, lookup map[interface{}]interface{}) (interface{}
 
 func resolveNodeObj(keys []string, lookup interface{}) (interface{}, error) {
 	toFind, keys := keys[0], keys[1:]
-	DEBUG("   RESOLVE: searching for %q", toFind)
+	utils.DEBUG("   RESOLVE: searching for %q", toFind)
 	switch lookup.(type) {
 	case map[interface{}]interface{}:
 		m := lookup.(map[interface{}]interface{})

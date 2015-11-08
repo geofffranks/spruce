@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+
+	"github.com/geofffranks/spruce/resolve"
 )
 
 type TokenType int
@@ -62,7 +64,7 @@ func (s Concatenator) resolve(node string, tokens []Token) (string, error) {
 
 // resolveKey - resolves a single key reference, co-recursively with resolve()
 func (s Concatenator) resolveKey(key string) (string, error) {
-	val, err := resolveNode(key, s.root)
+	val, err := resolve.ResolveNode(key, s.root)
 	if err != nil {
 		return "", fmt.Errorf("Unable to resolve `%s`: `%s", key, err)
 	}

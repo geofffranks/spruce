@@ -120,13 +120,20 @@ for things like getting all IPs of multi-AZ jobs in a BOSH manifest, just do it 
 
 ```(( grab jobs.myJob_z1.networks.myNet1.static_ips jobs.myJob_z2.networks.myNet2.static_ips ))```
 
+If one or more of the references cannot be resolved, your `grab` will fail. Sometimes, rather
+than failing, you want unresolvable references to be replaced with a null value instead. You can
+totally do that!
+
+```(( grab_if_exists jobs.myJob_z1.networks.myNet1.static_ips jobs.myJob_z2.networks.myNet2.static_ips ))```
+
+
 ### Hmm.. How about auto-calculating static IPs for a BOSH manifest?
 
 `spruce` supports that too! Just use the same `(( static_ips(x, y, z) ))` syntax
 that you're used to with [spiff](https://github.com/cloudfoundry-incubator/spiff),
 to specify the offsets in the static IP range for a job's network.
 
-Behind the scenes, there are a couple behavior improvements upon spiff. First, 
+Behind the scenes, there are a couple behavior improvements upon spiff. First,
 since all the merging is done first, then post-processing, there's no need
 to worry about getting the instances + networks defined before `(( static_ips() ))`
 is merged in. Second, the error messaging output should be a lot better to aid in
