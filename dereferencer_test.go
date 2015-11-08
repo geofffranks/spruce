@@ -6,9 +6,9 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestDeReferencerPostProcess(t *testing.T) {
-	Convey("dereferencer.PostProces()", t, func() {
-		deref := DeReferencer{root: map[interface{}]interface{}{
+func TestDereferencerPostProcess(t *testing.T) {
+	Convey("dereferencer.PostProcess()", t, func() {
+		deref := NewDereferencer(map[interface{}]interface{}{
 			"value": map[interface{}]interface{}{
 				"to": map[interface{}]interface{}{
 					"find": "dereferenced value",
@@ -26,7 +26,7 @@ func TestDeReferencerPostProcess(t *testing.T) {
 			},
 			"recursion":   "(( grab corecursion ))",
 			"corecursion": "(( grab recursion ))",
-		}}
+		})
 		Convey("when given anything other than a string", func() {
 			Convey("returns nil, \"ignore\", nil", func() {
 				val, action, err := deref.PostProcess(12345, "nodepath")

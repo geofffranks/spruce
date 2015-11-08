@@ -7,12 +7,17 @@ import (
 	"strings"
 )
 
-var errInfiniteRecursion = fmt.Errorf("possible infinite recursion detected in dereferencing")
-
-// DeReferencer is an implementation of PostProcessor to de-reference (( grab me.data )) calls
-type DeReferencer struct {
+// dereferencer is an implementation of PostProcessor to de-reference (( grab me.data )) calls
+type dereferencer struct {
 	root map[interface{}]interface{}
-	ttl  int
+	*recursiveCallBounder
+}
+
+func NewDereferencer(root map[interface{}]interface{}) *dereferencer {
+	return &dereferencer{
+		root:                 root,
+		recursiveCallBounder: new(recursiveCallBounder),
+	}
 }
 
 // parseGrabOp - determine if an object is a (( grab ... )) call
@@ -40,7 +45,7 @@ func parseGrabIfExistsOp(o interface{}) (bool, string) {
 }
 
 // resolveGrab - resolves a set of tokens (literals or references), co-recursively with resolveKey()
-func (d DeReferencer) resolveGrab(node string, args string) (interface{}, error) {
+func (d *dereferencer) resolveGrab(node string, args string) (interface{}, error) {
 	DEBUG("%s: resolving (( grab %s )))", node, args)
 	re := regexp.MustCompile(`\s+`)
 	targets := re.Split(strings.Trim(args, " \t\r\n"), -1)
@@ -67,7 +72,7 @@ func (d DeReferencer) resolveGrab(node string, args string) (interface{}, error)
 }
 
 // resolveGrabIfExists - resolves a set of tokens (literals or references), co-recursively with resolveKey()
-func (d DeReferencer) resolveGrabIfExists(node string, args string) (interface{}, error) {
+func (d *dereferencer) resolveGrabIfExists(node string, args string) (interface{}, error) {
 	DEBUG("%s: resolving (( grab_if_exists %s )))", node, args)
 	re := regexp.MustCompile(`\s+`)
 	targets := re.Split(strings.Trim(args, " \t\r\n"), -1)
@@ -102,7 +107,7 @@ func (d DeReferencer) resolveGrabIfExists(node string, args string) (interface{}
 }
 
 // resolveKey - resolves a single key reference, co-recursively with resolve()
-func (d DeReferencer) resolveKey(key string) (interface{}, error) {
+func (d *dereferencer) resolveKey(key string) (interface{}, error) {
 	DEBUG("  -> resolving reference to `%s`", key)
 	val, err := resolveNode(key, d.root)
 	if err != nil {
@@ -110,28 +115,22 @@ func (d DeReferencer) resolveKey(key string) (interface{}, error) {
 	}
 
 	if should, args := parseGrabOp(val); should {
-		if d.ttl -= 1; d.ttl <= 0 {
-			return "", errInfiniteRecursion
-		}
-		val, err = d.resolveGrab(key, args)
-		d.ttl += 1
-		return val, err
+		return d.recursiveCallBounder.call(func() (interface{}, error) {
+			return d.resolveGrab(key, args)
+		})
 	} else if should, args := parseGrabIfExistsOp(val); should {
-		if d.ttl -= 1; d.ttl <= 0 {
-			return "", errInfiniteRecursion
-		}
-		val, err = d.resolveGrabIfExists(key, args)
-		d.ttl += 1
-		return val, err
+		return d.recursiveCallBounder.call(func() (interface{}, error) {
+			return d.resolveGrabIfExists(key, args)
+		})
 	} else {
 		return val, nil
 	}
 }
 
 // PostProcess - resolves a value by seeing if it matches (( grab me.data )) or (( grab_if_exists me.data )) and retrieves me.data's value
-func (d DeReferencer) PostProcess(o interface{}, node string) (interface{}, string, error) {
+func (d *dereferencer) PostProcess(o interface{}, node string) (interface{}, string, error) {
+	d.recursiveCallBounder.reset()
 	if should, args := parseGrabOp(o); should {
-		d.ttl = 64
 		val, err := d.resolveGrab(node, args)
 		if err != nil {
 			return nil, "error", fmt.Errorf("%s: %s", node, err.Error())
@@ -139,7 +138,6 @@ func (d DeReferencer) PostProcess(o interface{}, node string) (interface{}, stri
 		DEBUG("%s: setting to %#v", node, val)
 		return val, "replace", nil
 	} else if should, args := parseGrabIfExistsOp(o); should {
-		d.ttl = 64
 		val, err := d.resolveGrabIfExists(node, args)
 		if err != nil {
 			return nil, "error", fmt.Errorf("%s: %s", node, err.Error())
@@ -149,4 +147,24 @@ func (d DeReferencer) PostProcess(o interface{}, node string) (interface{}, stri
 	} else {
 		return nil, "ignore", nil
 	}
+}
+
+const maxRecursiveCallLimit = 64
+
+var errInfiniteRecursion = fmt.Errorf("possible infinite recursion detected in dereferencing")
+
+type recursiveCallBounder struct {
+	ttl int
+}
+
+func (b *recursiveCallBounder) call(f func() (interface{}, error)) (interface{}, error) {
+	if b.ttl -= 1; b.ttl == 0 {
+		return "", errInfiniteRecursion
+	}
+	defer func() { b.ttl += 1 }()
+	return f()
+}
+
+func (b *recursiveCallBounder) reset() {
+	b.ttl = maxRecursiveCallLimit
 }
