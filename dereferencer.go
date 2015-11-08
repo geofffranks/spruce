@@ -103,23 +103,23 @@ func (d *dereferencer) resolveKey(key string) (interface{}, error) {
 // PostProcess - resolves a value by seeing if it matches (( grab me.data )) or (( grab_if_exists me.data )) and retrieves me.data's value
 func (d *dereferencer) PostProcess(o interface{}, node string) (interface{}, string, error) {
 	d.recursiveCallBounder.reset()
+
+	var val interface{}
+	var err error
+
 	if should, args := parseGrabOp(o); should {
-		val, err := d.resolveGrab(node, args)
-		if err != nil {
-			return nil, "error", fmt.Errorf("%s: %s", node, err.Error())
-		}
-		DEBUG("%s: setting to %#v", node, val)
-		return val, "replace", nil
+		val, err = d.resolveGrab(node, args)
 	} else if should, args := parseGrabIfExistsOp(o); should {
-		val, err := d.resolveGrabIfExists(node, args)
-		if err != nil {
-			return nil, "error", fmt.Errorf("%s: %s", node, err.Error())
-		}
-		DEBUG("%s: setting to %#v", node, val)
-		return val, "replace", nil
+		val, err = d.resolveGrabIfExists(node, args)
 	} else {
 		return nil, "ignore", nil
 	}
+
+	if err != nil {
+		return nil, "error", fmt.Errorf("%s: %s", node, err.Error())
+	}
+	DEBUG("%s: setting to %#v", node, val)
+	return val, "replace", nil
 }
 
 const maxRecursiveCallLimit = 64
