@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"regexp"
+	"strings"
+
 	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
 	"github.com/voxelbrain/goptions"
 	"gopkg.in/yaml.v2"
-	"regexp"
-	"strings"
 )
 
 // Current version of spruce
@@ -93,7 +94,7 @@ func main() {
 
 				m := &Merger{}
 				m.Visit(root, &StaticIPGenerator{root: root})
-				m.Visit(root, &DeReferencer{root: root})
+				m.Visit(root, NewDereferencer(root))
 				m.Visit(root, &Concatenator{root: root})
 
 				for _, toPrune := range options.Merge.Prune {

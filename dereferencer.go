@@ -7,29 +7,22 @@ import (
 	"strings"
 )
 
-// DeReferencer is an implementation of PostProcessor to de-reference (( grab me.data )) calls
-type DeReferencer struct {
+// dereferencer is an implementation of PostProcessor to de-reference (( grab me.data )) calls
+type dereferencer struct {
 	root map[interface{}]interface{}
-	ttl  int
+	*recursiveCallBounder
 }
 
-// parseGrabOp - determine if an object is a (( grab ... )) call
-func parseGrabOp(o interface{}) (bool, string) {
-	if o != nil && reflect.TypeOf(o).Kind() == reflect.String {
-		re := regexp.MustCompile(`^\Q((\E\s*grab\s+(.+)\s*\Q))\E$`)
-		if re.MatchString(o.(string)) {
-			keys := re.FindStringSubmatch(o.(string))
-			return true, keys[1]
-		}
+func NewDereferencer(root map[interface{}]interface{}) *dereferencer {
+	return &dereferencer{
+		root:                 root,
+		recursiveCallBounder: new(recursiveCallBounder),
 	}
-	return false, ""
 }
 
-// resolve - resolves a set of tokens (literals or references), co-recursively with resolveKey()
-func (d DeReferencer) resolve(node string, args string) (interface{}, error) {
-	DEBUG("%s: resolving (( grab %s )))", node, args)
-	re := regexp.MustCompile(`\s+`)
-	targets := re.Split(strings.Trim(args, " \t\r\n"), -1)
+// resolveGrab - resolves a set of tokens (literals or references), co-recursively with resolveKey()
+func (d *dereferencer) resolveGrab(node string, args string) (interface{}, error) {
+	targets := spaceRegexp.Split(strings.Trim(args, " \t\r\n"), -1)
 
 	if len(targets) <= 1 {
 		val, err := d.resolveKey(targets[0])
@@ -52,8 +45,42 @@ func (d DeReferencer) resolve(node string, args string) (interface{}, error) {
 	return val, nil
 }
 
+// resolveGrabIfExists - resolves a set of tokens (literals or references), co-recursively with resolveKey()
+func (d *dereferencer) resolveGrabIfExists(node string, args string) (interface{}, error) {
+	DEBUG("%s: resolving (( grab_if_exists %s )))", node, args)
+	targets := spaceRegexp.Split(strings.Trim(args, " \t\r\n"), -1)
+
+	if len(targets) <= 1 {
+		val, err := d.resolveKey(targets[0])
+		switch err {
+		case nil:
+			return val, nil
+		case errInfiniteRecursion:
+			return nil, err
+		default:
+			return nil, nil
+		}
+	}
+	val := []interface{}{}
+	for _, target := range targets {
+		v, err := d.resolveKey(target)
+		if err == errInfiniteRecursion {
+			return nil, err
+		} else if err != nil {
+			val = append(val, nil)
+		} else if v != nil && reflect.TypeOf(v).Kind() == reflect.Slice {
+			for i := 0; i < reflect.ValueOf(v).Len(); i++ {
+				val = append(val, reflect.ValueOf(v).Index(i).Interface())
+			}
+		} else {
+			val = append(val, v)
+		}
+	}
+	return val, nil
+}
+
 // resolveKey - resolves a single key reference, co-recursively with resolve()
-func (d DeReferencer) resolveKey(key string) (interface{}, error) {
+func (d *dereferencer) resolveKey(key string) (interface{}, error) {
 	DEBUG("  -> resolving reference to `%s`", key)
 	val, err := resolveNode(key, d.root)
 	if err != nil {
@@ -61,26 +88,82 @@ func (d DeReferencer) resolveKey(key string) (interface{}, error) {
 	}
 
 	if should, args := parseGrabOp(val); should {
-		if d.ttl -= 1; d.ttl <= 0 {
-			return "", fmt.Errorf("possible recursion detected in call to (( grab ))")
-		}
-		val, err = d.resolve(key, args)
-		d.ttl += 1
-		return val, err
+		return d.recursiveCallBounder.call(func() (interface{}, error) {
+			return d.resolveGrab(key, args)
+		})
+	} else if should, args := parseGrabIfExistsOp(val); should {
+		return d.recursiveCallBounder.call(func() (interface{}, error) {
+			return d.resolveGrabIfExists(key, args)
+		})
+	} else {
+		return val, nil
 	}
-	return val, nil
 }
 
-// PostProcess - resolves a value by seeing if it matches (( grab me.data )) and retrieves me.data's value
-func (d DeReferencer) PostProcess(o interface{}, node string) (interface{}, string, error) {
+// PostProcess - resolves a value by seeing if it matches (( grab me.data )) or (( grab_if_exists me.data )) and retrieves me.data's value
+func (d *dereferencer) PostProcess(o interface{}, node string) (interface{}, string, error) {
+	d.recursiveCallBounder.reset()
+
+	var val interface{}
+	var err error
+
 	if should, args := parseGrabOp(o); should {
-		d.ttl = 64
-		val, err := d.resolve(node, args)
-		if err != nil {
-			return nil, "error", fmt.Errorf("%s: %s", node, err.Error())
-		}
-		DEBUG("%s: setting to %#v", node, val)
-		return val, "replace", nil
+		val, err = d.resolveGrab(node, args)
+	} else if should, args := parseGrabIfExistsOp(o); should {
+		val, err = d.resolveGrabIfExists(node, args)
+	} else {
+		return nil, "ignore", nil
 	}
-	return nil, "ignore", nil
+
+	if err != nil {
+		return nil, "error", fmt.Errorf("%s: %s", node, err.Error())
+	}
+	DEBUG("%s: setting to %#v", node, val)
+	return val, "replace", nil
+}
+
+const maxRecursiveCallLimit = 64
+
+var errInfiniteRecursion = fmt.Errorf("possible infinite recursion detected in dereferencing")
+
+type recursiveCallBounder struct {
+	ttl int
+}
+
+func (b *recursiveCallBounder) call(f func() (interface{}, error)) (interface{}, error) {
+	if b.ttl -= 1; b.ttl == 0 {
+		return "", errInfiniteRecursion
+	}
+	defer func() { b.ttl += 1 }()
+	return f()
+}
+
+func (b *recursiveCallBounder) reset() {
+	b.ttl = maxRecursiveCallLimit
+}
+
+var (
+	grabRegexp         = regexp.MustCompile(`^\Q((\E\s*grab\s+(.+)\s*\Q))\E$`)
+	grabIfExistsRegexp = regexp.MustCompile(`^\Q((\E\s*grab_if_exists\s+(.+)\s*\Q))\E$`)
+	spaceRegexp        = regexp.MustCompile(`\s+`)
+)
+
+// parseGrabOp - determine if an object is a (( grab ... )) call
+func parseGrabOp(o interface{}) (bool, string) {
+	return parseOpFromRegexp(o, grabRegexp)
+}
+
+// parseGrabIfExistsOp - determine if an object is a (( grab_if_exists ... )) call
+func parseGrabIfExistsOp(o interface{}) (bool, string) {
+	return parseOpFromRegexp(o, grabIfExistsRegexp)
+}
+
+func parseOpFromRegexp(o interface{}, re *regexp.Regexp) (bool, string) {
+	if o != nil && reflect.TypeOf(o).Kind() == reflect.String {
+		if re.MatchString(o.(string)) {
+			keys := re.FindStringSubmatch(o.(string))
+			return true, keys[1]
+		}
+	}
+	return false, ""
 }
