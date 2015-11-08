@@ -1,14 +1,16 @@
-package main
+package dereferencer_test
 
 import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/geofffranks/spruce/dereferencer"
 )
 
 func TestDereferencerPostProcess(t *testing.T) {
 	Convey("dereferencer.PostProcess()", t, func() {
-		deref := NewDereferencer(map[interface{}]interface{}{
+		deref := dereferencer.NewDereferencer(map[interface{}]interface{}{
 			"value": map[interface{}]interface{}{
 				"to": map[interface{}]interface{}{
 					"find": "dereferenced value",

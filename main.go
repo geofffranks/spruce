@@ -7,7 +7,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
+	"github.com/geofffranks/simpleyaml"
+	"github.com/geofffranks/spruce/dereferencer"
+	"github.com/geofffranks/spruce/resolve" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
 	"github.com/voxelbrain/goptions"
 	"gopkg.in/yaml.v2"
 )
@@ -94,7 +96,7 @@ func main() {
 
 				m := &Merger{}
 				m.Visit(root, &StaticIPGenerator{root: root})
-				m.Visit(root, NewDereferencer(root))
+				m.Visit(root, dereferencer.NewDereferencer(root))
 				m.Visit(root, &Concatenator{root: root})
 
 				for _, toPrune := range options.Merge.Prune {
@@ -103,7 +105,7 @@ func main() {
 					if len(keys) > 1 {
 						parent := strings.Join(keys[0:(len(keys)-1)], ".")
 						target := keys[(len(keys) - 1)]
-						node, _ := resolveNode(parent, root)
+						node, _ := resolve.ResolveNode(parent, root)
 						if _, ok := node.(map[interface{}]interface{}); ok {
 							DEBUG("   PRUNED %q from %q", target, parent)
 							delete(node.(map[interface{}]interface{}), target)

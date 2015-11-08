@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/geofffranks/spruce/resolve"
 )
 
 // StaticIPGenerator is an implementation of PostProcessor to calcualte static_ips for BOSH jobs
@@ -102,7 +104,7 @@ func ipRangesForNode(node string, root map[interface{}]interface{}) ([]string, e
 			return nil, fmt.Errorf("%s: Could not detect network name to resolve static_ips()", node)
 		}
 		findPath := fmt.Sprintf("networks.%s.subnets", matches[1])
-		subnetsObj, err := resolveNode(findPath, root)
+		subnetsObj, err := resolve.ResolveNode(findPath, root)
 		if err != nil {
 			return nil, fmt.Errorf("%s: `$.%s", node, err)
 		}
@@ -148,7 +150,7 @@ func instancesForNode(node string, root map[interface{}]interface{}) (int, error
 			return 0, fmt.Errorf("%s: Could not detect job name to resolve static_ips()", node)
 		}
 		findPath := fmt.Sprintf("jobs.%s.instances", matches[1])
-		instancesObj, err := resolveNode(findPath, root)
+		instancesObj, err := resolve.ResolveNode(findPath, root)
 		if err != nil {
 			return 0, fmt.Errorf("%s: `$.%s", node, err)
 		}

@@ -1,8 +1,11 @@
-package main
+package resolve_test
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/geofffranks/spruce/resolve"
 )
 
 func TestResolveNode(t *testing.T) {
@@ -17,7 +20,7 @@ func TestResolveNode(t *testing.T) {
 				"other": "stuff",
 			}
 			expect := "I referenced the property!"
-			val, err := resolveNode("value.to.resolve", m)
+			val, err := resolve.ResolveNode("value.to.resolve", m)
 			So(err, ShouldBeNil)
 			So(val, ShouldResemble, expect)
 		})
@@ -31,7 +34,7 @@ func TestResolveNode(t *testing.T) {
 			}
 
 			expect := "third"
-			val, err := resolveNode("array.[2]", m)
+			val, err := resolve.ResolveNode("array.[2]", m)
 			So(err, ShouldBeNil)
 			So(val, ShouldResemble, expect)
 		})
@@ -59,7 +62,7 @@ func TestResolveNode(t *testing.T) {
 				"java",
 				"oomkiller",
 			}
-			val, err := resolveNode("jobs.job2.processes", m)
+			val, err := resolve.ResolveNode("jobs.job2.processes", m)
 			So(err, ShouldBeNil)
 			So(val, ShouldResemble, expect)
 		})
@@ -70,7 +73,7 @@ func TestResolveNode(t *testing.T) {
 					"second",
 				},
 			}
-			val, err := resolveNode("jobs.[2]", m)
+			val, err := resolve.ResolveNode("jobs.[2]", m)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "jobs.[2]` array's highest index is 1")
 			So(val, ShouldBeNil)
@@ -84,7 +87,7 @@ func TestResolveNode(t *testing.T) {
 					},
 				},
 			}
-			val, err := resolveNode("jobs.job1.property.myval", m)
+			val, err := resolve.ResolveNode("jobs.job1.property.myval", m)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "jobs.job1.property` has no sub-objects")
 			So(val, ShouldBeNil)
@@ -93,7 +96,7 @@ func TestResolveNode(t *testing.T) {
 			m := map[interface{}]interface{}{
 				"existing": "value",
 			}
-			val, err := resolveNode("non.existant.value", m)
+			val, err := resolve.ResolveNode("non.existant.value", m)
 			So(val, ShouldBeNil)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "non` could not be found in the YAML datastructure")
@@ -107,7 +110,7 @@ func TestResolveNode(t *testing.T) {
 					},
 				},
 			}
-			val, err := resolveNode("jobs.job2.value", m)
+			val, err := resolve.ResolveNode("jobs.job2.value", m)
 			So(val, ShouldBeNil)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "jobs.job2` could not be found in the YAML datastructure")
