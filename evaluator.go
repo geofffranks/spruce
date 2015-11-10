@@ -165,7 +165,6 @@ func (ev *Evaluator) Patch() error {
 			case []interface{}:
 				i, err := strconv.ParseUint(key, 10, 0)
 				if err != nil {
-					// FIXME: handle named?
 					DEBUG("  error: %s\n  continuing\n", err)
 					errors.Append(err)
 					continue
@@ -254,7 +253,8 @@ func (ev *Evaluator) Prune(paths []string) error {
 				delete(o.(map[interface{}]interface{}), key)
 			}
 
-		// FIXME: should we handle array index removal?
+		// NOTE: `--prune` does not currently handle list index removal,
+		//       i.e. `--prune meta.things[3]`;  This was deemed unnecessary
 
 		default:
 			DEBUG("  I don't know how to prune %s\n    value=%v\n", path, o)

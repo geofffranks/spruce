@@ -552,10 +552,6 @@ jobs:
 			So(r, ShouldBeNil)
 		})
 
-		Convey("throws an error if addresses are doubly-allocated", func() {
-			// FIXME: needs to go in evaluator
-		})
-
 		Convey("throws an error if the static address pool is too small", func() {
 			ev := &Evaluator{
 				Here: cursor("jobs.job1.networks.0.static_ips"),

@@ -310,7 +310,6 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 
 // Resolve ...
 func (c *Cursor) Resolve(o interface{}) (interface{}, error) {
-	// FIXME: use another Cursor here
 	var path []string
 
 	for _, k := range c.Nodes {
