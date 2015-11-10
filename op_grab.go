@@ -4,12 +4,15 @@ import (
 	"fmt"
 )
 
-type GrabOperator struct {}
+// GrabOperator ...
+type GrabOperator struct{}
 
+// Dependencies ...
 func (GrabOperator) Dependencies(_ *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
 	return []*Cursor{}
 }
 
+// Run ...
 func (GrabOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
 	DEBUG("running (( grab ... )) operation at $.%s", ev.Here)
 	defer DEBUG("done with (( grab ... )) operation at $%s\n", ev.Here)
@@ -49,7 +52,7 @@ func (GrabOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
 	case 1:
 		DEBUG("  called with only one argument; returning value as-is")
 		return &Response{
-			Type: Replace,
+			Type:  Replace,
 			Value: vals[0],
 		}, nil
 
@@ -69,7 +72,7 @@ func (GrabOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
 		DEBUG("")
 
 		return &Response{
-			Type: Replace,
+			Type:  Replace,
 			Value: flat,
 		}, nil
 	}

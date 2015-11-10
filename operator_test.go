@@ -1,8 +1,8 @@
 package main
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
+	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
@@ -32,7 +32,7 @@ func TestOperators(t *testing.T) {
 				So(op, ShouldNotBeNil)
 
 				_, ok := op.op.(NullOperator)
-				So(ok,ShouldBeTrue)
+				So(ok, ShouldBeTrue)
 				So(op.op.(NullOperator).Missing, ShouldEqual, name)
 
 				So(len(op.args), ShouldEqual, len(args))
@@ -66,7 +66,7 @@ func TestOperators(t *testing.T) {
 				opOk(`((	null	))`, "null")
 				opOk(`((  	null  	))`, "null")
 
-				args := []interface{}{ "1", "2", "3" }
+				args := []interface{}{"1", "2", "3"}
 				opOk(`((null 1 2 3))`, "null", args...)
 				opOk(`((null 1	2	3))`, "null", args...)
 				opOk(`((null 1	2	3	))`, "null", args...)
@@ -74,7 +74,7 @@ func TestOperators(t *testing.T) {
 			})
 
 			Convey("allows use of commas to separate arguments", func() {
-				args := []interface{}{ "1", "2", "3" }
+				args := []interface{}{"1", "2", "3"}
 				opOk(`((null 1, 2, 3))`, "null", args...)
 				opOk(`((null 1,	2,	3))`, "null", args...)
 				opOk(`((null 1,	2,	3,	))`, "null", args...)
@@ -82,7 +82,7 @@ func TestOperators(t *testing.T) {
 			})
 
 			Convey("allows use of parentheses around arguments", func() {
-				args := []interface{}{ "1", "2", "3" }
+				args := []interface{}{"1", "2", "3"}
 				opOk(`((null(1,2,3)))`, "null", args...)
 				opOk(`((null(1, 2, 3) ))`, "null", args...)
 				opOk(`((null( 1,	2,	3)))`, "null", args...)
@@ -115,7 +115,7 @@ func TestOperators(t *testing.T) {
 		op := GrabOperator{}
 		ev := &Evaluator{
 			Tree: YAML(
-`key:
+				`key:
   subkey:
     value: found it
     other: value 2
@@ -232,7 +232,7 @@ func TestOperators(t *testing.T) {
 		op := ConcatOperator{}
 		ev := &Evaluator{
 			Tree: YAML(
-`key:
+				`key:
   subkey:
     value: found it
     other: value 2
@@ -334,7 +334,7 @@ math:
 			ev := &Evaluator{
 				Here: cursor("jobs.job1.networks.0.static_ips"),
 				Tree: YAML(
-`networks:
+					`networks:
   - name: test-network
     subnets:
       - static: [ 10.0.0.5 - 10.0.0.10 ]
@@ -347,7 +347,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{ "0", "1", "2" })
+			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
 
@@ -364,7 +364,7 @@ jobs:
 			ev := &Evaluator{
 				Here: cursor("jobs.0.networks.0.static_ips"),
 				Tree: YAML(
-`networks:
+					`networks:
   - name: test-network
     subnets:
       - static: [ 10.0.0.5 - 10.0.0.10 ]
@@ -376,7 +376,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{ "0", "1", "2" })
+			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -385,7 +385,7 @@ jobs:
 			ev := &Evaluator{
 				Here: cursor("jobs.job1.networks.0.static_ips"),
 				Tree: YAML(
-`networks:
+					`networks:
   - name: test-network
     subnets:
       - static: [ 10.0.0.5 - 10.0.0.10 ]
@@ -397,7 +397,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{ "0", "1", "2" })
+			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -406,7 +406,7 @@ jobs:
 			ev := &Evaluator{
 				Here: cursor("jobs.job1.networks.0.static_ips"),
 				Tree: YAML(
-`networks:
+					`networks:
   - name: test-network
     subnets:
       - static: [ 10.0.0.5 - 10.0.0.10 ]
@@ -419,7 +419,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{ "0", "1", "2" })
+			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -428,7 +428,7 @@ jobs:
 			ev := &Evaluator{
 				Here: cursor("jobs.job1.networks.0.static_ips"),
 				Tree: YAML(
-`networks:
+					`networks:
   - name: test-network
     subnets:
       - static: [ 10.0.0.5 - 10.0.0.10 ]
@@ -440,7 +440,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{ "0", "1", "2" })
+			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -449,7 +449,7 @@ jobs:
 			ev := &Evaluator{
 				Here: cursor("jobs.job1.networks.0.static_ips"),
 				Tree: YAML(
-`networks:
+					`networks:
   - name: test-network
 jobs:
   - name: job1
@@ -460,7 +460,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{ "0", "1", "2" })
+			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -469,7 +469,7 @@ jobs:
 			ev := &Evaluator{
 				Here: cursor("jobs.job1.networks.0.static_ips"),
 				Tree: YAML(
-`networks:
+					`networks:
   - name: test-network
     subnets: []
 jobs:
@@ -481,7 +481,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{ "0", "1", "2" })
+			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -490,7 +490,7 @@ jobs:
 			ev := &Evaluator{
 				Here: cursor("jobs.job1.networks.0.static_ips"),
 				Tree: YAML(
-`networks:
+					`networks:
   - name: test-network
     subnets:
      - {}
@@ -503,7 +503,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{ "0", "1", "2" })
+			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -512,7 +512,7 @@ jobs:
 			ev := &Evaluator{
 				Here: cursor("jobs.job1.networks.0.static_ips"),
 				Tree: YAML(
-`networks:
+					`networks:
   - name: test-network
     subnets:
     - static: [ 10.0.0.1, 10.0.0.254 ]
@@ -525,7 +525,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{ "0", "1", "2" })
+			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -534,7 +534,7 @@ jobs:
 			ev := &Evaluator{
 				Here: cursor("jobs.job1.networks.0.static_ips"),
 				Tree: YAML(
-`networks:
+					`networks:
   - name: test-network
     subnets:
     - static: 10.0.0.0.0.0.0.1 - geoff
@@ -547,7 +547,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{ "0", "1", "2" })
+			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -560,7 +560,7 @@ jobs:
 			ev := &Evaluator{
 				Here: cursor("jobs.job1.networks.0.static_ips"),
 				Tree: YAML(
-`networks:
+					`networks:
   - name: test-network
     subnets:
     - static: 172.16.31.10 - 172.16.31.11
@@ -573,7 +573,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{ "0", "1", "2" })
+			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -583,7 +583,7 @@ jobs:
 		op := InjectOperator{}
 		ev := &Evaluator{
 			Tree: YAML(
-`key:
+				`key:
   subkey:
     value: found it
     other: value 2

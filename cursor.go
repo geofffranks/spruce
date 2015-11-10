@@ -3,10 +3,11 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"strconv"
+	"strings"
 )
 
+// Cursor ...
 type Cursor struct {
 	Nodes []string
 }
@@ -26,6 +27,7 @@ func listFind(l []interface{}, fields []string, key string) (interface{}, uint64
 	return nil, 0, false
 }
 
+// ParseCursor ...
 func ParseCursor(s string) (*Cursor, error) {
 	var nodes []string
 	node := bytes.NewBuffer([]byte{})
@@ -57,7 +59,7 @@ func ParseCursor(s string) (*Cursor, error) {
 		case '[':
 			if bracketed {
 				return nil, SyntaxError{
-					Problem: "unexpected '['",
+					Problem:  "unexpected '['",
 					Position: pos,
 				}
 			}
@@ -67,7 +69,7 @@ func ParseCursor(s string) (*Cursor, error) {
 		case ']':
 			if !bracketed {
 				return nil, SyntaxError{
-					Problem: "unexpected ']'",
+					Problem:  "unexpected ']'",
 					Position: pos,
 				}
 			}
@@ -85,6 +87,7 @@ func ParseCursor(s string) (*Cursor, error) {
 	}, nil
 }
 
+// Copy ...
 func (c *Cursor) Copy() *Cursor {
 	other := &Cursor{Nodes: []string{}}
 	for _, node := range c.Nodes {
@@ -93,12 +96,13 @@ func (c *Cursor) Copy() *Cursor {
 	return other
 }
 
+// Under ...
 func (c *Cursor) Under(other *Cursor) bool {
 	if len(c.Nodes) <= len(other.Nodes) {
 		return false
 	}
 	match := false
-	for i, _ := range(other.Nodes) {
+	for i := range other.Nodes {
 		if c.Nodes[i] != other.Nodes[i] {
 			return false
 		}
@@ -107,6 +111,7 @@ func (c *Cursor) Under(other *Cursor) bool {
 	return match
 }
 
+// Pop ...
 func (c *Cursor) Pop() string {
 	if len(c.Nodes) == 0 {
 		return ""
@@ -116,18 +121,22 @@ func (c *Cursor) Pop() string {
 	return last
 }
 
+// Push ...
 func (c *Cursor) Push(n string) {
 	c.Nodes = append(c.Nodes, n)
 }
 
+// String ...
 func (c *Cursor) String() string {
 	return strings.Join(c.Nodes, ".")
 }
 
+// Depth ...
 func (c *Cursor) Depth() int {
 	return len(c.Nodes)
 }
 
+// Parent ...
 func (c *Cursor) Parent() string {
 	if len(c.Nodes) < 2 {
 		return ""
@@ -135,6 +144,7 @@ func (c *Cursor) Parent() string {
 	return c.Nodes[len(c.Nodes)-2]
 }
 
+// Component ...
 func (c *Cursor) Component(offset int) string {
 	offset = len(c.Nodes) + offset
 	if offset < 0 || offset >= len(c.Nodes) {
@@ -143,10 +153,11 @@ func (c *Cursor) Component(offset int) string {
 	return c.Nodes[offset]
 }
 
+// Canonical ...
 func (c *Cursor) Canonical(o interface{}) (*Cursor, error) {
-	canon := &Cursor{ Nodes: []string{} }
+	canon := &Cursor{Nodes: []string{}}
 
-	for _, k:= range c.Nodes {
+	for _, k := range c.Nodes {
 		switch o.(type) {
 		case []interface{}:
 			i, err := strconv.ParseUint(k, 10, 0)
@@ -184,9 +195,9 @@ func (c *Cursor) Canonical(o interface{}) (*Cursor, error) {
 
 		default:
 			return nil, TypeMismatchError{
-				Path: canon.Nodes,
+				Path:   canon.Nodes,
 				Wanted: "a map or a list",
-				Got: "a scalar",
+				Got:    "a scalar",
 			}
 		}
 	}
@@ -194,12 +205,13 @@ func (c *Cursor) Canonical(o interface{}) (*Cursor, error) {
 	return canon, nil
 }
 
+// Glob ...
 func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 	var resolver func(interface{}, []string, []string, int) ([]interface{}, error)
 	resolver = func(o interface{}, here, path []string, pos int) ([]interface{}, error) {
 		if pos == len(path) {
 			return []interface{}{
-				&Cursor{ Nodes: here },
+				&Cursor{Nodes: here},
 			}, nil
 		}
 
@@ -209,7 +221,7 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 			switch o.(type) {
 			case []interface{}:
 				for i, v := range o.([]interface{}) {
-					sub, err := resolver(v, append(here, fmt.Sprintf("%d", i)), path, pos + 1)
+					sub, err := resolver(v, append(here, fmt.Sprintf("%d", i)), path, pos+1)
 					if err != nil {
 						return nil, err
 					}
@@ -218,7 +230,7 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 
 			case map[interface{}]interface{}:
 				for k, v := range o.(map[interface{}]interface{}) {
-					sub, err := resolver(v, append(here, k.(string)), path, pos + 1)
+					sub, err := resolver(v, append(here, k.(string)), path, pos+1)
 					if err != nil {
 						return nil, err
 					}
@@ -227,9 +239,9 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 
 			default:
 				return nil, TypeMismatchError{
-					Path: path,
+					Path:   path,
 					Wanted: "a map or a list",
-					Got: "a scalar",
+					Got:    "a scalar",
 				}
 			}
 
@@ -241,7 +253,7 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 					// if k is an integer (in string form), go by index
 					if int(i) >= len(o.([]interface{})) {
 						return nil, NotFoundError{
-							Path: path[0:pos+1],
+							Path: path[0 : pos+1],
 						}
 					}
 					return resolver(o.([]interface{})[i], append(here, k), path, pos+1)
@@ -253,7 +265,7 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 				o, _, found = listFind(o.([]interface{}), []string{"name", "key", "id"}, k)
 				if !found {
 					return nil, NotFoundError{
-						Path: path[0:pos+1],
+						Path: path[0 : pos+1],
 					}
 				}
 				return resolver(o, append(here, k), path, pos+1)
@@ -262,16 +274,16 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 				v, ok := o.(map[interface{}]interface{})[k]
 				if !ok {
 					return nil, NotFoundError{
-						Path: path[0:pos+1],
+						Path: path[0 : pos+1],
 					}
 				}
 				return resolver(v, append(here, k), path, pos+1)
 
 			default:
 				return nil, TypeMismatchError{
-					Path: path[0:pos],
+					Path:   path[0:pos],
 					Wanted: "a map or a list",
-					Got: "a scalar",
+					Got:    "a scalar",
 				}
 			}
 		}
@@ -296,6 +308,7 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 	return cursors, nil
 }
 
+// Resolve ...
 func (c *Cursor) Resolve(o interface{}) (interface{}, error) {
 	// FIXME: use another Cursor here
 	var path []string
@@ -337,12 +350,12 @@ func (c *Cursor) Resolve(o interface{}) (interface{}, error) {
 			}
 
 		default:
-			path = path[0:len(path)-1]
+			path = path[0 : len(path)-1]
 			return nil, TypeMismatchError{
-				Path: path,
+				Path:   path,
 				Wanted: "a map or a list",
-				Got: "a scalar",
-				Value: o,
+				Got:    "a scalar",
+				Value:  o,
 			}
 		}
 	}
@@ -350,6 +363,7 @@ func (c *Cursor) Resolve(o interface{}) (interface{}, error) {
 	return o, nil
 }
 
+// ResolveString ...
 func (c *Cursor) ResolveString(tree interface{}) (string, error) {
 	o, err := c.Resolve(tree)
 	if err != nil {
@@ -363,7 +377,7 @@ func (c *Cursor) ResolveString(tree interface{}) (string, error) {
 		return fmt.Sprintf("%d", o.(int)), nil
 	}
 	return "", TypeMismatchError{
-		Path: c.Nodes,
+		Path:   c.Nodes,
 		Wanted: "a string",
 	}
 }

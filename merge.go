@@ -8,10 +8,12 @@ import (
 	"strings"
 )
 
+// ErrorList ...
 type ErrorList struct {
 	errs []error
 }
 
+// Error ...
 func (el ErrorList) Error() string {
 	str := make([]string, len(el.errs))
 	for i, s := range el.errs {
@@ -21,20 +23,25 @@ func (el ErrorList) Error() string {
 	return fmt.Sprintf("%d error(s) detected:\n%s\n", len(el.errs), strings.Join(str, ""))
 }
 
+// Count ...
 func (el *ErrorList) Count() int {
 	return len(el.errs)
 }
+
+// Push ...
 func (el *ErrorList) Push(e error) {
 	if e != nil {
 		el.errs = append(el.errs, e)
 	}
 }
 
+// Merger ...
 type Merger struct {
 	Errors ErrorList
 	depth  int
 }
 
+// Merge ...
 func Merge(l ...map[interface{}]interface{}) (map[interface{}]interface{}, error) {
 	m := &Merger{}
 	root := map[interface{}]interface{}{}
@@ -44,6 +51,7 @@ func Merge(l ...map[interface{}]interface{}) (map[interface{}]interface{}, error
 	return root, m.Error()
 }
 
+// Error ...
 func (m *Merger) Error() error {
 	if m.Errors.Count() > 0 {
 		return m.Errors
@@ -51,6 +59,7 @@ func (m *Merger) Error() error {
 	return nil
 }
 
+// Merge ...
 func (m *Merger) Merge(a map[interface{}]interface{}, b map[interface{}]interface{}) error {
 	m.mergeMap(a, b, "$")
 	return m.Error()
@@ -92,11 +101,10 @@ func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interfac
 			if orig == nil {
 				DEBUG("%s: performing array merge (original was nil)", node)
 				return m.mergeArray([]interface{}{}, n.([]interface{}), node)
-
-			} else {
-				DEBUG("%s: replacing with new data (original was not an array)", node)
-				return t
 			}
+
+			DEBUG("%s: replacing with new data (original was not an array)", node)
+			return t
 		}
 
 	default:
@@ -136,18 +144,16 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 		}
 
 		return m.mergeArrayByKey(orig, n[1:], node, key)
-
-	} else {
-		DEBUG("%s: performing index-based array merge", node)
-
-		if err := canKeyMergeArray("original", orig, node, "name"); err == nil {
-			if err := canKeyMergeArray("new", n, node, "name"); err == nil {
-				return m.mergeArrayByKey(orig, n, node, "name")
-			}
-		}
-
-		return m.mergeArrayInline(orig, n, node)
 	}
+
+	DEBUG("%s: performing index-based array merge", node)
+	if err := canKeyMergeArray("original", orig, node, "name"); err == nil {
+		if err := canKeyMergeArray("new", n, node, "name"); err == nil {
+			return m.mergeArrayByKey(orig, n, node, "name")
+		}
+	}
+
+	return m.mergeArrayInline(orig, n, node)
 }
 
 func (m *Merger) mergeArrayInline(orig []interface{}, n []interface{}, node string) []interface{} {

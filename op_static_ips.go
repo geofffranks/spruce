@@ -7,10 +7,13 @@ import (
 	"strings"
 )
 
+// UsedIps ...
 var UsedIPs map[string]string
 
-type StaticIPOperator struct {}
+// StaticIPOperator ...
+type StaticIPOperator struct{}
 
+// Dependencies ...
 func (StaticIPOperator) Dependencies(ev *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
 	l := []*Cursor{}
 
@@ -133,6 +136,7 @@ func statics(ev *Evaluator) ([]string, error) {
 	return addrs, nil
 }
 
+// Run ...
 func (s StaticIPOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
 	DEBUG("running (( static_ips ... )) operation at $.%s", ev.Here)
 	defer DEBUG("done with (( static_ips ... )) operation at $%s\n", ev.Here)

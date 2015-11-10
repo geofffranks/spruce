@@ -5,12 +5,15 @@ import (
 	"strings"
 )
 
-type ConcatOperator struct {}
+// ConcatOperator ...
+type ConcatOperator struct{}
 
+// Dependencies ...
 func (ConcatOperator) Dependencies(_ *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
 	return []*Cursor{}
 }
 
+// Run ...
 func (ConcatOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
 	DEBUG("running (( concat ... )) operation at $.%s", ev.Here)
 	defer DEBUG("done with (( concat ... )) operation at $%s\n", ev.Here)
@@ -64,7 +67,7 @@ func (ConcatOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) 
 	DEBUG("  resolved (( concat ... )) operation to the string:\n    \"%s\"", final)
 
 	return &Response{
-		Type: Replace,
+		Type:  Replace,
 		Value: final,
 	}, nil
 }

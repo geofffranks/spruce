@@ -5,24 +5,26 @@ import (
 	"strconv"
 )
 
+// Evaluator ...
 type Evaluator struct {
 	Tree map[interface{}]interface{}
 	Deps map[string][]Cursor
 
 	Here *Cursor
 
-	DataOps []*Opcall
+	DataOps  []*Opcall
 	CheckOps []*Opcall
 
 	pointer *interface{}
 }
 
+// DataFlow ...
 func (ev *Evaluator) DataFlow() error {
 	ev.Here = &Cursor{}
 
 	all := map[string]*Opcall{}
 	locs := []*Cursor{}
-	errors := MultiError{ Errors: []error{} }
+	errors := MultiError{Errors: []error{}}
 
 	// forward decls of co-recursive function
 	var check func(interface{})
@@ -119,7 +121,7 @@ func (ev *Evaluator) DataFlow() error {
 	for len(all) > 0 {
 		free := freeNodes(g)
 		if len(free) == 0 {
-			return fmt.Errorf("cycle detected in operator data-flow graph...")
+			return fmt.Errorf("cycle detected in operator data-flow graph")
 		}
 
 		for _, node := range free {
@@ -134,10 +136,11 @@ func (ev *Evaluator) DataFlow() error {
 	return nil
 }
 
+// Patch ...
 func (ev *Evaluator) Patch() error {
 	DEBUG("patching up YAML by evaluating outstanding operators\n")
 
-	errors := MultiError{ Errors: []error{} }
+	errors := MultiError{Errors: []error{}}
 	for _, op := range ev.DataOps {
 		resp, err := op.Run(ev)
 		if err != nil {
@@ -174,9 +177,9 @@ func (ev *Evaluator) Patch() error {
 
 			default:
 				err := TypeMismatchError{
-					Path: parent.Nodes,
+					Path:   parent.Nodes,
 					Wanted: "a map or a list",
-					Got: "a scalar",
+					Got:    "a scalar",
 				}
 				DEBUG("  error: %s\n  continuing\n", err)
 				errors.Append(err)
@@ -227,6 +230,7 @@ func (ev *Evaluator) Patch() error {
 	return nil
 }
 
+// Prune ...
 func (ev *Evaluator) Prune(paths []string) error {
 	DEBUG("pruning %d paths from the final YAML structure", len(paths))
 	for _, path := range paths {
@@ -260,10 +264,11 @@ func (ev *Evaluator) Prune(paths []string) error {
 	return nil
 }
 
+// CheckForCycles ...
 func (ev *Evaluator) CheckForCycles(maxDepth int) error {
 	DEBUG("checking for cycles in final YAML structure")
 
-	var check  func(o interface{}, depth int) error
+	var check func(o interface{}, depth int) error
 	check = func(o interface{}, depth int) error {
 		if depth == 0 {
 			return fmt.Errorf("Hit max recursion depth. You seem to have a self-referencing dataset")
@@ -272,14 +277,14 @@ func (ev *Evaluator) CheckForCycles(maxDepth int) error {
 		switch o.(type) {
 		case []interface{}:
 			for _, v := range o.([]interface{}) {
-				if err := check(v, depth - 1); err != nil {
+				if err := check(v, depth-1); err != nil {
 					return err
 				}
 			}
 
 		case map[interface{}]interface{}:
 			for _, v := range o.(map[interface{}]interface{}) {
-				if err := check(v, depth - 1); err != nil {
+				if err := check(v, depth-1); err != nil {
 					return err
 				}
 			}
@@ -298,13 +303,14 @@ func (ev *Evaluator) CheckForCycles(maxDepth int) error {
 	return nil
 }
 
+// CheckParams ...
 func (ev *Evaluator) CheckParams() error {
 	DEBUG("checking for any remaining (( param ... )) operators\n")
 
 	ev.Here = &Cursor{}
 	ev.CheckOps = []*Opcall{}
 
-	errors := MultiError{ Errors: []error{} }
+	errors := MultiError{Errors: []error{}}
 
 	var check func(interface{})
 	var scan func(interface{})
@@ -359,8 +365,9 @@ func (ev *Evaluator) CheckParams() error {
 	return errors
 }
 
+// Run ...
 func (ev *Evaluator) Run(prune []string) error {
-	errors := MultiError{ Errors: []error{} }
+	errors := MultiError{Errors: []error{}}
 	errors.Append(ev.DataFlow())
 	errors.Append(ev.Patch())
 	errors.Append(ev.Prune(prune))

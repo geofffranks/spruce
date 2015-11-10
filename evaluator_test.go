@@ -1,8 +1,8 @@
 package main
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
+	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
@@ -22,7 +22,7 @@ func TestEvaluator(t *testing.T) {
 			Convey("Generates a sequential list of operator calls, in order", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   foo: FOO
   bar:  (( grab meta.foo ))
   baz:  (( grab meta.bar ))
@@ -57,34 +57,34 @@ func TestEvaluator(t *testing.T) {
 			Convey("detects direct (a -> b -> a) cycles in data flow graph", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   bar: (( grab meta.foo ))
   foo: (( grab meta.bar ))
 `),
 				}
 
-				err := ev.DataFlow();
+				err := ev.DataFlow()
 				So(err, ShouldNotBeNil)
 			})
 
 			Convey("detects indirect (a -> b -> c -> a) cycles in data flow graph", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   foo: (( grab meta.bar ))
   bar: (( grab meta.baz ))
   baz: (( grab meta.foo ))
 `),
 				}
 
-				err := ev.DataFlow();
+				err := ev.DataFlow()
 				So(err, ShouldNotBeNil)
 			})
 
 			Convey("handles data flow regardless of operator type", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   foo: FOO
   bar: (( grab meta.foo ))
   baz: (( grab meta.bar ))
@@ -93,7 +93,7 @@ func TestEvaluator(t *testing.T) {
 `),
 				}
 
-				err := ev.DataFlow();
+				err := ev.DataFlow()
 				So(err, ShouldBeNil)
 
 				// expect: meta.bar   (( grab meta.foo ))
@@ -118,7 +118,7 @@ func TestEvaluator(t *testing.T) {
 			Convey("handles data flow for operators in lists", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   - FOO
   - (( grab meta.0 ))
   - (( grab meta.1 ))
@@ -127,7 +127,7 @@ func TestEvaluator(t *testing.T) {
 `),
 				}
 
-				err := ev.DataFlow();
+				err := ev.DataFlow()
 				So(err, ShouldBeNil)
 
 				// expect: meta.1  (( grab meta.0 ))
@@ -152,7 +152,7 @@ func TestEvaluator(t *testing.T) {
 			Convey("handles deep copy in data flow graph", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   first: [ a, b, c ]
   second: (( grab meta.first ))
   third:  (( grab meta.second ))
@@ -160,7 +160,7 @@ func TestEvaluator(t *testing.T) {
 `),
 				}
 
-				err := ev.DataFlow();
+				err := ev.DataFlow()
 				So(err, ShouldBeNil)
 
 				// expect: meta.second (( grab meta.first ))
@@ -188,7 +188,7 @@ func TestEvaluator(t *testing.T) {
 			Convey("handles implicit static_ip dependency on jobs.*.networks.*.name", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   environment: prod
   size: 4
 networks:
@@ -224,7 +224,7 @@ jobs:
 			Convey("handles implicit static_ip dependency on networks.*.name", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   net: real
   environment: prod
   size: 4
@@ -258,7 +258,7 @@ jobs:
 			Convey("handles dependency on static_ips() calls via (( grab )) calls", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
 networks:
   - name: net1
     subnets:
@@ -294,7 +294,7 @@ properties:
 			Convey("handles implicit deps on sub-tree operations in (( inject ... )) targets", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   template:
     foo: bar
     baz: (( grab meta.template.foo ))
@@ -319,7 +319,7 @@ thing:
 			Convey("handles inject of an inject of a grab (so meta)", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   template1:
     foo: bar
     baz: (( grab meta.template1.foo ))
@@ -370,7 +370,7 @@ thing:
 			Convey("can handle simple map-based Replace actions", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   domain: sandbox.example.com
   web: (( grab meta.domain ))
 urls:
@@ -389,9 +389,9 @@ urls:
 			})
 
 			Convey("can handle Replacement actions where the new value is a list", func() {
-				ev := &Evaluator {
+				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   things:
     - one
     - two
@@ -411,9 +411,9 @@ grocery:
 			})
 
 			Convey("can handle Replacement actions where the call site is a list", func() {
-				ev := &Evaluator {
+				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   first:  2nd
   second: 1st
 sorted:
@@ -434,9 +434,9 @@ sorted:
 			})
 
 			Convey("can handle Replacement actions where the call site is inside of a list", func() {
-				ev := &Evaluator {
+				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   prod: production
   sandbox: sb322
 boxen:
@@ -458,9 +458,9 @@ boxen:
 			})
 
 			Convey("can handle simple Inject actions", func() {
-				ev := &Evaluator {
+				ev := &Evaluator{
 					Tree: YAML(
-`templates:
+						`templates:
   www:
     HA: enabled
     DR: disabled
@@ -484,9 +484,9 @@ host:
 			})
 
 			Convey("can handle Inject actions where call site is in a list", func() {
-				ev := &Evaluator {
+				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   jobs:
     api:
       template: api
@@ -524,9 +524,9 @@ jobs:
 			})
 
 			Convey("preserves call-site keys on conflict in an Inject scenario", func() {
-				ev := &Evaluator {
+				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   template:
     foo: FOO
     bar: BAR
@@ -550,7 +550,7 @@ example:
 			Convey("merges sub-trees common to inject site and injected values", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`meta:
+						`meta:
   template:
     properties:
       foo: bar
@@ -578,7 +578,7 @@ thing:
 			Convey("handles static_ips() call and a subsequent grab", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`jobs:
+						`jobs:
 - name: api_z1
   instances: 1
   networks:
@@ -608,7 +608,7 @@ properties:
 			Convey("handles allocation conflicts of static IP addresses", func() {
 				ev := &Evaluator{
 					Tree: YAML(
-`jobs:
+						`jobs:
 - name: api_z1
   instances: 1
   networks:

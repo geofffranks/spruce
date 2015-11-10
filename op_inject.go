@@ -4,8 +4,10 @@ import (
 	"fmt"
 )
 
-type InjectOperator struct {}
+// InjectOperator ...
+type InjectOperator struct{}
 
+// Dependencies ...
 func (InjectOperator) Dependencies(_ *Evaluator, args []interface{}, locs []*Cursor) []*Cursor {
 	l := []*Cursor{}
 
@@ -22,6 +24,7 @@ func (InjectOperator) Dependencies(_ *Evaluator, args []interface{}, locs []*Cur
 	return l
 }
 
+// Run ...
 func (InjectOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
 	DEBUG("running (( inject ... )) operation at $.%s", ev.Here)
 	defer DEBUG("done with (( inject ... )) operation at $%s\n", ev.Here)
@@ -73,7 +76,7 @@ func (InjectOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) 
 			return nil, err
 		}
 		return &Response{
-			Type: Inject,
+			Type:  Inject,
 			Value: merged,
 		}, nil
 	}

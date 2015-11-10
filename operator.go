@@ -1,22 +1,28 @@
 package main
 
 import (
-	"regexp"
 	"fmt"
+	"regexp"
 )
 
+// Action ...
 type Action int
 
 const (
+	// Replace ...
 	Replace Action = iota
+
+	// Inject ...
 	Inject
 )
 
+// Response ...
 type Response struct {
 	Type  Action
 	Value interface{}
 }
 
+// Operator ...
 type Operator interface {
 	// evaluate the tree and determine what should be done to satisfy caller
 	Run(ev *Evaluator, args []interface{}) (*Response, error)
@@ -25,8 +31,10 @@ type Operator interface {
 	Dependencies(ev *Evaluator, args []interface{}, locs []*Cursor) []*Cursor
 }
 
+// OpRegistry ...
 var OpRegistry map[string]Operator
 
+// OperatorFor ...
 func OperatorFor(name string) Operator {
 	if op, ok := OpRegistry[name]; ok {
 		return op
@@ -34,6 +42,7 @@ func OperatorFor(name string) Operator {
 	return NullOperator{Missing: name}
 }
 
+// RegisterOp ...
 func RegisterOp(name string, op Operator) {
 	if OpRegistry == nil {
 		OpRegistry = map[string]Operator{}
@@ -41,14 +50,16 @@ func RegisterOp(name string, op Operator) {
 	OpRegistry[name] = op
 }
 
+// Opcall ...
 type Opcall struct {
-	src   string
-	where *Cursor
+	src       string
+	where     *Cursor
 	canonical *Cursor
-	op    Operator
-	args  []interface{}
+	op        Operator
+	args      []interface{}
 }
 
+// ParseOpcall ...
 func ParseOpcall(src string) (*Opcall, error) {
 	split := func(src string) []string {
 		list := make([]string, 0, 0)
@@ -99,13 +110,13 @@ func ParseOpcall(src string) (*Opcall, error) {
 	argify := func(src string) ([]interface{}, error) {
 		var args []interface{}
 
-		quoted_string := regexp.MustCompile(`^"(.*)"$`)
-		numeric       := regexp.MustCompile(`^\d+$`)
+		qstring := regexp.MustCompile(`^"(.*)"$`)
+		numeric := regexp.MustCompile(`^\d+$`)
 
 		for i, arg := range split(src) {
 			switch {
-			case quoted_string.MatchString(arg):
-				m := quoted_string.FindStringSubmatch(arg)
+			case qstring.MatchString(arg):
+				m := qstring.FindStringSubmatch(arg)
 				DEBUG("  #%d: parsed as quoted string literal '%s'", i, m[1])
 				args = append(args, m[1])
 
@@ -128,7 +139,7 @@ func ParseOpcall(src string) (*Opcall, error) {
 		return args, nil
 	}
 
-	op := &Opcall{ src: src }
+	op := &Opcall{src: src}
 
 	for _, pattern := range []string{
 		`^\Q((\E\s*([a-zA-Z][a-zA-Z0-9_-]*)(?:\s*\((.*)\))?\s*\Q))\E$`, // (( op(x,y,z) ))
@@ -156,6 +167,7 @@ func ParseOpcall(src string) (*Opcall, error) {
 	return nil, nil
 }
 
+// Dependencies ...
 func (op *Opcall) Dependencies(ev *Evaluator, locs []*Cursor) []*Cursor {
 	l := []*Cursor{}
 	for _, arg := range op.args {
@@ -181,6 +193,7 @@ func (op *Opcall) Dependencies(ev *Evaluator, locs []*Cursor) []*Cursor {
 	return l
 }
 
+// Run ...
 func (op *Opcall) Run(ev *Evaluator) (*Response, error) {
 	was := ev.Here
 	ev.Here = op.where

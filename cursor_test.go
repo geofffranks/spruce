@@ -1,8 +1,8 @@
 package main
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
+	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
@@ -23,7 +23,7 @@ func TestCursor(t *testing.T) {
 				So(c, ShouldNotBeNil)
 				So(len(c.Nodes), ShouldEqual, len(nodes))
 
-				for i, _ := range nodes {
+				for i := range nodes {
 					So(c.Nodes[i], ShouldEqual, nodes[i])
 				}
 			}
@@ -163,7 +163,7 @@ key:
 				So(c.Component(-3), ShouldEqual, "x")
 
 				// out of range
-				So(c.Component(-4), ShouldEqual ,"")
+				So(c.Component(-4), ShouldEqual, "")
 				So(c.Component(-1023), ShouldEqual, "")
 				So(c.Component(0), ShouldEqual, "")
 			})
@@ -221,7 +221,7 @@ key:
 
 		Convey("resolving", func() {
 			tree := YAML(
-`key:
+				`key:
   subkey:
     value: found it
   list:

@@ -80,56 +80,54 @@ func main() {
 		printfStdErr("%s - Version %s\n", os.Args[0], VERSION)
 		exit(0)
 		return
+	}
 
-	} else {
-		switch {
-		case options.Action == "merge":
-			if len(options.Merge.Files) >= 1 {
-				root := make(map[interface{}]interface{})
+	switch {
+	case options.Action == "merge":
+		if len(options.Merge.Files) >= 1 {
+			root := make(map[interface{}]interface{})
 
-				err := mergeAllDocs(root, options.Merge.Files)
-				if err != nil {
-					printfStdErr("%s\n", err.Error())
-					exit(2)
-					return
-				}
-
-				ev := &Evaluator{ Tree: root }
-				err = ev.Run(options.Merge.Prune)
-				if err != nil {
-					printfStdErr("%s\n", err.Error())
-					exit(2)
-					return
-				}
-
-				DEBUG("Converting the following data back to YML:")
-				DEBUG("%#v", ev.Tree)
-				merged, err := yaml.Marshal(ev.Tree)
-				if err != nil {
-					printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), ev.Tree)
-					exit(2)
-					return
-
-				}
-
-				var output string
-				if handleConcourseQuoting {
-					output = dequoteConcourse(merged)
-				} else {
-					output = string(merged)
-				}
-				printfStdOut("%s\n", output)
-
-			} else {
-				usage()
+			err := mergeAllDocs(root, options.Merge.Files)
+			if err != nil {
+				printfStdErr("%s\n", err.Error())
+				exit(2)
 				return
 			}
 
-		default:
+			ev := &Evaluator{Tree: root}
+			err = ev.Run(options.Merge.Prune)
+			if err != nil {
+				printfStdErr("%s\n", err.Error())
+				exit(2)
+				return
+			}
+
+			DEBUG("Converting the following data back to YML:")
+			DEBUG("%#v", ev.Tree)
+			merged, err := yaml.Marshal(ev.Tree)
+			if err != nil {
+				printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), ev.Tree)
+				exit(2)
+				return
+
+			}
+
+			var output string
+			if handleConcourseQuoting {
+				output = dequoteConcourse(merged)
+			} else {
+				output = string(merged)
+			}
+			printfStdOut("%s\n", output)
+
+		} else {
 			usage()
 			return
-
 		}
+
+	default:
+		usage()
+		return
 	}
 }
 
