@@ -13,6 +13,8 @@ import (
 
 // Current version of spruce
 var VERSION = "0.12.0" // SED MARKER FOR AUTO VERSION BUMPING
+var BUILD = "master" // updated by build.sh
+var DIRTY = "" // updated by build.sh
 
 var printfStdOut = func(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stdout, format, args...)
@@ -77,7 +79,7 @@ func main() {
 	handleConcourseQuoting = options.Concourse
 
 	if options.Version {
-		printfStdErr("%s - Version %s\n", os.Args[0], VERSION)
+		printfStdErr("%s - Version %s (%s%s)\n", os.Args[0], VERSION, BUILD, DIRTY)
 		exit(0)
 		return
 	}
