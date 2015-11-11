@@ -15,7 +15,11 @@ fi
 
 # update BUILD to be the HEAD commit-ish
 sha1=$(git rev-list --abbrev-commit HEAD -n1)
-sed -i '' -e "s/var BUILD = \".*\"/var BUILD = \"${sha1}\"/" main.go
+if [[ -z ${IN_RELEASE} ]]; then
+	sed -i '' -e "s/var BUILD = \".*\"/var BUILD = \"${sha1}\"/" main.go
+else
+	sed -i '' -e "s/var BUILD = \".*\"/var BUILD = \"release\"/" main.go
+fi
 
 # do the build
 go build .
