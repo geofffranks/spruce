@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
 )
 
 func TestShouldReplaceArray(t *testing.T) {
@@ -810,6 +812,61 @@ func TestMergeArray(t *testing.T) {
 			err := m.Error()
 			So(o, ShouldResemble, expect)
 			So(err, ShouldBeNil)
+		})
+	})
+}
+
+func TestMerge(t *testing.T) {
+	YAML := func(s string) map[interface{}]interface{} {
+		y, err := simpleyaml.NewYaml([]byte(s))
+		So(err, ShouldBeNil)
+
+		data, err := y.Map()
+		So(err, ShouldBeNil)
+
+		return data
+	}
+
+	valueIs := func(tree interface{}, path string, expect string) {
+		c, err := ParseCursor(path)
+		So(err, ShouldBeNil)
+
+		v, err := c.ResolveString(tree)
+		So(err, ShouldBeNil)
+
+		So(v, ShouldEqual, expect)
+	}
+	notPresent := func(tree interface{}, path string) {
+		c, err := ParseCursor(path)
+		So(err, ShouldBeNil)
+
+		_, err = c.ResolveString(tree)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldContainSubstring, "could not be found")
+	}
+
+	Convey("Merge()", t, func() {
+		Convey("leaves original object untouched when merging", func() {
+			template := YAML(`props:
+  toplevel: TEMPLATE VALUE
+  sub:
+    key: ANOTHER TEMPLATE VALUE
+`)
+			other := YAML(`props:
+  toplevel: override
+`)
+
+			merged, err := Merge(template, other)
+			So(err, ShouldBeNil)
+
+			valueIs(template, "props.toplevel", "TEMPLATE VALUE")
+			valueIs(template, "props.sub.key", "ANOTHER TEMPLATE VALUE")
+
+			valueIs(other, "props.toplevel", "override")
+			notPresent(other, "props.sub.key")
+
+			valueIs(merged, "props.toplevel", "override")
+			valueIs(merged, "props.sub.key", "ANOTHER TEMPLATE VALUE")
 		})
 	})
 }

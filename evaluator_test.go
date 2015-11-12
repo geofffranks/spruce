@@ -575,6 +575,98 @@ thing:
 				valueIs(ev, "thing.properties.foo", "bar")
 			})
 
+			Convey("uses deep-copy semantics to handle overrides correctly on template re-use", func() {
+				ev := &Evaluator{
+					Tree: YAML(
+						`meta:
+  template:
+    properties:
+      key: DEFAULT
+      sub:
+        key: DEFAULT
+foo:
+  <<<: (( inject meta.template ))
+  properties:
+    key: FOO
+    sub:
+      key: FOO
+bar:
+  <<<: (( inject meta.template ))
+  properties:
+    key: BAR
+    sub:
+      key: BAR
+boz:
+  <<<: (( inject meta.template ))
+  properties:
+    key: BOZ
+    sub:
+      key: BOZ
+`),
+				}
+
+				err := ev.DataFlow()
+				So(err, ShouldBeNil)
+
+				err = ev.Patch()
+				So(err, ShouldBeNil)
+
+				valueIs(ev, "foo.properties.key", "FOO")
+				valueIs(ev, "foo.properties.sub.key", "FOO")
+
+				valueIs(ev, "bar.properties.key", "BAR")
+				valueIs(ev, "bar.properties.sub.key", "BAR")
+
+				valueIs(ev, "boz.properties.key", "BOZ")
+				valueIs(ev, "boz.properties.sub.key", "BOZ")
+			})
+
+			Convey("uses deep-copy semantics for re-use of injected templates with embedded lists", func() {
+				ev := &Evaluator{
+					Tree: YAML(
+						`meta:
+  template:
+    properties:
+      key: DEFAULT
+      list:
+        - key: DEFAULT
+foo:
+  <<<: (( inject meta.template ))
+  properties:
+    key: FOO
+    list:
+      - key: FOO
+bar:
+  <<<: (( inject meta.template ))
+  properties:
+    key: BAR
+    list:
+      - key: BAR
+boz:
+  <<<: (( inject meta.template ))
+  properties:
+    key: BOZ
+    list:
+      - key: BOZ
+`),
+				}
+
+				err := ev.DataFlow()
+				So(err, ShouldBeNil)
+
+				err = ev.Patch()
+				So(err, ShouldBeNil)
+
+				valueIs(ev, "foo.properties.key", "FOO")
+				valueIs(ev, "foo.properties.list[0].key", "FOO")
+
+				valueIs(ev, "bar.properties.key", "BAR")
+				valueIs(ev, "bar.properties.list[0].key", "BAR")
+
+				valueIs(ev, "boz.properties.key", "BOZ")
+				valueIs(ev, "boz.properties.list[0].key", "BOZ")
+			})
+
 			Convey("handles static_ips() call and a subsequent grab", func() {
 				ev := &Evaluator{
 					Tree: YAML(
