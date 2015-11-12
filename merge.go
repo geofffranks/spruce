@@ -59,6 +59,27 @@ func (m *Merger) Error() error {
 	return nil
 }
 
+func deepCopy(orig interface{}) interface{} {
+	switch orig.(type) {
+	case map[interface{}]interface{}:
+		x := map[interface{}]interface{}{}
+		for k, v := range orig.(map[interface{}]interface{}) {
+			x[k] = deepCopy(v)
+		}
+		return x
+
+	case []interface{}:
+		x := make([]interface{}, len(orig.([]interface{})))
+		for i, v := range orig.([]interface{}) {
+			x[i] = deepCopy(v)
+		}
+		return x
+
+	default:
+		return orig
+	}
+}
+
 // Merge ...
 func (m *Merger) Merge(a map[interface{}]interface{}, b map[interface{}]interface{}) error {
 	m.mergeMap(a, b, "$")
@@ -72,7 +93,7 @@ func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]in
 			orig[k] = m.mergeObj(orig[k], val, path)
 		} else {
 			DEBUG("%s: not found upstream, adding it", path)
-			orig[k] = val
+			orig[k] = deepCopy(val)
 		}
 	}
 }
