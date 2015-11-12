@@ -41,6 +41,7 @@ var usage = func() {
 }
 
 var debug bool
+var trace bool
 var handleConcourseQuoting bool
 
 // DEBUG - Prints out a debug message
@@ -56,9 +57,27 @@ func DEBUG(format string, args ...interface{}) {
 	}
 }
 
+func TRACE(format string, args ...interface{}) {
+	if trace {
+		content := fmt.Sprintf(format, args...)
+		lines := strings.Split(content, "\n")
+		for i, line := range lines {
+			lines[i] = "-----> " + line
+		}
+		content = strings.Join(lines, "\n")
+		printfStdErr("%s\n", content)
+	}
+}
+
+func envFlag(varname string) bool {
+	val := os.Getenv(varname)
+	return val != "" && strings.ToLower(val) != "false" && val != "0"
+}
+
 func main() {
 	var options struct {
 		Debug     bool `goptions:"-D, --debug, description='Enable debugging'"`
+		Trace     bool `goptions:"-T, --trace, description='Enable trace mode debugging (very verbose)'"`
 		Version   bool `goptions:"-v, --version, description='Display version information'"`
 		Concourse bool `goptions:"--concourse, description='Pre/Post-process YAML for Concourse CI (handles {{ }} quoting)'"`
 		Action    goptions.Verbs
@@ -69,11 +88,21 @@ func main() {
 	}
 	getopts(&options)
 
-	if os.Getenv("DEBUG") != "" && strings.ToLower(os.Getenv("DEBUG")) != "false" && os.Getenv("DEBUG") != "0" {
+	if envFlag("DEBUG") {
 		debug = true
 	}
 	if options.Debug {
 		debug = options.Debug
+	}
+
+	if envFlag("TRACE") {
+		trace = true
+	}
+	if options.Trace {
+		trace = options.Trace
+	}
+	if trace {
+		debug = true
 	}
 
 	handleConcourseQuoting = options.Concourse
@@ -104,8 +133,8 @@ func main() {
 				return
 			}
 
-			DEBUG("Converting the following data back to YML:")
-			DEBUG("%#v", ev.Tree)
+			TRACE("Converting the following data back to YML:")
+			TRACE("%#v", ev.Tree)
 			merged, err := yaml.Marshal(ev.Tree)
 			if err != nil {
 				printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), ev.Tree)
@@ -169,7 +198,7 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 		m.Merge(root, doc)
 
 		tmpYaml, _ := yaml.Marshal(root) // we don't care about errors for debugging
-		DEBUG("Current data after processing '%s':\n%s", path, tmpYaml)
+		TRACE("Current data after processing '%s':\n%s", path, tmpYaml)
 	}
 
 	return m.Error()
