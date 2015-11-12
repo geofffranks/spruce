@@ -44,6 +44,8 @@ func (ev *Evaluator) DataFlow() error {
 						op.canonical = op.where
 					}
 					all[op.canonical.String()] = op
+					TRACE("found an operation at %s: %s", op.where.String(), op.src)
+					TRACE("        (canonical at %s)", op.canonical.String())
 					locs = append(locs, op.canonical)
 				}
 			}
@@ -118,13 +120,16 @@ func (ev *Evaluator) DataFlow() error {
 
 	// Kahn topological sort
 	ev.DataOps = []*Opcall{} // order in which to call the ops
+	phase := 0
 	for len(all) > 0 {
+		phase++
 		free := freeNodes(g)
 		if len(free) == 0 {
 			return fmt.Errorf("cycle detected in operator data-flow graph")
 		}
 
 		for _, node := range free {
+			TRACE("data flow: [%d] phase %d, op %s: %s", len(ev.DataOps), phase, node.where, node.src)
 			ev.DataOps = append(ev.DataOps, node)
 			g = remove(g, node)
 		}
