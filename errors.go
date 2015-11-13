@@ -22,6 +22,10 @@ func (e MultiError) Error() string {
 	return fmt.Sprintf("%d error(s) detected:\n%s\n", len(e.Errors), strings.Join(s, ""))
 }
 
+func (e *MultiError) Count() int {
+	return len(e.Errors)
+}
+
 // Append ...
 func (e *MultiError) Append(err error) {
 	if err == nil {

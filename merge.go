@@ -4,40 +4,11 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"sort"
-	"strings"
 )
-
-// ErrorList ...
-type ErrorList struct {
-	errs []error
-}
-
-// Error ...
-func (el ErrorList) Error() string {
-	str := make([]string, len(el.errs))
-	for i, s := range el.errs {
-		str[i] = fmt.Sprintf(" - %s\n", s)
-	}
-	sort.Strings(str)
-	return fmt.Sprintf("%d error(s) detected:\n%s\n", len(el.errs), strings.Join(str, ""))
-}
-
-// Count ...
-func (el *ErrorList) Count() int {
-	return len(el.errs)
-}
-
-// Push ...
-func (el *ErrorList) Push(e error) {
-	if e != nil {
-		el.errs = append(el.errs, e)
-	}
-}
 
 // Merger ...
 type Merger struct {
-	Errors ErrorList
+	Errors MultiError
 	depth  int
 }
 
@@ -156,11 +127,11 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 		DEBUG("%s: performing key-based array merge, using key '%s'", node, key)
 
 		if err := canKeyMergeArray("new", n[1:], node, key); err != nil {
-			m.Errors.Push(err)
+			m.Errors.Append(err)
 			return nil
 		}
 		if err := canKeyMergeArray("original", orig, node, key); err != nil {
-			m.Errors.Push(err)
+			m.Errors.Append(err)
 			return nil
 		}
 
