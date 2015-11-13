@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"io/ioutil"
 
 	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
 	"github.com/voxelbrain/goptions"
@@ -181,7 +182,7 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 
 	for _, path := range paths {
 		DEBUG("Processing file '%s'", path)
-		data, err := readFile(path)
+		data, err := ioutil.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("Error reading file %s: %s\n", path, err.Error())
 		}
