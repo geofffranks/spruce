@@ -14,7 +14,9 @@ import (
 
 // Current version of spruce
 var VERSION = "0.12.0" // SED MARKER FOR AUTO VERSION BUMPING
+// Current build of spruce
 var BUILD = "master" // updated by build.sh
+// Whether any uncommitted changes were found in the working copy
 var DIRTY = "" // updated by build.sh
 
 var printfStdOut = func(format string, args ...interface{}) {
@@ -58,6 +60,7 @@ func DEBUG(format string, args ...interface{}) {
 	}
 }
 
+// TRACE - Prints out a trace message
 func TRACE(format string, args ...interface{}) {
 	if trace {
 		content := fmt.Sprintf(format, args...)
