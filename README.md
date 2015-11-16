@@ -132,7 +132,7 @@ to worry about getting the instances + networks defined before `(( static_ips() 
 is merged in. Second, the error messaging output should be a lot better to aid in
 tracking down why `static_ips()` calls fail.
 
-Check out the [static_ips() example](#static_ips)
+Check out the [static_ips() example](#static-ips-example)
 
 ### But I Want To Make Strings!!
 
