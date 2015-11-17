@@ -531,6 +531,36 @@ jobs:
 			So(v[2], ShouldEqual, "10.0.0.7")
 		})
 
+		Convey("can resolve valid large networks inside of job contexts", func() {
+			ev := &Evaluator{
+				Here: cursor("jobs.job1.networks.0.static_ips"),
+				Tree: YAML(
+					`networks:
+  - name: test-network
+    subnets:
+      - static: [ 10.1.0.5 - 10.1.1.10 ]
+jobs:
+  - name: job1
+    instances: 3
+    networks:
+      - name: test-network
+        static_ips: <---------- HERE -----------------
+`),
+			}
+
+			r, err := op.Run(ev, []interface{}{"0", "251", "261"})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			v, ok := r.Value.([]interface{})
+			So(ok, ShouldBeTrue)
+			So(len(v), ShouldEqual, 3)
+			So(v[0], ShouldEqual, "10.1.0.5")
+			So(v[1], ShouldEqual, "10.1.1.0")
+			So(v[2], ShouldEqual, "10.1.1.10")
+		})
+
 		Convey("throws an error if no job name is specified", func() {
 			ev := &Evaluator{
 				Here: cursor("jobs.0.networks.0.static_ips"),
