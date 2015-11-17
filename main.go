@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"io/ioutil"
 
 	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
 	"github.com/voxelbrain/goptions"
@@ -13,7 +14,9 @@ import (
 
 // Current version of spruce
 var VERSION = "0.12.0" // SED MARKER FOR AUTO VERSION BUMPING
+// Current build of spruce
 var BUILD = "master" // updated by build.sh
+// Whether any uncommitted changes were found in the working copy
 var DIRTY = "" // updated by build.sh
 
 var printfStdOut = func(format string, args ...interface{}) {
@@ -57,6 +60,7 @@ func DEBUG(format string, args ...interface{}) {
 	}
 }
 
+// TRACE - Prints out a trace message
 func TRACE(format string, args ...interface{}) {
 	if trace {
 		content := fmt.Sprintf(format, args...)
@@ -181,7 +185,7 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 
 	for _, path := range paths {
 		DEBUG("Processing file '%s'", path)
-		data, err := readFile(path)
+		data, err := ioutil.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("Error reading file %s: %s\n", path, err.Error())
 		}
