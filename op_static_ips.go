@@ -128,12 +128,27 @@ func statics(ev *Evaluator) ([]string, error) {
 		}
 
 		for !start.Equal(end) {
-			start[len(start)-1]++
+			incrementIP(start, len(start)-1)
 			addrs = append(addrs, start.String())
 		}
 	}
-
 	return addrs, nil
+}
+
+func incrementIP(ip net.IP, i int) net.IP {
+	if ip[i] == 255 {
+		ip[i] = 0
+
+		// check next octet
+		if ip[i-1] == 255 {
+			incrementIP(ip, i-1)
+		} else {
+			ip[i-1]++
+		}
+	} else {
+		ip[i]++
+	}
+	return ip
 }
 
 // Run ...
