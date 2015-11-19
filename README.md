@@ -93,7 +93,7 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
 
 - If you don't specify a specific merge strategy, the array will
   be merged automatically; using keys if they exist (i.e. `((
-  merge ))`, and array indices otherwise (``(( inline ))`).
+  merge ))`, and array indices otherwise (`(( inline ))`).
 
 ### Cleaning Up After Yourself
 
@@ -105,7 +105,7 @@ To prune a map key from the final output<br>
 
 Need to reference existing data in your datastructure? No problem! `spruce` will wait until
 all the data is merged together before dereferencing anything, but to handle this, you can
-use the `(( grab <thing> )) syntax:
+use the `(( grab <thing> ))` syntax:
 
 ```yml
 data:
@@ -225,10 +225,8 @@ I would use `spruce` like this:
 $ spruce merge assets/examples/example.yml assets/examples/example2.yml
 othertop: you can add new top level keys too
 top:
-  1: 430
-  2: this starts as a string
-  "1": You can change types too
-  "2":
+  1: You can change types too
+  2:
     even: drastically
     to: from scalars to maps/lists
   array1:
@@ -240,11 +238,12 @@ top:
   - over
   - ridden
   - array
+  - 4
   inline_array_merge:
   - this has been overwritten
-  - this: will
-    be: overwritten
-    merge: success!
+  - be: overwritten
+    merging: success!
+    this: will
   map:
     key1: replaced key
     key2: null
@@ -327,9 +326,9 @@ deleteme:
 # things.yml
 things:
 - name: first-thing
-  foo: (( deleteme.thing.foo ))
+  foo: (( grab deleteme.thing.foo ))
 - name: second-thing
-  bar: (( deleteme.thing.bar ))
+  bar: (( grab deleteme.thing.bar ))
 ```
 
 ```
