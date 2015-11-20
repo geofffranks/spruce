@@ -58,7 +58,7 @@ func (ev *Evaluator) DataFlow() error {
 		switch o.(type) {
 		case map[interface{}]interface{}:
 			for k, v := range o.(map[interface{}]interface{}) {
-				ev.Here.Push(k.(string))
+				ev.Here.Push(fmt.Sprintf("%v", k))
 				check(v)
 				ev.Here.Pop()
 			}
@@ -341,7 +341,7 @@ func (ev *Evaluator) CheckParams() error {
 		switch o.(type) {
 		case map[interface{}]interface{}:
 			for k, v := range o.(map[interface{}]interface{}) {
-				ev.Here.Push(k.(string))
+				ev.Here.Push(fmt.Sprintf("%v", k))
 				check(v)
 				ev.Here.Pop()
 			}
