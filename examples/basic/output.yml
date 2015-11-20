@@ -1,0 +1,35 @@
+othertop: you can add new top level keys too
+top:
+  1: You can change types too
+  2:
+    even: drastically
+    to: from scalars to maps/lists
+  array1:
+  - prepend this
+  - first element
+  - second element
+  - third element
+  array2:
+  - over
+  - ridden
+  - array
+  - 4
+  inline_array_merge:
+  - this has been overwritten
+  - be: overwritten
+    merging: success!
+    this: will
+  map:
+    key1: replaced key
+    key2: null
+    key3:
+      subkey1: vv1
+      subkey2: vv2
+      subkey3:
+      - nested element 1
+      - nested element 2
+      - nested element 3
+    key4: added key
+  new_key: this is added
+  number: 50
+  orig_key: this is replaced

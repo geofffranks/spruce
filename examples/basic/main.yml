@@ -1,0 +1,28 @@
+top:
+  orig_key: This is a string attached to a key
+  number: 50
+  array1:
+  - first element
+  - second element
+  - third element
+  map:
+    key1: v1
+    key2: v2
+    key3:
+      subkey1: vv1
+      subkey2: vv2
+      subkey3:
+      - nested element 1
+      - nested element 2
+
+  1: 430.0
+  2: this starts as a string
+  array2:
+  - 1
+  - 2
+  - 3
+  - 4
+  inline_array_merge:
+  - will be overwritten
+  - this: will
+    be: merged

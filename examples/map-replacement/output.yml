@@ -1,0 +1,6 @@
+map_to_replace:
+  my: special
+  data: here
+untouched:
+  map: stays
+  the: same

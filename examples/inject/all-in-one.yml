@@ -1,0 +1,8 @@
+meta:
+  template: &template
+    color: blue
+    size: small
+
+green:
+  <<: *template
+  color: green

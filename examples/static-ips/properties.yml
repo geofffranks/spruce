@@ -1,0 +1,3 @@
+properties:
+  staticIP_servers: (( grab jobs.staticIP_z1.networks.net1.static_ips ))
+  api_servers: (( grab jobs.api_z1.networks.net1.static_ips ))

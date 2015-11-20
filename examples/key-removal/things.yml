@@ -1,0 +1,5 @@
+things:
+- name: first-thing
+  foo: (( grab deleteme.thing.foo ))
+- name: second-thing
+  bar: (( grab deleteme.thing.bar ))
