@@ -147,7 +147,7 @@ ident: (( concat cluster.name "//" env ))
 
 Which will give you an `ident:` key of "mjolnir/production"
 
-## How About an Example?
+## How About Some Examples?
 
 <a name="ex-basic"></a>
 ### Basic Example
@@ -157,7 +157,6 @@ Here's a pretty broad example, that should cover all the functionality of spruce
 If I start with this data:
 
 ```yml
----
 # examples/basic/main.yml
 top:
   orig_key: This is a string attached to a key
@@ -192,7 +191,6 @@ top:
 And want to merge in this:
 
 ```yml
----
 # examples/basic/merge.yml
 top:
   new_key: this is added
@@ -265,6 +263,8 @@ top:
   orig_key: this is replaced
 ```
 
+
+
 <a name="ex-map-replacement"></a>
 ### Map Replacement
 
@@ -276,7 +276,6 @@ use case is to merge two maps together:
 We start with this yaml:
 
 ```yml
----
 # examples/map-replacement/original.yml
 untouched:
   map: stays
@@ -289,15 +288,15 @@ map_to_replace:
 ```
 
 Next, create a YAML file to clear out the map:
+
 ```yml
----
 # examples/map-replacement/delete.yml
 map_to_replace: ~
 ```
 
 Now, create a YAML file to insert the data you want in the end:
+
 ```yml
----
 # examples/map-replacement/insert.yml
 map_to_replace:
   my: special
@@ -316,7 +315,7 @@ untouched:
   the: same
 ```
 
-*NOTE:* due to map key randomizations, the actual order of the above output will vary.
+
 
 <a name-"ex-key-removal"></a>
 ### Key Removal
@@ -324,15 +323,14 @@ untouched:
 How about deleting keys outright? Use the --prune flag to the merge command:
 
 ```yml
----
 # examples/key-removal/original.yml
 deleteme:
   thing:
     foo: 1
     bar: 2
 ```
+
 ```yml
----
 # examples/key-removal/things.yml
 things:
 - name: first-thing
@@ -343,15 +341,11 @@ things:
 
 ```
 $ spruce merge --prune deleteme original.yml things.yml
-things:
-- name: first-thing
-  foo: 1
-- name: second-thing
-  bar: 2
 ```
 
 The `deleteme` key is only useful for holding a temporary value,
 so we'd really rather not see it in the final output. `--prune` drops it.
+
 
 
 <a name="ex-list-of-maps"></a>
@@ -363,7 +357,6 @@ as much data as possible.
 Given this `original.yml`:
 
 ```yml
----
 # examples/list-of-maps/original.yml
 jobs:
 - name: concatenator_z1
@@ -381,7 +374,6 @@ jobs:
 And this `new.yml`:
 
 ```yml
----
 # examples/list-of-maps/new.yml
 jobs:
 - name: newjob_z1
@@ -419,13 +411,14 @@ jobs:
 
 Pretty sweet, huh?
 
+
+
 <a name="ex-static-ips"></a>
 ### Static IPs
 
 Lets define our `jobs.yml`:
 
 ```yml
----
 # examples/static-ips/jobs.yml
 jobs:
 - name: staticIP_z1
@@ -443,7 +436,6 @@ jobs:
 Next, we'll define our `properties.yml`:
 
 ```yml
----
 # examples/static-ips/properties.yml
 properties:
   staticIP_servers: (( grab jobs.staticIP_z1.networks.net1.static_ips ))
@@ -453,7 +445,6 @@ properties:
 And lastly, define our `networks.yml`:
 
 ```yml
----
 # examples/static-ips/networks.yml
 networks:
 - name: net1
@@ -500,6 +491,8 @@ properties:
   - 192.168.0.4
   - 192.168.0.6
 ```
+
+
 
 <a name="ex-inject"></a>
 ### Injecting Subtrees
@@ -562,6 +555,8 @@ green:
 case, `woot`) is removed from the final tree as part of the
 injection operator.
 
+
+
 <a name="params"></a>
 ### Parameters
 
@@ -570,29 +565,29 @@ template, but require other YAML files to provide certain values.
 Parameters to the rescue!
 
 ```yml
-# global.yml
+# examples/params/global.yml
 disks:
   small: 4096
   medium: 8192
   large:  102400
-networks: (( param "please define the networks" ))
-os:
-  - ubuntu
-  - centos
-  - fedora
+  networks: (( param "please define the networks" ))
+  os:
+    - ubuntu
+    - centos
+    - fedora
 ```
 
 And then combine that with these local definitions:
 
 ```yml
-# local.yml
+# examples/params/local.yml
 disks:
   medium: 16384
-networks:
-  - name: public
-    range: 10.40.0.0/24
-  - name: inside
-    range: 10.60.0.0/16
+  networks:
+    - name: public
+      range: 10.40.0.0/24
+    - name: inside
+      range: 10.60.0.0/16
 ```
 
 This works, but if `local.yml` forgot to specify the top-level
