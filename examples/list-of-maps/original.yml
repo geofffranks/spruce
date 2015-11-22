@@ -1,0 +1,11 @@
+jobs:
+- name: concatenator_z1
+  instances: 5
+  resource_pool: small
+  properties:
+    spruce: is cool
+- name: oldjob_z1
+  instances: 4
+  resource_pool: small
+  properties:
+    this: will show up in the end

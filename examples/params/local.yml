@@ -1,0 +1,7 @@
+disks:
+  medium: 16384
+  networks:
+    - name: public
+      range: 10.40.0.0/24
+    - name: inside
+      range: 10.60.0.0/16

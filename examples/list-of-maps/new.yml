@@ -1,0 +1,9 @@
+jobs:
+- name: newjob_z1
+  instances: 3
+  resource_pool: small
+  properties:
+    this: is a job defined solely in new.yml
+- name: concatenator_z1
+  properties:
+    this: is a new property added to an existing job

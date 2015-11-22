@@ -5,3 +5,4 @@ map_to_replace:
   has: upstream
   data: that
   we: do
+  not: want

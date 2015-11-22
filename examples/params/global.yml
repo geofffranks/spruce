@@ -1,0 +1,9 @@
+disks:
+  small: 4096
+  medium: 8192
+  large:  102400
+  networks: (( param "please define the networks" ))
+  os:
+    - ubuntu
+    - centos
+    - fedora

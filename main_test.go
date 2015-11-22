@@ -2,8 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
+	"gopkg.in/yaml.v2"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -617,6 +621,118 @@ func TestDequoteConcourse(t *testing.T) {
 		Convey("doesn't affect regularly quoted things", func() {
 			input := []byte("name: \"my value\"")
 			So(dequoteConcourse(input), ShouldEqual, "name: \"my value\"")
+		})
+	})
+}
+
+func TestExamples(t *testing.T) {
+	var stdout string
+	printfStdOut = func(format string, args ...interface{}) {
+		stdout = fmt.Sprintf(format, args...)
+	}
+	var stderr string
+	printfStdErr = func(format string, args ...interface{}) {
+		stderr = fmt.Sprintf(format, args...)
+	}
+
+	rc := 256 // invalid return code to catch any issues
+	exit = func(code int) {
+		rc = code
+	}
+
+	YAML := func(path string) string {
+		s, err := ioutil.ReadFile(path)
+		So(err, ShouldBeNil)
+
+		y, err := simpleyaml.NewYaml([]byte(s))
+		So(err, ShouldBeNil)
+
+		data, err := y.Map()
+		So(err, ShouldBeNil)
+
+		out, err := yaml.Marshal(data)
+		So(err, ShouldBeNil)
+
+		return string(out) + "\n"
+	}
+
+	Convey("Examples from README.md", t, func() {
+		example := func(args ...string) {
+			expect := args[len(args)-1]
+			args = args[:len(args)-1]
+
+			os.Args = []string{"spruce", "merge"}
+			os.Args = append(os.Args, args...)
+			stdout, stderr = "", ""
+			main()
+
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, YAML(expect))
+		}
+
+		Convey("Basic Example", func() {
+			example(
+				"examples/basic/main.yml",
+				"examples/basic/merge.yml",
+
+				"examples/basic/output.yml",
+			)
+		})
+
+		Convey("Map Replacements", func() {
+			example(
+				"examples/map-replacement/original.yml",
+				"examples/map-replacement/delete.yml",
+				"examples/map-replacement/insert.yml",
+
+				"examples/map-replacement/output.yml",
+			)
+		})
+
+		Convey("Key Removal", func() {
+			example(
+				"--prune", "deleteme",
+				"examples/key-removal/original.yml",
+				"examples/key-removal/things.yml",
+
+				"examples/key-removal/output.yml",
+			)
+		})
+
+		Convey("Lists of Maps", func() {
+			example(
+				"examples/list-of-maps/original.yml",
+				"examples/list-of-maps/new.yml",
+
+				"examples/list-of-maps/output.yml",
+			)
+		})
+
+		Convey("Static IPs", func() {
+			example(
+				"examples/static-ips/jobs.yml",
+				"examples/static-ips/properties.yml",
+				"examples/static-ips/networks.yml",
+
+				"examples/static-ips/output.yml",
+			)
+		})
+
+		Convey("Injecting Subtrees", func() {
+			example(
+				"--prune", "meta",
+				"examples/inject/all-in-one.yml",
+
+				"examples/inject/output.yml",
+			)
+
+			example(
+				"--prune", "meta",
+				"examples/inject/templates.yml",
+				"examples/inject/green.yml",
+
+				"examples/inject/output.yml",
+			)
 		})
 	})
 }
