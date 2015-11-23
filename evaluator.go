@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 )
 
@@ -12,14 +13,13 @@ type Evaluator struct {
 
 	Here *Cursor
 
-	DataOps  []*Opcall
 	CheckOps []*Opcall
 
 	pointer *interface{}
 }
 
 // DataFlow ...
-func (ev *Evaluator) DataFlow() error {
+func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 	ev.Here = &Cursor{}
 
 	all := map[string]*Opcall{}
@@ -36,7 +36,7 @@ func (ev *Evaluator) DataFlow() error {
 			if err != nil {
 				errors.Append(err)
 			} else if op != nil {
-				if _, ok := op.op.(ParamOperator); !ok {
+				if op.op.Phase() == phase {
 					op.where = ev.Here.Copy()
 					if canon, err := op.where.Canonical(ev.Tree); err == nil {
 						op.canonical = canon
@@ -85,12 +85,24 @@ func (ev *Evaluator) DataFlow() error {
 		}
 	}
 
+	// construct a sorted list of keys in $all, so that we
+	// can reliably generate the same DFA every time
+	var sortedKeys []string
+	for k := range all {
+		sortedKeys = append(sortedKeys, k)
+	}
+	sort.Strings(sortedKeys)
+
 	// find all nodes in g that are free (no futher dependencies)
 	freeNodes := func(g [][2]*Opcall) []*Opcall {
 		l := []*Opcall{}
-		for k, node := range all {
-			called := false
+		for _, k := range sortedKeys {
+			node, ok := all[k]
+			if !ok {
+				continue
+			}
 
+			called := false
 			for _, pair := range g {
 				if pair[1] == node {
 					called = true
@@ -119,112 +131,37 @@ func (ev *Evaluator) DataFlow() error {
 	}
 
 	// Kahn topological sort
-	ev.DataOps = []*Opcall{} // order in which to call the ops
-	phase := 0
+	ops := []*Opcall{} // order in which to call the ops
+	wave := 0
 	for len(all) > 0 {
-		phase++
+		wave++
 		free := freeNodes(g)
 		if len(free) == 0 {
-			return fmt.Errorf("cycle detected in operator data-flow graph")
+			return nil, fmt.Errorf("cycle detected in operator data-flow graph")
 		}
 
 		for _, node := range free {
-			TRACE("data flow: [%d] phase %d, op %s: %s", len(ev.DataOps), phase, node.where, node.src)
-			ev.DataOps = append(ev.DataOps, node)
+			TRACE("data flow: [%d] wave %d, op %s: %s", len(ops), wave, node.where, node.src)
+			ops = append(ops, node)
 			g = remove(g, node)
 		}
 	}
 
 	if len(errors.Errors) > 0 {
-		return errors
+		return nil, errors
 	}
-	return nil
+	return ops, nil
 }
 
-// Patch ...
-func (ev *Evaluator) Patch() error {
+// RunOps ...
+func (ev *Evaluator) RunOps(ops []*Opcall) error {
 	DEBUG("patching up YAML by evaluating outstanding operators\n")
 
 	errors := MultiError{Errors: []error{}}
-	for _, op := range ev.DataOps {
-		resp, err := op.Run(ev)
+	for _, op := range ops {
+		err := ev.RunOp(op)
 		if err != nil {
 			errors.Append(err)
-			continue
-		}
-
-		switch resp.Type {
-		case Replace:
-			DEBUG("executing a Replace instruction on %s", op.where)
-			key := op.where.Component(-1)
-			parent := op.where.Copy()
-			parent.Pop()
-
-			o, err := parent.Resolve(ev.Tree)
-			if err != nil {
-				DEBUG("  error: %s\n  continuing\n", err)
-				errors.Append(err)
-				continue
-			}
-			switch o.(type) {
-			case []interface{}:
-				i, err := strconv.ParseUint(key, 10, 0)
-				if err != nil {
-					DEBUG("  error: %s\n  continuing\n", err)
-					errors.Append(err)
-					continue
-				}
-				o.([]interface{})[i] = resp.Value
-
-			case map[interface{}]interface{}:
-				o.(map[interface{}]interface{})[key] = resp.Value
-
-			default:
-				err := TypeMismatchError{
-					Path:   parent.Nodes,
-					Wanted: "a map or a list",
-					Got:    "a scalar",
-				}
-				DEBUG("  error: %s\n  continuing\n", err)
-				errors.Append(err)
-				continue
-			}
-			DEBUG("")
-
-		case Inject:
-			DEBUG("executing an Inject instruction on %s", op.where)
-			key := op.where.Component(-1)
-			parent := op.where.Copy()
-			parent.Pop()
-
-			o, err := parent.Resolve(ev.Tree)
-			if err != nil {
-				errors.Append(err)
-				DEBUG("  error: %s\n  continuing\n", err)
-				continue
-			}
-
-			m := o.(map[interface{}]interface{})
-			delete(m, key)
-
-			for k, v := range resp.Value.(map[interface{}]interface{}) {
-				_, set := m[k]
-				if !set {
-					DEBUG("  %s is not set, using the injected value", parent)
-					m[k] = v
-				} else {
-					DEBUG("  %s exists, merging the injected values", parent)
-					target, targetIsMap := m[k].(map[interface{}]interface{})
-					template, templateIsMap := v.(map[interface{}]interface{})
-					if targetIsMap && templateIsMap {
-						m[k], err = Merge(template, target)
-						if err != nil {
-							DEBUG("  error: %s\n  continuing\n", err)
-							errors.Append(err)
-						}
-					}
-				}
-			}
 		}
 	}
 
@@ -308,73 +245,103 @@ func (ev *Evaluator) CheckForCycles(maxDepth int) error {
 	return nil
 }
 
-// CheckParams ...
-func (ev *Evaluator) CheckParams() error {
-	DEBUG("checking for any remaining (( param ... )) operators\n")
+// RunOp ...
+func (ev *Evaluator) RunOp(op *Opcall) error {
+	resp, err := op.Run(ev)
+	if err != nil {
+		return err
+	}
 
-	ev.Here = &Cursor{}
-	ev.CheckOps = []*Opcall{}
+	switch resp.Type {
+	case Replace:
+		DEBUG("executing a Replace instruction on %s", op.where)
+		key := op.where.Component(-1)
+		parent := op.where.Copy()
+		parent.Pop()
 
-	errors := MultiError{Errors: []error{}}
-
-	var check func(interface{})
-	var scan func(interface{})
-
-	check = func(v interface{}) {
-		if s, ok := v.(string); ok {
-			op, err := ParseOpcall(s)
+		o, err := parent.Resolve(ev.Tree)
+		if err != nil {
+			DEBUG("  error: %s\n  continuing\n", err)
+			return err
+		}
+		switch o.(type) {
+		case []interface{}:
+			i, err := strconv.ParseUint(key, 10, 0)
 			if err != nil {
-				errors.Append(err)
+				DEBUG("  error: %s\n  continuing\n", err)
+				return err
+			}
+			o.([]interface{})[i] = resp.Value
 
-			} else if op != nil {
-				if _, ok := op.op.(ParamOperator); ok {
-					op.where = ev.Here.Copy()
-					ev.CheckOps = append(ev.CheckOps, op)
+		case map[interface{}]interface{}:
+			o.(map[interface{}]interface{})[key] = resp.Value
+
+		default:
+			err := TypeMismatchError{
+				Path:   parent.Nodes,
+				Wanted: "a map or a list",
+				Got:    "a scalar",
+			}
+			DEBUG("  error: %s\n  continuing\n", err)
+			return err
+		}
+		DEBUG("")
+
+	case Inject:
+		DEBUG("executing an Inject instruction on %s", op.where)
+		key := op.where.Component(-1)
+		parent := op.where.Copy()
+		parent.Pop()
+
+		o, err := parent.Resolve(ev.Tree)
+		if err != nil {
+			DEBUG("  error: %s\n  continuing\n", err)
+			return err
+		}
+
+		m := o.(map[interface{}]interface{})
+		delete(m, key)
+
+		for k, v := range resp.Value.(map[interface{}]interface{}) {
+			_, set := m[k]
+			if !set {
+				DEBUG("  %s is not set, using the injected value", parent)
+				m[k] = v
+			} else {
+				DEBUG("  %s exists, merging the injected values", parent)
+				target, targetIsMap := m[k].(map[interface{}]interface{})
+				template, templateIsMap := v.(map[interface{}]interface{})
+				if targetIsMap && templateIsMap {
+					m[k], err = Merge(template, target)
+					if err != nil {
+						DEBUG("  error: %s\n  continuing\n", err)
+						return err
+					}
 				}
 			}
-		} else {
-			scan(v)
 		}
 	}
+	return nil
+}
 
-	scan = func(o interface{}) {
-		switch o.(type) {
-		case map[interface{}]interface{}:
-			for k, v := range o.(map[interface{}]interface{}) {
-				ev.Here.Push(fmt.Sprintf("%v", k))
-				check(v)
-				ev.Here.Pop()
-			}
-
-		case []interface{}:
-			for i, v := range o.([]interface{}) {
-				ev.Here.Push(fmt.Sprintf("%d", i))
-				check(v)
-				ev.Here.Pop()
-			}
-		}
-
-		return
+// RunPhase ...
+func (ev *Evaluator) RunPhase(p OperatorPhase) error {
+	err := SetupOperators(p)
+	if err != nil {
+		return err
 	}
-
-	scan(ev.Tree)
-	for _, op := range ev.CheckOps {
-		_, err := op.Run(ev)
-		if err != nil {
-			errors.Append(err)
-		}
+	op, err := ev.DataFlow(p)
+	if err != nil {
+		return err
 	}
-	if len(errors.Errors) == 0 {
-		return nil
-	}
-	return errors
+	return ev.RunOps(op)
 }
 
 // Run ...
 func (ev *Evaluator) Run(prune []string) error {
 	errors := MultiError{Errors: []error{}}
-	errors.Append(ev.DataFlow())
-	errors.Append(ev.Patch())
+	errors.Append(ev.RunPhase(MergePhase))
+	errors.Append(ev.RunPhase(EvalPhase))
 	errors.Append(ev.Prune(prune))
 
 	// this is a big failure...
@@ -382,7 +349,7 @@ func (ev *Evaluator) Run(prune []string) error {
 		return err
 	}
 
-	errors.Append(ev.CheckParams())
+	errors.Append(ev.RunPhase(CheckPhase))
 	if len(errors.Errors) > 0 {
 		return errors
 	}

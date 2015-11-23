@@ -7,6 +7,16 @@ import (
 // InjectOperator ...
 type InjectOperator struct{}
 
+// Setup ...
+func (InjectOperator) Setup() error {
+	return nil
+}
+
+// Phase ...
+func (InjectOperator) Phase() OperatorPhase {
+	return MergePhase
+}
+
 // Dependencies ...
 func (InjectOperator) Dependencies(_ *Evaluator, args []interface{}, locs []*Cursor) []*Cursor {
 	l := []*Cursor{}

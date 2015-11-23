@@ -7,6 +7,16 @@ import (
 // GrabOperator ...
 type GrabOperator struct{}
 
+// Setup ...
+func (GrabOperator) Setup() error {
+	return nil
+}
+
+// Phase ...
+func (GrabOperator) Phase() OperatorPhase {
+	return EvalPhase
+}
+
 // Dependencies ...
 func (GrabOperator) Dependencies(_ *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
 	return []*Cursor{}
