@@ -13,6 +13,17 @@ var UsedIPs map[string]string
 // StaticIPOperator ...
 type StaticIPOperator struct{}
 
+// Setup ...
+func (StaticIPOperator) Setup() error {
+	UsedIPs = map[string]string{}
+	return nil
+}
+
+// Phase ...
+func (StaticIPOperator) Phase() OperatorPhase {
+	return EvalPhase
+}
+
 // Dependencies ...
 func (StaticIPOperator) Dependencies(ev *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
 	l := []*Cursor{}
@@ -261,6 +272,5 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []interface{}) (*Response, err
 }
 
 func init() {
-	UsedIPs = map[string]string{}
 	RegisterOp("static_ips", StaticIPOperator{})
 }

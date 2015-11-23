@@ -16,6 +16,18 @@ const (
 	Inject
 )
 
+// OperatorPhase ...
+type OperatorPhase int
+
+const (
+	// MergePhase ...
+	MergePhase OperatorPhase = iota
+	// EvalPhase ...
+	EvalPhase
+	// CheckPhase ...
+	CheckPhase
+)
+
 // Response ...
 type Response struct {
 	Type  Action
@@ -24,11 +36,17 @@ type Response struct {
 
 // Operator ...
 type Operator interface {
+	// setup whatever global/static state needed -- see (( static_ips ... ))
+	Setup() error
+
 	// evaluate the tree and determine what should be done to satisfy caller
 	Run(ev *Evaluator, args []interface{}) (*Response, error)
 
 	// returns a set of implicit / inherent dependencies used by Run()
 	Dependencies(ev *Evaluator, args []interface{}, locs []*Cursor) []*Cursor
+
+	// what phase does this operator run during?
+	Phase() OperatorPhase
 }
 
 // OpRegistry ...
@@ -48,6 +66,22 @@ func RegisterOp(name string, op Operator) {
 		OpRegistry = map[string]Operator{}
 	}
 	OpRegistry[name] = op
+}
+
+// SetupOperators ...
+func SetupOperators(phase OperatorPhase) error {
+	errors := MultiError{Errors: []error{}}
+	for _, op := range OpRegistry {
+		if op.Phase() == phase {
+			if err := op.Setup(); err != nil {
+				errors.Append(err)
+			}
+		}
+	}
+	if len(errors.Errors) > 0 {
+		return errors
+	}
+	return nil
 }
 
 // Opcall ...

@@ -8,6 +8,16 @@ import (
 // ConcatOperator ...
 type ConcatOperator struct{}
 
+// Setup ...
+func (ConcatOperator) Setup() error {
+	return nil
+}
+
+// Phase ...
+func (ConcatOperator) Phase() OperatorPhase {
+	return EvalPhase
+}
+
 // Dependencies ...
 func (ConcatOperator) Dependencies(_ *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
 	return []*Cursor{}

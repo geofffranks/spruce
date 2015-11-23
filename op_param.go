@@ -7,6 +7,16 @@ import (
 // ParamOperator ...
 type ParamOperator struct{}
 
+// Setup ...
+func (ParamOperator) Setup() error {
+	return nil
+}
+
+// Phase ...
+func (ParamOperator) Phase() OperatorPhase {
+	return CheckPhase
+}
+
 // Dependencies ...
 func (ParamOperator) Dependencies(_ *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
 	return []*Cursor{}
