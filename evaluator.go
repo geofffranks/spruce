@@ -245,68 +245,6 @@ func (ev *Evaluator) CheckForCycles(maxDepth int) error {
 	return nil
 }
 
-// CheckParams ...
-func (ev *Evaluator) CheckParams() error {
-	DEBUG("checking for any remaining (( param ... )) operators\n")
-
-	ev.Here = &Cursor{}
-	ev.CheckOps = []*Opcall{}
-
-	errors := MultiError{Errors: []error{}}
-
-	var check func(interface{})
-	var scan func(interface{})
-
-	check = func(v interface{}) {
-		if s, ok := v.(string); ok {
-			op, err := ParseOpcall(s)
-			if err != nil {
-				errors.Append(err)
-
-			} else if op != nil {
-				if _, ok := op.op.(ParamOperator); ok {
-					op.where = ev.Here.Copy()
-					ev.CheckOps = append(ev.CheckOps, op)
-				}
-			}
-		} else {
-			scan(v)
-		}
-	}
-
-	scan = func(o interface{}) {
-		switch o.(type) {
-		case map[interface{}]interface{}:
-			for k, v := range o.(map[interface{}]interface{}) {
-				ev.Here.Push(fmt.Sprintf("%v", k))
-				check(v)
-				ev.Here.Pop()
-			}
-
-		case []interface{}:
-			for i, v := range o.([]interface{}) {
-				ev.Here.Push(fmt.Sprintf("%d", i))
-				check(v)
-				ev.Here.Pop()
-			}
-		}
-
-		return
-	}
-
-	scan(ev.Tree)
-	for _, op := range ev.CheckOps {
-		_, err := op.Run(ev)
-		if err != nil {
-			errors.Append(err)
-		}
-	}
-	if len(errors.Errors) == 0 {
-		return nil
-	}
-	return errors
-}
-
 // RunOp ...
 func (ev *Evaluator) RunOp(op *Opcall) error {
 	resp, err := op.Run(ev)
