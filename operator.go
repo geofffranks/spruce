@@ -331,6 +331,14 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 				DEBUG("  #%d: parsed the nil value token '%s'", i, arg)
 				stack = append(stack, &Expr{Type: Literal, Literal: nil})
 
+			case arg == "false" || arg == "False" || arg == "FALSE":
+				DEBUG("  #%d: parsed the false value token '%s'", i, arg)
+				stack = append(stack, &Expr{Type: Literal, Literal: false})
+
+			case arg == "true" || arg == "True" || arg == "TRUE":
+				DEBUG("  #%d: parsed the true value token '%s'", i, arg)
+				stack = append(stack, &Expr{Type: Literal, Literal: true})
+
 			default:
 				c, err := ParseCursor(arg)
 				if err != nil {

@@ -422,15 +422,27 @@ instances: (( grab meta.size || 42 ))
 nice:      (( grab meta.nice || -5 ))
 pi:        (( grab math.CONSTANTS.pi || 3.14159 ))
 delta:     (( grab meta.delta || .001 ))
+fbool:     (( grab meta.fbool || false ))
+tbool:     (( grab meta.tbool || true ))
+Fbool:     (( grab meta.fbool || False ))
+Tbool:     (( grab meta.tbool || True ))
+FBOOL:     (( grab meta.fbool || FALSE ))
+TBOOL:     (( grab meta.tbool || TRUE ))
 
 ---
 dataflow:
+- FBOOL: (( grab meta.fbool || FALSE ))
+- Fbool: (( grab meta.fbool || False ))
+- TBOOL: (( grab meta.tbool || TRUE ))
+- Tbool: (( grab meta.tbool || True ))
 - delta:     (( grab meta.delta || .001 ))
 - domain:    (( grab meta.domain || "default-domain" ))
 - env:       (( grab meta.env || "sandbox" ))
+- fbool: (( grab meta.fbool || false ))
 - instances: (( grab meta.size || 42 ))
 - nice:      (( grab meta.nice || -5 ))
 - pi:        (( grab math.CONSTANTS.pi || 3.14159 ))
+- tbool: (( grab meta.tbool || true ))
 
 ---
 meta:
@@ -441,6 +453,12 @@ instances: 42
 nice: -5
 pi: 3.14159
 delta: 0.001
+fbool: false
+Fbool: false
+FBOOL: false
+tbool: true
+Tbool: true
+TBOOL: true
 
 #########################################   handles simple reference-or-nil expressions
 ---
