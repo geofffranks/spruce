@@ -497,6 +497,36 @@ meta:
 foo: SECOND
 
 
+#################################   skips short-circuited alternates in Data Flow analysis
+---
+meta:
+  foo: FOO
+  bar: (( grab meta.foo ))
+  boz: (( grab meta.foo ))
+
+foo: (( grab meta.bar || "foo?" || meta.boz ))
+# NOTE: meta.boz in $.foo is exempt from DFA, because the "foo?" literal
+#       will *always* stop evaluation of the expression
+
+bar: (( grab meta.xyzzy || "bar?" || meta.boz ))
+# NOTE: same with $.bar; meta.boz is not in play
+
+---
+dataflow:
+- bar: (( grab meta.xyzzy || "bar?" || meta.boz ))
+- meta.bar: (( grab meta.foo ))
+- meta.boz: (( grab meta.foo ))
+- foo: (( grab meta.bar || "foo?" || meta.boz ))
+
+---
+meta:
+  foo: FOO
+  bar: FOO
+  boz: FOO
+foo: FOO
+bar: bar?
+
+
 #####################################   handles Data Flow dependencies for all expressions
 ---
 meta:

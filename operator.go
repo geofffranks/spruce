@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 )
@@ -106,6 +107,62 @@ type Expr struct {
 	Right     *Expr
 }
 
+func (e *Expr) String() string {
+	switch e.Type {
+	case Literal:
+		if e.Literal == nil {
+			return "nil"
+		}
+		if _, ok := e.Literal.(string); ok {
+			return fmt.Sprintf(`"%s"`, e.Literal)
+		}
+		return fmt.Sprintf("%v", e.Literal)
+
+	case Reference:
+		return e.Reference.String()
+
+	case LogicalOr:
+		return fmt.Sprintf("(%s || %s)", e.Left, e.Right)
+
+	default:
+		return "<!! unknown !!>"
+	}
+}
+
+// Reduce ...
+func (e *Expr) Reduce() (*Expr, error) {
+
+	var reduce func(*Expr) (*Expr, *Expr, bool)
+	reduce = func(e *Expr) (*Expr, *Expr, bool) {
+		switch e.Type {
+		case Literal:
+			return e, e, false
+		case Reference:
+			return e, nil, false
+
+		case LogicalOr:
+			l, short, _ := reduce(e.Left)
+			if short != nil {
+				return l, short, true
+			}
+
+			r, short, more := reduce(e.Right)
+			return &Expr{
+				Type:  LogicalOr,
+				Left:  l,
+				Right: r,
+			}, short, more
+		}
+		return nil, nil, false
+	}
+
+	reduced, short, more := reduce(e)
+	if more && short != nil {
+		return reduced, fmt.Errorf("literal %v short-circuits expression", short)
+	}
+	return reduced, nil
+}
+
 // Resolve ...
 func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 	switch e.Type {
@@ -188,7 +245,7 @@ type Opcall struct {
 }
 
 // ParseOpcall ...
-func ParseOpcall(src string) (*Opcall, error) {
+func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 	split := func(src string) []string {
 		list := make([]string, 0, 0)
 
@@ -286,6 +343,17 @@ func ParseOpcall(src string) (*Opcall, error) {
 		}
 		DEBUG("")
 
+		push := func(e *Expr) {
+			if e == nil {
+				return
+			}
+			reduced, err := e.Reduce()
+			if err != nil {
+				fmt.Fprintf(os.Stdout, "warning: %s\n", err)
+			}
+			args = append(args, reduced)
+		}
+
 		var e *Expr
 		for len(stack) > 0 {
 			if e == nil {
@@ -310,14 +378,11 @@ func ParseOpcall(src string) (*Opcall, error) {
 				continue
 			}
 
-			args = append(args, e)
+			push(e)
 			e = stack[0]
 			stack = stack[1:]
 		}
-
-		if e != nil {
-			args = append(args, e)
-		}
+		push(e)
 
 		return args, nil
 	}
@@ -335,6 +400,13 @@ func ParseOpcall(src string) (*Opcall, error) {
 
 		m := re.FindStringSubmatch(src)
 		DEBUG("parsing `%s': looks like a (( %s ... )) operator\n arguments:", src, m[1])
+
+		op.op = OperatorFor(m[1])
+		if op.op.Phase() != phase {
+			DEBUG("  - skipping (( %s ... )) operation; it belongs to a different phase", m[1])
+			return nil, nil
+		}
+
 		args, err := argify(m[2])
 		if err != nil {
 			return nil, err
@@ -342,7 +414,6 @@ func ParseOpcall(src string) (*Opcall, error) {
 		if len(args) == 0 {
 			DEBUG("  (none)")
 		}
-		op.op = OperatorFor(m[1])
 		op.args = args
 		return op, nil
 	}
