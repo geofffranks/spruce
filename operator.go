@@ -327,7 +327,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 				DEBUG("  #%d: parsed logical-or operator, '||'", i)
 				stack = append(stack, &Expr{Type: LogicalOr})
 
-			case arg == "nil" || arg == "null" || arg == "~":
+			case arg == "nil" || arg == "null" || arg == "~" || arg == "Nil" || arg == "Null" || arg == "NILL" || arg == "NULL":
 				DEBUG("  #%d: parsed the nil value token '%s'", i, arg)
 				stack = append(stack, &Expr{Type: Literal, Literal: nil})
 
