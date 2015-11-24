@@ -18,13 +18,14 @@ func (ParamOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (ParamOperator) Dependencies(_ *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
+func (ParamOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*Cursor) []*Cursor {
 	return []*Cursor{}
 }
 
 // Run ...
-func (ParamOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
-	return nil, fmt.Errorf("%s", args[0])
+func (ParamOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
+	v, _ := args[0].Evaluate(ev.Tree) // FIXME: there are lots of assumptions here...
+	return nil, fmt.Errorf("%s", v)
 }
 
 func init() {

@@ -385,6 +385,139 @@ meta:
 
 	Convey("Eval Phase", t, func() {
 		RunPhaseTests(EvalPhase, `
+#############################################################   handles simple expressions
+---
+foo: (( concat "foo" ":" "bar" ))
+
+---
+dataflow:
+- foo: (( concat "foo" ":" "bar" ))
+
+---
+foo: foo:bar
+
+
+####################################################   handles simple reference expressions
+---
+meta:
+  domain: foo.bar
+domain: (( grab meta.domain ))
+
+---
+dataflow:
+- domain: (( grab meta.domain ))
+
+---
+meta:
+  domain: foo.bar
+domain: foo.bar
+
+#########################################   handles simple reference-or-literal expressions
+---
+meta:
+  env: prod
+domain:    (( grab meta.domain || "default-domain" ))
+env:       (( grab meta.env || "sandbox" ))
+instances: (( grab meta.size || 42 ))
+nice:      (( grab meta.nice || -5 ))
+pi:        (( grab math.CONSTANTS.pi || 3.14159 ))
+delta:     (( grab meta.delta || .001 ))
+
+---
+dataflow:
+- delta:     (( grab meta.delta || .001 ))
+- domain:    (( grab meta.domain || "default-domain" ))
+- env:       (( grab meta.env || "sandbox" ))
+- instances: (( grab meta.size || 42 ))
+- nice:      (( grab meta.nice || -5 ))
+- pi:        (( grab math.CONSTANTS.pi || 3.14159 ))
+
+---
+meta:
+  env: prod
+domain: default-domain
+env: prod
+instances: 42
+nice: -5
+pi: 3.14159
+delta: 0.001
+
+#########################################   handles simple reference-or-nil expressions
+---
+domain: (( grab meta.domain || nil ))
+env:    (( grab meta.env || ~ ))
+site:   (( grab meta.site || null ))
+
+---
+dataflow:
+- domain: (( grab meta.domain || nil ))
+- env:    (( grab meta.env || ~ ))
+- site:   (( grab meta.site || null ))
+
+---
+domain: ~
+env: ~
+site: ~
+
+
+##################################   stops at the first concrete (possibly nil) expression
+---
+meta:
+  other: FAIL
+
+#
+# should stop here ----------.   (because it's resolvable, even if it
+#                            |    evaluates to a traditionally non-true value)
+#                            v
+foo: (( grab meta.enoent || nil || meta.other || "failed" ))
+
+---
+dataflow:
+- foo: (( grab meta.enoent || nil || meta.other || "failed" ))
+
+---
+meta:
+  other: FAIL
+foo: ~
+
+
+###############################################  handles concrete expression in the middle
+---
+meta:
+  second: SECOND
+foo: (( grab meta.first || meta.second || "unspecified" ))
+
+---
+dataflow:
+- foo: (( grab meta.first || meta.second || "unspecified" ))
+
+---
+meta:
+  second: SECOND
+foo: SECOND
+
+
+#####################################   handles Data Flow dependencies for all expressions
+---
+meta:
+  domain: example.com
+  web: (( concat "www.", meta.domain || "sandbox.example.com" ))
+api:
+  endpoint: (( grab meta.web || meta.domain || ~ ))
+
+---
+dataflow:
+- meta.web: (( concat "www.", meta.domain || "sandbox.example.com" ))
+- api.endpoint: (( grab meta.web || meta.domain || ~ ))
+
+---
+meta:
+  domain: example.com
+  web: www.example.com
+api:
+  endpoint: www.example.com
+
+
 ############################################   can handle simple map-based Replace actions
 ---
 meta:
@@ -738,6 +871,20 @@ meta:
   foo: (( grab meta.bar ))
   bar: (( grab meta.baz ))
   baz: (( grab meta.foo ))
+`),
+			}
+
+			_, err := ev.DataFlow(EvalPhase)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("detects indirect cycles created through operand data flow", func() {
+			ev := &Evaluator{
+				Tree: YAML(`
+meta:
+  foo: (( grab meta.bar ))
+  bar: (( grab meta.baz ))
+  baz: (( grab meta.enoent || meta.foo ))
 `),
 			}
 

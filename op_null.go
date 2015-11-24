@@ -20,11 +20,11 @@ func (NullOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (NullOperator) Dependencies(_ *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
+func (NullOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*Cursor) []*Cursor {
 	return []*Cursor{}
 }
 
 // Run ...
-func (n NullOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
+func (n NullOperator) Run(ev *Evaluator, _ []*Expr) (*Response, error) {
 	return nil, fmt.Errorf("(( %s )) operator not defined", n.Missing)
 }

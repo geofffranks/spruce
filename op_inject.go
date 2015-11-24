@@ -18,15 +18,17 @@ func (InjectOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (InjectOperator) Dependencies(_ *Evaluator, args []interface{}, locs []*Cursor) []*Cursor {
+func (InjectOperator) Dependencies(_ *Evaluator, args []*Expr, locs []*Cursor) []*Cursor {
 	l := []*Cursor{}
 
 	for _, arg := range args {
-		if cursor, ok := arg.(*Cursor); ok {
-			for _, other := range locs {
-				if other.Under(cursor) {
-					l = append(l, other)
-				}
+		if arg.Type != Reference {
+			continue
+		}
+
+		for _, other := range locs {
+			if other.Under(arg.Reference) {
+				l = append(l, other)
 			}
 		}
 	}
@@ -35,32 +37,37 @@ func (InjectOperator) Dependencies(_ *Evaluator, args []interface{}, locs []*Cur
 }
 
 // Run ...
-func (InjectOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
+func (InjectOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	DEBUG("running (( inject ... )) operation at $.%s", ev.Here)
 	defer DEBUG("done with (( inject ... )) operation at $%s\n", ev.Here)
 
 	var vals []map[interface{}]interface{}
 
 	for i, arg := range args {
-		switch arg.(type) {
-		case string:
-			DEBUG("  arg[%d]: found string literal '%s'", i, arg.(string))
+		v, err := arg.Resolve(ev.Tree)
+		if err != nil {
+			DEBUG("  arg[%d]: failed to resolve expression to a concrete value", i)
+			DEBUG("     [%d]: error was: %s", i, err)
+			return nil, err
+		}
+		switch v.Type {
+		case Literal:
+			DEBUG("  arg[%d]: found string literal '%s'", i, v.Literal)
 			DEBUG("           (inject operator only handles references to other parts of the YAML tree)")
 			return nil, fmt.Errorf("inject operator only accepts key reference arguments")
 
-		case *Cursor:
-			c := arg.(*Cursor)
-			DEBUG("  arg[%d]: trying to resolve reference $.%s", i, c.String())
-			v, err := c.Resolve(ev.Tree)
+		case Reference:
+			DEBUG("  arg[%d]: trying to resolve reference $.%s", i, v.Reference)
+			s, err := v.Reference.Resolve(ev.Tree)
 			if err != nil {
 				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
 				return nil, err
 			}
 
-			m, ok := v.(map[interface{}]interface{})
+			m, ok := s.(map[interface{}]interface{})
 			if !ok {
 				DEBUG("     [%d]: resolved to something that is not a map.  that is unacceptable.", i)
-				return nil, fmt.Errorf("%s is not a map", c.String())
+				return nil, fmt.Errorf("%s is not a map", v.Reference)
 			}
 
 			DEBUG("     [%d]: resolved to a map; appending to the list of maps to merge/inject", i)

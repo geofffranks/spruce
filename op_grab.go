@@ -18,34 +18,38 @@ func (GrabOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (GrabOperator) Dependencies(_ *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
+func (GrabOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*Cursor) []*Cursor {
 	return []*Cursor{}
 }
 
 // Run ...
-func (GrabOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
+func (GrabOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	DEBUG("running (( grab ... )) operation at $.%s", ev.Here)
 	defer DEBUG("done with (( grab ... )) operation at $%s\n", ev.Here)
 
 	var vals []interface{}
 
 	for i, arg := range args {
-		switch arg.(type) {
-		case string:
-			DEBUG("  arg[%d]: found string literal '%s'", i, arg.(string))
-			DEBUG("           (grab operator only handles references to other parts of the YAML tree)")
-			return nil, fmt.Errorf("grab operator only accepts key reference arguments")
+		v, err := arg.Resolve(ev.Tree)
+		if err != nil {
+			DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
+			return nil, err
+		}
 
-		case *Cursor:
-			c := arg.(*Cursor)
-			DEBUG("  arg[%d]: trying to resolve reference $.%s", i, c.String())
-			v, err := c.Resolve(ev.Tree)
+		switch v.Type {
+		case Literal:
+			DEBUG("  arg[%d]: found string literal '%s'", i, v.Literal)
+			vals = append(vals, v.Literal)
+
+		case Reference:
+			DEBUG("  arg[%d]: trying to resolve reference $.%s", i, v.Reference)
+			s, err := v.Reference.Resolve(ev.Tree)
 			if err != nil {
 				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
-				return nil, fmt.Errorf("Unable to resolve `%s`: %s", c, err)
+				return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
 			}
 			DEBUG("     [%d]: resolved to a value (could be a map, a list or a scalar); appending", i)
-			vals = append(vals, v)
+			vals = append(vals, s)
 
 		default:
 			DEBUG("  arg[%d]: I don't know what to do with '%v'", i, arg)
@@ -72,10 +76,10 @@ func (GrabOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
 		for i, lst := range vals {
 			switch lst.(type) {
 			case []interface{}:
-				DEBUG("    [%d]: $.%s is a list; flattening it out", i, args[i].(*Cursor))
+				DEBUG("    [%d]: $.%s is a list; flattening it out", i, args[i].Reference)
 				flat = append(flat, lst.([]interface{})...)
 			default:
-				DEBUG("    [%d]: $.%s is not a list; appending it as-is", i, args[i].(*Cursor))
+				DEBUG("    [%d]: $.%s is not a list; appending it as-is", i, args[i].Reference)
 				flat = append(flat, lst)
 			}
 		}
