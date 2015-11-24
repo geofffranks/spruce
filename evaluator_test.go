@@ -460,6 +460,48 @@ env: ~
 site: ~
 
 
+##################################   stops at the first concrete (possibly false) expression
+---
+meta:
+  other: FAIL
+
+#
+# should stop here ----------.   (because it's resolvable, even if it
+#                            |    evaluates to a traditionally non-true value)
+#                            v
+foo: (( grab meta.enoent || false || meta.other || "failed" ))
+
+---
+dataflow:
+- foo: (( grab meta.enoent || false || meta.other || "failed" ))
+
+---
+meta:
+  other: FAIL
+foo: false
+
+
+##################################   stops at the first concrete (possibly 0) expression
+---
+meta:
+  other: FAIL
+
+#
+# should stop here ----------.   (because it's resolvable, even if it
+#                            |    evaluates to a traditionally non-true value)
+#                            v
+foo: (( grab meta.enoent || 0 || meta.other || "failed" ))
+
+---
+dataflow:
+- foo: (( grab meta.enoent || 0 || meta.other || "failed" ))
+
+---
+meta:
+  other: FAIL
+foo: 0
+
+
 ##################################   stops at the first concrete (possibly nil) expression
 ---
 meta:
