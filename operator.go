@@ -122,7 +122,7 @@ func (e *Expr) String() string {
 		return e.Reference.String()
 
 	case LogicalOr:
-		return fmt.Sprintf("(%s || %s)", e.Left, e.Right)
+		return fmt.Sprintf("%s || %s", e.Left, e.Right)
 
 	default:
 		return "<!! unknown !!>"
@@ -158,7 +158,7 @@ func (e *Expr) Reduce() (*Expr, error) {
 
 	reduced, short, more := reduce(e)
 	if more && short != nil {
-		return reduced, fmt.Errorf("literal %v short-circuits expression", short)
+		return reduced, fmt.Errorf("literal %v short-circuits expression (%s)", short, e)
 	}
 	return reduced, nil
 }
@@ -269,9 +269,14 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 				if quoted {
 					buf += string(c)
 					continue
-				} else if buf != "" {
-					list = append(list, buf)
-					buf = ""
+				} else {
+					if buf != "" {
+						list = append(list, buf)
+						buf = ""
+					}
+					if c == ',' {
+						list = append(list, ",")
+					}
 				}
 				continue
 			}
@@ -297,13 +302,47 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 		integer := regexp.MustCompile(`^[+-]?\d+(\.\d+)?$`)
 		float := regexp.MustCompile(`^[+-]?\d*\.\d+$`)
 
-		var stack []*Expr
+		var final []*Expr
+		var left, op *Expr
+
+		pop := func() {
+			if left != nil {
+				final = append(final, left)
+				left = nil
+			}
+		}
+
+		push := func(e *Expr) {
+			TRACE("expr: pushing data expression `%s' onto stack", e)
+			TRACE("expr:   start: left=`%s', op=`%s'", left, op)
+			defer func() { TRACE("expr:     end: left=`%s', op=`%s'\n", left, op) }()
+
+			if left == nil {
+				left = e
+				return
+			}
+			if op == nil {
+				pop()
+				left = e
+				return
+			}
+			op.Left = left
+			op.Right = e
+			left = op
+			op = nil
+		}
+
+		TRACE("expr: parsing `%s'", src)
 		for i, arg := range split(src) {
 			switch {
+			case arg == ",":
+				DEBUG("  #%d: literal comma found; treating what we've seen so far as a complete expression")
+				pop()
+
 			case qstring.MatchString(arg):
 				m := qstring.FindStringSubmatch(arg)
 				DEBUG("  #%d: parsed as quoted string literal '%s'", i, m[1])
-				stack = append(stack, &Expr{Type: Literal, Literal: m[1]})
+				push(&Expr{Type: Literal, Literal: m[1]})
 
 			case float.MatchString(arg):
 				DEBUG("  #%d: parsed as unquoted floating point literal '%s'", i, arg)
@@ -312,7 +351,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 					DEBUG("  #%d: %s is not parsable as a floating point number: %s", i, arg, err)
 					return args, err
 				}
-				stack = append(stack, &Expr{Type: Literal, Literal: v})
+				push(&Expr{Type: Literal, Literal: v})
 
 			case integer.MatchString(arg):
 				DEBUG("  #%d: parsed as unquoted integer literal '%s'", i, arg)
@@ -321,23 +360,28 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 					DEBUG("  #%d: %s is not parsable as an integer: %s", i, arg, err)
 					return args, err
 				}
-				stack = append(stack, &Expr{Type: Literal, Literal: v})
+				push(&Expr{Type: Literal, Literal: v})
 
 			case arg == "||":
 				DEBUG("  #%d: parsed logical-or operator, '||'", i)
-				stack = append(stack, &Expr{Type: LogicalOr})
+
+				if left == nil || op != nil {
+					return args, fmt.Errorf(`syntax error near: %s`, src)
+				}
+				TRACE("expr: pushing || expr-op onto the stack")
+				op = &Expr{Type: LogicalOr}
 
 			case arg == "nil" || arg == "null" || arg == "~" || arg == "Nil" || arg == "Null" || arg == "NILL" || arg == "NULL":
 				DEBUG("  #%d: parsed the nil value token '%s'", i, arg)
-				stack = append(stack, &Expr{Type: Literal, Literal: nil})
+				push(&Expr{Type: Literal, Literal: nil})
 
 			case arg == "false" || arg == "False" || arg == "FALSE":
 				DEBUG("  #%d: parsed the false value token '%s'", i, arg)
-				stack = append(stack, &Expr{Type: Literal, Literal: false})
+				push(&Expr{Type: Literal, Literal: false})
 
 			case arg == "true" || arg == "True" || arg == "TRUE":
 				DEBUG("  #%d: parsed the true value token '%s'", i, arg)
-				stack = append(stack, &Expr{Type: Literal, Literal: true})
+				push(&Expr{Type: Literal, Literal: true})
 
 			default:
 				c, err := ParseCursor(arg)
@@ -346,51 +390,23 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 					return args, err
 				}
 				DEBUG("  #%d: parsed as a reference to $.%s", i, c)
-				stack = append(stack, &Expr{Type: Reference, Reference: c})
+				push(&Expr{Type: Reference, Reference: c})
 			}
+		}
+		pop()
+		if left != nil || op != nil {
+			return nil, fmt.Errorf(`syntax error near: %s`, src)
 		}
 		DEBUG("")
 
-		push := func(e *Expr) {
-			if e == nil {
-				return
-			}
+		for _, e := range final {
+			TRACE("expr: pushing expression `%v' onto the operand list", e)
 			reduced, err := e.Reduce()
 			if err != nil {
 				fmt.Fprintf(os.Stdout, "warning: %s\n", err)
 			}
 			args = append(args, reduced)
 		}
-
-		var e *Expr
-		for len(stack) > 0 {
-			if e == nil {
-				e = stack[0]
-				stack = stack[1:]
-				continue
-			}
-
-			if stack[0].Type == LogicalOr {
-				stack[0].Left = e
-				e = stack[0]
-				stack = stack[1:]
-				continue
-			}
-
-			if e.Type == LogicalOr {
-				if e.Right != nil {
-					e = &Expr{Type: LogicalOr, Left: e}
-				}
-				e.Right = stack[0]
-				stack = stack[1:]
-				continue
-			}
-
-			push(e)
-			e = stack[0]
-			stack = stack[1:]
-		}
-		push(e)
 
 		return args, nil
 	}

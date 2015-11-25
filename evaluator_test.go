@@ -608,6 +608,48 @@ api:
   endpoint: www.example.com
 
 
+#################################   handles multiple space-separated or-operands properly
+---
+meta:
+  foo: FOO
+  bar: BAR
+foobar: (( concat meta.foo || "foo"  meta.bar || "bar" ))
+fooboz: (( concat meta.foo || "foo"  meta.boz || "boz" ))
+
+---
+dataflow:
+- foobar: (( concat meta.foo || "foo"  meta.bar || "bar" ))
+- fooboz: (( concat meta.foo || "foo"  meta.boz || "boz" ))
+
+---
+meta:
+  foo: FOO
+  bar: BAR
+foobar: FOOBAR
+fooboz: FOOboz
+
+
+#################################   handles multiple comma-seaprated or-operands properly
+---
+meta:
+  foo: FOO
+  bar: BAR
+foobar: (( concat meta.foo || "foo", meta.bar || "bar" ))
+fooboz: (( concat meta.foo || "foo", meta.boz || "boz" ))
+
+---
+dataflow:
+- foobar: (( concat meta.foo || "foo", meta.bar || "bar" ))
+- fooboz: (( concat meta.foo || "foo", meta.boz || "boz" ))
+
+---
+meta:
+  foo: FOO
+  bar: BAR
+foobar: FOOBAR
+fooboz: FOOboz
+
+
 ############################################   can handle simple map-based Replace actions
 ---
 meta:

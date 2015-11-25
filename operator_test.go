@@ -60,9 +60,9 @@ func TestOperators(t *testing.T) {
 
 	Convey("Parser", t, func() {
 		Convey("parses op calls in their entirety", func() {
+			phase := EvalPhase
 
 			opOk := func(code string, name string, args ...*Expr) {
-				phase := EvalPhase
 				op, err := ParseOpcall(phase, code)
 				So(err, ShouldBeNil)
 				So(op, ShouldNotBeNil)
@@ -75,6 +75,12 @@ func TestOperators(t *testing.T) {
 				for i, expect := range args {
 					exprOk(op.args[i], expect)
 				}
+			}
+
+			opErr := func(code string, msg string) {
+				_, err := ParseOpcall(phase, code)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, msg)
 			}
 
 			Convey("handles opcodes with and without arguments", func() {
@@ -129,6 +135,41 @@ func TestOperators(t *testing.T) {
 			Convey("handles mixed collections of argument types", func() {
 				opOk(`(( xyzzy "string" x.y.z 42  ))`, "xyzzy", str("string"), ref("x.y.z"), num(42))
 				opOk(`(( xyzzy("string" x.y.z 42) ))`, "xyzzy", str("string"), ref("x.y.z"), num(42))
+			})
+
+			Convey("handles expression-based operands", func() {
+				opOk(`(( null meta.key || "default" ))`, "null",
+					or(ref("meta.key"), str("default")))
+
+				opOk(`(( null meta.key || "default" "second" ))`, "null",
+					or(ref("meta.key"), str("default")),
+					str("second"))
+
+				opOk(`(( null meta.key || "default", "second" ))`, "null",
+					or(ref("meta.key"), str("default")),
+					str("second"))
+
+				opOk(`(( null meta.key || "default", meta.other || nil ))`, "null",
+					or(ref("meta.key"), str("default")),
+					or(ref("meta.other"), null()))
+
+				opOk(`(( null meta.key || "default"     meta.other || nil ))`, "null",
+					or(ref("meta.key"), str("default")),
+					or(ref("meta.other"), null()))
+			})
+
+			Convey("throws errors for malformed expression", func() {
+				opErr(`(( null meta.key ||, nil ))`,
+					`syntax error near: meta.key ||, nil`)
+
+				opErr(`(( null || ))`,
+					`syntax error near: ||`)
+
+				opErr(`(( null || meta.key ))`,
+					`syntax error near: || meta.key`)
+
+				opErr(`(( null meta.key || || ))`,
+					`syntax error near: meta.key || ||`)
 			})
 		})
 	})
@@ -224,19 +265,19 @@ meta:
 			orig = or(null(), str("ignored"))
 			final, err = orig.Reduce()
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, `literal nil short-circuits expression`)
+			So(err.Error(), ShouldContainSubstring, `literal nil short-circuits expression (nil || "ignored")`)
 			exprOk(final, null())
 
 			orig = or(ref("some.key"), or(str("default"), ref("ignored.key")))
 			final, err = orig.Reduce()
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, `literal "default" short-circuits expression`)
+			So(err.Error(), ShouldContainSubstring, `literal "default" short-circuits expression (some.key || "default" || ignored.key)`)
 			exprOk(final, or(ref("some.key"), str("default")))
 
 			orig = or(or(ref("some.key"), str("default")), ref("ignored.key"))
 			final, err = orig.Reduce()
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, `literal "default" short-circuits expression`)
+			So(err.Error(), ShouldContainSubstring, `literal "default" short-circuits expression (some.key || "default" || ignored.key)`)
 			exprOk(final, or(ref("some.key"), str("default")))
 		})
 	})
