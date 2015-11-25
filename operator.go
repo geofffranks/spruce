@@ -309,7 +309,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 				DEBUG("  #%d: parsed as unquoted floating point literal '%s'", i, arg)
 				v, err := strconv.ParseFloat(arg, 64)
 				if err != nil {
-					DEBUG("  #%d: %s is not parseable as a floatin point number: %s", i, arg, err)
+					DEBUG("  #%d: %s is not parsable as a floating point number: %s", i, arg, err)
 					return args, err
 				}
 				stack = append(stack, &Expr{Type: Literal, Literal: v})
@@ -318,7 +318,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 				DEBUG("  #%d: parsed as unquoted integer literal '%s'", i, arg)
 				v, err := strconv.ParseInt(arg, 10, 64)
 				if err != nil {
-					DEBUG("  #%d: %s is not parseable as an integer: %s", i, arg, err)
+					DEBUG("  #%d: %s is not parsable as an integer: %s", i, arg, err)
 					return args, err
 				}
 				stack = append(stack, &Expr{Type: Literal, Literal: v})
