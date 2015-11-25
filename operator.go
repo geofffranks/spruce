@@ -371,7 +371,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 				TRACE("expr: pushing || expr-op onto the stack")
 				op = &Expr{Type: LogicalOr}
 
-			case arg == "nil" || arg == "null" || arg == "~" || arg == "Nil" || arg == "Null" || arg == "NILL" || arg == "NULL":
+			case arg == "nil" || arg == "null" || arg == "~" || arg == "Nil" || arg == "Null" || arg == "NIL" || arg == "NULL":
 				DEBUG("  #%d: parsed the nil value token '%s'", i, arg)
 				push(&Expr{Type: Literal, Literal: nil})
 

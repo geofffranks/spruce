@@ -412,6 +412,7 @@ meta:
   domain: foo.bar
 domain: foo.bar
 
+
 #########################################   handles simple reference-or-literal expressions
 ---
 meta:
@@ -422,27 +423,19 @@ instances: (( grab meta.size || 42 ))
 nice:      (( grab meta.nice || -5 ))
 pi:        (( grab math.CONSTANTS.pi || 3.14159 ))
 delta:     (( grab meta.delta || .001 ))
-fbool:     (( grab meta.fbool || false ))
-tbool:     (( grab meta.tbool || true ))
-Fbool:     (( grab meta.fbool || False ))
-Tbool:     (( grab meta.tbool || True ))
-FBOOL:     (( grab meta.fbool || FALSE ))
-TBOOL:     (( grab meta.tbool || TRUE ))
+secure:    (( grab meta.secure || true ))
+online:    (( grab meta.online || false ))
 
 ---
 dataflow:
-- FBOOL: (( grab meta.fbool || FALSE ))
-- Fbool: (( grab meta.fbool || False ))
-- TBOOL: (( grab meta.tbool || TRUE ))
-- Tbool: (( grab meta.tbool || True ))
 - delta:     (( grab meta.delta || .001 ))
 - domain:    (( grab meta.domain || "default-domain" ))
 - env:       (( grab meta.env || "sandbox" ))
-- fbool: (( grab meta.fbool || false ))
 - instances: (( grab meta.size || 42 ))
 - nice:      (( grab meta.nice || -5 ))
+- online:    (( grab meta.online || false ))
 - pi:        (( grab math.CONSTANTS.pi || 3.14159 ))
-- tbool: (( grab meta.tbool || true ))
+- secure:    (( grab meta.secure || true ))
 
 ---
 meta:
@@ -453,12 +446,98 @@ instances: 42
 nice: -5
 pi: 3.14159
 delta: 0.001
-fbool: false
-Fbool: false
-FBOOL: false
-tbool: true
-Tbool: true
-TBOOL: true
+secure: true
+online: false
+
+
+#####################################   handles true, TRUE, and True as boolean keywords
+---
+TrUe: sure
+things:
+- (( grab meta.enoent || true ))
+- (( grab meta.enoent || TRUE ))
+- (( grab meta.enoent || True ))
+- (( grab meta.enoent || TrUe ))
+
+---
+dataflow:
+- things.0: (( grab meta.enoent || true ))
+- things.1: (( grab meta.enoent || TRUE ))
+- things.2: (( grab meta.enoent || True ))
+- things.3: (( grab meta.enoent || TrUe ))
+
+---
+TrUe: sure
+things:
+- true
+- true
+- true
+- sure
+
+
+#####################################   handles false, FALSE, and False as boolean keywords
+---
+FaLSe: why not?
+things:
+- (( grab meta.enoent || false ))
+- (( grab meta.enoent || FALSE ))
+- (( grab meta.enoent || False ))
+- (( grab meta.enoent || FaLSe ))
+
+---
+dataflow:
+- things.0: (( grab meta.enoent || false ))
+- things.1: (( grab meta.enoent || FALSE ))
+- things.2: (( grab meta.enoent || False ))
+- things.3: (( grab meta.enoent || FaLSe ))
+
+---
+FaLSe: why not?
+things:
+- false
+- false
+- false
+- why not?
+
+
+######################   handles ~, nil, Nil, NIL, null, Null, and NULL as the nil keyword
+---
+NuLL: 4 (haha ruby joke)
+things:
+- (( grab meta.enoent || ~ ))
+- (( grab meta.enoent || nil ))
+- (( grab meta.enoent || Nil ))
+- (( grab meta.enoent || NIL ))
+- (( grab meta.enoent || null ))
+- (( grab meta.enoent || Null ))
+- (( grab meta.enoent || NULL ))
+- (( grab meta.enoent || NuLL ))
+
+---
+dataflow:
+- things.0: (( grab meta.enoent || ~ ))
+- things.1: (( grab meta.enoent || nil ))
+- things.2: (( grab meta.enoent || Nil ))
+- things.3: (( grab meta.enoent || NIL ))
+- things.4: (( grab meta.enoent || null ))
+- things.5: (( grab meta.enoent || Null ))
+- things.6: (( grab meta.enoent || NULL ))
+- things.7: (( grab meta.enoent || NuLL ))
+
+---
+NuLL: 4 (haha ruby joke)
+things:
+- null
+- null
+- null
+- null
+- null
+- null
+- null
+- 4 (haha ruby joke)
+
+
+
 
 #########################################   handles simple reference-or-nil expressions
 ---
