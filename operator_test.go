@@ -367,27 +367,39 @@ jobs:
 					`networks:
   - name: test-network
     subnets:
-      - static: [ 10.1.0.5 - 10.1.1.10 ]
+      - static: [ 10.0.0.0 - 11.0.0.0 ]
 jobs:
   - name: job1
-    instances: 3
+    instances: 7
     networks:
       - name: test-network
         static_ips: <---------- HERE -----------------
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "251", "261"})
+			r, err := op.Run(ev, []interface{}{
+				"0",
+				"255",      // 2^8 - 1
+				"256",      // 2^8
+				"65535",    // 2^16 - 1
+				"65536",    // 2^16
+				"16777215", // 2^24 - 1
+				"16777216", // 2^24
+			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
 
 			So(r.Type, ShouldEqual, Replace)
 			v, ok := r.Value.([]interface{})
 			So(ok, ShouldBeTrue)
-			So(len(v), ShouldEqual, 3)
-			So(v[0], ShouldEqual, "10.1.0.5")
-			So(v[1], ShouldEqual, "10.1.1.0")
-			So(v[2], ShouldEqual, "10.1.1.10")
+			So(len(v), ShouldEqual, 7)
+			So(v[0], ShouldEqual, "10.0.0.0")
+			So(v[1], ShouldEqual, "10.0.0.255")
+			So(v[2], ShouldEqual, "10.0.1.0") //  3rd octet rollover
+			So(v[3], ShouldEqual, "10.0.255.255")
+			So(v[4], ShouldEqual, "10.1.0.0") //  2nd octet rollover
+			So(v[5], ShouldEqual, "10.255.255.255")
+			So(v[6], ShouldEqual, "11.0.0.0") //  1st octet rollover
 		})
 
 		Convey("throws an error if no job name is specified", func() {
