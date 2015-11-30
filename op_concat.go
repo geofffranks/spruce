@@ -19,12 +19,12 @@ func (ConcatOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (ConcatOperator) Dependencies(_ *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
+func (ConcatOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*Cursor) []*Cursor {
 	return []*Cursor{}
 }
 
 // Run ...
-func (ConcatOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
+func (ConcatOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	DEBUG("running (( concat ... )) operation at $.%s", ev.Here)
 	defer DEBUG("done with (( concat ... )) operation at $%s\n", ev.Here)
 
@@ -35,36 +35,40 @@ func (ConcatOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) 
 	}
 
 	for i, arg := range args {
-		switch arg.(type) {
-		case string:
-			DEBUG("  arg[%d]: using string literal '%s'", i, arg.(string))
-			DEBUG("     [%d]: appending '%s' to resultant string", i, arg.(string))
-			l = append(l, arg.(string))
+		v, err := arg.Resolve(ev.Tree)
+		if err != nil {
+			DEBUG("  arg[%d]: failed to resolve expression to a concrete value", i)
+			DEBUG("     [%d]: error was: %s", i, err)
+			return nil, err
+		}
 
-		case *Cursor:
-			c := arg.(*Cursor)
-			DEBUG("  arg[%d]: trying to resolve reference $.%s", i, c.String())
-			s, err := c.Resolve(ev.Tree)
+		switch v.Type {
+		case Literal:
+			DEBUG("  arg[%d]: using string literal '%v'", i, v.Literal)
+			DEBUG("     [%d]: appending '%v' to resultant string", i, v.Literal)
+			l = append(l, fmt.Sprintf("%v", v.Literal))
+
+		case Reference:
+			DEBUG("  arg[%d]: trying to resolve reference $.%s", i, v.Reference)
+			s, err := v.Reference.Resolve(ev.Tree)
 			if err != nil {
 				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
-				return nil, fmt.Errorf("Unable to resolve `%s`: %s", c, err)
+				return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
 			}
 
-			var v string
 			switch s.(type) {
 			case map[interface{}]interface{}:
 				DEBUG("  arg[%d]: %v is not a string scalar", i, s)
-				return nil, fmt.Errorf("tried to concat %s, which is not a string scalar", c)
+				return nil, fmt.Errorf("tried to concat %s, which is not a string scalar", v.Reference)
 
 			case []interface{}:
 				DEBUG("  arg[%d]: %v is not a string scalar", i, s)
-				return nil, fmt.Errorf("tried to concat %s, which is not a string scalar", c)
+				return nil, fmt.Errorf("tried to concat %s, which is not a string scalar", v.Reference)
 
 			default:
-				v = fmt.Sprintf("%v", s)
+				DEBUG("     [%d]: appending '%s' to resultant string", i, s)
+				l = append(l, fmt.Sprintf("%v", s))
 			}
-			DEBUG("     [%d]: appending '%s' to resultant string", i, s)
-			l = append(l, v)
 
 		default:
 			DEBUG("  arg[%d]: I don't know what to do with '%v'", i, arg)

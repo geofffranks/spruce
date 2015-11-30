@@ -23,11 +23,47 @@ func TestOperators(t *testing.T) {
 		return data
 	}
 
+	ref := func(s string) *Expr {
+		return &Expr{Type: Reference, Reference: cursor(s)}
+	}
+	str := func(s string) *Expr {
+		return &Expr{Type: Literal, Literal: s}
+	}
+	num := func(v int64) *Expr {
+		return &Expr{Type: Literal, Literal: v}
+	}
+	null := func() *Expr {
+		return &Expr{Type: Literal, Literal: nil}
+	}
+	or := func(l *Expr, r *Expr) *Expr {
+		return &Expr{Type: LogicalOr, Left: l, Right: r}
+	}
+
+	var exprOk func(*Expr, *Expr)
+	exprOk = func(got *Expr, want *Expr) {
+		So(got, ShouldNotBeNil)
+		So(want, ShouldNotBeNil)
+
+		So(got.Type, ShouldEqual, want.Type)
+		switch want.Type {
+		case Literal:
+			So(got.Literal, ShouldEqual, want.Literal)
+
+		case Reference:
+			So(got.Reference.String(), ShouldEqual, want.Reference.String())
+
+		case LogicalOr:
+			exprOk(got.Left, want.Left)
+			exprOk(got.Right, want.Right)
+		}
+	}
+
 	Convey("Parser", t, func() {
 		Convey("parses op calls in their entirety", func() {
+			phase := EvalPhase
 
-			opOk := func(code string, name string, args ...interface{}) {
-				op, err := ParseOpcall(code)
+			opOk := func(code string, name string, args ...*Expr) {
+				op, err := ParseOpcall(phase, code)
 				So(err, ShouldBeNil)
 				So(op, ShouldNotBeNil)
 
@@ -37,28 +73,20 @@ func TestOperators(t *testing.T) {
 
 				So(len(op.args), ShouldEqual, len(args))
 				for i, expect := range args {
-					switch expect.(type) {
-					case string:
-						So(op.args[i], ShouldEqual, expect.(string))
-
-					case *Cursor:
-						_, ok := op.args[i].(*Cursor)
-						So(ok, ShouldBeTrue)
-						So(op.args[i].(*Cursor).String(), ShouldEqual, expect.(*Cursor).String())
-					}
+					exprOk(op.args[i], expect)
 				}
 			}
 
-			cursor := func(s string) *Cursor {
-				c, err := ParseCursor(s)
-				So(err, ShouldBeNil)
-				return c
+			opErr := func(code string, msg string) {
+				_, err := ParseOpcall(phase, code)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, msg)
 			}
 
 			Convey("handles opcodes with and without arguments", func() {
 				opOk(`(( null ))`, "null")
-				opOk(`(( null 42 ))`, "null", "42")
-				opOk(`(( null 1 2 3 4 ))`, "null", "1", "2", "3", "4")
+				opOk(`(( null 42 ))`, "null", num(42))
+				opOk(`(( null 1 2 3 4 ))`, "null", num(1), num(2), num(3), num(4))
 			})
 
 			Convey("ignores optional whitespace", func() {
@@ -66,7 +94,7 @@ func TestOperators(t *testing.T) {
 				opOk(`((	null	))`, "null")
 				opOk(`((  	null  	))`, "null")
 
-				args := []interface{}{"1", "2", "3"}
+				args := []*Expr{num(1), num(2), num(3)}
 				opOk(`((null 1 2 3))`, "null", args...)
 				opOk(`((null 1	2	3))`, "null", args...)
 				opOk(`((null 1	2	3	))`, "null", args...)
@@ -74,7 +102,7 @@ func TestOperators(t *testing.T) {
 			})
 
 			Convey("allows use of commas to separate arguments", func() {
-				args := []interface{}{"1", "2", "3"}
+				args := []*Expr{num(1), num(2), num(3)}
 				opOk(`((null 1, 2, 3))`, "null", args...)
 				opOk(`((null 1,	2,	3))`, "null", args...)
 				opOk(`((null 1,	2,	3,	))`, "null", args...)
@@ -82,7 +110,7 @@ func TestOperators(t *testing.T) {
 			})
 
 			Convey("allows use of parentheses around arguments", func() {
-				args := []interface{}{"1", "2", "3"}
+				args := []*Expr{num(1), num(2), num(3)}
 				opOk(`((null(1,2,3)))`, "null", args...)
 				opOk(`((null(1, 2, 3) ))`, "null", args...)
 				opOk(`((null( 1,	2,	3)))`, "null", args...)
@@ -91,23 +119,166 @@ func TestOperators(t *testing.T) {
 			})
 
 			Convey("handles string literal arguments", func() {
-				opOk(`(( null "string" ))`, "null", "string")
-				opOk(`(( null "string with whitespace" ))`, "null", "string with whitespace")
-				opOk(`(( null "a \"quoted\" string" ))`, "null", `a "quoted" string`)
-				opOk(`(( null "\\escaped" ))`, "null", `\escaped`)
+				opOk(`(( null "string" ))`, "null", str("string"))
+				opOk(`(( null "string with whitespace" ))`, "null", str("string with whitespace"))
+				opOk(`(( null "a \"quoted\" string" ))`, "null", str(`a "quoted" string`))
+				opOk(`(( null "\\escaped" ))`, "null", str(`\escaped`))
 			})
 
 			Convey("handles reference (cursor) arguments", func() {
-				opOk(`(( null x.y.z ))`, "null", cursor("x.y.z"))
-				opOk(`(( null x.[0].z ))`, "null", cursor("x.0.z"))
-				opOk(`(( null x[0].z ))`, "null", cursor("x.0.z"))
-				opOk(`(( null x[0]z ))`, "null", cursor("x.0.z"))
+				opOk(`(( null x.y.z ))`, "null", ref("x.y.z"))
+				opOk(`(( null x.[0].z ))`, "null", ref("x.0.z"))
+				opOk(`(( null x[0].z ))`, "null", ref("x.0.z"))
+				opOk(`(( null x[0]z ))`, "null", ref("x.0.z"))
 			})
 
 			Convey("handles mixed collections of argument types", func() {
-				opOk(`(( xyzzy "string" x.y.z 42  ))`, "xyzzy", "string", cursor("x.y.z"), "42")
-				opOk(`(( xyzzy("string" x.y.z 42) ))`, "xyzzy", "string", cursor("x.y.z"), "42")
+				opOk(`(( xyzzy "string" x.y.z 42  ))`, "xyzzy", str("string"), ref("x.y.z"), num(42))
+				opOk(`(( xyzzy("string" x.y.z 42) ))`, "xyzzy", str("string"), ref("x.y.z"), num(42))
 			})
+
+			Convey("handles expression-based operands", func() {
+				opOk(`(( null meta.key || "default" ))`, "null",
+					or(ref("meta.key"), str("default")))
+
+				opOk(`(( null meta.key || "default" "second" ))`, "null",
+					or(ref("meta.key"), str("default")),
+					str("second"))
+
+				opOk(`(( null meta.key || "default", "second" ))`, "null",
+					or(ref("meta.key"), str("default")),
+					str("second"))
+
+				opOk(`(( null meta.key || "default", meta.other || nil ))`, "null",
+					or(ref("meta.key"), str("default")),
+					or(ref("meta.other"), null()))
+
+				opOk(`(( null meta.key || "default"     meta.other || nil ))`, "null",
+					or(ref("meta.key"), str("default")),
+					or(ref("meta.other"), null()))
+			})
+
+			Convey("throws errors for malformed expression", func() {
+				opErr(`(( null meta.key ||, nil ))`,
+					`syntax error near: meta.key ||, nil`)
+
+				opErr(`(( null || ))`,
+					`syntax error near: ||`)
+
+				opErr(`(( null || meta.key ))`,
+					`syntax error near: || meta.key`)
+
+				opErr(`(( null meta.key || || ))`,
+					`syntax error near: meta.key || ||`)
+			})
+		})
+	})
+
+	Convey("Expression Engine", t, func() {
+		var e *Expr
+		var tree map[interface{}]interface{}
+
+		evaluate := func(e *Expr, tree map[interface{}]interface{}) interface{} {
+			v, err := e.Evaluate(tree)
+			So(err, ShouldBeNil)
+			return v
+		}
+
+		Convey("Literals evaluate to themselves", func() {
+			e = &Expr{Type: Literal, Literal: "value"}
+			So(evaluate(e, tree), ShouldEqual, "value")
+
+			e = &Expr{Type: Literal, Literal: ""}
+			So(evaluate(e, tree), ShouldEqual, "")
+
+			e = &Expr{Type: Literal, Literal: nil}
+			So(evaluate(e, tree), ShouldEqual, nil)
+		})
+
+		Convey("References evaluate to the referenced part of the YAML tree", func() {
+			tree = YAML(`---
+meta:
+  foo: FOO
+  bar: BAR
+`)
+
+			e = &Expr{Type: Reference, Reference: cursor("meta.foo")}
+			So(evaluate(e, tree), ShouldEqual, "FOO")
+
+			e = &Expr{Type: Reference, Reference: cursor("meta.bar")}
+			So(evaluate(e, tree), ShouldEqual, "BAR")
+		})
+
+		Convey("|| operator evaluates to the first found value", func() {
+			tree = YAML(`---
+meta:
+  foo: FOO
+  bar: BAR
+`)
+
+			So(evaluate(or(str("first"), str("second")), tree), ShouldEqual, "first")
+			So(evaluate(or(ref("meta.foo"), str("second")), tree), ShouldEqual, "FOO")
+			So(evaluate(or(ref("meta.ENOENT"), ref("meta.foo")), tree), ShouldEqual, "FOO")
+		})
+
+		Convey("|| operator treats nil as a found value", func() {
+			tree = YAML(`---
+meta:
+  foo: FOO
+  bar: BAR
+`)
+
+			So(evaluate(or(null(), str("second")), tree), ShouldBeNil)
+			So(evaluate(or(ref("meta.ENOENT"), null()), tree), ShouldBeNil)
+		})
+	})
+
+	Convey("Expression Reduction Algorithm", t, func() {
+		var orig, final *Expr
+		var err error
+
+		Convey("ignores singleton expression", func() {
+			orig = str("string")
+			final, err = orig.Reduce()
+			So(err, ShouldBeNil)
+			exprOk(final, orig)
+
+			orig = null()
+			final, err = orig.Reduce()
+			So(err, ShouldBeNil)
+			exprOk(final, orig)
+
+			orig = ref("meta.key")
+			final, err = orig.Reduce()
+			So(err, ShouldBeNil)
+			exprOk(final, orig)
+		})
+
+		Convey("handles normal alternates that terminated in a literal", func() {
+			orig = or(ref("a.b.c"), str("default"))
+			final, err = orig.Reduce()
+			So(err, ShouldBeNil)
+			exprOk(final, orig)
+		})
+
+		Convey("throws errors (warnings) for unreachable alternates", func() {
+			orig = or(null(), str("ignored"))
+			final, err = orig.Reduce()
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, `literal nil short-circuits expression (nil || "ignored")`)
+			exprOk(final, null())
+
+			orig = or(ref("some.key"), or(str("default"), ref("ignored.key")))
+			final, err = orig.Reduce()
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, `literal "default" short-circuits expression (some.key || "default" || ignored.key)`)
+			exprOk(final, or(ref("some.key"), str("default")))
+
+			orig = or(or(ref("some.key"), str("default")), ref("ignored.key"))
+			final, err = orig.Reduce()
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, `literal "default" short-circuits expression (some.key || "default" || ignored.key)`)
+			exprOk(final, or(ref("some.key"), str("default")))
 		})
 	})
 
@@ -131,8 +302,8 @@ func TestOperators(t *testing.T) {
 		}
 
 		Convey("can grab a single value", func() {
-			r, err := op.Run(ev, []interface{}{
-				cursor("key.subkey.value"),
+			r, err := op.Run(ev, []*Expr{
+				ref("key.subkey.value"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -142,8 +313,8 @@ func TestOperators(t *testing.T) {
 		})
 
 		Convey("can grab a single list value", func() {
-			r, err := op.Run(ev, []interface{}{
-				cursor("key.lonely"),
+			r, err := op.Run(ev, []*Expr{
+				ref("key.lonely"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -158,11 +329,11 @@ func TestOperators(t *testing.T) {
 		})
 
 		Convey("can grab a multiple lists and flatten them", func() {
-			r, err := op.Run(ev, []interface{}{
-				cursor("key.list1"),
-				cursor("key.lonely"),
-				cursor("key.list2"),
-				cursor("key.lonely.0"),
+			r, err := op.Run(ev, []*Expr{
+				ref("key.list1"),
+				ref("key.lonely"),
+				ref("key.list2"),
+				ref("key.lonely.0"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -182,9 +353,9 @@ func TestOperators(t *testing.T) {
 		})
 
 		Convey("can grab multiple values", func() {
-			r, err := op.Run(ev, []interface{}{
-				cursor("key.subkey.value"),
-				cursor("key.subkey.other"),
+			r, err := op.Run(ev, []*Expr{
+				ref("key.subkey.value"),
+				ref("key.subkey.other"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -198,9 +369,9 @@ func TestOperators(t *testing.T) {
 		})
 
 		Convey("flattens constituent arrays", func() {
-			r, err := op.Run(ev, []interface{}{
-				cursor("key.list2"),
-				cursor("key.list1"),
+			r, err := op.Run(ev, []*Expr{
+				ref("key.list2"),
+				ref("key.list1"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -216,13 +387,13 @@ func TestOperators(t *testing.T) {
 		})
 
 		Convey("throws errors for missing arguments", func() {
-			_, err := op.Run(ev, []interface{}{})
+			_, err := op.Run(ev, []*Expr{})
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("throws errors for dangling references", func() {
-			_, err := op.Run(ev, []interface{}{
-				cursor("key.that.does.not.exist"),
+			_, err := op.Run(ev, []*Expr{
+				ref("key.that.does.not.exist"),
 			})
 			So(err, ShouldNotBeNil)
 		})
@@ -250,9 +421,9 @@ math:
 		}
 
 		Convey("can concat a single value", func() {
-			r, err := op.Run(ev, []interface{}{
-				cursor("key.subkey.value"),
-				cursor("key.list1.0"),
+			r, err := op.Run(ev, []*Expr{
+				ref("key.subkey.value"),
+				ref("key.list1.0"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -262,9 +433,9 @@ math:
 		})
 
 		Convey("can concat a literal values", func() {
-			r, err := op.Run(ev, []interface{}{
-				"a literal ",
-				"value",
+			r, err := op.Run(ev, []*Expr{
+				str("a literal "),
+				str("value"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -274,10 +445,10 @@ math:
 		})
 
 		Convey("can concat multiple values", func() {
-			r, err := op.Run(ev, []interface{}{
-				"I ",
-				cursor("key.subkey.value"),
-				"!",
+			r, err := op.Run(ev, []*Expr{
+				str("I "),
+				ref("key.subkey.value"),
+				str("!"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -287,9 +458,9 @@ math:
 		})
 
 		Convey("can concat integer literals", func() {
-			r, err := op.Run(ev, []interface{}{
-				"the answer = ",
-				cursor("douglas.adams"),
+			r, err := op.Run(ev, []*Expr{
+				str("the answer = "),
+				ref("douglas.adams"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -299,9 +470,9 @@ math:
 		})
 
 		Convey("can concat float literals", func() {
-			r, err := op.Run(ev, []interface{}{
-				cursor("math.PI"),
-				" is PI",
+			r, err := op.Run(ev, []*Expr{
+				ref("math.PI"),
+				str(" is PI"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -311,17 +482,17 @@ math:
 		})
 
 		Convey("throws errors for missing arguments", func() {
-			_, err := op.Run(ev, []interface{}{})
+			_, err := op.Run(ev, []*Expr{})
 			So(err, ShouldNotBeNil)
 
-			_, err = op.Run(ev, []interface{}{"one"})
+			_, err = op.Run(ev, []*Expr{str("one")})
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("throws errors for dangling references", func() {
-			_, err := op.Run(ev, []interface{}{
-				cursor("key.that.does.not.exist"),
-				"string",
+			_, err := op.Run(ev, []*Expr{
+				ref("key.that.does.not.exist"),
+				str("string"),
 			})
 			So(err, ShouldNotBeNil)
 		})
@@ -347,7 +518,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
 
@@ -376,7 +547,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -397,7 +568,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -419,7 +590,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -440,7 +611,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -460,7 +631,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -481,7 +652,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -503,7 +674,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -525,7 +696,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -547,7 +718,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -569,7 +740,7 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{"0", "1", "2"})
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
@@ -596,8 +767,8 @@ jobs:
 		}
 
 		Convey("can inject a single sub-map", func() {
-			r, err := op.Run(ev, []interface{}{
-				cursor("key.subkey"),
+			r, err := op.Run(ev, []*Expr{
+				ref("key.subkey"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -610,9 +781,9 @@ jobs:
 		})
 
 		Convey("can inject multiple sub-maps", func() {
-			r, err := op.Run(ev, []interface{}{
-				cursor("key.subkey"),
-				cursor("key.subkey2"),
+			r, err := op.Run(ev, []*Expr{
+				ref("key.subkey"),
+				ref("key.subkey2"),
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -627,24 +798,24 @@ jobs:
 		})
 
 		Convey("handles non-existent references", func() {
-			_, err := op.Run(ev, []interface{}{
-				cursor("key.subkey"),
-				cursor("key.subkey2"),
-				cursor("key.subkey2.ENOENT"),
+			_, err := op.Run(ev, []*Expr{
+				ref("key.subkey"),
+				ref("key.subkey2"),
+				ref("key.subkey2.ENOENT"),
 			})
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("throws an error when trying to inject a scalar", func() {
-			_, err := op.Run(ev, []interface{}{
-				cursor("key.subkey.value"),
+			_, err := op.Run(ev, []*Expr{
+				ref("key.subkey.value"),
 			})
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("throws an error when trying to inject a list", func() {
-			_, err := op.Run(ev, []interface{}{
-				cursor("key.list1"),
+			_, err := op.Run(ev, []*Expr{
+				ref("key.list1"),
 			})
 			So(err, ShouldNotBeNil)
 		})
@@ -655,8 +826,8 @@ jobs:
 		ev := &Evaluator{}
 
 		Convey("always causes an error", func() {
-			r, err := op.Run(ev, []interface{}{
-				"this is the error",
+			r, err := op.Run(ev, []*Expr{
+				str("this is the error"),
 			})
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "this is the error")

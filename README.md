@@ -99,7 +99,9 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
 
 To prune a map key from the final output<br>
 
-```spruce merge --prune key.1.to.prune --prune key.2.to.prune file1.yml file2.yml```
+```
+spruce merge --prune key.1.to.prune --prune key.2.to.prune file1.yml file2.yml
+```
 
 ### Referencing Other Data
 
@@ -118,7 +120,33 @@ pen:
 You can even reference multiple values at once, getting back an array of their data,
 for things like getting all IPs of multi-AZ jobs in a BOSH manifest, just do it like so:
 
-```(( grab jobs.myJob_z1.networks.myNet1.static_ips jobs.myJob_z2.networks.myNet2.static_ips ))```
+```
+(( grab jobs.myJob_z1.networks.myNet1.static_ips jobs.myJob_z2.networks.myNet2.static_ips ))
+```
+
+You can also provide alternatives to your `grab` operation, by
+using the `||` (or) operator:
+
+```
+key:      (( grab site.key || nil ))
+domain:   (( grab global.domain || "example.com" ))
+protocol: (( grab site.protocol || global.protocol || "http" ))
+```
+
+In these examples, if the referenced key does not exist, the next
+reference is attempted, or the literal value (nil, numbers or
+strings) is used.  Spruce recognizes the following keywords and
+uses the appropriate literal value:
+
+  - `nil`, `null` and `~` map to the YAML null value
+  - `true` is the YAML boolean value for truth
+  - `false` is the YAML boolean value for non-truth
+
+Other types of literals include double-quoted strings (with
+embedded double quotes escaped with a single backslash - \\),
+integer literals (a string of digits) and floating point literals
+(a string of digits, a period, and another string of digits).
+Scientific notation is not currently supported.
 
 ### Hmm.. How about auto-calculating static IPs for a BOSH manifest?
 

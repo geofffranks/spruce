@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"regexp"
+	"strconv"
 )
 
 // Action ...
@@ -40,10 +42,10 @@ type Operator interface {
 	Setup() error
 
 	// evaluate the tree and determine what should be done to satisfy caller
-	Run(ev *Evaluator, args []interface{}) (*Response, error)
+	Run(ev *Evaluator, args []*Expr) (*Response, error)
 
 	// returns a set of implicit / inherent dependencies used by Run()
-	Dependencies(ev *Evaluator, args []interface{}, locs []*Cursor) []*Cursor
+	Dependencies(ev *Evaluator, args []*Expr, locs []*Cursor) []*Cursor
 
 	// what phase does this operator run during?
 	Phase() OperatorPhase
@@ -84,17 +86,166 @@ func SetupOperators(phase OperatorPhase) error {
 	return nil
 }
 
+// ExprType ...
+type ExprType int
+
+const (
+	// Reference ...
+	Reference ExprType = iota
+	// Literal ...
+	Literal
+	// LogicalOr ...
+	LogicalOr
+)
+
+// Expr ...
+type Expr struct {
+	Type      ExprType
+	Reference *Cursor
+	Literal   interface{}
+	Left      *Expr
+	Right     *Expr
+}
+
+func (e *Expr) String() string {
+	switch e.Type {
+	case Literal:
+		if e.Literal == nil {
+			return "nil"
+		}
+		if _, ok := e.Literal.(string); ok {
+			return fmt.Sprintf(`"%s"`, e.Literal)
+		}
+		return fmt.Sprintf("%v", e.Literal)
+
+	case Reference:
+		return e.Reference.String()
+
+	case LogicalOr:
+		return fmt.Sprintf("%s || %s", e.Left, e.Right)
+
+	default:
+		return "<!! unknown !!>"
+	}
+}
+
+// Reduce ...
+func (e *Expr) Reduce() (*Expr, error) {
+
+	var reduce func(*Expr) (*Expr, *Expr, bool)
+	reduce = func(e *Expr) (*Expr, *Expr, bool) {
+		switch e.Type {
+		case Literal:
+			return e, e, false
+		case Reference:
+			return e, nil, false
+
+		case LogicalOr:
+			l, short, _ := reduce(e.Left)
+			if short != nil {
+				return l, short, true
+			}
+
+			r, short, more := reduce(e.Right)
+			return &Expr{
+				Type:  LogicalOr,
+				Left:  l,
+				Right: r,
+			}, short, more
+		}
+		return nil, nil, false
+	}
+
+	reduced, short, more := reduce(e)
+	if more && short != nil {
+		return reduced, fmt.Errorf("literal %v short-circuits expression (%s)", short, e)
+	}
+	return reduced, nil
+}
+
+// Resolve ...
+func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
+	switch e.Type {
+	case Literal:
+		return e, nil
+
+	case Reference:
+		if _, err := e.Reference.Resolve(tree); err != nil {
+			return nil, fmt.Errorf("Unable to resolve `%s`: %s", e.Reference, err)
+		}
+		return e, nil
+
+	case LogicalOr:
+		if o, err := e.Left.Resolve(tree); err == nil {
+			return o, nil
+		}
+		return e.Right.Resolve(tree)
+	}
+	return nil, fmt.Errorf("unknown expression operand type (%d)", e.Type)
+}
+
+// Evaluate ...
+func (e *Expr) Evaluate(tree map[interface{}]interface{}) (interface{}, error) {
+	final, err := e.Resolve(tree)
+	if err != nil {
+		return nil, err
+	}
+
+	switch final.Type {
+	case Literal:
+		return final.Literal, nil
+	case Reference:
+		return final.Reference.Resolve(tree)
+	case LogicalOr:
+		return nil, fmt.Errorf("expression resolved to a logical OR operation (which shouldn't happen)")
+	}
+	return nil, fmt.Errorf("unknown operand type")
+}
+
+// Dependencies ...
+func (e *Expr) Dependencies(ev *Evaluator, locs []*Cursor) []*Cursor {
+	l := []*Cursor{}
+
+	canonicalize := func(c *Cursor) {
+		cc := c.Copy()
+		for cc.Depth() > 0 {
+			if _, err := cc.Canonical(ev.Tree); err == nil {
+				break
+			}
+			cc.Pop()
+		}
+		if cc.Depth() > 0 {
+			l = append(l, cc)
+		}
+	}
+
+	switch e.Type {
+	case Reference:
+		canonicalize(e.Reference)
+
+	case LogicalOr:
+		for _, c := range e.Left.Dependencies(ev, locs) {
+			canonicalize(c)
+		}
+		for _, c := range e.Right.Dependencies(ev, locs) {
+			canonicalize(c)
+		}
+	}
+
+	return l
+}
+
 // Opcall ...
 type Opcall struct {
 	src       string
 	where     *Cursor
 	canonical *Cursor
 	op        Operator
-	args      []interface{}
+	args      []*Expr
 }
 
 // ParseOpcall ...
-func ParseOpcall(src string) (*Opcall, error) {
+func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 	split := func(src string) []string {
 		list := make([]string, 0, 0)
 
@@ -118,9 +269,14 @@ func ParseOpcall(src string) (*Opcall, error) {
 				if quoted {
 					buf += string(c)
 					continue
-				} else if buf != "" {
-					list = append(list, buf)
-					buf = ""
+				} else {
+					if buf != "" {
+						list = append(list, buf)
+						buf = ""
+					}
+					if c == ',' {
+						list = append(list, ",")
+					}
 				}
 				continue
 			}
@@ -141,22 +297,91 @@ func ParseOpcall(src string) (*Opcall, error) {
 		return list
 	}
 
-	argify := func(src string) ([]interface{}, error) {
-		var args []interface{}
-
+	argify := func(src string) (args []*Expr, err error) {
 		qstring := regexp.MustCompile(`^"(.*)"$`)
-		numeric := regexp.MustCompile(`^\d+$`)
+		integer := regexp.MustCompile(`^[+-]?\d+(\.\d+)?$`)
+		float := regexp.MustCompile(`^[+-]?\d*\.\d+$`)
 
+		var final []*Expr
+		var left, op *Expr
+
+		pop := func() {
+			if left != nil {
+				final = append(final, left)
+				left = nil
+			}
+		}
+
+		push := func(e *Expr) {
+			TRACE("expr: pushing data expression `%s' onto stack", e)
+			TRACE("expr:   start: left=`%s', op=`%s'", left, op)
+			defer func() { TRACE("expr:     end: left=`%s', op=`%s'\n", left, op) }()
+
+			if left == nil {
+				left = e
+				return
+			}
+			if op == nil {
+				pop()
+				left = e
+				return
+			}
+			op.Left = left
+			op.Right = e
+			left = op
+			op = nil
+		}
+
+		TRACE("expr: parsing `%s'", src)
 		for i, arg := range split(src) {
 			switch {
+			case arg == ",":
+				DEBUG("  #%d: literal comma found; treating what we've seen so far as a complete expression")
+				pop()
+
 			case qstring.MatchString(arg):
 				m := qstring.FindStringSubmatch(arg)
 				DEBUG("  #%d: parsed as quoted string literal '%s'", i, m[1])
-				args = append(args, m[1])
+				push(&Expr{Type: Literal, Literal: m[1]})
 
-			case numeric.MatchString(arg):
+			case float.MatchString(arg):
+				DEBUG("  #%d: parsed as unquoted floating point literal '%s'", i, arg)
+				v, err := strconv.ParseFloat(arg, 64)
+				if err != nil {
+					DEBUG("  #%d: %s is not parsable as a floating point number: %s", i, arg, err)
+					return args, err
+				}
+				push(&Expr{Type: Literal, Literal: v})
+
+			case integer.MatchString(arg):
 				DEBUG("  #%d: parsed as unquoted integer literal '%s'", i, arg)
-				args = append(args, arg)
+				v, err := strconv.ParseInt(arg, 10, 64)
+				if err != nil {
+					DEBUG("  #%d: %s is not parsable as an integer: %s", i, arg, err)
+					return args, err
+				}
+				push(&Expr{Type: Literal, Literal: v})
+
+			case arg == "||":
+				DEBUG("  #%d: parsed logical-or operator, '||'", i)
+
+				if left == nil || op != nil {
+					return args, fmt.Errorf(`syntax error near: %s`, src)
+				}
+				TRACE("expr: pushing || expr-op onto the stack")
+				op = &Expr{Type: LogicalOr}
+
+			case arg == "nil" || arg == "null" || arg == "~" || arg == "Nil" || arg == "Null" || arg == "NIL" || arg == "NULL":
+				DEBUG("  #%d: parsed the nil value token '%s'", i, arg)
+				push(&Expr{Type: Literal, Literal: nil})
+
+			case arg == "false" || arg == "False" || arg == "FALSE":
+				DEBUG("  #%d: parsed the false value token '%s'", i, arg)
+				push(&Expr{Type: Literal, Literal: false})
+
+			case arg == "true" || arg == "True" || arg == "TRUE":
+				DEBUG("  #%d: parsed the true value token '%s'", i, arg)
+				push(&Expr{Type: Literal, Literal: true})
 
 			default:
 				c, err := ParseCursor(arg)
@@ -165,10 +390,23 @@ func ParseOpcall(src string) (*Opcall, error) {
 					return args, err
 				}
 				DEBUG("  #%d: parsed as a reference to $.%s", i, c)
-				args = append(args, c)
+				push(&Expr{Type: Reference, Reference: c})
 			}
 		}
+		pop()
+		if left != nil || op != nil {
+			return nil, fmt.Errorf(`syntax error near: %s`, src)
+		}
 		DEBUG("")
+
+		for _, e := range final {
+			TRACE("expr: pushing expression `%v' onto the operand list", e)
+			reduced, err := e.Reduce()
+			if err != nil {
+				fmt.Fprintf(os.Stdout, "warning: %s\n", err)
+			}
+			args = append(args, reduced)
+		}
 
 		return args, nil
 	}
@@ -186,6 +424,13 @@ func ParseOpcall(src string) (*Opcall, error) {
 
 		m := re.FindStringSubmatch(src)
 		DEBUG("parsing `%s': looks like a (( %s ... )) operator\n arguments:", src, m[1])
+
+		op.op = OperatorFor(m[1])
+		if op.op.Phase() != phase {
+			DEBUG("  - skipping (( %s ... )) operation; it belongs to a different phase", m[1])
+			return nil, nil
+		}
+
 		args, err := argify(m[2])
 		if err != nil {
 			return nil, err
@@ -193,7 +438,6 @@ func ParseOpcall(src string) (*Opcall, error) {
 		if len(args) == 0 {
 			DEBUG("  (none)")
 		}
-		op.op = OperatorFor(m[1])
 		op.args = args
 		return op, nil
 	}
@@ -205,19 +449,8 @@ func ParseOpcall(src string) (*Opcall, error) {
 func (op *Opcall) Dependencies(ev *Evaluator, locs []*Cursor) []*Cursor {
 	l := []*Cursor{}
 	for _, arg := range op.args {
-		if cursor, ok := arg.(*Cursor); ok {
-			c := cursor.Copy()
-			for c.Depth() > 0 {
-				if _, err := c.Canonical(ev.Tree); err == nil {
-					break
-				}
-				c.Pop()
-			}
-			if c.Depth() == 0 {
-				continue
-			}
-			canon, _ := c.Canonical(ev.Tree)
-			l = append(l, canon)
+		for _, c := range arg.Dependencies(ev, locs) {
+			l = append(l, c)
 		}
 	}
 

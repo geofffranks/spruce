@@ -25,7 +25,7 @@ func (StaticIPOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (StaticIPOperator) Dependencies(ev *Evaluator, _ []interface{}, _ []*Cursor) []*Cursor {
+func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*Cursor) []*Cursor {
 	l := []*Cursor{}
 
 	track := func(path string) {
@@ -148,7 +148,7 @@ func statics(ev *Evaluator) ([]string, error) {
 }
 
 // Run ...
-func (s StaticIPOperator) Run(ev *Evaluator, args []interface{}) (*Response, error) {
+func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	DEBUG("running (( static_ips ... )) operation at $.%s", ev.Here)
 	defer DEBUG("done with (( static_ips ... )) operation at $%s\n", ev.Here)
 
@@ -226,15 +226,17 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []interface{}) (*Response, err
 			break
 		}
 
-		current := fmt.Sprintf("%s/%d", jobname, i)
-
-		if _, ok := arg.(string); !ok {
-			DEBUG("  arg[%d]: '%v' is not a string literal\n", i, arg)
-			return nil, fmt.Errorf("static_ips operator only accepts literal numbers for arguments")
-		}
-		n, err := strconv.ParseInt(arg.(string), 10, 0)
+		v, err := arg.Resolve(ev.Tree)
 		if err != nil {
-			DEBUG("  arg[%d]: '%s' is not a numeric value\n", i, arg.(string))
+			DEBUG("  arg[%d]: failed to resolve expression to a concrete value", i)
+			DEBUG("     [%d]: error was: %s", i, err)
+			return nil, err
+		}
+
+		current := fmt.Sprintf("%s/%d", jobname, i)
+		n, ok := v.Literal.(int64)
+		if !ok {
+			DEBUG("  arg[%d]: '%v' is not a string literal\n", i, arg)
 			return nil, fmt.Errorf("static_ips operator only accepts literal numbers for arguments")
 		}
 		if n < 0 {

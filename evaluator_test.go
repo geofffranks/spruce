@@ -385,6 +385,350 @@ meta:
 
 	Convey("Eval Phase", t, func() {
 		RunPhaseTests(EvalPhase, `
+#############################################################   handles simple expressions
+---
+foo: (( concat "foo" ":" "bar" ))
+
+---
+dataflow:
+- foo: (( concat "foo" ":" "bar" ))
+
+---
+foo: foo:bar
+
+
+####################################################   handles simple reference expressions
+---
+meta:
+  domain: foo.bar
+domain: (( grab meta.domain ))
+
+---
+dataflow:
+- domain: (( grab meta.domain ))
+
+---
+meta:
+  domain: foo.bar
+domain: foo.bar
+
+
+#########################################   handles simple reference-or-literal expressions
+---
+meta:
+  env: prod
+domain:    (( grab meta.domain || "default-domain" ))
+env:       (( grab meta.env || "sandbox" ))
+instances: (( grab meta.size || 42 ))
+nice:      (( grab meta.nice || -5 ))
+pi:        (( grab math.CONSTANTS.pi || 3.14159 ))
+delta:     (( grab meta.delta || .001 ))
+secure:    (( grab meta.secure || true ))
+online:    (( grab meta.online || false ))
+
+---
+dataflow:
+- delta:     (( grab meta.delta || .001 ))
+- domain:    (( grab meta.domain || "default-domain" ))
+- env:       (( grab meta.env || "sandbox" ))
+- instances: (( grab meta.size || 42 ))
+- nice:      (( grab meta.nice || -5 ))
+- online:    (( grab meta.online || false ))
+- pi:        (( grab math.CONSTANTS.pi || 3.14159 ))
+- secure:    (( grab meta.secure || true ))
+
+---
+meta:
+  env: prod
+domain: default-domain
+env: prod
+instances: 42
+nice: -5
+pi: 3.14159
+delta: 0.001
+secure: true
+online: false
+
+
+#####################################   handles true, TRUE, and True as boolean keywords
+---
+TrUe: sure
+things:
+- (( grab meta.enoent || true ))
+- (( grab meta.enoent || TRUE ))
+- (( grab meta.enoent || True ))
+- (( grab meta.enoent || TrUe ))
+
+---
+dataflow:
+- things.0: (( grab meta.enoent || true ))
+- things.1: (( grab meta.enoent || TRUE ))
+- things.2: (( grab meta.enoent || True ))
+- things.3: (( grab meta.enoent || TrUe ))
+
+---
+TrUe: sure
+things:
+- true
+- true
+- true
+- sure
+
+
+#####################################   handles false, FALSE, and False as boolean keywords
+---
+FaLSe: why not?
+things:
+- (( grab meta.enoent || false ))
+- (( grab meta.enoent || FALSE ))
+- (( grab meta.enoent || False ))
+- (( grab meta.enoent || FaLSe ))
+
+---
+dataflow:
+- things.0: (( grab meta.enoent || false ))
+- things.1: (( grab meta.enoent || FALSE ))
+- things.2: (( grab meta.enoent || False ))
+- things.3: (( grab meta.enoent || FaLSe ))
+
+---
+FaLSe: why not?
+things:
+- false
+- false
+- false
+- why not?
+
+
+######################   handles ~, nil, Nil, NIL, null, Null, and NULL as the nil keyword
+---
+NuLL: 4 (haha ruby joke)
+things:
+- (( grab meta.enoent || ~ ))
+- (( grab meta.enoent || nil ))
+- (( grab meta.enoent || Nil ))
+- (( grab meta.enoent || NIL ))
+- (( grab meta.enoent || null ))
+- (( grab meta.enoent || Null ))
+- (( grab meta.enoent || NULL ))
+- (( grab meta.enoent || NuLL ))
+
+---
+dataflow:
+- things.0: (( grab meta.enoent || ~ ))
+- things.1: (( grab meta.enoent || nil ))
+- things.2: (( grab meta.enoent || Nil ))
+- things.3: (( grab meta.enoent || NIL ))
+- things.4: (( grab meta.enoent || null ))
+- things.5: (( grab meta.enoent || Null ))
+- things.6: (( grab meta.enoent || NULL ))
+- things.7: (( grab meta.enoent || NuLL ))
+
+---
+NuLL: 4 (haha ruby joke)
+things:
+- null
+- null
+- null
+- null
+- null
+- null
+- null
+- 4 (haha ruby joke)
+
+
+
+
+#########################################   handles simple reference-or-nil expressions
+---
+domain: (( grab meta.domain || nil ))
+env:    (( grab meta.env || ~ ))
+site:   (( grab meta.site || null ))
+
+---
+dataflow:
+- domain: (( grab meta.domain || nil ))
+- env:    (( grab meta.env || ~ ))
+- site:   (( grab meta.site || null ))
+
+---
+domain: ~
+env: ~
+site: ~
+
+
+##################################   stops at the first concrete (possibly false) expression
+---
+meta:
+  other: FAIL
+
+#
+# should stop here ----------.   (because it's resolvable, even if it
+#                            |    evaluates to a traditionally non-true value)
+#                            v
+foo: (( grab meta.enoent || false || meta.other || "failed" ))
+
+---
+dataflow:
+- foo: (( grab meta.enoent || false || meta.other || "failed" ))
+
+---
+meta:
+  other: FAIL
+foo: false
+
+
+##################################   stops at the first concrete (possibly 0) expression
+---
+meta:
+  other: FAIL
+
+#
+# should stop here ----------.   (because it's resolvable, even if it
+#                            |    evaluates to a traditionally non-true value)
+#                            v
+foo: (( grab meta.enoent || 0 || meta.other || "failed" ))
+
+---
+dataflow:
+- foo: (( grab meta.enoent || 0 || meta.other || "failed" ))
+
+---
+meta:
+  other: FAIL
+foo: 0
+
+
+##################################   stops at the first concrete (possibly nil) expression
+---
+meta:
+  other: FAIL
+
+#
+# should stop here ----------.   (because it's resolvable, even if it
+#                            |    evaluates to a traditionally non-true value)
+#                            v
+foo: (( grab meta.enoent || nil || meta.other || "failed" ))
+
+---
+dataflow:
+- foo: (( grab meta.enoent || nil || meta.other || "failed" ))
+
+---
+meta:
+  other: FAIL
+foo: ~
+
+
+###############################################  handles concrete expression in the middle
+---
+meta:
+  second: SECOND
+foo: (( grab meta.first || meta.second || "unspecified" ))
+
+---
+dataflow:
+- foo: (( grab meta.first || meta.second || "unspecified" ))
+
+---
+meta:
+  second: SECOND
+foo: SECOND
+
+
+#################################   skips short-circuited alternates in Data Flow analysis
+---
+meta:
+  foo: FOO
+  bar: (( grab meta.foo ))
+  boz: (( grab meta.foo ))
+
+foo: (( grab meta.bar || "foo?" || meta.boz ))
+# NOTE: meta.boz in $.foo is exempt from DFA, because the "foo?" literal
+#       will *always* stop evaluation of the expression
+
+bar: (( grab meta.xyzzy || "bar?" || meta.boz ))
+# NOTE: same with $.bar; meta.boz is not in play
+
+---
+dataflow:
+- bar: (( grab meta.xyzzy || "bar?" || meta.boz ))
+- meta.bar: (( grab meta.foo ))
+- meta.boz: (( grab meta.foo ))
+- foo: (( grab meta.bar || "foo?" || meta.boz ))
+
+---
+meta:
+  foo: FOO
+  bar: FOO
+  boz: FOO
+foo: FOO
+bar: bar?
+
+
+#####################################   handles Data Flow dependencies for all expressions
+---
+meta:
+  domain: example.com
+  web: (( concat "www.", meta.domain || "sandbox.example.com" ))
+api:
+  endpoint: (( grab meta.web || meta.domain || ~ ))
+
+---
+dataflow:
+- meta.web: (( concat "www.", meta.domain || "sandbox.example.com" ))
+- api.endpoint: (( grab meta.web || meta.domain || ~ ))
+
+---
+meta:
+  domain: example.com
+  web: www.example.com
+api:
+  endpoint: www.example.com
+
+
+#################################   handles multiple space-separated or-operands properly
+---
+meta:
+  foo: FOO
+  bar: BAR
+foobar: (( concat meta.foo || "foo"  meta.bar || "bar" ))
+fooboz: (( concat meta.foo || "foo"  meta.boz || "boz" ))
+
+---
+dataflow:
+- foobar: (( concat meta.foo || "foo"  meta.bar || "bar" ))
+- fooboz: (( concat meta.foo || "foo"  meta.boz || "boz" ))
+
+---
+meta:
+  foo: FOO
+  bar: BAR
+foobar: FOOBAR
+fooboz: FOOboz
+
+
+#################################   handles multiple comma-seaprated or-operands properly
+---
+meta:
+  foo: FOO
+  bar: BAR
+foobar: (( concat meta.foo || "foo", meta.bar || "bar" ))
+fooboz: (( concat meta.foo || "foo", meta.boz || "boz" ))
+
+---
+dataflow:
+- foobar: (( concat meta.foo || "foo", meta.bar || "bar" ))
+- fooboz: (( concat meta.foo || "foo", meta.boz || "boz" ))
+
+---
+meta:
+  foo: FOO
+  bar: BAR
+foobar: FOOBAR
+fooboz: FOOboz
+
+
 ############################################   can handle simple map-based Replace actions
 ---
 meta:
@@ -738,6 +1082,20 @@ meta:
   foo: (( grab meta.bar ))
   bar: (( grab meta.baz ))
   baz: (( grab meta.foo ))
+`),
+			}
+
+			_, err := ev.DataFlow(EvalPhase)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("detects indirect cycles created through operand data flow", func() {
+			ev := &Evaluator{
+				Tree: YAML(`
+meta:
+  foo: (( grab meta.bar ))
+  bar: (( grab meta.baz ))
+  baz: (( grab meta.enoent || meta.foo ))
 `),
 			}
 

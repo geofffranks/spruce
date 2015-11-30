@@ -32,22 +32,20 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 
 	check = func(v interface{}) {
 		if s, ok := v.(string); ok {
-			op, err := ParseOpcall(s)
+			op, err := ParseOpcall(phase, s)
 			if err != nil {
 				errors.Append(err)
 			} else if op != nil {
-				if op.op.Phase() == phase {
-					op.where = ev.Here.Copy()
-					if canon, err := op.where.Canonical(ev.Tree); err == nil {
-						op.canonical = canon
-					} else {
-						op.canonical = op.where
-					}
-					all[op.canonical.String()] = op
-					TRACE("found an operation at %s: %s", op.where.String(), op.src)
-					TRACE("        (canonical at %s)", op.canonical.String())
-					locs = append(locs, op.canonical)
+				op.where = ev.Here.Copy()
+				if canon, err := op.where.Canonical(ev.Tree); err == nil {
+					op.canonical = canon
+				} else {
+					op.canonical = op.where
 				}
+				all[op.canonical.String()] = op
+				TRACE("found an operation at %s: %s", op.where.String(), op.src)
+				TRACE("        (canonical at %s)", op.canonical.String())
+				locs = append(locs, op.canonical)
 			}
 		} else {
 			scan(v)
