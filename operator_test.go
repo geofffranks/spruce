@@ -538,7 +538,7 @@ jobs:
 					`networks:
   - name: test-network
     subnets:
-      - static: [ 10.0.0.0 - 11.0.0.0 ]
+      - static: [ 10.0.0.0 - 10.1.0.1 ]
 jobs:
   - name: job1
     instances: 7
@@ -550,12 +550,18 @@ jobs:
 
 			r, err := op.Run(ev, []interface{}{
 				"0",
-				"255",      // 2^8 - 1
-				"256",      // 2^8
-				"65535",    // 2^16 - 1
-				"65536",    // 2^16
-				"16777215", // 2^24 - 1
-				"16777216", // 2^24
+				"255",   // 2^8 - 1
+				"256",   // 2^8
+				"257",   // 2^8 + 1
+				"65535", // 2^16 - 1
+				"65536", // 2^16
+				"65537", // 2^16 + 1
+
+				// 1st octet rollover testing disabled due to improve speed.
+				// but verified working on 11/30/2015 - gfranks
+				//				"16777215", // 2^24 - 1
+				//				"16777216", // 2^24
+				//				"16777217", // 2^24 + 1
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
@@ -567,10 +573,17 @@ jobs:
 			So(v[0], ShouldEqual, "10.0.0.0")
 			So(v[1], ShouldEqual, "10.0.0.255")
 			So(v[2], ShouldEqual, "10.0.1.0") //  3rd octet rollover
-			So(v[3], ShouldEqual, "10.0.255.255")
-			So(v[4], ShouldEqual, "10.1.0.0") //  2nd octet rollover
-			So(v[5], ShouldEqual, "10.255.255.255")
-			So(v[6], ShouldEqual, "11.0.0.0") //  1st octet rollover
+			So(v[3], ShouldEqual, "10.0.1.1")
+
+			So(v[4], ShouldEqual, "10.0.255.255")
+			So(v[5], ShouldEqual, "10.1.0.0") //  2nd octet rollover
+			So(v[6], ShouldEqual, "10.1.0.1")
+
+			// 1st octet rollover testing disabled due to improve speed.
+			// but verified working on 11/30/2015 - gfranks
+			//			So(v[7], ShouldEqual, "10.255.255.255")
+			//			So(v[8], ShouldEqual, "11.0.0.0") //  1st octet rollover
+			//			So(v[9], ShouldEqual, "11.0.0.1")
 		})
 
 		Convey("throws an error if no job name is specified", func() {
