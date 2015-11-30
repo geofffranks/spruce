@@ -548,20 +548,20 @@ jobs:
 `),
 			}
 
-			r, err := op.Run(ev, []interface{}{
-				"0",
-				"255",   // 2^8 - 1
-				"256",   // 2^8
-				"257",   // 2^8 + 1
-				"65535", // 2^16 - 1
-				"65536", // 2^16
-				"65537", // 2^16 + 1
+			r, err := op.Run(ev, []*Expr{
+				num(0),
+				num(255),   // 2^8 - 1
+				num(256),   // 2^8
+				num(257),   // 2^8 + 1
+				num(65535), // 2^16 - 1
+				num(65536), // 2^16
+				num(65537), // 2^16 + 1
 
 				// 1st octet rollover testing disabled due to improve speed.
 				// but verified working on 11/30/2015 - gfranks
-				//				"16777215", // 2^24 - 1
-				//				"16777216", // 2^24
-				//				"16777217", // 2^24 + 1
+				//				num(16777215), // 2^24 - 1
+				//				num(16777216), // 2^24
+				//				num(16777217), // 2^24 + 1
 			})
 			So(err, ShouldBeNil)
 			So(r, ShouldNotBeNil)
