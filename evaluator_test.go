@@ -687,6 +687,35 @@ api:
   endpoint: www.example.com
 
 
+###############################  handles indirect addressing of lists-of-maps in Data Flow
+---
+a:  (( grab b.squad.value ))
+b:
+  - name: squad
+    value: (( grab c.value ))
+c:
+  value: VALUE
+d: (( grab b.squad.value ))
+e: (( grab c.value ))
+
+---
+dataflow:
+- b.0.value: (( grab c.value ))
+- e:         (( grab c.value ))
+- a:         (( grab b.squad.value ))
+- d:         (( grab b.squad.value ))
+
+---
+a: VALUE
+b:
+  - name: squad
+    value: VALUE
+c:
+  value: VALUE
+d: VALUE
+e: VALUE
+
+
 #################################   handles multiple space-separated or-operands properly
 ---
 meta:

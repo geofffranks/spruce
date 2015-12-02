@@ -215,7 +215,8 @@ func (e *Expr) Dependencies(ev *Evaluator, locs []*Cursor) []*Cursor {
 			cc.Pop()
 		}
 		if cc.Depth() > 0 {
-			l = append(l, cc)
+			canon, _ := cc.Canonical(ev.Tree)
+			l = append(l, canon)
 		}
 	}
 
