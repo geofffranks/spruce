@@ -869,4 +869,55 @@ func TestMerge(t *testing.T) {
 			valueIs(merged, "props.sub.key", "ANOTHER TEMPLATE VALUE")
 		})
 	})
+
+	Convey("Merge() handles array operators when previous data was nil", t, func() {
+		template := YAML(`
+nested:
+  append:
+  - (( append ))
+  - two
+  - three
+  prepend:
+  - (( prepend ))
+  - two
+  - three
+  inline:
+  - (( inline ))
+  - two
+  - three
+  replace:
+  - (( replace ))
+  - two
+  - three
+
+top_append:
+- (( append ))
+- b
+- c
+top_prepend:
+- (( prepend ))
+- b
+- c
+top_inline:
+- (( inline ))
+- b
+- c
+top_replace:
+- (( replace ))
+- b
+- c
+`)
+		orig := map[interface{}]interface{}{}
+		merged, err := Merge(orig, template)
+		So(err, ShouldBeNil)
+
+		valueIs(merged, "nested.append.0", "two")
+		valueIs(merged, "top_append.0", "b")
+		valueIs(merged, "nested.prepend.0", "two")
+		valueIs(merged, "top_prepend.0", "b")
+		valueIs(merged, "nested.inline.0", "two")
+		valueIs(merged, "top_inline.0", "b")
+		valueIs(merged, "nested.replace.0", "two")
+		valueIs(merged, "top_replace.0", "b")
+	})
 }

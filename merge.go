@@ -64,7 +64,7 @@ func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]in
 			orig[k] = m.mergeObj(orig[k], val, path)
 		} else {
 			DEBUG("%s: not found upstream, adding it", path)
-			orig[k] = deepCopy(val)
+			orig[k] = m.mergeObj(nil, deepCopy(val), path)
 		}
 	}
 }
@@ -78,6 +78,11 @@ func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interfac
 			m.mergeMap(orig.(map[interface{}]interface{}), n.(map[interface{}]interface{}), node)
 			return orig
 
+		case nil:
+			orig := map[interface{}]interface{}{}
+			m.mergeMap(orig, n.(map[interface{}]interface{}), node)
+			return orig
+
 		default:
 			DEBUG("%s: replacing with new data (original was not a map)", node)
 			return t
@@ -88,6 +93,10 @@ func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interfac
 		case []interface{}:
 			DEBUG("%s: performing array merge", node)
 			return m.mergeArray(orig.([]interface{}), n.([]interface{}), node)
+
+		case nil:
+			orig := []interface{}{}
+			return m.mergeArray(orig, n.([]interface{}), node)
 
 		default:
 			if orig == nil {
