@@ -166,10 +166,11 @@ func (m *Merger) mergeArrayInline(orig []interface{}, n []interface{}, node stri
 
 	var last int
 	for i := range orig {
+		path := fmt.Sprintf("%s.%d", node, i)
 		if i >= len(n) {
-			merged[i] = orig[i]
+			merged[i] = m.mergeObj(nil, orig[i], path)
 		} else {
-			merged[i] = m.mergeObj(orig[i], n[i], fmt.Sprintf("%s.%d", node, i))
+			merged[i] = m.mergeObj(orig[i], n[i], path)
 		}
 		last = i
 	}
@@ -180,8 +181,9 @@ func (m *Merger) mergeArrayInline(orig []interface{}, n []interface{}, node stri
 
 	// grab the remainder of n (if any) and append the to the result
 	for i := last; i < len(n); i++ {
-		DEBUG("%s.%d: appending new data to existing array", node, i)
-		merged[i] = m.mergeObj(nil, n[i], fmt.Sprintf("%s.%d", node, i))
+		path := fmt.Sprintf("%s.%d", node, i)
+		DEBUG("%s: appending new data to existing array", path)
+		merged[i] = m.mergeObj(nil, n[i], path)
 	}
 
 	return merged
@@ -196,11 +198,12 @@ func (m *Merger) mergeArrayByKey(orig []interface{}, n []interface{}, node strin
 	}
 	for i, o := range orig {
 		obj := o.(map[interface{}]interface{})
+		path := fmt.Sprintf("%s.%d", node, i)
 		if _, ok := newMap[obj[key]]; ok {
-			merged[i] = m.mergeObj(obj, newMap[obj[key]], fmt.Sprintf("%s.%d", node, i))
+			merged[i] = m.mergeObj(obj, newMap[obj[key]], path)
 			delete(newMap, obj[key])
 		} else {
-			merged[i] = obj
+			merged[i] = m.mergeObj(nil, obj, path)
 		}
 	}
 
@@ -208,8 +211,9 @@ func (m *Merger) mergeArrayByKey(orig []interface{}, n []interface{}, node strin
 	for _, obj := range n {
 		obj := obj.(map[interface{}]interface{})
 		if _, ok := newMap[obj[key]]; ok {
-			DEBUG("%s.%d: appending new data to merged array", node, i)
-			merged = append(merged, obj)
+			path := fmt.Sprintf("%s.%d", node, i)
+			DEBUG("%s: appending new data to merged array", path)
+			merged = append(merged, m.mergeObj(nil, obj, path))
 			i++
 		}
 	}

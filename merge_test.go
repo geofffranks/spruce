@@ -872,6 +872,25 @@ func TestMerge(t *testing.T) {
 
 	Convey("Merge() handles array operators when previous data was nil", t, func() {
 		template := YAML(`
+array:
+- name: nested
+  attrs:
+    append:
+    - (( append ))
+    - two
+    - three
+    prepend:
+    - (( prepend ))
+    - two
+    - three
+    inline:
+    - (( inline ))
+    - two
+    - three
+    replace:
+    - (( replace ))
+    - two
+    - three
 nested:
   append:
   - (( append ))
@@ -907,17 +926,23 @@ top_replace:
 - b
 - c
 `)
+
 		orig := map[interface{}]interface{}{}
 		merged, err := Merge(orig, template)
 		So(err, ShouldBeNil)
 
+		valueIs(merged, "array.nested.attrs.append.0", "two")
 		valueIs(merged, "nested.append.0", "two")
 		valueIs(merged, "top_append.0", "b")
+		valueIs(merged, "array.nested.attrs.prepend.0", "two")
 		valueIs(merged, "nested.prepend.0", "two")
 		valueIs(merged, "top_prepend.0", "b")
+		valueIs(merged, "array.nested.attrs.inline.0", "two")
 		valueIs(merged, "nested.inline.0", "two")
 		valueIs(merged, "top_inline.0", "b")
+		valueIs(merged, "array.nested.attrs.replace.0", "two")
 		valueIs(merged, "nested.replace.0", "two")
 		valueIs(merged, "top_replace.0", "b")
+
 	})
 }
