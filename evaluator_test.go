@@ -297,6 +297,53 @@ thing:
     bar: baz
     baz: overridden
 
+#################   merges name-indexed sub-arrays properly between call-site and inject site
+---
+meta:
+  api_node:
+    templates:
+    - name: my_job
+      release: my_release
+    - name: my_other_job
+      release: my_other_release
+    properties:
+      foo: bar
+jobs:
+  api_node:
+    .: (( inject meta.api_node ))
+    properties:
+      this: that
+    templates:
+    - name: my_superspecial_job
+      release: my_superspecial_release
+
+---
+dataflow:
+- jobs.api_node..: (( inject meta.api_node ))
+
+---
+meta:
+  api_node:
+    templates:
+    - name: my_job
+      release: my_release
+    - name: my_other_job
+      release: my_other_release
+    properties:
+      foo: bar
+jobs:
+  api_node:
+    properties:
+      foo: bar
+      this: that
+    templates:
+    - name: my_job
+      release: my_release
+    - name: my_other_job
+      release: my_other_release
+    - name: my_superspecial_job
+      release: my_superspecial_release
+
 
 #################   uses deep-copy semantics to handle overrides correctly on template re-use
 ---

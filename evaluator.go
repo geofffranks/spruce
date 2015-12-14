@@ -303,19 +303,11 @@ func (ev *Evaluator) RunOp(op *Opcall) error {
 		for k, v := range resp.Value.(map[interface{}]interface{}) {
 			_, set := m[k]
 			if !set {
-				DEBUG("  %s is not set, using the injected value", parent)
+				DEBUG("  %s.%s is not set, using the injected value", parent, k)
 				m[k] = v
 			} else {
-				DEBUG("  %s exists, merging the injected values", parent)
-				target, targetIsMap := m[k].(map[interface{}]interface{})
-				template, templateIsMap := v.(map[interface{}]interface{})
-				if targetIsMap && templateIsMap {
-					m[k], err = Merge(template, target)
-					if err != nil {
-						DEBUG("  error: %s\n  continuing\n", err)
-						return err
-					}
-				}
+				DEBUG("  %s.%s is set, merging the injected value", parent, k)
+				m[k] = MergeAll(v, m[k])
 			}
 		}
 	}
