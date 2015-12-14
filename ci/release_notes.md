@@ -41,4 +41,4 @@ examples are now integrated into the unit tests to verify the documentation.
 # Acknowledgements
 
 Thanks to [Ruben Koster](https://github.com/rkoster) for reporting the issue, and [James Hunt](https://github.com/filefrog)
-for providing a quick fix!
+for providing a quick fix (and basically all the code in this release)!
