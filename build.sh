@@ -7,26 +7,37 @@
 #  - runs go build to build a spruce binary
 #  - undoes the change (so that it doesn't get committed)
 
+function auto_sed() {
+	cmd=$1
+	shift
+
+	if [[ "$(uname -s)" == "Darwin" ]]; then
+		sed -i '' -e "$cmd" $@
+	else
+		sed -i -e "$cmd" $@
+	fi
+}
+
 
 # track dirty changes in the local working copy
 if [[ $(git status --porcelain) != "" ]]; then
-	sed -i '' -e "s/var DIRTY = \".*\"/var DIRTY = \" with uncommitted local changes\"/" main.go
+	auto_sed "s/var DIRTY = \".*\"/var DIRTY = \" with uncommitted local changes\"/" main.go
 fi
 
 # update BUILD to be the HEAD commit-ish
 sha1=$(git rev-list --abbrev-commit HEAD -n1)
 if [[ -z ${IN_RELEASE} ]]; then
-	sed -i '' -e "s/var BUILD = \".*\"/var BUILD = \"${sha1}\"/" main.go
+	auto_sed "s/var BUILD = \".*\"/var BUILD = \"${sha1}\"/" main.go
 else
-	sed -i '' -e "s/var BUILD = \".*\"/var BUILD = \"release\"/" main.go
+	auto_sed "s/var BUILD = \".*\"/var BUILD = \"release\"/" main.go
 fi
 
 # do the build
 go build .
 
 # put it all back
-sed -i '' -e "s/var BUILD = \".*\"/var BUILD = \"master\"/" main.go
-sed -i '' -e "s/var DIRTY = \".*\"/var DIRTY = \"\"/" main.go
+auto_sed "s/var BUILD = \".*\"/var BUILD = \"master\"/" main.go
+auto_sed "s/var DIRTY = \".*\"/var DIRTY = \"\"/" main.go
 
 # what version?
 ./spruce -v
