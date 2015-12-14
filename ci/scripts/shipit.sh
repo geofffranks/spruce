@@ -46,6 +46,3 @@ godep restore
 
 IN_RELEASE=yes ./build.sh
 ./spruce -v 2>&1 | grep "./spruce - Version ${version} (release)"
-
-goxc -bc="linux,!arm darwin,amd64" -d=$DIR/../../releases -pv=${version}
-
