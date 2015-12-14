@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # build.sh - Build wrapper
 #
@@ -33,12 +34,11 @@ else
 fi
 
 # do the build
-if [[ -z ${IN_RELEASE} ]]; then
+if [[ -n ${IN_RELEASE} ]]; then
 	goxc -bc="linux,!arm darwin,amd64" -d=$DIR/../../releases -pv=${version}
-else
-	go build .
 fi
 
+go build .
 
 # put it all back
 auto_sed "s/var BUILD = \".*\"/var BUILD = \"master\"/" main.go
