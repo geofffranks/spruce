@@ -13,7 +13,7 @@ import (
 )
 
 // Current version of spruce
-var VERSION = "0.12.0" // SED MARKER FOR AUTO VERSION BUMPING
+var VERSION = "0.13.0" // SED MARKER FOR AUTO VERSION BUMPING
 // Current build of spruce
 var BUILD = "master" // updated by build.sh
 // Whether any uncommitted changes were found in the working copy
