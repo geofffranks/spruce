@@ -301,13 +301,19 @@ func (ev *Evaluator) RunOp(op *Opcall) error {
 		delete(m, key)
 
 		for k, v := range resp.Value.(map[interface{}]interface{}) {
+			path := fmt.Sprintf("%s.%s", parent, k)
 			_, set := m[k]
 			if !set {
-				DEBUG("  %s.%s is not set, using the injected value", parent, k)
+				DEBUG("  %s is not set, using the injected value", path)
 				m[k] = v
 			} else {
-				DEBUG("  %s.%s is set, merging the injected value", parent, k)
-				m[k] = MergeAll(v, m[k])
+				DEBUG("  %s is set, merging the injected value", path)
+				merger := &Merger{}
+				merged := merger.mergeObj(v, m[k], path)
+				if err := merger.Error(); err != nil {
+					return err
+				}
+				m[k] = merged
 			}
 		}
 	}

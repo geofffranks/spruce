@@ -12,12 +12,6 @@ type Merger struct {
 	depth  int
 }
 
-// MergeAll ...
-func MergeAll(orig interface{}, n interface{}) interface{} {
-	m := &Merger{}
-	return m.mergeObj(orig, n, "$")
-}
-
 // Merge ...
 func Merge(l ...map[interface{}]interface{}) (map[interface{}]interface{}, error) {
 	m := &Merger{}
