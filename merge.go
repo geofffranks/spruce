@@ -61,6 +61,7 @@ func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]in
 	for k, val := range n {
 		path := fmt.Sprintf("%s.%v", node, k)
 		if _, exists := orig[k]; exists {
+			DEBUG("%s: found upstream, merging it", path)
 			orig[k] = m.mergeObj(orig[k], val, path)
 		} else {
 			DEBUG("%s: not found upstream, adding it", path)

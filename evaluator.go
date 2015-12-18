@@ -301,21 +301,19 @@ func (ev *Evaluator) RunOp(op *Opcall) error {
 		delete(m, key)
 
 		for k, v := range resp.Value.(map[interface{}]interface{}) {
+			path := fmt.Sprintf("%s.%s", parent, k)
 			_, set := m[k]
 			if !set {
-				DEBUG("  %s is not set, using the injected value", parent)
+				DEBUG("  %s is not set, using the injected value", path)
 				m[k] = v
 			} else {
-				DEBUG("  %s exists, merging the injected values", parent)
-				target, targetIsMap := m[k].(map[interface{}]interface{})
-				template, templateIsMap := v.(map[interface{}]interface{})
-				if targetIsMap && templateIsMap {
-					m[k], err = Merge(template, target)
-					if err != nil {
-						DEBUG("  error: %s\n  continuing\n", err)
-						return err
-					}
+				DEBUG("  %s is set, merging the injected value", path)
+				merger := &Merger{}
+				merged := merger.mergeObj(v, m[k], path)
+				if err := merger.Error(); err != nil {
+					return err
 				}
+				m[k] = merged
 			}
 		}
 	}
