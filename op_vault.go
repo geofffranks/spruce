@@ -41,7 +41,7 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 
 	// syntax: (( vault "secret/path:key" ))
 	if len(args) != 1 {
-		return nil, fmt.Errorf("vault operator requires at least one argument")
+		return nil, fmt.Errorf("vault operator requires exactly one argument")
 	}
 
 	v, err := args[0].Resolve(ev.Tree)
@@ -68,11 +68,11 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		switch s.(type) {
 		case map[interface{}]interface{}:
 			DEBUG("  arg[0]: %v is not a string scalar", s)
-			return nil, fmt.Errorf("tried to concat %s, which is not a string scalar", v.Reference)
+			return nil, fmt.Errorf("tried to look up $.%s, which is not a string scalar", v.Reference)
 
 		case []interface{}:
 			DEBUG("  arg[0]: %v is not a string scalar", s)
-			return nil, fmt.Errorf("tried to concat %s, which is not a string scalar", v.Reference)
+			return nil, fmt.Errorf("tried to look up $.%s, which is not a string scalar", v.Reference)
 
 		default:
 			key = fmt.Sprintf("%v", s)

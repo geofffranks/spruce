@@ -210,7 +210,7 @@ secret: (( vault ))
 
 ---
 1 error(s) detected:
- - $.secret: vault operator requires at least one argument
+ - $.secret: vault operator requires exactly one argument
 
 #########################################  fails on non-existent reference
 ---
@@ -229,7 +229,7 @@ secret: (( vault $.meta ))
 
 ---
 1 error(s) detected:
- - $.secret: tried to concat meta, which is not a string scalar
+ - $.secret: tried to look up $.meta, which is not a string scalar
 
 ##################################################  fails on list reference
 ---
@@ -239,7 +239,7 @@ secret: (( vault $.meta ))
 
 ---
 1 error(s) detected:
- - $.secret: tried to concat meta, which is not a string scalar
+ - $.secret: tried to look up $.meta, which is not a string scalar
 
 #########################################  fails on non-existent credentials
 ---
