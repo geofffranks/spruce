@@ -308,7 +308,7 @@ func (ev *Evaluator) RunOp(op *Opcall) error {
 				m[k] = v
 			} else {
 				DEBUG("  %s is set, merging the injected value", path)
-				merger := &Merger{}
+				merger := &Merger{AppendByDefault: true}
 				merged := merger.mergeObj(v, m[k], path)
 				if err := merger.Error(); err != nil {
 					return err
