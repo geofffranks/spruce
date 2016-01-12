@@ -58,8 +58,12 @@ func (m *Merger) Merge(a map[interface{}]interface{}, b map[interface{}]interfac
 }
 
 func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]interface{}, node string) {
+	re := regexp.MustCompile(`^\s*\Q((\E\s*merge\s*.*\Q))\E`)
 	for k, val := range n {
 		path := fmt.Sprintf("%s.%v", node, k)
+		if s, ok := val.(string); ok && re.MatchString(s) {
+			m.Errors.Append(fmt.Errorf("%s: inappropriate use of (( merge )) operator outside of a list (this is spruce, after all)", path))
+		}
 		if _, exists := orig[k]; exists {
 			DEBUG("%s: found upstream, merging it", path)
 			orig[k] = m.mergeObj(orig[k], val, path)

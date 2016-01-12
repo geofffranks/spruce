@@ -231,6 +231,15 @@ func TestMergeObj(t *testing.T) {
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "node-path.array.0: new object is a string, not a map - cannot merge using keys")
 		})
+		Convey("returns an error for any (( merge ... )) operators found in non-list context", func() {
+			orig := map[interface{}]interface{}{}
+			n := map[interface{}]interface{}{"map":"(( merge || nil ))"}
+			m := &Merger{}
+			m.mergeObj(orig, n, "node-path")
+			err := m.Error()
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "node-path.map: inappropriate use of (( merge )) operator outside of a list (this is spruce, after all)")
+		})
 	})
 	Convey("Passing a slice to m.mergeObj", t, func() {
 		Convey("without magical merge token replaces entire array", func() {
