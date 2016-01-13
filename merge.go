@@ -8,6 +8,8 @@ import (
 
 // Merger ...
 type Merger struct {
+	AppendByDefault bool
+
 	Errors MultiError
 	depth  int
 }
@@ -159,6 +161,9 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 		}
 	}
 
+	if m.AppendByDefault {
+		return append(orig, n...)
+	}
 	return m.mergeArrayInline(orig, n, node)
 }
 

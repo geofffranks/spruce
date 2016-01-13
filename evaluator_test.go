@@ -400,6 +400,35 @@ boz:
     key: BOZ
     sub:
       key: BOZ
+
+
+#########################################################  appends to injected arrays
+---
+meta:
+  job:
+    templates:
+      - first
+      - second
+foo:
+  <<<: (( inject meta.job ))
+  templates:
+    - third
+
+---
+dataflow:
+- foo.<<<: (( inject meta.job ))
+
+---
+meta:
+  job:
+    templates:
+      - first
+      - second
+foo:
+  templates:
+    - first
+    - second
+    - third
 `)
 	})
 
