@@ -14,7 +14,7 @@ func (ParamOperator) Setup() error {
 
 // Phase ...
 func (ParamOperator) Phase() OperatorPhase {
-	return CheckPhase
+	return EvalPhase
 }
 
 // Dependencies ...

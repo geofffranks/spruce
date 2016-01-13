@@ -414,17 +414,17 @@ storage: 4096
 			So(stdout, ShouldEqual, "")
 			So(stderr, ShouldContainSubstring, "$.nested.key.override: provide nested override\n")
 		})
-		Convey("Pruning takes place before parameters", func() {
+		Convey("Pruning takes place after parameters", func() {
 			os.Args = []string{"spruce", "merge", "--prune", "nested", "assets/params/global.yml", "assets/params/fail.yml"}
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldEqual, "")
-			So(stdout, ShouldEqual, `cpu: 3
-networks: specified
-storage: 4096
+			So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.nested.key.override: provide nested override
+
 
 `)
+			So(stdout, ShouldEqual, "")
 		})
 		Convey("string concatenation works", func() {
 			os.Args = []string{"spruce", "merge", "--prune", "local", "--prune", "env", "--prune", "cluster", "assets/concat/concat.yml"}
