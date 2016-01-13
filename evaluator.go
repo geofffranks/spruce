@@ -345,7 +345,6 @@ func (ev *Evaluator) Run(prune []string) error {
 		return err
 	}
 
-	errors.Append(ev.RunPhase(CheckPhase))
 	if len(errors.Errors) > 0 {
 		return errors
 	}

@@ -122,7 +122,7 @@ host:
     DR: disabled
 
 
-#################################   ignores EvalPhase and CheckPhase operators
+################################################   ignores EvalPhase operators
 ---
 meta:
   template:
@@ -1232,6 +1232,35 @@ networks:
 
 			err := ev.RunPhase(EvalPhase)
 			So(err, ShouldNotBeNil)
+		})
+
+		Convey("detects unsatisfied (( param )) inside of a (( grab ... )) call", func() {
+			ev := &Evaluator{
+				Tree: YAML(`
+meta:
+  key: (( param "you must specify this" ))
+value: (( grab meta.key ))
+`),
+			}
+
+			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "you must specify this")
+		})
+
+		Convey("detects unsatisfied (( param )) inside of a (( concat ... )) call", func() {
+			ev := &Evaluator{
+				Tree: YAML(`
+---
+meta:
+  key: (( param "you must specify this" ))
+value: (( concat "key=" meta.key ))
+`),
+			}
+
+			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "you must specify this")
 		})
 	})
 }
