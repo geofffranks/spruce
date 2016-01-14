@@ -1163,6 +1163,176 @@ networks:
 properties:
   api_servers:
     - 192.168.1.2
+
+
+#########################################  Basic test of (( cartesian-product .... )) operator
+---
+meta:
+  hosts:
+    - a.example.com
+    - b.example.com
+    - c.example.com
+  port: 8088
+
+hosts: (( cartesian-product meta.hosts ":" meta.port ))
+
+---
+dataflow:
+- hosts: (( cartesian-product meta.hosts ":" meta.port ))
+
+---
+meta:
+  hosts:
+    - a.example.com
+    - b.example.com
+    - c.example.com
+  port: 8088
+
+hosts:
+  - a.example.com:8088
+  - b.example.com:8088
+  - c.example.com:8088
+
+
+####################################  (( cartesian-product .... )) of an empty component array
+---
+meta:
+  hosts: []
+  port: 8088
+
+hosts: (( cartesian-product meta.hosts ":" meta.port ))
+ports: (( cartesian-product meta.port  ":" meta.hosts ))
+
+---
+dataflow:
+- hosts: (( cartesian-product meta.hosts ":" meta.port ))
+- ports: (( cartesian-product meta.port  ":" meta.hosts ))
+
+---
+meta:
+  hosts: []
+  port: 8088
+
+hosts: []
+ports: []
+
+
+##########################################################  1-ary (( cartesian-product .... ))
+---
+meta:
+  - [a, b, c]
+
+all: (( cartesian-product meta[0] ))
+
+---
+dataflow:
+- all: (( cartesian-product meta[0] ))
+
+---
+meta:
+  - [a, b, c]
+all: [a, b, c]
+
+
+##########################################################  n-ary (( cartesian-product .... ))
+---
+meta:
+  - [a, b, c]
+  - [1, 2, 3]
+  - [x, 'y', z]
+
+all: (( cartesian-product meta[0] meta[1] meta[2] ))
+
+---
+dataflow:
+- all: (( cartesian-product meta[0] meta[1] meta[2] ))
+
+---
+meta:
+  - [a, b, c]
+  - [1, 2, 3]
+  - [x, 'y', z]
+all:
+  - a1x
+  - a1y
+  - a1z
+  - a2x
+  - a2y
+  - a2z
+  - a3x
+  - a3y
+  - a3z
+  - b1x
+  - b1y
+  - b1z
+  - b2x
+  - b2y
+  - b2z
+  - b3x
+  - b3y
+  - b3z
+  - c1x
+  - c1y
+  - c1z
+  - c2x
+  - c2y
+  - c2z
+  - c3x
+  - c3y
+  - c3z
+
+
+###########################################  (( cartesian-product ... )) with grab'd arguments
+---
+meta:
+  first: [a, b]
+  second: [1, 2]
+  third:  (( grab meta.second ))
+
+all: (( cartesian-product meta.first "," meta.third ))
+
+---
+dataflow:
+- meta.third: (( grab meta.second ))
+- all: (( cartesian-product meta.first "," meta.third ))
+
+---
+meta:
+  first:  [a, b]
+  second: [1, 2]
+  third:  [1, 2]
+
+all:
+  - a,1
+  - a,2
+  - b,1
+  - b,2
+
+###################################  (( cartesian-product ... )) with grab'd sublist arguments
+---
+meta:
+  first: [a, b]
+  second:
+    - x
+    - (( grab meta.first[0] ))
+
+all: (( cartesian-product meta.first "," meta.second ))
+
+---
+dataflow:
+- meta.second.1: (( grab meta.first[0] ))
+- all: (( cartesian-product meta.first "," meta.second ))
+
+---
+meta:
+  first:  [a, b]
+  second: [x, a]
+
+all:
+  - a,x
+  - a,a
+  - b,x
+  - b,a
 `)
 	})
 
@@ -1261,6 +1431,66 @@ value: (( concat "key=" meta.key ))
 			err := ev.RunPhase(EvalPhase)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "you must specify this")
+		})
+
+		Convey("handles non-list (direct) args to (( cartesian-product ... ))", func() {
+			ev := &Evaluator{
+				Tree: YAML(`
+meta:
+  list: [a,b,c]
+all: (( cartesian-product meta meta.list ))
+`),
+			}
+
+			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "cartesian-product operator only accepts arrays and string values")
+		})
+
+		Convey("treats list-of-lists args to (( cartesian-product ... )) as an error", func() {
+			ev := &Evaluator{
+				Tree: YAML(`
+meta:
+  list:
+    - [a,b,c]
+    - [d,e,f]
+    - [g]
+all: (( cartesian-product meta.list meta.list ))
+`),
+			}
+
+			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "cartesian-product operator can only operate on lists of scalar values")
+		})
+
+		Convey("treats list-of-maps args to (( cartesian-product ... )) as an error", func() {
+			ev := &Evaluator{
+				Tree: YAML(`
+meta:
+  list:
+    - name: a
+    - name: b
+    - name: c
+all: (( cartesian-product meta.list meta.list ))
+`),
+			}
+
+			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "cartesian-product operator can only operate on lists of scalar values")
+		})
+
+		Convey("(( cartesian-product ... )) requires an argument", func() {
+			ev := &Evaluator{
+				Tree: YAML(`
+all: (( cartesian-product ))
+`),
+			}
+
+			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "no arguments specified to (( cartesian-product ... ))")
 		})
 	})
 }
