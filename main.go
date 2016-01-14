@@ -12,11 +12,11 @@ import (
 	"strings"
 )
 
-// Current version of spruce
+// VERSION holds the Current version of spruce
 var VERSION = "0.13.0" // SED MARKER FOR AUTO VERSION BUMPING
-// Current build of spruce
+// BUILD holds CURRENT BUILD OF SPRUCE
 var BUILD = "master" // updated by build.sh
-// Whether any uncommitted changes were found in the working copy
+// DIRTY holds Whether any uncommitted changes were found in the working copy
 var DIRTY = "" // updated by build.sh
 
 var printfStdOut = func(format string, args ...interface{}) {

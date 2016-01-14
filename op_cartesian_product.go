@@ -64,7 +64,7 @@ func (CartesianProductOperator) Run(ev *Evaluator, args []*Expr) (*Response, err
 			}
 			switch s.(type) {
 			case []interface{}:
-				strs := make([]string, 0)
+				var strs []string
 
 				DEBUG("     [%d]: resolved to a list; verifying", i)
 				for j, sub := range s.([]interface{}) {
