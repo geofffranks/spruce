@@ -20,8 +20,14 @@ fi
 
 sed -i -e "s/var VERSION = \".*\"/var VERSION = \"${version}\"/" main.go
 
-git config --global user.email "drnic+bot@starkandwayne.com"
-git config --global user.name "CI Bot"
+set +e
+if [[ -z $(git config --global user.email) ]]; then
+  git config --global user.email "drnic+bot@starkandwayne.com"
+fi
+if [[ -z $(git config --global user.name) ]]; then
+  git config --global user.name "CI Bot"
+fi
+set -e
 
 git merge --no-edit ${promotion_branch}
 
