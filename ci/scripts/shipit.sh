@@ -44,5 +44,5 @@ pushd $GOPATH/src/github/geofffranks/spruce
 
 godep restore
 
-DIR=$DIR IN_RELEASE=yes ./build.sh
+version=${version} DIR=$DIR IN_RELEASE=yes ./build.sh
 ./spruce -v 2>&1 | grep "./spruce - Version ${version} (release)"
