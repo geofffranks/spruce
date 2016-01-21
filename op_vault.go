@@ -115,7 +115,15 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	url := fmt.Sprintf("%s/v1/%s", vault, secret)
 	DEBUG("  crafting GET %s", url)
 
-	client := &http.Client{}
+	client := &http.Client{
+		CheckRedirect: func (req *http.Request, via []*http.Request) error {
+			if len(via) > 10 {
+				return fmt.Errorf("stopped after 10 redirects")
+			}
+			req.Header.Add("X-Vault-Token", os.Getenv("VAULT_TOKEN"))
+			return nil
+		},
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		DEBUG("    !! failed to craft API request:\n    !! %s\n", err)
