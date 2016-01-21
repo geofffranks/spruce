@@ -127,17 +127,6 @@ secret: (( vault "secret/hand:shake" ))
 secret: REDACTED
 `)
 
-		os.Setenv("VAULT_ADDR", "something")
-		os.Setenv("VAULT_TOKEN", "")
-		RunTests(`
-#############################################  emits REDACTED for no VAULT_TOKEN
----
-secret: (( vault "secret/hand:shake" ))
-
----
-secret: REDACTED
-`)
-
 		os.Setenv("VAULT_ADDR", "")
 		os.Setenv("VAULT_TOKEN", "something")
 		RunTests(`
@@ -201,6 +190,19 @@ secret: knock, knock
 username: admin
 password: x12345
 key: testing
+`)
+
+		os.Setenv("VAULT_ADDR", mock.URL)
+		oldhome := os.Getenv("HOME")
+		os.Setenv("HOME", "assets/home/auth")
+		os.Setenv("VAULT_TOKEN", "")
+		RunTests(`
+##########################  retrieves token transparently from ~/.vault-token
+---
+secret: (( vault "secret/hand:shake" ))
+
+---
+secret: knock, knock
 `)
 
 		RunErrorTests(`
@@ -277,7 +279,7 @@ secret: (( vault "secret/structure:data" ))
 
 		os.Setenv("VAULT_TOKEN", "incorrect")
 		RunErrorTests(`
-################################################  fails on with a bad token
+#####################################################  fails on a bad token
 ---
 secret: (( vault "secret/hand:shake" ))
 
@@ -286,5 +288,20 @@ secret: (( vault "secret/hand:shake" ))
  - $.secret: failed to retrieve secret/hand:shake from Vault (`+os.Getenv("VAULT_ADDR")+`): missing client token
 
 `)
+
+		oldhome = os.Getenv("HOME")
+		os.Setenv("HOME", "assets/home/unauth")
+		os.Setenv("VAULT_TOKEN", "")
+		RunErrorTests(`
+################################################  fails on a missing token
+---
+secret: (( vault "secret/hand:shake" ))
+
+---
+1 error(s) detected:
+ - $.secret: VAULT_ADDR specified, but no VAULT_TOKEN or ~/.vault-token found
+
+`)
+		os.Setenv("HOME", oldhome)
 	})
 }
