@@ -36,6 +36,9 @@ fi
 # do the build
 if [[ -n ${IN_RELEASE} ]]; then
 	goxc -bc="linux,!arm darwin,amd64" -d=$DIR/../../releases -pv=${version}
+elif [[ -n ${1} ]]; then
+	# allow usage like `./build.sh linux/amd64`
+	gox -osarch="${@}"
 fi
 
 go build .
