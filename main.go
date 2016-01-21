@@ -112,7 +112,11 @@ func main() {
 	handleConcourseQuoting = options.Concourse
 
 	if options.Version {
-		printfStdErr("%s - Version %s (%s%s)\n", os.Args[0], VERSION, BUILD, DIRTY)
+		plus := ""
+		if BUILD != "release" {
+			plus = "+"
+		}
+		printfStdErr("%s - Version %s%s (%s%s)\n", os.Args[0], VERSION, plus, BUILD, DIRTY)
 		exit(0)
 		return
 	}
