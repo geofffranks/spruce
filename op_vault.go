@@ -85,7 +85,17 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	DEBUG("     [0]: Using vault key '%s'\n", key)
 
 	secret := "REDACTED"
-	if os.Getenv("VAULT_ADDR") != "" && os.Getenv("VAULT_TOKEN") != "" {
+	if os.Getenv("VAULT_ADDR") != "" {
+		if os.Getenv("VAULT_TOKEN") == "" {
+			b, err := ioutil.ReadFile(fmt.Sprintf("%s/.vault-token", os.Getenv("HOME")))
+			if err == nil {
+				os.Setenv("VAULT_TOKEN", strings.TrimSuffix(string(b), "\n"))
+			}
+		}
+
+		if os.Getenv("VAULT_TOKEN") == "" {
+			return nil, fmt.Errorf("VAULT_ADDR specified, but no VAULT_TOKEN or ~/.vault-token found")
+		}
 		parts := strings.SplitN(key, ":", 2)
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("invalid argument %s; must be in the form path/to/secret:key", key)
