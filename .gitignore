@@ -1,5 +1,6 @@
 .DS_Store
 spruce
+spruce_*amd64
 spruce-*.gz
 credentials.yml
 releases
