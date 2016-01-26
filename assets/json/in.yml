@@ -1,0 +1,6 @@
+---
+map:
+  list:
+    - string
+    - 42
+    - map: "of things"

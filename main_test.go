@@ -505,6 +505,24 @@ quux: quux
 				"\n\n"+
 				"")
 		})
+
+		Convey("json command converts YAML to JSON", func() {
+			os.Args = []string{"spruce", "json", "assets/json/in.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `{"map":{"list":["string",42,{"map":"of things"}]}}`+"\n")
+		})
+
+		Convey("json command handles malformed YAML", func() {
+			os.Args = []string{"spruce", "json", "assets/json/malformed.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, "")
+			So(stderr, ShouldContainSubstring, "Root of YAML document is not a hash/map:")
+		})
 	})
 }
 

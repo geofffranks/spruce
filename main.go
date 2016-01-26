@@ -89,6 +89,9 @@ func main() {
 			Prune []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once'"`
 			Files goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml'"`
 		} `goptions:"merge"`
+		JSON      struct {
+			Files goptions.Remainder `goptions:"description='Files to convert to JSON'"`
+		} `goptions:"json"`
 	}
 	getopts(&options)
 
@@ -121,8 +124,8 @@ func main() {
 		return
 	}
 
-	switch {
-	case options.Action == "merge":
+	switch options.Action {
+	case "merge":
 		if len(options.Merge.Files) >= 1 {
 			root := make(map[interface{}]interface{})
 
@@ -162,6 +165,27 @@ func main() {
 		} else {
 			usage()
 			return
+		}
+
+	case "json":
+		if len(options.JSON.Files) > 0 {
+			jsons, err := JSONifyFiles(options.JSON.Files)
+			if err != nil {
+				printfStdErr("%s\n", err)
+				exit(2)
+				return
+			}
+			for _, output := range jsons {
+				printfStdOut("%s\n", output)
+			}
+		} else {
+			output, err := JSONifyIO(os.Stdin)
+			if err != nil {
+				printfStdErr("%s\n", err)
+				exit(2)
+				return
+			}
+			printfStdOut("%s\n", output)
 		}
 
 	default:
