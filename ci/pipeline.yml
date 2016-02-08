@@ -98,8 +98,9 @@ jobs:
         path: ./spruce/ci/scripts/shipit.sh
         args: []
       params:
-        release_name: "Spruce Release"
-        promotion_branch: master
+        RELEASE:      Spruce Release
+        BRANCH:       master
+        VERSION_FROM: ../version/number
   - put: git-spruce
     params:
       repository: create-final-release/spruce
@@ -113,10 +114,7 @@ jobs:
         tag: create-final-release/spruce/releases/tag
         body: create-final-release/spruce/releases/notes.md
         globs:
-        - create-final-release/spruce/releases/**/spruce_*.tar.gz
-        - create-final-release/spruce/releases/**/spruce_*.zip
-        - create-final-release/spruce/releases/**/LICENSE
-        - create-final-release/spruce/releases/**/README.md
+        - create-final-release/spruce/releases/spruce-*
 
 
 resources:
