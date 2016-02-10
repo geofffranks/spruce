@@ -104,6 +104,7 @@ if [[ "${GOPATH}/src/${PACKAGE}" != "$(pwd)" ]]; then
 	cp -r ../spruce ${GOPATH}/src/${PACKAGE%/*}/.
 	cd ${GOPATH}/src/${PACKAGE}
 fi
+go get github.com/mitchellh/gox
 
 echo ">> Running cross-compiling build (in $(pwd))"
 godep restore
