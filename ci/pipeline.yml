@@ -19,7 +19,6 @@ jobs:
     - aggregate:
       - get: spruce
         resource: git-spruce
-      - get: git-spruce-release-changes
         trigger: true
     - task: run_tests
       config:
@@ -132,13 +131,6 @@ resources:
     uri: git@github.com:geofffranks/spruce.git
     branch: master
     private_key: {{github-private-key}}
-
-- name: git-spruce-release-changes
-  type: git
-  source:
-    uri: https://github.com/geofffranks/spruce.git
-    branch: master
-    paths: ["*.go"]
 
 - name: github-final-release
   type: github-release
