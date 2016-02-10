@@ -112,6 +112,5 @@ OUTPUT=${ROOT}/releases IN_RELEASE=yes ./build.sh
 ./spruce -v 2>&1 | grep "./spruce - Version ${VERSION} (release)"
 
 echo ">> Github release is ready to go (in ${ROOT}/releases)"
-tree ${ROOT}/releases
 
 # vim:ft=bash
