@@ -28,9 +28,6 @@ PACKAGE=github.com/geofffranks/spruce
 #   VERSION - The version to bump to.  If not set, the version number
 #             *must* be found in the file ${VERSION_FROM} (which must
 #             contain the path to a real, regular file)
-#   BRANCH  - The name of the branch to merge into the checked-out
-#             copy before committing version bump changes.
-#             (defaults to "master")
 #
 
 function auto_sed() {
@@ -73,10 +70,6 @@ if [[ -z "${RELEASE:-}" ]]; then
 	RELEASE="Spruce Release"
 fi
 
-if [[ -z "${BRANCH:-}" ]]; then
-	BRANCH="master"
-fi
-
 echo ">> Bumping ${RELEASE} to ${VERSION}"
 auto_sed "s/var VERSION = \".*\"/var VERSION = \"${VERSION}\"/" main.go
 
@@ -90,10 +83,6 @@ fi
 set -e
 
 echo ">> Running git operations as $(git config --global user.name) <$(git config --global user.email)>"
-
-echo ">> Merging ${BRANCH} into checked-out copy before final commit"
-git merge --no-edit ${BRANCH}
-git status
 echo ">> Adding all modified files"
 git add -A
 git status

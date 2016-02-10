@@ -99,7 +99,6 @@ jobs:
         args: []
       params:
         RELEASE:      Spruce Release
-        BRANCH:       master
         VERSION_FROM: ../version/number
   - put: git-spruce
     params:
