@@ -1,51 +1,16 @@
 # New Features
 
-New `(( vault ... ))` operator allows Spruce templates to reach
-out to a [Vault][vault] (in a previously authenticated session)
-and retrieve secrets like passwords and RSA keys, securely.
-See [Spruce, Vault, Concourse & You][blog] for more details.
-
-New `(( cartesian-product ... ))` operator can be used to combine
-two or more lists into their normal cartesian product via
-concatenation.
-
-Using `(( merge ))` in a non-list context now throws an error, to
-assist people converting from spiff.
-
-Spruce releases are now compiled with Go 1.5, producing statically
-linked binaries that don't need any shared libraries on the host
-system.
+- `spruce json` is a new subcommand. It allows you to pipe yaml through spruce
+and get json-compatible output.
 
 # Bug Fixes
+- Fixed the `(( vault ))` operator to honor tokens generated from `vault auth`
+- Fixed the `(( vault ))` operator to handle HTTP redirects from the Vault API
 
-Lists are now merged in `(( inject ... ))` calls, so the following
-snippet does what you would expect:
+# Miscellaneous
 
-```yml
-meta:
-  api:
-    templates:
-      - { release: my-release, name: job1 }
-      - { release: my-release, name: job3 }
-
-jobs:
-  api:
-    .: (( inject meta.api_node ))
-    templates:
-      - { release: my-other-release, name: a-job }
-```
-
-The `(( param ... ))` operator now throws an error if an
-unoverridden parameter is used as an composite argument to another
-operator.  Notably, the following snippet now throws an error:
-
-```yml
-meta:
-  domain: (( param "You need a system domain" ))
-
-properties:
-  endpoint: (( concat "https://api." meta.domain ":8888" ))
-```
-
-[vault]: https://vaultproject.io
-[blog]:  https://blog.starkandwayne.com/2016/01/11/spruce-vault-concourse-you/
+We've updated the CI pipeline to be more awesome. It now generates + uploads
+binaries directly to the release as artifacts, without the silly gzip + version
+number embedding that used to occur. If you have anything that is automatically
+downloading `spruce` from the latest release, it is likely that you will need to
+update your workflow. **(THIS IS A BREAKING CHANGE)**
