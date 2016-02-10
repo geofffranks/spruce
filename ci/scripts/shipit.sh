@@ -88,7 +88,6 @@ git add -A
 git status
 echo ">> Committing version bump (and any other changes)"
 git commit -m "update release version to v${VERSION}"
-git log -n1
 
 
 echo "Preparing Github release"
