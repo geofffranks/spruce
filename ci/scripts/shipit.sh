@@ -1,5 +1,6 @@
 #!/bin/bash
-set -ex
+set -e
+[ -n "${DEBUG}" ] && set -x
 PACKAGE=github.com/geofffranks/spruce
 
 #
