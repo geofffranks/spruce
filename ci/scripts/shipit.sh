@@ -97,15 +97,15 @@ echo ">> Adding all modified files"
 git add -A
 git status
 echo ">> Committing version bump (and any other changes)"
-git commit -m "update release version to v${version}"
+git commit -m "update release version to v${VERSION}"
 git log -n1
 
 
 echo "Preparing Github release"
 mkdir -p ${ROOT}/releases
-cp ${ROOT}/ci/release_notes.md       ${ROOT}/releases/notes.md
-echo "${release_name} v${version}" > ${ROOT}/releases/name
-echo "v${version}"                 > ${ROOT}/releases/tag
+cp ${ROOT}/ci/release_notes.md  ${ROOT}/releases/notes.md
+echo "${RELEASE} v${VERSION}" > ${ROOT}/releases/name
+echo "v${VERSION}"            > ${ROOT}/releases/tag
 
 if [[ "${GOPATH}/src/${PACKAGE}" != "$(pwd)" ]]; then
 	echo ">> Setting up spruce in GOPATH (${GOPATH})"
@@ -117,7 +117,7 @@ fi
 echo ">> Running cross-compiling build (in $(pwd))"
 godep restore
 OUTPUT=${ROOT}/releases IN_RELEASE=yes ./build.sh
-./spruce -v 2>&1 | grep "./spruce - Version ${version} (release)"
+./spruce -v 2>&1 | grep "./spruce - Version ${VERSION} (release)"
 
 echo ">> Github release is ready to go (in ${ROOT}/releases)"
 tree ${ROOT}/releases
