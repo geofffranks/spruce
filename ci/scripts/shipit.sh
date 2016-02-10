@@ -83,6 +83,8 @@ fi
 set -e
 
 echo ">> Running git operations as $(git config --global user.name) <$(git config --global user.email)>"
+echo ">> Getting back to master (from detached-head)"
+git merge --no-edit master
 echo ">> Adding all modified files"
 git add -A
 git status
