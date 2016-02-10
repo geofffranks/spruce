@@ -98,16 +98,9 @@ cp ${ROOT}/ci/release_notes.md  ${ROOT}/releases/notes.md
 echo "${RELEASE} v${VERSION}" > ${ROOT}/releases/name
 echo "v${VERSION}"            > ${ROOT}/releases/tag
 
-if [[ "${GOPATH}/src/${PACKAGE}" != "$(pwd)" ]]; then
-	echo ">> Setting up spruce in GOPATH (${GOPATH})"
-	mkdir -p ${GOPATH}/src/${PACKAGE}/
-	cp -r ../spruce ${GOPATH}/src/${PACKAGE%/*}/.
-	cd ${GOPATH}/src/${PACKAGE}
-fi
-go get github.com/mitchellh/gox
-
 echo ">> Running cross-compiling build (in $(pwd))"
 godep restore
+go get github.com/mitchellh/gox
 OUTPUT=${ROOT}/releases IN_RELEASE=yes ./build.sh
 ./spruce -v 2>&1 | grep "./spruce - Version ${VERSION} (release)"
 
