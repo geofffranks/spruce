@@ -35,10 +35,11 @@ fi
 
 # do the build
 if [[ -n ${IN_RELEASE} ]]; then
-	goxc -bc="linux,!arm darwin,amd64" -d=$DIR/../../releases -pv=${version}
+	mkdir -p releases
+	gox -osarch="linux/amd64 linux/386 darwin/amd64" --output="${OUTPUT:-releases}/spruce-{{.OS}}-{{.Arch}}"
 elif [[ -n ${1} ]]; then
 	# allow usage like `./build.sh linux/amd64`
-	gox -osarch="$*"
+	gox -osarch="$*" --output="spruce-{{.OS}}-{{.Arch}}"
 fi
 
 go build .
