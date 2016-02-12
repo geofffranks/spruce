@@ -231,6 +231,11 @@ key:
       quantity: 7
     - name: grapes
       quantity: 22
+  simple:
+    list:
+      - first
+      - second
+      - third
 `)
 
 			Convey("handles looking up the empty cursor (root)", func() {
@@ -319,6 +324,18 @@ key:
 				So(l[0].String(), ShouldEqual, "key.list.0.name")
 				So(l[1].String(), ShouldEqual, "key.list.1.name")
 				So(l[2].String(), ShouldEqual, "key.list.2.name")
+			})
+
+			Convey("handles terminal glob position", func() {
+				c, err := ParseCursor("key.simple.list.*")
+				So(err, ShouldBeNil)
+
+				l, err := c.Glob(tree)
+				So(err, ShouldBeNil)
+				So(len(l), ShouldEqual, 3)
+				So(l[0].String(), ShouldEqual, "key.simple.list.0")
+				So(l[1].String(), ShouldEqual, "key.simple.list.1")
+				So(l[2].String(), ShouldEqual, "key.simple.list.2")
 			})
 		})
 	})

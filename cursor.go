@@ -211,7 +211,7 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 	resolver = func(o interface{}, here, path []string, pos int) ([]interface{}, error) {
 		if pos == len(path) {
 			return []interface{}{
-				&Cursor{Nodes: here},
+				(&Cursor{Nodes: here}).Copy(),
 			}, nil
 		}
 
