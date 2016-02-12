@@ -215,6 +215,7 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	// find our network
 	DEBUG("  determining the pool of static IPs from which to provision")
 	pool, err := statics(ev)
+	DEBUG("  static IP pool: %v", pool)
 	if err != nil {
 		DEBUG("  failed: %s\n", err)
 		return nil, err
