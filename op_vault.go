@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -126,6 +127,11 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	DEBUG("  crafting GET %s", url)
 
 	client := &http.Client{
+		Transport:  &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: os.Getenv("VAULT_SKIP_VERIFY") != "",
+			},
+		},
 		CheckRedirect: func (req *http.Request, via []*http.Request) error {
 			if len(via) > 10 {
 				return fmt.Errorf("stopped after 10 redirects")
