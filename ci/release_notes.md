@@ -1,5 +1,5 @@
-# New Features
+# Bug Fixes
 
-- The `(( vault ))` operator now honors the `VAULT_SKIP_VERIFY`
-  environment variable for handling not-so-awesome SSL/TLS
-  certificates on your vault endpoint.
+- Fixed Cursor.Glob aliasing bug.  This was a pretty severe bug
+  affecting anyone using multiple static ranges in their network
+  definition.

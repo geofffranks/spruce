@@ -1165,6 +1165,48 @@ properties:
     - 192.168.1.2
 
 
+#############################################  handles static_ip across multiple static ranges
+---
+jobs:
+- name: api_z1
+  instances: 4
+  networks:
+  - name: net1
+    static_ips: (( static_ips 0 1 2 3 ))
+
+networks:
+- name: net1
+  subnets:
+    - static:
+      - 10.0.0.2 - 10.0.0.3      #  2 ips
+      - 10.0.0.90                # +1
+      - 10.0.0.100 - 10.0.0.103  # +4
+
+---
+dataflow:
+- jobs.0.networks.0.static_ips: (( static_ips 0 1 2 3 ))
+
+---
+jobs:
+- name: api_z1
+  instances: 4
+  networks:
+  - name: net1
+    static_ips:
+    - 10.0.0.2
+    - 10.0.0.3
+    - 10.0.0.90
+    - 10.0.0.100
+
+networks:
+- name: net1
+  subnets:
+    - static:
+      - 10.0.0.2 - 10.0.0.3      #  2 ips
+      - 10.0.0.90                # +1
+      - 10.0.0.100 - 10.0.0.103  # +4
+
+
 #########################################  Basic test of (( cartesian-product .... )) operator
 ---
 meta:
