@@ -1375,6 +1375,60 @@ all:
   - a,a
   - b,x
   - b,a
+
+
+###########################################  can extract keys via the (( keys ... )) operator
+---
+meta:
+  config:
+    first: this is the first value
+    second:
+      value: the second
+keys: (( keys meta.config ))
+
+---
+dataflow:
+- keys: (( keys meta.config ))
+
+---
+meta:
+  config:
+    first: this is the first value
+    second:
+      value: the second
+keys:
+  - first
+  - second
+
+
+###########################################  can extract keys from multiple maps
+---
+meta:
+  config:
+    first: this is the first value
+    second:
+      value: the second
+  alt:
+    third: third config
+keys: (( keys meta.config meta.alt ))
+
+---
+dataflow:
+- keys: (( keys meta.config meta.alt ))
+
+---
+meta:
+  config:
+    first: this is the first value
+    second:
+      value: the second
+  alt:
+    third: third config
+keys:
+  - first
+  - second
+  - third
+
 `)
 	})
 
@@ -1533,6 +1587,49 @@ all: (( cartesian-product ))
 			err := ev.RunPhase(EvalPhase)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "no arguments specified to (( cartesian-product ... ))")
+		})
+
+		Convey("(( keys ... )) requires an argument", func() {
+			ev := &Evaluator{
+				Tree: YAML(`
+keys: (( keys ))
+`),
+			}
+
+			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "no arguments specified to (( keys ... ))")
+		})
+
+		Convey("treats attempt to call (( keys ... )) on a literal as an error", func() {
+			ev := &Evaluator{
+				Tree: YAML(`
+meta:
+  test: is this a map?
+keys: (( keys meta.test ))
+`),
+			}
+
+			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "$.keys: meta.test is not a map")
+		})
+
+		Convey("treats attempt to call (( keys ... )) on a list as an error", func() {
+			ev := &Evaluator{
+				Tree: YAML(`
+meta:
+  test:
+    - but wait
+    - this is not
+    - a map...
+keys: (( keys meta.test ))
+`),
+			}
+
+			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "$.keys: meta.test is not a map")
 		})
 	})
 }
