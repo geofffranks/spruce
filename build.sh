@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+export CGO_ENABLED=0
 
 # build.sh - Build wrapper
 #
