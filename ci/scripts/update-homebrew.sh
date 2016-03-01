@@ -70,7 +70,7 @@ echo ">> Running git operations as $(git config --global user.name) <$(git confi
 echo ">> Getting back to master (from detached-head)"
 git merge --no-edit master
 git status
-cat $formula
+git --no-pager diff
 git add $formula
 git commit -m "Updated $forumla from new release"
 
