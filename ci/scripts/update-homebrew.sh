@@ -32,7 +32,7 @@ cd $ROOT
 echo ">> Retrieving version + sha256 metadata"
 
 # VERSION_FROM indicates what file contains the version of spruce that needs to be
-# placed in the homebrew forumla
+# placed in the homebrew formula
 if [[ -z "${VERSION_FROM}" ]]; then
   echo >&2 "No VERSION_FROM env var is specified. This is required to update homebrew"
   exit 1
@@ -70,6 +70,6 @@ echo ">> Getting back to master (from detached-head)"
 git merge --no-edit master
 git --no-pager diff
 git add $formula
-git commit -m "Updated $forumla from new release"
+git commit -m "Updated $formula from new release"
 
-exit 1
+exit 0

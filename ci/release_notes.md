@@ -1,10 +1,4 @@
 # New Features
 
-- New `(( keys ... ))` operator for extracting the keys of a map
-  into a list, elsewhere in your manifest.
-
-# Bug Fixes
-
-- Fixed Cursor.Glob aliasing bug.  This was a pretty severe bug
-  affecting anyone using multiple static ranges in their network
-  definition.
+- Now using CI Pipeline to trigger updates to the homebrew forumla
+  at https://github.com/starkandwayne/homebrew-cf
