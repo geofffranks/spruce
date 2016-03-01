@@ -18,6 +18,7 @@ function auto_sed() {
   cmd=$1
   shift
 
+  set -x
   if [[ "$(uname -s)" == "Darwin" ]]; then
     sed -i '' -e "$cmd" $@
   else
