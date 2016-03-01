@@ -50,7 +50,7 @@ if [[ -z "${VERSION:-}" ]]; then
   exit 1
 fi
 
-SHASUM=$(shasum -a 256 releases/spruce-darwin-amd64)
+SHASUM=$(shasum -a 256 releases/spruce-darwin-amd64 | cut -d " " -f1)
 
 echo ">> Updating $formula with new version/shasum"
 cd ../../homebrew-repo
