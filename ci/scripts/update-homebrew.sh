@@ -49,11 +49,10 @@ if [[ -z "${VERSION:-}" ]]; then
   exit 1
 fi
 
-ls
-ls releases
 SHASUM=$(shasum -a 256 releases/spruce-darwin-amd64)
 
 echo ">> Updating $formula with new version/shasum"
+ls ..
 cd ../homebrew-repo
 auto_sed 's/version = \".*\" # CI Managed/version = \"v${VERSION}\" # CI Managed/version/' $forumla
 auto_sed 's/sha256 \".*\" # CI Managed/sha256 ${SHASUM}\" # CI Managed/version/' $forumla
