@@ -23,7 +23,7 @@ jobs:
     - task: run_tests
       config:
         platform: linux
-        image: {{docker-hub-task-image}}
+        image: docker:///starkandwayne/concourse-go#1.5
         inputs:
         - name: spruce
           path: .
@@ -42,9 +42,6 @@ jobs:
     - get: version
       trigger: false
       params: {pre: rc}
-    - get: homebrew-repo
-      resource: git-homebrew-cf
-      trigger: false
   - put: version
     params: {file: version/number}
 
@@ -89,10 +86,13 @@ jobs:
     - get: spruce
       resource: git-spruce
       passed: [rc]
+    - get: homebrew-repo
+      resource: git-homebrew-cf
+      trigger: false
   - task: create-final-release
     config:
       platform: linux
-      image: {{docker-hub-task-image}}
+      image: docker:///starkandwayne/concourse-go#1.5
       inputs:
       - name: spruce
       - name: version
@@ -109,7 +109,7 @@ jobs:
   - task: update-homebrew
     config:
       platform: linux
-      image: {{docker-hub-task-image}}
+      image: docker:///starkandwayne/concourse-go#1.5
       inputs:
       - name: homebrew-repo
       - name: spruce
@@ -117,10 +117,11 @@ jobs:
       - name: version
       run:
         path: ./spruce/ci/scripts/update-homebrew.sh
-        args: spruce.rb
+        args:
+        - spruce.rb
       params:
         VERSION_FROM: ../version/number
-  - put: homebrew-repo
+  - put: git-homebrew-cf
     params:
       repository: update-homebrew/homebrew-repo
       rebase: true
@@ -155,7 +156,7 @@ resources:
 - name: git-homebrew-cf
   type: git
   source:
-    uri: git@github.com/starkandwayne/homebrew-cf.git
+    uri: git@github.com:starkandwayne/homebrew-cf.git
     branch: master
     private_key: {{github-private-key}}
 
