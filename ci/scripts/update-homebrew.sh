@@ -54,8 +54,8 @@ SHASUM=$(shasum -a 256 releases/spruce-darwin-amd64)
 
 echo ">> Updating $formula with new version/shasum"
 cd ../../homebrew-repo
-auto_sed 's/version = \\".*\\" # CI Managed/version = \\"v${VERSION}\\" # CI Managed/' $formula
-auto_sed 's/sha256 \\".*\\" # CI Managed/sha256 ${SHASUM}\\" # CI Managed/' $formula
+auto_sed "s/version = \\\".*\\\" # CI Managed/version = \\\"v${VERSION}\\\" # CI Managed/" $formula
+auto_sed "s/sha256 \\\".*\\\" # CI Managed/sha256 \\\"${SHASUM}\\\" # CI Managed/" $formula
 
 set +e
 if [[ -z $(git config --global user.email) ]]; then
