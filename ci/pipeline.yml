@@ -42,6 +42,9 @@ jobs:
     - get: version
       trigger: false
       params: {pre: rc}
+    - get: homebrew-repo
+      resource: git-homebrew-cf
+      trigger: false
   - put: version
     params: {file: version/number}
 
@@ -103,6 +106,24 @@ jobs:
     params:
       repository: create-final-release/spruce
       rebase: true
+  - task: update-homebrew
+    config:
+      platform: linux
+      image: {{docker-hub-task-image}}
+      inputs:
+      - name: homebrew-repo
+      - name: spruce
+      - name: create-final-release
+      - name: version
+      run:
+        path: ./spruce/ci/scripts/update-homebrew.sh
+        args: spruce.rb
+      params:
+        VERSION_FROM: ../version/number
+  - put: homebrew-repo
+    params:
+      repository: update-homebrew/homebrew-repo
+      rebase: true
   - aggregate:
     - put: version
       params: {file: version/number}
@@ -113,7 +134,6 @@ jobs:
         body: create-final-release/spruce/releases/notes.md
         globs:
         - create-final-release/spruce/releases/spruce-*
-
 
 resources:
 - name: version
@@ -129,6 +149,13 @@ resources:
   type: git
   source:
     uri: git@github.com:geofffranks/spruce.git
+    branch: master
+    private_key: {{github-private-key}}
+
+- name: git-homebrew-cf
+  type: git
+  source:
+    uri: git@github.com/starkandwayne/homebrew-cf.git
     branch: master
     private_key: {{github-private-key}}
 
