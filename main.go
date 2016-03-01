@@ -13,7 +13,7 @@ import (
 )
 
 // VERSION holds the Current version of spruce
-var VERSION = "1.1.0" // SED MARKER FOR AUTO VERSION BUMPING
+var VERSION = "1.0.0" // SED MARKER FOR AUTO VERSION BUMPING
 // BUILD holds CURRENT BUILD OF SPRUCE
 var BUILD = "master" // updated by build.sh
 // DIRTY holds Whether any uncommitted changes were found in the working copy
@@ -89,7 +89,7 @@ func main() {
 			Prune []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once'"`
 			Files goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml'"`
 		} `goptions:"merge"`
-		JSON      struct {
+		JSON struct {
 			Files goptions.Remainder `goptions:"description='Files to convert to JSON'"`
 		} `goptions:"json"`
 	}
