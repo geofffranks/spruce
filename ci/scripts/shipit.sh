@@ -82,6 +82,9 @@ if [[ -z $(git config --global user.name) ]]; then
 fi
 set -e
 
+## IMPORTANT: don't allow successes when there are no changes to commit
+##            otherwise, we risk updating/replacing an existing github release
+##            with the current commit's release notes + commit ID
 echo ">> Running git operations as $(git config --global user.name) <$(git config --global user.email)>"
 echo ">> Getting back to master (from detached-head)"
 git merge --no-edit master
