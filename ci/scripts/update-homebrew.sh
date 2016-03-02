@@ -52,7 +52,7 @@ fi
 SHASUM=$(shasum -a 256 ../spruce-release/spruce-darwin-amd64 | cut -d " " -f1)
 
 echo ">> Updating $formula with new version/shasum"
-auto_sed "s/version = \\\".*\\\" # CI Managed/version = \\\"v${VERSION}\\\" # CI Managed/" $formula
+auto_sed "s/v = \\\".*\\\" # CI Managed/v = \\\"v${VERSION}\\\" # CI Managed/" $formula
 auto_sed "s/sha256 \\\".*\\\" # CI Managed/sha256 \\\"${SHASUM}\\\" # CI Managed/" $formula
 
 set +e
