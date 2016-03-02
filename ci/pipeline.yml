@@ -4,6 +4,8 @@ groups:
   - testflight
   - rc
   - shipit
+  - play.spruce.cf
+  - update-homebrew
 - name: version
   jobs:
   - patch
@@ -106,6 +108,33 @@ jobs:
     params:
       repository: create-final-release/spruce
       rebase: true
+  - aggregate:
+    - put: version
+      params: {file: version/number}
+    - put: github-final-release
+      params:
+        name: create-final-release/spruce/releases/name
+        tag: create-final-release/spruce/releases/tag
+        body: create-final-release/spruce/releases/notes.md
+        globs:
+        - create-final-release/spruce/releases/spruce-*
+
+- name: update-homebrew
+  public: true
+  serial: true
+  plan:
+  - aggregate:
+    - get: version
+      passed: [shipit]
+    - get: spruce
+      resource: git-spruce
+      passed: [shipit]
+    - get: homebrew-repo
+      resource: git-homebrew-cf
+    - get: spruce-release
+      resource: github-final-release
+      passed: [shipit]
+      trigger: true
   - task: update-homebrew
     config:
       platform: linux
@@ -113,7 +142,7 @@ jobs:
       inputs:
       - name: homebrew-repo
       - name: spruce
-      - name: create-final-release
+      - name: spruce-release
       - name: version
       run:
         path: ./spruce/ci/scripts/update-homebrew.sh
@@ -125,16 +154,38 @@ jobs:
     params:
       repository: update-homebrew/homebrew-repo
       rebase: true
+
+- name: play.spruce.cf
+  public: true
+  serial: true
+  plan:
   - aggregate:
-    - put: version
-      params: {file: version/number}
-    - put: github-final-release
+    - get: play.spruce.cf
+      resource: git-play.spruce.cf
+      trigger: true
+    - get: spruce
+      resource: git-spruce
+      trigger: false
+      passed: [shipit]
+    - get: github-final-release
+      passed: [shipit]
+      trigger: true
+  - task: cf push
+    config:
+      image: docker:///starkandwayne/concourse-go#1.5
+      inputs:
+      - name: play.spruce.cf
+      - name: spruce
+      run:
+        path: ./spruce/ci/scripts/push-play.sh
+        args: []
       params:
-        name: create-final-release/spruce/releases/name
-        tag: create-final-release/spruce/releases/tag
-        body: create-final-release/spruce/releases/notes.md
-        globs:
-        - create-final-release/spruce/releases/spruce-*
+        APP_NAME: play.spruce.cf
+        DOMAIN: spruce.cf
+        CF_ORG: starkandwayne
+        CF_SPACE: spruce
+        CF_USER: {{cf_username}}
+        CF_PASS: {{cf_password}}
 
 resources:
 - name: version
@@ -157,6 +208,13 @@ resources:
   type: git
   source:
     uri: git@github.com:starkandwayne/homebrew-cf.git
+    branch: master
+    private_key: {{github-private-key}}
+
+- name: git-play.spruce.cf
+  type: git
+  source:
+    uri: git@github.com:jhunt/play.spruce.cf.git
     branch: master
     private_key: {{github-private-key}}
 

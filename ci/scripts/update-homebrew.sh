@@ -26,7 +26,7 @@ function auto_sed() {
 }
 
 # change to the root fo the spruce repository ( from ci/scripts)
-ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../../create-final-release/spruce" && pwd )
+ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../../homebrew-repo" && pwd )
 cd $ROOT
 
 echo ">> Retrieving version + sha256 metadata"
@@ -49,10 +49,9 @@ if [[ -z "${VERSION:-}" ]]; then
   exit 1
 fi
 
-SHASUM=$(shasum -a 256 releases/spruce-darwin-amd64 | cut -d " " -f1)
+SHASUM=$(shasum -a 256 ../spruce-release/spruce-darwin-amd64 | cut -d " " -f1)
 
 echo ">> Updating $formula with new version/shasum"
-cd ../../homebrew-repo
 auto_sed "s/version = \\\".*\\\" # CI Managed/version = \\\"v${VERSION}\\\" # CI Managed/" $formula
 auto_sed "s/sha256 \\\".*\\\" # CI Managed/sha256 \\\"${SHASUM}\\\" # CI Managed/" $formula
 
