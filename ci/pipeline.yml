@@ -128,7 +128,6 @@ jobs:
       passed: [shipit]
     - get: spruce
       resource: git-spruce
-      passed: [shipit]
     - get: homebrew-repo
       resource: git-homebrew-cf
     - get: spruce-release
@@ -165,8 +164,6 @@ jobs:
       trigger: true
     - get: spruce
       resource: git-spruce
-      trigger: false
-      passed: [shipit]
     - get: github-final-release
       passed: [shipit]
       trigger: true
@@ -186,6 +183,7 @@ jobs:
         CF_SPACE: spruce
         CF_USER: {{cf_username}}
         CF_PASS: {{cf_password}}
+        CF_ENDPOINT: https://api.run.pivotal.io
 
 resources:
 - name: version
