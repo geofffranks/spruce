@@ -68,6 +68,7 @@ if [[ "$(git status -s)X" != "X" ]]; then
   echo ">> Running git operations as $(git config --global user.name) <$(git config --global user.email)>"
   echo ">> Getting back to master (from detached-head)"
   git merge --no-edit master
+  git status
   git --no-pager diff
   git add $formula
   git commit -m "Updated $formula from new release"

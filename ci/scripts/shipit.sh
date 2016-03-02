@@ -89,8 +89,9 @@ echo ">> Running git operations as $(git config --global user.name) <$(git confi
 echo ">> Getting back to master (from detached-head)"
 git merge --no-edit master
 echo ">> Adding all modified files"
-git add -A
 git status
+git --no-pager diff
+git add -A
 echo ">> Committing version bump (and any other changes)"
 git commit -m "update release version to v${VERSION}"
 
