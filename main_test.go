@@ -359,7 +359,7 @@ name4: name
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldContainSubstring, ".static_ips: `$.networks` could not be found in the YAML datastructure\n")
+			So(stderr, ShouldContainSubstring, ".static_ips: `$.networks` could not be found in the datastructure\n")
 			So(stdout, ShouldEqual, "")
 		})
 		Convey("static_ips() get resolved, and are resolved prior to dereferencing", func() {
@@ -485,8 +485,8 @@ quux: quux
 			So(stderr, ShouldEqual, ""+
 				"3 error(s) detected:\n"+
 				" - $.an-error: missing param!\n"+
-				" - $.another-error: Unable to resolve `meta.enoent`: `$.meta` could not be found in the YAML datastructure\n"+
-				" - $.last-problem: Unable to resolve `meta.missing.host`: `$.meta` could not be found in the YAML datastructure\n"+
+				" - $.another-error: Unable to resolve `meta.enoent`: `$.meta` could not be found in the datastructure\n"+
+				" - $.last-problem: Unable to resolve `meta.missing.host`: `$.meta` could not be found in the datastructure\n"+
 				"\n\n"+
 				"")
 		})

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jhunt/tree"
 )
 
 // GrabOperator ...
@@ -18,8 +19,8 @@ func (GrabOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (GrabOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*Cursor) []*Cursor {
-	return []*Cursor{}
+func (GrabOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
+	return []*tree.Cursor{}
 }
 
 // Run ...

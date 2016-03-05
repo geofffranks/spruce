@@ -1,14 +1,15 @@
 package main
 
 import (
+	"github.com/jhunt/tree"
 	"github.com/smallfish/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
 func TestOperators(t *testing.T) {
-	cursor := func(s string) *Cursor {
-		c, err := ParseCursor(s)
+	cursor := func(s string) *tree.Cursor {
+		c, err := tree.ParseCursor(s)
 		So(err, ShouldBeNil)
 		return c
 	}

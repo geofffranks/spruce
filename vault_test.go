@@ -221,7 +221,7 @@ secret: (( vault $.meta.key ))
 
 ---
 1 error(s) detected:
- - $.secret: Unable to resolve ` + "`" + `meta.key` + "`" + `: ` + "`" + `$.meta.key` + "`" + ` could not be found in the YAML datastructure
+ - $.secret: Unable to resolve ` + "`" + `meta.key` + "`" + `: ` + "`" + `$.meta.key` + "`" + ` could not be found in the datastructure
 
 ####################################################  fails on map reference
 ---

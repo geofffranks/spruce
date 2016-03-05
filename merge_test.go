@@ -5,6 +5,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/jhunt/tree"
 	"github.com/smallfish/simpleyaml"
 )
 
@@ -836,20 +837,20 @@ func TestMerge(t *testing.T) {
 		return data
 	}
 
-	valueIs := func(tree interface{}, path string, expect string) {
-		c, err := ParseCursor(path)
+	valueIs := func(t interface{}, path string, expect string) {
+		c, err := tree.ParseCursor(path)
 		So(err, ShouldBeNil)
 
-		v, err := c.ResolveString(tree)
+		v, err := c.ResolveString(t)
 		So(err, ShouldBeNil)
 
 		So(v, ShouldEqual, expect)
 	}
-	notPresent := func(tree interface{}, path string) {
-		c, err := ParseCursor(path)
+	notPresent := func(t interface{}, path string) {
+		c, err := tree.ParseCursor(path)
 		So(err, ShouldBeNil)
 
-		_, err = c.ResolveString(tree)
+		_, err = c.ResolveString(t)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldContainSubstring, "could not be found")
 	}

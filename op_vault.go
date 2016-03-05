@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/jhunt/tree"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -29,8 +30,8 @@ func (VaultOperator) Phase() OperatorPhase {
 
 // Dependencies collects implicit dependencies that a given
 // `(( vault ... ))` call has.  There are none.
-func (VaultOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*Cursor) []*Cursor {
-	return []*Cursor{}
+func (VaultOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
+	return []*tree.Cursor{}
 }
 
 // Run executes the `(( vault ... ))` operator call, which entails
@@ -127,12 +128,12 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	DEBUG("  crafting GET %s", url)
 
 	client := &http.Client{
-		Transport:  &http.Transport{
+		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: os.Getenv("VAULT_SKIP_VERIFY") != "",
 			},
 		},
-		CheckRedirect: func (req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) > 10 {
 				return fmt.Errorf("stopped after 10 redirects")
 			}
