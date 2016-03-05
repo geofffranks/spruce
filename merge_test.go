@@ -5,7 +5,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
+	"github.com/smallfish/simpleyaml"
 )
 
 func TestShouldReplaceArray(t *testing.T) {
@@ -233,7 +233,7 @@ func TestMergeObj(t *testing.T) {
 		})
 		Convey("returns an error for any (( merge ... )) operators found in non-list context", func() {
 			orig := map[interface{}]interface{}{}
-			n := map[interface{}]interface{}{"map":"(( merge || nil ))"}
+			n := map[interface{}]interface{}{"map": "(( merge || nil ))"}
 			m := &Merger{}
 			m.mergeObj(orig, n, "node-path")
 			err := m.Error()

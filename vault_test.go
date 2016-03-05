@@ -1,17 +1,17 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"bufio"
-	"github.com/geofffranks/simpleyaml"
+	"fmt"
+	"github.com/smallfish/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/yaml.v2"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
-	"os"
 )
 
 func TestVault(t *testing.T) {
@@ -221,7 +221,7 @@ secret: (( vault $.meta.key ))
 
 ---
 1 error(s) detected:
- - $.secret: Unable to resolve `+"`"+`meta.key`+"`"+`: `+"`"+`$.meta.key`+"`"+` could not be found in the YAML datastructure
+ - $.secret: Unable to resolve ` + "`" + `meta.key` + "`" + `: ` + "`" + `$.meta.key` + "`" + ` could not be found in the YAML datastructure
 
 ####################################################  fails on map reference
 ---
@@ -285,7 +285,7 @@ secret: (( vault "secret/hand:shake" ))
 
 ---
 1 error(s) detected:
- - $.secret: failed to retrieve secret/hand:shake from Vault (`+os.Getenv("VAULT_ADDR")+`): missing client token
+ - $.secret: failed to retrieve secret/hand:shake from Vault (` + os.Getenv("VAULT_ADDR") + `): missing client token
 
 `)
 

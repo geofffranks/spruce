@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/geofffranks/simpleyaml" // FIXME: switch back to smallfish/simpleyaml after https://github.com/smallfish/simpleyaml/pull/1 is merged
+	"github.com/smallfish/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
