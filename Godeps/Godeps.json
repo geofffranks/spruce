@@ -1,7 +1,11 @@
 {
 	"ImportPath": "github.com/geofffranks/spruce",
-	"GoVersion": "go1.4",
+	"GoVersion": "go1.5",
 	"Deps": [
+		{
+			"ImportPath": "github.com/jhunt/tree",
+			"Rev": "f10dfcdf6fac11b58ba78dfe103a29fdf532beb1"
+		},
 		{
 			"ImportPath": "github.com/jtolds/gls",
 			"Rev": "9a4a02dbe491bef4bab3c24fd9f3087d6c4c6690"
