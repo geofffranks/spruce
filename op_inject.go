@@ -18,7 +18,7 @@ func (InjectOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (InjectOperator) Dependencies(_ *Evaluator, args []*Expr, locs []*Cursor) []*Cursor {
+func (InjectOperator) Dependencies(ev *Evaluator, args []*Expr, locs []*Cursor) []*Cursor {
 	l := []*Cursor{}
 
 	for _, arg := range args {
@@ -27,7 +27,11 @@ func (InjectOperator) Dependencies(_ *Evaluator, args []*Expr, locs []*Cursor) [
 		}
 
 		for _, other := range locs {
-			if other.Under(arg.Reference) {
+			canon, err := arg.Reference.Canonical(ev.Tree)
+			if err != nil {
+				panic(err)
+			}
+			if other.Under(canon) {
 				l = append(l, other)
 			}
 		}
