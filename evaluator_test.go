@@ -186,6 +186,42 @@ thing:
   baz: (( grab meta.template1.foo ))
   xyzzy: nothing happens
 
+############################################   handles nested (( inject ... )) through array aliasing
+
+---
+a:
+  foo: bar
+
+jobs:
+  - name: b
+    <<<: (( inject a ))
+    boz: baz
+
+c:
+  <<<: (( inject jobs.b ))
+  xy: zzy
+
+---
+dataflow:
+- jobs.0.<<<: (( inject a ))
+- c.<<<: (( inject jobs.b ))
+
+---
+a:
+  foo: bar
+
+jobs:
+  - name: b
+    foo: bar
+    boz: baz
+
+c:
+  name: b
+  foo: bar
+  boz: baz
+  xy: zzy
+
+
 
 #########################################################   handles Inject into a list
 ---
