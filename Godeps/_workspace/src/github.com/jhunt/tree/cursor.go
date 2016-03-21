@@ -203,8 +203,18 @@ func (c *Cursor) Canonical(o interface{}) (*Cursor, error) {
 			var ok bool
 			o, ok = o.(map[interface{}]interface{})[k]
 			if !ok {
-				return nil, NotFoundError{
-					Path: canon.Nodes,
+				/* key might not actually be a string.  let's iterate */
+				k2 := fmt.Sprintf("%v", k)
+				for k1 := range o.(map[interface{}]interface{}) {
+					if fmt.Sprintf("%v", k1) == k2 {
+						ok = true
+						break
+					}
+				}
+				if !ok {
+					return nil, NotFoundError{
+						Path: canon.Nodes,
+					}
 				}
 			}
 
@@ -254,7 +264,7 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 
 			case map[interface{}]interface{}:
 				for k, v := range o.(map[interface{}]interface{}) {
-					sub, err := resolver(v, append(here, k.(string)), path, pos+1)
+					sub, err := resolver(v, append(here, fmt.Sprintf("%v", k)), path, pos+1)
 					if err != nil {
 						return nil, err
 					}
@@ -306,8 +316,18 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 			case map[interface{}]interface{}:
 				v, ok := o.(map[interface{}]interface{})[k]
 				if !ok {
-					return nil, NotFoundError{
-						Path: path[0 : pos+1],
+					/* key might not actually be a string.  let's iterate */
+					k2 := fmt.Sprintf("%v", k)
+					for k1, v1 := range o.(map[interface{}]interface{}) {
+						if fmt.Sprintf("%v", k1) == k2 {
+							v, ok = v1, true
+							break
+						}
+					}
+					if !ok {
+						return nil, NotFoundError{
+							Path: path[0 : pos+1],
+						}
 					}
 				}
 				return resolver(v, append(here, k), path, pos+1)
@@ -361,8 +381,18 @@ func (c *Cursor) Resolve(o interface{}) (interface{}, error) {
 		case map[interface{}]interface{}:
 			v, ok := o.(map[interface{}]interface{})[k]
 			if !ok {
-				return nil, NotFoundError{
-					Path: path,
+				/* key might not actually be a string.  let's iterate */
+				k2 := fmt.Sprintf("%v", k)
+				for k1, v1 := range o.(map[interface{}]interface{}) {
+					if fmt.Sprintf("%v", k1) == k2 {
+						v, ok = v1, true
+						break
+					}
+				}
+				if !ok {
+					return nil, NotFoundError{
+						Path: path,
+					}
 				}
 			}
 			o = v
