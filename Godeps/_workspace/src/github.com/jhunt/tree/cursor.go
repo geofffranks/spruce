@@ -1,4 +1,4 @@
-package main
+package tree
 
 import (
 	"bytes"
@@ -16,6 +16,11 @@ func listFind(l []interface{}, fields []string, key string) (interface{}, uint64
 	for _, field := range fields {
 		for i, v := range l {
 			switch v.(type) {
+			case map[string]interface{}:
+				value, ok := v.(map[string]interface{})[field]
+				if ok && value == key {
+					return v, uint64(i), true
+				}
 			case map[interface{}]interface{}:
 				value, ok := v.(map[interface{}]interface{})[field]
 				if ok && value == key {
@@ -183,15 +188,35 @@ func (c *Cursor) Canonical(o interface{}) (*Cursor, error) {
 			}
 			canon.Push(fmt.Sprintf("%d", i))
 
-		case map[interface{}]interface{}:
+		case map[string]interface{}:
 			canon.Push(k)
 			var ok bool
-			o, ok = o.(map[interface{}]interface{})[k]
+			o, ok = o.(map[string]interface{})[k]
 			if !ok {
 				return nil, NotFoundError{
 					Path: canon.Nodes,
 				}
 			}
+
+		case map[interface{}]interface{}:
+			canon.Push(k)
+			v, ok := o.(map[interface{}]interface{})[k]
+			if !ok {
+				/* key might not actually be a string.  let's iterate */
+				k2 := fmt.Sprintf("%v", k)
+				for k1, v1 := range o.(map[interface{}]interface{}) {
+					if fmt.Sprintf("%v", k1) == k2 {
+						v, ok = v1, true
+						break
+					}
+				}
+				if !ok {
+					return nil, NotFoundError{
+						Path: canon.Nodes,
+					}
+				}
+			}
+			o = v
 
 		default:
 			return nil, TypeMismatchError{
@@ -228,9 +253,18 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 					paths = append(paths, sub...)
 				}
 
+			case map[string]interface{}:
+				for k, v := range o.(map[string]interface{}) {
+					sub, err := resolver(v, append(here, k), path, pos+1)
+					if err != nil {
+						return nil, err
+					}
+					paths = append(paths, sub...)
+				}
+
 			case map[interface{}]interface{}:
 				for k, v := range o.(map[interface{}]interface{}) {
-					sub, err := resolver(v, append(here, k.(string)), path, pos+1)
+					sub, err := resolver(v, append(here, fmt.Sprintf("%v", k)), path, pos+1)
 					if err != nil {
 						return nil, err
 					}
@@ -270,11 +304,30 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 				}
 				return resolver(o, append(here, k), path, pos+1)
 
-			case map[interface{}]interface{}:
-				v, ok := o.(map[interface{}]interface{})[k]
+			case map[string]interface{}:
+				v, ok := o.(map[string]interface{})[k]
 				if !ok {
 					return nil, NotFoundError{
 						Path: path[0 : pos+1],
+					}
+				}
+				return resolver(v, append(here, k), path, pos+1)
+
+			case map[interface{}]interface{}:
+				v, ok := o.(map[interface{}]interface{})[k]
+				if !ok {
+					/* key might not actually be a string.  let's iterate */
+					k2 := fmt.Sprintf("%v", k)
+					for k1, v1 := range o.(map[interface{}]interface{}) {
+						if fmt.Sprintf("%v", k1) == k2 {
+							v, ok = v1, true
+							break
+						}
+					}
+					if !ok {
+						return nil, NotFoundError{
+							Path: path[0 : pos+1],
+						}
 					}
 				}
 				return resolver(v, append(here, k), path, pos+1)
@@ -316,11 +369,30 @@ func (c *Cursor) Resolve(o interface{}) (interface{}, error) {
 		path = append(path, k)
 
 		switch o.(type) {
-		case map[interface{}]interface{}:
-			v, ok := o.(map[interface{}]interface{})[k]
+		case map[string]interface{}:
+			v, ok := o.(map[string]interface{})[k]
 			if !ok {
 				return nil, NotFoundError{
 					Path: path,
+				}
+			}
+			o = v
+
+		case map[interface{}]interface{}:
+			v, ok := o.(map[interface{}]interface{})[k]
+			if !ok {
+				/* key might not actually be a string.  let's iterate */
+				k2 := fmt.Sprintf("%v", k)
+				for k1, v1 := range o.(map[interface{}]interface{}) {
+					if fmt.Sprintf("%v", k1) == k2 {
+						v, ok = v1, true
+						break
+					}
+				}
+				if !ok {
+					return nil, NotFoundError{
+						Path: path,
+					}
 				}
 			}
 			o = v

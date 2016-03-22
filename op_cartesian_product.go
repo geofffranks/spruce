@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jhunt/tree"
 )
 
 // CartesianProductOperator ...
@@ -18,8 +19,8 @@ func (CartesianProductOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (CartesianProductOperator) Dependencies(_ *Evaluator, args []*Expr, locs []*Cursor) []*Cursor {
-	l := []*Cursor{}
+func (CartesianProductOperator) Dependencies(_ *Evaluator, args []*Expr, locs []*tree.Cursor) []*tree.Cursor {
+	l := []*tree.Cursor{}
 
 	for _, arg := range args {
 		if arg.Type != Reference {
@@ -53,7 +54,7 @@ func (CartesianProductOperator) Run(ev *Evaluator, args []*Expr) (*Response, err
 		switch v.Type {
 		case Literal:
 			DEBUG("  arg[%d]: found string literal '%s'", i, v.Literal)
-			vals = append(vals, []string{ v.Literal.(string) })
+			vals = append(vals, []string{v.Literal.(string)})
 
 		case Reference:
 			DEBUG("  arg[%d]: trying to resolve reference $.%s", i, v.Reference)
@@ -88,7 +89,7 @@ func (CartesianProductOperator) Run(ev *Evaluator, args []*Expr) (*Response, err
 
 			default:
 				DEBUG("     [%d]: resolved to a scalar; appending", i)
-				vals = append(vals, []string{ fmt.Sprintf("%v", s) })
+				vals = append(vals, []string{fmt.Sprintf("%v", s)})
 			}
 
 		default:
@@ -133,7 +134,7 @@ func cartesian(a, b []string) []string {
 		return b
 	}
 
-	l := make([]string, len(a) * len(b))
+	l := make([]string, len(a)*len(b))
 	n := 0
 	for _, x := range a {
 		for _, y := range b {

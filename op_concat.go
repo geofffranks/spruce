@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jhunt/tree"
 	"strings"
 )
 
@@ -19,8 +20,8 @@ func (ConcatOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (ConcatOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*Cursor) []*Cursor {
-	return []*Cursor{}
+func (ConcatOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
+	return []*tree.Cursor{}
 }
 
 // Run ...

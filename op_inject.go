@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jhunt/tree"
 )
 
 // InjectOperator ...
@@ -18,8 +19,8 @@ func (InjectOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (InjectOperator) Dependencies(ev *Evaluator, args []*Expr, locs []*Cursor) []*Cursor {
-	l := []*Cursor{}
+func (InjectOperator) Dependencies(ev *Evaluator, args []*Expr, locs []*tree.Cursor) []*tree.Cursor {
+	l := []*tree.Cursor{}
 
 	for _, arg := range args {
 		if arg.Type != Reference {

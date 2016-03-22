@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jhunt/tree"
 	"os"
 	"regexp"
 	"strconv"
@@ -43,7 +44,7 @@ type Operator interface {
 	Run(ev *Evaluator, args []*Expr) (*Response, error)
 
 	// returns a set of implicit / inherent dependencies used by Run()
-	Dependencies(ev *Evaluator, args []*Expr, locs []*Cursor) []*Cursor
+	Dependencies(ev *Evaluator, args []*Expr, locs []*tree.Cursor) []*tree.Cursor
 
 	// what phase does this operator run during?
 	Phase() OperatorPhase
@@ -99,7 +100,7 @@ const (
 // Expr ...
 type Expr struct {
 	Type      ExprType
-	Reference *Cursor
+	Reference *tree.Cursor
 	Literal   interface{}
 	Left      *Expr
 	Right     *Expr
@@ -201,10 +202,10 @@ func (e *Expr) Evaluate(tree map[interface{}]interface{}) (interface{}, error) {
 }
 
 // Dependencies ...
-func (e *Expr) Dependencies(ev *Evaluator, locs []*Cursor) []*Cursor {
-	l := []*Cursor{}
+func (e *Expr) Dependencies(ev *Evaluator, locs []*tree.Cursor) []*tree.Cursor {
+	l := []*tree.Cursor{}
 
-	canonicalize := func(c *Cursor) {
+	canonicalize := func(c *tree.Cursor) {
 		cc := c.Copy()
 		for cc.Depth() > 0 {
 			if _, err := cc.Canonical(ev.Tree); err == nil {
@@ -237,8 +238,8 @@ func (e *Expr) Dependencies(ev *Evaluator, locs []*Cursor) []*Cursor {
 // Opcall ...
 type Opcall struct {
 	src       string
-	where     *Cursor
-	canonical *Cursor
+	where     *tree.Cursor
+	canonical *tree.Cursor
 	op        Operator
 	args      []*Expr
 }
@@ -383,7 +384,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 				push(&Expr{Type: Literal, Literal: true})
 
 			default:
-				c, err := ParseCursor(arg)
+				c, err := tree.ParseCursor(arg)
 				if err != nil {
 					DEBUG("  #%d: %s is a malformed reference: %s", i, arg, err)
 					return args, err
@@ -445,8 +446,8 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 }
 
 // Dependencies ...
-func (op *Opcall) Dependencies(ev *Evaluator, locs []*Cursor) []*Cursor {
-	l := []*Cursor{}
+func (op *Opcall) Dependencies(ev *Evaluator, locs []*tree.Cursor) []*tree.Cursor {
+	l := []*tree.Cursor{}
 	for _, arg := range op.args {
 		for _, c := range arg.Dependencies(ev, locs) {
 			l = append(l, c)

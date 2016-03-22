@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jhunt/tree"
 	"net"
 	"strconv"
 	"strings"
@@ -25,11 +26,11 @@ func (StaticIPOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*Cursor) []*Cursor {
-	l := []*Cursor{}
+func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
+	l := []*tree.Cursor{}
 
 	track := func(path string) {
-		c, err := ParseCursor(path)
+		c, err := tree.ParseCursor(path)
 		if err != nil {
 			return
 		}
@@ -57,7 +58,7 @@ func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*Cursor) []*C
 	return l
 }
 
-func currentJob(ev *Evaluator) (*Cursor, error) {
+func currentJob(ev *Evaluator) (*tree.Cursor, error) {
 	c := ev.Here.Copy()
 	for c.Depth() > 0 && c.Parent() != "jobs" {
 		c.Pop()
@@ -69,7 +70,7 @@ func currentJob(ev *Evaluator) (*Cursor, error) {
 	return c, nil
 }
 
-func instances(ev *Evaluator, job *Cursor) (int, error) {
+func instances(ev *Evaluator, job *tree.Cursor) (int, error) {
 	c := job.Copy()
 	c.Push("instances")
 	inst, err := c.ResolveString(ev.Tree)
@@ -98,7 +99,7 @@ func statics(ev *Evaluator) ([]string, error) {
 		return addrs, err
 	}
 
-	c, err = ParseCursor(fmt.Sprintf("networks.%s.subnets.*.static.*", name))
+	c, err = tree.ParseCursor(fmt.Sprintf("networks.%s.subnets.*.static.*", name))
 	if err != nil {
 		return addrs, err
 	}
