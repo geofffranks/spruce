@@ -200,14 +200,13 @@ func (c *Cursor) Canonical(o interface{}) (*Cursor, error) {
 
 		case map[interface{}]interface{}:
 			canon.Push(k)
-			var ok bool
-			o, ok = o.(map[interface{}]interface{})[k]
+			v, ok := o.(map[interface{}]interface{})[k]
 			if !ok {
 				/* key might not actually be a string.  let's iterate */
 				k2 := fmt.Sprintf("%v", k)
-				for k1 := range o.(map[interface{}]interface{}) {
+				for k1, v1 := range o.(map[interface{}]interface{}) {
 					if fmt.Sprintf("%v", k1) == k2 {
-						ok = true
+						v, ok = v1, true
 						break
 					}
 				}
@@ -217,6 +216,7 @@ func (c *Cursor) Canonical(o interface{}) (*Cursor, error) {
 					}
 				}
 			}
+			o = v
 
 		default:
 			return nil, TypeMismatchError{
