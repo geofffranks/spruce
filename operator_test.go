@@ -800,6 +800,29 @@ jobs:
 			So(err, ShouldNotBeNil)
 			So(r, ShouldBeNil)
 		})
+
+		Convey("throws an error if the address pool ends before it starts", func() {
+			ev := &Evaluator{
+				Here: cursor("jobs.job1.networks.0.static_ips"),
+				Tree: YAML(
+					`networks:
+  - name: test-network
+    subnets:
+    - static: [ 10.8.0.1 - 10.0.0.255 ]
+jobs:
+  - name: job1
+    instances: 3
+    networks:
+      - name: test-network
+        static_ips: <---------- HERE -----------------
+`),
+			}
+
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "ends before it starts")
+			So(r, ShouldBeNil)
+		})
 	})
 
 	Convey("inject Operator", t, func() {
