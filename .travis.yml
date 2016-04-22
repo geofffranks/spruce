@@ -5,10 +5,5 @@ go:
 
 sudo: false
 
-before_install:
-    - go get golang.org/x/tools/cmd/vet
-    - go get golang.org/x/tools/cmd/cover
-
 script:
-    - go vet -x ./...
     - go test -v ./...
