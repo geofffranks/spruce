@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/jhunt/tree"
 	"net"
@@ -137,6 +138,10 @@ func statics(ev *Evaluator) ([]string, error) {
 		end := net.ParseIP(segments[1])
 		if end == nil {
 			return nil, fmt.Errorf("%s: not a valid IP address", segments[1])
+		}
+
+		if binary.BigEndian.Uint32(start.To4()) > binary.BigEndian.Uint32(end.To4()) {
+			return nil, fmt.Errorf("Static IP pool [%s - %s] ends before it starts", start, end)
 		}
 
 		for !start.Equal(end) {
