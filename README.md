@@ -630,4 +630,4 @@ of improvement and quality assurance.
 
 ## License
 
-Licensed under [the Apache License v2.0](https://github.com/geofffranks/spruce/raw/master/LICENSE)
+Licensed under [the MIT License](https://github.com/geofffranks/spruce/raw/master/LICENSE)
