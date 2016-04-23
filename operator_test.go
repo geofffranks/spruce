@@ -5,6 +5,7 @@ import (
 	"github.com/smallfish/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+	"os"
 )
 
 func TestOperators(t *testing.T) {
@@ -498,6 +499,91 @@ math:
 			So(err, ShouldNotBeNil)
 		})
 	})
+
+	Convey("env Operator", t, func() {
+		op := EnvOperator{}
+		ev := &Evaluator{
+			Tree: YAML(`meta: $TEST_VAR`),
+		}
+
+		os.Setenv("TEST_VAR", "the test variable")
+		os.Setenv("SPRUCE", "awesome")
+		os.Setenv("EMPTY_VAR", "")
+
+		Convey("can resolve an empty string", func() {
+			r, err := op.Run(ev, []*Expr{str("")})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "")
+		})
+
+		Convey("can resolve a string with no environment variables", func() {
+			r, err := op.Run(ev, []*Expr{str("plain old string")})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "plain old string")
+		})
+
+		Convey("can resolve a string with a single environment variable", func() {
+			r, err := op.Run(ev, []*Expr{str("$TEST_VAR")})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "the test variable")
+		})
+
+		Convey("can resolve a string with multiple environment variables", func() {
+			r, err := op.Run(ev, []*Expr{str("with ${TEST_VAR}, spruce is ${SPRUCE}")})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "with the test variable, spruce is awesome")
+		})
+
+		Convey("handles set-but-empty, and not-set environment variables", func() {
+			r, err := op.Run(ev, []*Expr{str("empty=${EMPTY_VAR} / unset=${UNSET_VAR}")})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "empty= / unset=")
+		})
+
+		Convey("will try the next argument when an empty expansion is detected", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(""),
+				str("${SPRUCE}"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "awesome")
+		})
+
+		Convey("will stop at the first non-empty expansion", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(""),
+				str("${SPRUCE}"),
+				str("${TEST_VAR}"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "awesome")
+		})
+
+		Convey("throws errors for missing arguments", func() {
+			_, err := op.Run(ev, []*Expr{})
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("throws errors for references", func() {
+			_, err := op.Run(ev, []*Expr{ref("meta")})
+			So(err, ShouldNotBeNil)
+		})
+	})
+
 
 	Convey("static_ips Operator", t, func() {
 		op := StaticIPOperator{}

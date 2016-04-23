@@ -1,3 +1,8 @@
+# New Features
+
+- New `(( env ... ))` operator for doing variable expansion in the
+  calling environment.
+
 # Bug Fixes
 
 - Specifying a static IP pool that ends before it starts no longer

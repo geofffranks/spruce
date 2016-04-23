@@ -148,6 +148,28 @@ integer literals (a string of digits) and floating point literals
 (a string of digits, a period, and another string of digits).
 Scientific notation is not currently supported.
 
+### Accessing the Environment
+
+Want to pull in secret credentials from your environment?  No
+problem!
+
+```yml
+secrets:
+  aws:
+    access_key: (( env "$AWS_ACCESS_KEY" ))
+    secret_key: (( env "$AWS_SECRET_KEY" ))
+```
+
+`spruce` will evaluate each argument to the `env` operator,
+expanding all `$var` and `${var}` references according to the
+current environment.  As soon as it finds a non-empty expansion,
+it stops.  This lets you provide defaults, á la:
+
+```yml
+meta:
+  environment: (( env "${ENV_NAME}" "default-env" ))
+```
+
 ### Hmm.. How about auto-calculating static IPs for a BOSH manifest?
 
 `spruce` supports that too! Just use the same `(( static_ips(x, y, z) ))` syntax
