@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"gopkg.in/yaml.v2"
 )
 
 // The VaultOperator provides a means of injecting credentials and
@@ -87,17 +88,48 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	DEBUG("     [0]: Using vault key '%s'\n", key)
 
 	secret := "REDACTED"
-	if os.Getenv("VAULT_ADDR") != "" {
-		if os.Getenv("VAULT_TOKEN") == "" {
-			b, err := ioutil.ReadFile(fmt.Sprintf("%s/.vault-token", os.Getenv("HOME")))
+
+	if os.Getenv("REDACT") == "" {
+		/*
+		   user is not okay with a redacted manifest.
+		   try to look up vault connection details from:
+		     1. Environment Variables VAULT_ADDR and VAULT_TOKEN
+		     2. ~/.svtoken file, if it exists
+		     3. ~/.vault-token file, if it exists
+		 */
+
+		url := os.Getenv("VAULT_ADDR")
+		token := os.Getenv("VAULT_TOKEN")
+
+		if url == "" || token == "" {
+			svtoken := struct {
+				Vault string `yaml:"vault"`
+				Token string `yaml:"token"`
+			}{}
+			b, err := ioutil.ReadFile(os.ExpandEnv("${HOME}/.svtoken"))
 			if err == nil {
-				os.Setenv("VAULT_TOKEN", strings.TrimSuffix(string(b), "\n"))
+				err = yaml.Unmarshal(b, &svtoken)
+				if err == nil {
+					url = svtoken.Vault
+					token = svtoken.Token
+				}
 			}
 		}
 
-		if os.Getenv("VAULT_TOKEN") == "" {
-			return nil, fmt.Errorf("VAULT_ADDR specified, but no VAULT_TOKEN or ~/.vault-token found")
+		if token == "" {
+			b, err := ioutil.ReadFile(fmt.Sprintf("%s/.vault-token", os.Getenv("HOME")))
+			if err == nil {
+				token = strings.TrimSuffix(string(b), "\n")
+			}
 		}
+
+		if url == "" || token == "" {
+			return nil, fmt.Errorf("Failed to determine Vault URL / token, and the $REDACT environment variable is not set.")
+		}
+
+		os.Setenv("VAULT_ADDR", url)
+		os.Setenv("VAULT_TOKEN", token)
+
 		parts := strings.SplitN(key, ":", 2)
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("invalid argument %s; must be in the form path/to/secret:key", key)

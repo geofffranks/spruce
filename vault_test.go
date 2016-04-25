@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"net/http"
 	"net/http/httptest"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -115,22 +116,10 @@ func TestVault(t *testing.T) {
 	}
 
 	Convey("Disconnected Vault", t, func() {
-		os.Setenv("VAULT_ADDR", "")
-		os.Setenv("VAULT_TOKEN", "")
+		os.Setenv("REDACT", "yes")
 
 		RunTests(`
-#############################################  emits REDACTED for no VAULT_* ENV
----
-secret: (( vault "secret/hand:shake" ))
-
----
-secret: REDACTED
-`)
-
-		os.Setenv("VAULT_ADDR", "")
-		os.Setenv("VAULT_TOKEN", "something")
-		RunTests(`
-#############################################  emits REDACTED for no VAULT_ADDR
+##################################################  emits REDACTED when asked to
 ---
 secret: (( vault "secret/hand:shake" ))
 
@@ -173,6 +162,7 @@ secret: REDACTED
 		)
 		defer mock.Close()
 
+		os.Setenv("REDACT", "")
 		os.Setenv("VAULT_ADDR", mock.URL)
 		os.Setenv("VAULT_TOKEN", "sekrit-toekin")
 		RunTests(`
@@ -204,6 +194,25 @@ secret: (( vault "secret/hand:shake" ))
 ---
 secret: knock, knock
 `)
+
+		os.Setenv("VAULT_ADDR", "garbage")
+		os.Setenv("VAULT_TOKEN", "")
+		os.Setenv("HOME", "assets/home/svtoken")
+		ioutil.WriteFile("assets/home/svtoken/.svtoken",
+			[]byte("vault: "+mock.URL+"\n"+
+			       "token: sekrit-toekin\n"), 0644)
+		RunTests(`
+##############################  retrieves token transparently from ~/.svtoken
+---
+secret: (( vault "secret/hand:shake" ))
+
+---
+secret: knock, knock
+`)
+
+		/* RESET TO A VALID, AUTHENTICATED STATE */
+		os.Setenv("VAULT_ADDR", mock.URL)
+		os.Setenv("HOME", "assets/home/auth")
 
 		RunErrorTests(`
 #########################################  fails when missing its argument
@@ -291,6 +300,7 @@ secret: (( vault "secret/hand:shake" ))
 
 		oldhome = os.Getenv("HOME")
 		os.Setenv("HOME", "assets/home/unauth")
+		os.Setenv("REDACT", "")
 		os.Setenv("VAULT_TOKEN", "")
 		RunErrorTests(`
 ################################################  fails on a missing token
@@ -299,7 +309,7 @@ secret: (( vault "secret/hand:shake" ))
 
 ---
 1 error(s) detected:
- - $.secret: VAULT_ADDR specified, but no VAULT_TOKEN or ~/.vault-token found
+ - $.secret: Failed to determine Vault URL / token, and the $REDACT environment variable is not set.
 
 `)
 		os.Setenv("HOME", oldhome)

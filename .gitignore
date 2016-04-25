@@ -3,3 +3,4 @@ spruce
 spruce-*
 credentials.yml
 releases
+.svtoken
