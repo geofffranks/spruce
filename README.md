@@ -148,6 +148,27 @@ integer literals (a string of digits) and floating point literals
 (a string of digits, a period, and another string of digits).
 Scientific notation is not currently supported.
 
+### Accessing the Environment
+
+Want to pull in secret credentials from your environment?  No
+problem!
+
+```yml
+secrets:
+  aws:
+    access_key: (( grab $AWS_ACCESS_KEY ))
+    secret_key: (( grab $AWS_SECRET_KEY ))
+```
+
+`spruce` will try to pull the named environment variables value
+from the environment, and fail if the value is not set, or is
+empty.  You can use the `||` syntax to provide defaults, á la:
+
+```yml
+meta:
+  environment: (( grab $ENV_NAME || "default-env" ))
+```
+
 ### Hmm.. How about auto-calculating static IPs for a BOSH manifest?
 
 `spruce` supports that too! Just use the same `(( static_ips(x, y, z) ))` syntax

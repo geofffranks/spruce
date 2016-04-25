@@ -95,6 +95,7 @@ const (
 	Literal
 	// LogicalOr ...
 	LogicalOr
+	EnvVar
 )
 
 // Expr ...
@@ -102,6 +103,7 @@ type Expr struct {
 	Type      ExprType
 	Reference *tree.Cursor
 	Literal   interface{}
+	Name      string
 	Left      *Expr
 	Right     *Expr
 }
@@ -116,6 +118,9 @@ func (e *Expr) String() string {
 			return fmt.Sprintf(`"%s"`, e.Literal)
 		}
 		return fmt.Sprintf("%v", e.Literal)
+
+	case EnvVar:
+		return fmt.Sprintf("$%s", e.Name)
 
 	case Reference:
 		return e.Reference.String()
@@ -136,6 +141,8 @@ func (e *Expr) Reduce() (*Expr, error) {
 		switch e.Type {
 		case Literal:
 			return e, e, false
+		case EnvVar:
+			return e, nil, false
 		case Reference:
 			return e, nil, false
 
@@ -168,6 +175,13 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 	case Literal:
 		return e, nil
 
+	case EnvVar:
+		v := os.Getenv(e.Name)
+		if v == "" {
+			return nil, fmt.Errorf("Environment variable $%s is not set", e.Name)
+		}
+		return &Expr{Type: Literal, Literal: v}, nil
+
 	case Reference:
 		if _, err := e.Reference.Resolve(tree); err != nil {
 			return nil, fmt.Errorf("Unable to resolve `%s`: %s", e.Reference, err)
@@ -193,6 +207,8 @@ func (e *Expr) Evaluate(tree map[interface{}]interface{}) (interface{}, error) {
 	switch final.Type {
 	case Literal:
 		return final.Literal, nil
+	case EnvVar:
+		return os.Getenv(final.Name), nil
 	case Reference:
 		return final.Reference.Resolve(tree)
 	case LogicalOr:
@@ -301,6 +317,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 		qstring := regexp.MustCompile(`^"(.*)"$`)
 		integer := regexp.MustCompile(`^[+-]?\d+(\.\d+)?$`)
 		float := regexp.MustCompile(`^[+-]?\d*\.\d+$`)
+		envvar := regexp.MustCompile(`^\$[A-Z_][A-Z0-9_]*$`)
 
 		var final []*Expr
 		var left, op *Expr
@@ -338,6 +355,10 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 			case arg == ",":
 				DEBUG("  #%d: literal comma found; treating what we've seen so far as a complete expression")
 				pop()
+
+			case envvar.MatchString(arg):
+				DEBUG("  #%d: parsed as unquoted environment variable reference '%s'", i, arg)
+				push(&Expr{Type: EnvVar, Name: arg[1:]})
 
 			case qstring.MatchString(arg):
 				m := qstring.FindStringSubmatch(arg)
