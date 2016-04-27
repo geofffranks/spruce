@@ -4,6 +4,7 @@ import (
 	"github.com/jhunt/tree"
 	"github.com/smallfish/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
+	"os"
 	"testing"
 )
 
@@ -35,6 +36,9 @@ func TestOperators(t *testing.T) {
 	}
 	null := func() *Expr {
 		return &Expr{Type: Literal, Literal: nil}
+	}
+	env := func(s string) *Expr {
+		return &Expr{Type: EnvVar, Name: s}
 	}
 	or := func(l *Expr, r *Expr) *Expr {
 		return &Expr{Type: LogicalOr, Left: l, Right: r}
@@ -158,6 +162,17 @@ func TestOperators(t *testing.T) {
 					or(ref("meta.key"), str("default")),
 					or(ref("meta.other"), null()))
 			})
+
+			Convey("handles environment variables as operands", func() {
+				os.Setenv("SPRUCE_FOO", "first test")
+				os.Setenv("_SPRUCE", "_sprucify!")
+				os.Setenv("ENOENT", "")
+
+				opOk(`(( null $SPRUCE_FOO ))`, "null", env("SPRUCE"))
+				opOk(`(( null $_SPRUCE ))`, "null", env("_SPRUCE"))
+				opOk(`(( null $ENOENT || $SPRUCE_FOO ))`, "null",
+					or(env("ENOENT"), env("SPRUCE_FOO")))
+			});
 
 			Convey("throws errors for malformed expression", func() {
 				opErr(`(( null meta.key ||, nil ))`,
@@ -395,6 +410,43 @@ meta:
 		Convey("throws errors for dangling references", func() {
 			_, err := op.Run(ev, []*Expr{
 				ref("key.that.does.not.exist"),
+			})
+			So(err, ShouldNotBeNil)
+		})
+	})
+
+	Convey("Environment Variable Resolution (via grab)", t, func() {
+		op := GrabOperator{}
+		ev := &Evaluator{}
+		os.Setenv("GRAB_ONE", "one")
+		os.Setenv("GRAB_TWO", "two")
+		os.Setenv("GRAB_NOT", "")
+
+		Convey("can grab a single environment value", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("GRAB_ONE"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "one")
+		})
+
+		Convey("tries alternates until it finds a set environment variable", func() {
+			r, err := op.Run(ev, []*Expr{
+				or(env("GRAB_THREE"), or(env("GRAB_TWO"), env("GRAB_ONE"))),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "two")
+		})
+
+		Convey("throws errors for unset environment variables", func() {
+			_, err := op.Run(ev, []*Expr{
+				env("GRAB_NOT"),
 			})
 			So(err, ShouldNotBeNil)
 		})

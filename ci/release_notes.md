@@ -10,3 +10,8 @@
    cases where people accidentally forget to authenticate to the
    vault, and then deploy BOSH manifests that are REDACTED all
    over the place.
+
+- Add support for environment variables (using familiar syntax of
+  `$VARNAME`) inside of operator argument lists.  These references
+  will be replaced with their string literal equivalents upon
+  activation.
