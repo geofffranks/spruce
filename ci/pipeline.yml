@@ -22,6 +22,7 @@ meta:
   go:
     version: 1.5
     module:  (( concat "github.com/" meta.github.owner "/" meta.github.repo ))
+    binary:  (( grab meta.github.repo ))
 
   aws:
     bucket:     (( concat meta.name "-pipeline" ))
@@ -129,6 +130,7 @@ jobs:
             path: (( concat "./gopath/src/" meta.go.module "/ci/scripts/shipit" ))
             args: []
           params:
+            BINARY:       (( grab meta.go.binary ))
             REPO_ROOT:    (( concat "gopath/src/" meta.go.module ))
             VERSION_FROM: version/number
             RELEASE_NAME: (( grab meta.release ))

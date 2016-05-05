@@ -54,9 +54,9 @@ popd
 
 pushd $REPO_ROOT
 mkdir artifacts
-gox -osarch="${TARGETS}" --output="artifacts/safe-{{.OS}}-{{.Arch}}" -ldflags="-X main.Version=${VERSION}" .
+gox -osarch="${TARGETS}" --output="artifacts/${BINARY}-{{.OS}}-{{.Arch}}" -ldflags="-X main.Version=${VERSION}" .
 go build -ldflags="-X main.Version=${VERSION}" .
-./safe -v
+./${BINARY} -v
 popd
 
 
