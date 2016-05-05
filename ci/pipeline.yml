@@ -188,7 +188,7 @@ jobs:
             REPO_OUT: pushme
         params:
           VERSION_FROM: version/number
-          BINARY: $( concat meta.go.module "-darwin-amd64"
+          BINARY: (( concat meta.go.binary "-darwin-amd64" ))
     - put: homebrew
       params:
         repository: pushme/homebrew
