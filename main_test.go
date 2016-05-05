@@ -166,7 +166,7 @@ func TestMain(t *testing.T) {
 				stderr = ""
 				main()
 				So(stdout, ShouldEqual, "")
-				So(stderr, ShouldStartWith, fmt.Sprintf("spruce - Version %s", VERSION))
+				So(stderr, ShouldStartWith, fmt.Sprintf("spruce - Version %s", Version))
 				So(rc, ShouldEqual, 0)
 			})
 			Convey("When '--version' is specified", func() {
@@ -175,7 +175,7 @@ func TestMain(t *testing.T) {
 				stderr = ""
 				main()
 				So(stdout, ShouldEqual, "")
-				So(stderr, ShouldStartWith, fmt.Sprintf("spruce - Version %s", VERSION))
+				So(stderr, ShouldStartWith, fmt.Sprintf("spruce - Version %s", Version))
 				So(rc, ShouldEqual, 0)
 			})
 		})

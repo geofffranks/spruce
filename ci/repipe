@@ -1,0 +1,74 @@
+#!/bin/bash
+#
+# ci/repipe
+#
+# Script for merging together pipeline configuration files
+# (via Spruce!) and configuring Concourse.
+#
+# author:  James Hunt <james@niftylogic.com>
+#          Dennis Bell <dennis.j.bell@gmail.com>
+# created: 2016-03-04
+
+need_command() {
+	local cmd=${1:?need_command() - no command name given}
+
+	if [[ ! -x "$(command -v $cmd)" ]]; then
+		echo >&2 "${cmd} is not installed."
+		if [[ "${cmd}" == "spruce" ]]; then
+			echo >&2 "Please download it from https://github.com/geofffranks/spruce/releases"
+		fi
+		exit 2
+	fi
+}
+
+cd $(dirname $BASH_SOURCE[0])
+echo "Working in $(pwd)"
+need_command spruce
+
+if [[ -z "$VAULT_ADDR" ]] ; then
+	echo >&2 "Vault address not specified in VAULT_ADDR environment variable"
+	exit 1
+fi
+
+# Allow for target-specific settings
+settings_file="$(ls -1 settings.yml ${CONCOURSE_TARGET:+"settings-${CONCOURSE_TARGET}.yml"} 2>/dev/null | tail -n1)"
+if [[ -z "$settings_file" ]]
+then
+  echo >&2 "Missing local settings in ci/settings.yml${CONCOURSE_TARGET:+" or ci/settings-${CONCOURSE_TARGET}.yml"}!"
+  exit 1
+fi
+
+echo >&2 "Using settings found in ${settings_file}"
+
+set -e
+trap "rm -f .deploy.yml" QUIT TERM EXIT INT
+spruce merge pipeline.yml ${settings_file} > .deploy.yml
+PIPELINE=$(spruce json .deploy.yml | jq -r '.meta.pipeline // ""')
+if [[ -z ${PIPELINE} ]]; then
+	echo >&2 "Missing pipeline name in ci/settings.yml!"
+	exit 1
+fi
+
+TARGET_FROM_SETTINGS=$(spruce json .deploy.yml | jq -r '.meta.target // ""')
+if [[ -z ${CONCOURSE_TARGET} ]]; then
+  TARGET=${TARGET_FROM_SETTINGS}
+elif [[ "$CONCOURSE_TARGET" != "$TARGET_FROM_SETTINGS" ]]
+then
+  echo >&2 "Target in {$settings_file} differs from target in \$CONCOURSE_TARGET"
+  echo >&2 "  \$CONCOURSE_TARGET: $CONCOURSE_TARGET"
+  echo >&2 "  Target in file:    $TARGET_FROM_SETTINGS"
+  exit 1
+else
+  TARGET=${CONCOURSE_TARGET}
+fi
+
+if [[ -z ${TARGET} ]]; then
+	echo >&2 "Missing Concourse Target in ci/settings.yml!"
+	exit 1
+fi
+
+fly_cmd="${FLY_CMD:-fly}"
+
+set +x
+$fly_cmd --target ${TARGET} set-pipeline     --pipeline ${PIPELINE} --config .deploy.yml
+$fly_cmd --target ${TARGET} unpause-pipeline --pipeline ${PIPELINE}

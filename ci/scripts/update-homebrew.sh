@@ -7,12 +7,12 @@ formula=$1
 shift
 
 #
-# ci/scripts/update-homebrew.sh - Update homebrew repo for new spruce version
+# ci/scripts/update-homebrew.sh - Update homebrew repo for new version of the binary
 #
 # This script is run from a concourse pipeline (per ci/pipeline.yml).
 #
 # It is resompsible for bumping the version + shasum in the homebrew-cf repo
-# to get the new version of spruce for darwin_amd64.
+# to get the new version of the binary for darwin_amd64.
 
 function auto_sed() {
   cmd=$1
@@ -25,13 +25,10 @@ function auto_sed() {
   fi
 }
 
-# change to the root fo the spruce repository ( from ci/scripts)
-ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../../homebrew-repo" && pwd )
-cd $ROOT
 
 echo ">> Retrieving version + sha256 metadata"
 
-# VERSION_FROM indicates what file contains the version of spruce that needs to be
+# VERSION_FROM indicates what file contains the version of binary that needs to be
 # placed in the homebrew formula
 if [[ -z "${VERSION_FROM}" ]]; then
   echo >&2 "No VERSION_FROM env var is specified. This is required to update homebrew"
@@ -49,7 +46,10 @@ if [[ -z "${VERSION:-}" ]]; then
   exit 1
 fi
 
-SHASUM=$(shasum -a 256 ../spruce-release/spruce-darwin-amd64 | cut -d " " -f1)
+# change to the root of the homebrew repo
+cd homebrew-repo
+
+SHASUM=$(shasum -a 256 ../github/${BINARY} | cut -d " " -f1)
 
 echo ">> Updating $formula with new version/shasum"
 auto_sed "s/v = \\\".*\\\" # CI Managed/v = \\\"v${VERSION}\\\" # CI Managed/" $formula

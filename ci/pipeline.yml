@@ -1,224 +1,273 @@
+---
+#
+# ci/pipeline.yml
+#
+# Pipeline structure file for a Go Project pipeline
+#
+# DO NOT MAKE CHANGES TO THIS FILE.  Instead, modify
+# ci/settings.yml and override what needs overridden.
+# This uses spruce, so you have some options there.
+#
+# author:  James Hunt <james@niftylogic.com>
+# created: 2016-03-30
+
+meta:
+  name:     (( param "Please name your pipeline" ))
+  release:  (( concat meta.name " Release" ))
+  target:   (( param "Please identify the name of the target Concourse CI" ))
+  pipeline: (( grab meta.name ))
+
+  image:    (( concat "docker:///starkandwayne/concourse-go#" meta.go.version ))
+
+  go:
+    version: 1.5
+    module:  (( concat "github.com/" meta.github.owner "/" meta.github.repo ))
+
+  aws:
+    bucket:     (( concat meta.name "-pipeline" ))
+    access_key: (( param "Please set your AWS Access Key ID" ))
+    secret_key: (( param "Please set your AWS Secret Key ID" ))
+
+  github:
+    uri:          (( concat "git@github.com:" meta.github.owner "/" meta.github.repo ))
+    owner:        (( param "Please specify the name of the user / organization that owns the Github repository" ))
+    repo:         (( param "Please specify the name of the Github repository" ))
+    branch:       master
+    private_key:  (( param "Please generate an SSH Deployment Key for this repo and specify it here" ))
+    access_token: (( param "Please generate a Personal Access Token and specify it here" ))
+
+  slack:
+    webhook:       (( param "Please specify your Slack Incoming Webhook Integration URL" ))
+    notification: '(( concat ":sadpanda: " meta.name " build failed!<br>URL-GOES-HERE" ))'
+    channel:       (( param "Please specify the channel (#name) or user (@user) to send messages to" ))
+    username:      concourse
+    icon:          http://cl.ly/image/3e1h0H3H2s0P/concourse-logo.png
+
+  cf:
+    app:
+      name: (( param "Specify the name of the app to push" ))
+      domain: (( param "Specify the domain to push the app under" ))
+    org: (( param "Specify the CF org that the app will live in" ))
+    space: (( param "Specify the CF space that the app will live in" ))
+    user: (( param "Specify the CF User that will deploy the app" ))
+    password: (( param "Specify the password for the user deploying the app" ))
+    url: (( param "Specify the URL to the CF api" ))
+
+  homebrew:
+    recipe: (( param "Specify the homebrew recipe to update" ))
+
 groups:
-- name: build
-  jobs:
-  - testflight
-  - rc
-  - shipit
-  - play.spruce.cf
-  - update-homebrew
-- name: version
-  jobs:
-  - patch
-  - minor
-  - major
+  - name: (( grab meta.name ))
+    jobs:
+      - test
+      - rc
+      - shipit
+      - major
+      - minor
+      - (( grab meta.cf.app.name ))
+      - update-homebrew
 
 jobs:
-- name: testflight
-  public: true
-  serial: true
-  plan:
-  - do:
+  - name: test
+    public: true
+    serial: true
+    plan:
+      - { get: git, trigger: true }
+      - task: test
+        config:
+          platform: linux
+          image: (( grab meta.image ))
+          inputs:
+            - name: git
+              path: (( concat "gopath/src/" meta.go.module ))
+          run:
+            path: (( concat "./gopath/src/" meta.go.module "/ci/scripts/test" ))
+            args: []
+          params:
+            REPO_ROOT: git
+
+  - name: rc
+    public: true
+    plan:
+      - aggregate:
+          - { get: git,     trigger: true,  passed: [test] }
+          - { get: version, trigger: false, params: {pre: rc} }
+      - put: version
+        params: {file: version/number}
+
+  - name: minor
+    public: true
+    plan:
+      - { get: version, trigger: false, params: {bump: minor} }
+      - { put: version,                 params: {file: version/number} }
+
+  - name: major
+    public: true
+    plan:
+      - { get: version, trigger: false, params: {bump: major} }
+      - { put: version,                 params: {file: version/number} }
+
+  - name: shipit
+    public: true
+    serial: true
+    plan:
+      - aggregate:
+          - { get: version, passed: [rc], params: {bump: final} }
+          - { get: git,     passed: [rc] }
+      - task: release
+        config:
+          image: (( grab meta.image ))
+          platform: linux
+          inputs:
+            - name: version
+            - name: git
+              path: (( concat "gopath/src/" meta.go.module ))
+          outputs:
+            - name: gh
+            - name: pushme
+          run:
+            path: (( concat "./gopath/src/" meta.go.module "/ci/scripts/shipit" ))
+            args: []
+          params:
+            REPO_ROOT:    (( concat "gopath/src/" meta.go.module ))
+            VERSION_FROM: version/number
+            RELEASE_NAME: (( grab meta.release ))
+            RELEASE_ROOT: gh
+            REPO_OUT:     pushme
+            BRANCH:       (( grab meta.github.branch ))
+
+      - aggregate:
+        - put: version
+          params:
+            bump: patch
+        - put: git
+          params:
+            rebase: true
+            repository: pushme/git
+        - put: github
+          params:
+            name:   gh/name
+            tag:    gh/tag
+            body:   gh/notes.md
+            globs: [gh/artifacts/*]
+
+  - name: update-homebrew
+    public: true
+    serial: true
+    plan:
     - aggregate:
-      - get: spruce
-        resource: git-spruce
+      - get: version
+        passed: [shipit]
+      - get: git
+        resource: git
+        path: (( meta.go.module ))
+      - get: homebrew
+        resource: homebrew
+      - get: github
+        resource: github
+        passed: [shipit]
         trigger: true
-    - task: run_tests
+    - task: update-homebrew
       config:
         platform: linux
-        image: docker:///starkandwayne/concourse-go#1.5
+        image: (( grab meta.image ))
         inputs:
-        - name: spruce
-          path: .
+        - name: homebrew-repo
+        - name: git
+        - name: github
+        - name: version
+        outputs:
+        - name: homebrew
         run:
-          path: ./ci/scripts/run_tests.sh
+          path: (( concat meta.go.module "/ci/scripts/update-homebrew.sh" ))
+          args:
+          - (( grab meta.homebrew.recipe ))
+        params:
+          VERSION_FROM: version/number
+          BINARY: $( concat meta.go.module "-darwin-amd64"
+    - put: homebrew
+      params:
+        repository: update-homebrew/homebrew
+        rebase: true
+  
+  - name: (( grab meta.cf.app.name ))
+    public: true
+    serial: true
+    plan:
+    - aggregate:
+      - get: app
+        resource: (( grab meta.cf.app.name ))
+        trigger: true
+      - get: git
+        resource: git
+        path: (( grab meta.go.module ))
+      - get: github
+        passed: [shipit]
+        trigger: true
+    - task: cf push
+      config:
+        image: (( grab meta.image ))
+        inputs:
+        - name: app
+        - name: git
+        run:
+          path: (( concat meta.go.module "/ci/scripts/push-play.sh" ))
           args: []
+        params:
+          APP_NAME: (( grab meta.cf.app.name ))
+          DOMAIN: (( grab meta.cf.app.domain ))
+          CF_ORG: (( grab meta.cf.org ))
+          CF_SPACE: (( grab meta.cf.space ))
+          CF_USER: (( grab meta.cf.user ))
+          CF_PASS: (( grab meta.cf.password ))
+          CF_ENDPOINT: (( grab meta.cf.url ))
 
-- name: rc
-  public: true
-  plan:
-  - aggregate:
-    - get: spruce
-      resource: git-spruce
-      passed: [testflight]
-      trigger: true
-    - get: version
-      trigger: false
-      params: {pre: rc}
-  - put: version
-    params: {file: version/number}
-
-- name: patch
-  public: true
-  plan:
-  - aggregate:
-    - get: version
-      trigger: false
-      params: {bump: patch}
-  - put: version
-    params: {file: version/number}
-
-- name: minor
-  public: true
-  plan:
-  - aggregate:
-    - get: version
-      trigger: false
-      params: {bump: minor}
-  - put: version
-    params: {file: version/number}
-
-- name: major
-  public: true
-  plan:
-  - aggregate:
-    - get: version
-      trigger: false
-      params: {bump: major}
-  - put: version
-    params: {file: version/number}
-
-- name: shipit
-  public: true
-  serial: true
-  plan:
-  - aggregate:
-    - get: version
-      passed: [rc]
-      params: {bump: final}
-    - get: spruce
-      resource: git-spruce
-      passed: [rc]
-    - get: homebrew-repo
-      resource: git-homebrew-cf
-      trigger: false
-  - task: create-final-release
-    config:
-      platform: linux
-      image: docker:///starkandwayne/concourse-go#1.5
-      inputs:
-      - name: spruce
-      - name: version
-      run:
-        path: ./spruce/ci/scripts/shipit.sh
-        args: []
-      params:
-        RELEASE:      Spruce Release
-        VERSION_FROM: ../version/number
-  - put: git-spruce
-    params:
-      repository: create-final-release/spruce
-      rebase: true
-  - aggregate:
-    - put: version
-      params: {file: version/number}
-    - put: github-final-release
-      params:
-        name: create-final-release/spruce/releases/name
-        tag: create-final-release/spruce/releases/tag
-        body: create-final-release/spruce/releases/notes.md
-        globs:
-        - create-final-release/spruce/releases/spruce-*
-
-- name: update-homebrew
-  public: true
-  serial: true
-  plan:
-  - aggregate:
-    - get: version
-      passed: [shipit]
-    - get: spruce
-      resource: git-spruce
-    - get: homebrew-repo
-      resource: git-homebrew-cf
-    - get: spruce-release
-      resource: github-final-release
-      passed: [shipit]
-      trigger: true
-  - task: update-homebrew
-    config:
-      platform: linux
-      image: docker:///starkandwayne/concourse-go#1.5
-      inputs:
-      - name: homebrew-repo
-      - name: spruce
-      - name: spruce-release
-      - name: version
-      run:
-        path: ./spruce/ci/scripts/update-homebrew.sh
-        args:
-        - spruce.rb
-      params:
-        VERSION_FROM: ../version/number
-  - put: git-homebrew-cf
-    params:
-      repository: update-homebrew/homebrew-repo
-      rebase: true
-
-- name: play.spruce.cf
-  public: true
-  serial: true
-  plan:
-  - aggregate:
-    - get: play.spruce.cf
-      resource: git-play.spruce.cf
-      trigger: true
-    - get: spruce
-      resource: git-spruce
-    - get: github-final-release
-      passed: [shipit]
-      trigger: true
-  - task: cf push
-    config:
-      image: docker:///starkandwayne/concourse-go#1.5
-      inputs:
-      - name: play.spruce.cf
-      - name: spruce
-      run:
-        path: ./spruce/ci/scripts/push-play.sh
-        args: []
-      params:
-        APP_NAME: play.spruce.cf
-        DOMAIN: spruce.cf
-        CF_ORG: starkandwayne
-        CF_SPACE: spruce
-        CF_USER: {{cf_username}}
-        CF_PASS: {{cf_password}}
-        CF_ENDPOINT: https://api.run.pivotal.io
+resource_types:
+  - name: slack-notification
+    type: docker-image
+    source:
+      repository: cfcommunity/slack-notification-resource
 
 resources:
-- name: version
-  type: semver
-  source:
-    key: current-version
-    bucket: {{pipeline-aws-bucket}}
-    access_key_id: {{pipeline-aws-access-key-id}}
-    secret_access_key: {{pipeline-aws-secret-access-key}}
-    initial_version: 0.2.0
-
-- name: git-spruce
+- name: git
   type: git
   source:
-    uri: git@github.com:geofffranks/spruce.git
-    branch: master
-    private_key: {{github-private-key}}
+    uri:         (( grab meta.github.uri ))
+    branch:      (( grab meta.github.branch ))
+    private_key: (( grab meta.github.private_key ))
 
-- name: git-homebrew-cf
+- name: version
+  type: semver
+  source :
+    driver:            s3
+    bucket:            (( grab meta.aws.bucket ))
+    key:               version
+    access_key_id:     (( grab meta.aws.access_key ))
+    secret_access_key: (( grab meta.aws.secret_key ))
+    initial_version:   (( grab meta.initial_version || "0.2.0" ))
+
+- name: notify
+  type: slack-notification
+  source:
+    url: (( grab meta.slack.webhook ))
+
+- name: github
+  type: github-release
+  source:
+    user:         (( grab meta.github.owner ))
+    repository:   (( grab meta.github.repo ))
+    access_token: (( grab meta.github.access_token ))
+
+- name: homebrew
   type: git
   source:
     uri: git@github.com:starkandwayne/homebrew-cf.git
     branch: master
-    private_key: {{github-private-key}}
+    private_key: (( grab meta.github.private_key ))
 
-- name: git-play.spruce.cf
+- name: (( grab meta.cf.app.name ))
   type: git
   source:
-    uri: git@github.com:jhunt/play.spruce.cf.git
+    uri: (( grab meta.cf.app.source ))
     branch: master
-    private_key: {{github-private-key}}
-
-- name: github-final-release
-  type: github-release
-  source:
-    user: geofffranks
-    repository: spruce
-    access_token: {{github-access-token}}
+    private_key: (( grab meta.github.private_key ))

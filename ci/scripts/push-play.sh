@@ -31,8 +31,7 @@ if [[ -z $CF_ENDPOINT ]]; then
   exit 1
 fi
 
-ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../../play.spruce.cf" && pwd )
-cd $ROOT
+cd app
 
 cf login -a "${CF_ENDPOINT}" -u "${CF_USER}" -p "${CF_PASS}" -o "${CF_ORG}" -s "${CF_SPACE}"
 cf push "${APP_NAME}" -d "${DOMAIN}"

@@ -1,0 +1,32 @@
+---
+meta:
+  cf:
+    app:
+      name: play.spruce.cf
+      domain: spruce.cf
+      source: git@github.com:jhunt/play.spruce.cf.git
+    org: (( vault "secret/pipelines/spruce/cf:org" ))
+    space: (( vault "secret/pipelines/spruce/cf:space" ))
+    user: (( vault "secret/pipelines/spruce/cf:user" ))
+    password: (( vault "secret/pipelines/spruce/cf:password" ))
+    url: "https://api.run.pivotal.io"
+
+  homebrew:
+    recipe: spruce.rb
+  github:
+    owner: geofffranks
+    repo: spruce
+    private_key: (( vault "secret/pipelines/spruce/github:private" ))
+    access_token: (( vault "secret/pipelines/spruce/github:token" ))
+
+  slack:
+    webhook: (( vault "secret/pipelines/spruce/slack:webhook" ))
+    channel: "#spruce"
+
+  aws:
+    access_key: (( vault "secret/pipelines/spruce/aws:key" ))
+    secret_key: (( vault "secret/pipelines/spruce/aws:secret" ))
+    bucket: spruce-release-pipeline
+
+  name: spruce-release
+  target: sw
