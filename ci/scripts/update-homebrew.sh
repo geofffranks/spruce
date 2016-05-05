@@ -47,7 +47,7 @@ if [[ -z "${VERSION:-}" ]]; then
 fi
 
 # change to the root of the homebrew repo
-cd homebrew-repo
+cd ${REPO_ROOT}
 
 SHASUM=$(shasum -a 256 ../github/${BINARY} | cut -d " " -f1)
 
@@ -75,3 +75,6 @@ if [[ "$(git status -s)X" != "X" ]]; then
 else
   echo ">> No update needed"
 fi
+
+# so that future steps in the pipeline can push our changes
+cp -a ${REPO_ROOT} ${REPO_OUT}/homebrew
