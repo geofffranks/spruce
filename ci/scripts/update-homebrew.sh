@@ -47,10 +47,7 @@ if [[ -z "${VERSION:-}" ]]; then
 fi
 
 # change to the root of the homebrew repo
-ls -la
 pushd ${REPO_ROOT}
-pwd
-ls -la
 
 SHASUM=$(shasum -a 256 ../github/${BINARY} | cut -d " " -f1)
 

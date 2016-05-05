@@ -183,10 +183,9 @@ jobs:
           path: "git/ci/scripts/update-homebrew.sh"
           args:
           - (( grab meta.homebrew.recipe ))
-          params:
-            REPO_ROOT: homebrew-repo
-            REPO_OUT: pushme
         params:
+          REPO_ROOT: homebrew-repo
+          REPO_OUT: pushme
           VERSION_FROM: version/number
           BINARY: (( concat meta.go.binary "-darwin-amd64" ))
     - put: homebrew
