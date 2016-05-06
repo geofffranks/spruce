@@ -1,9 +1,11 @@
-package main
+package spruce
 
 import (
 	"fmt"
 	"reflect"
 	"regexp"
+
+	. "github.com/geofffranks/spruce/log"
 )
 
 // Merger ...

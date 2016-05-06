@@ -1,15 +1,17 @@
-package main
+package spruce
 
 import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/jhunt/tree"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
+
+	. "github.com/geofffranks/spruce/log"
+	"github.com/jhunt/tree"
 	"gopkg.in/yaml.v2"
 )
 
@@ -96,7 +98,7 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		     1. Environment Variables VAULT_ADDR and VAULT_TOKEN
 		     2. ~/.svtoken file, if it exists
 		     3. ~/.vault-token file, if it exists
-		 */
+		*/
 
 		url := os.Getenv("VAULT_ADDR")
 		token := os.Getenv("VAULT_TOKEN")

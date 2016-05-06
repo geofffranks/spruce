@@ -1,4 +1,4 @@
-package main
+package spruce
 
 import (
 	"github.com/jhunt/tree"
