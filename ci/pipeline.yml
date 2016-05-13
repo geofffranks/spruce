@@ -22,6 +22,7 @@ meta:
   go:
     version: 1.5
     module:  (( concat "github.com/" meta.github.owner "/" meta.github.repo ))
+    cmd_module: (( grab meta.go.module ))
     binary:  (( grab meta.github.repo ))
 
   aws:
@@ -143,6 +144,7 @@ jobs:
             RELEASE_ROOT: gh
             REPO_OUT:     pushme
             BRANCH:       (( grab meta.github.branch ))
+            CMD_PKG:      (( grab meta.go.cmd_module ))
 
       - aggregate:
         - put: git

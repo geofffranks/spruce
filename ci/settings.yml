@@ -13,6 +13,8 @@ meta:
 
   homebrew:
     recipe: spruce.rb
+  go:
+    cmd_module: (( concat meta.go.module "/cmd" ))
   github:
     owner: geofffranks
     repo: spruce
