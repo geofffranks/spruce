@@ -113,7 +113,8 @@ jobs:
   - name: bump-patch
     public: true
     plan:
-    - { get: version, trigger: true, params: { bump: minor}, passed: [shipit] }
+    - { get: version, trigger: true, params: { bump: patch}, passed: [shipit] }
+    - { put: version,                params: { file: version/number} }
 
   - name: shipit
     public: true
@@ -148,6 +149,7 @@ jobs:
 
       - aggregate:
         - put: version
+          params: { bump: final }
         - put: git
           params:
             rebase: true
