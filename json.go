@@ -1,17 +1,26 @@
-package main
+package spruce
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"fmt"
-	"encoding/json"
+
+	. "github.com/geofffranks/spruce/log"
+	"github.com/smallfish/simpleyaml"
 )
 
 func jsonifyData(data []byte) (string, error) {
-	doc, err := parseYAML(data)
+	y, err := simpleyaml.NewYaml(data)
 	if err != nil {
 		return "", err
 	}
+
+	doc, err := y.Map()
+	if err != nil {
+		return "", fmt.Errorf("Root of YAML document is not a hash/map: %s\n", err.Error())
+	}
+
 	b, err := json.Marshal(deinterface(doc))
 	if err != nil {
 		return "", err
@@ -48,8 +57,8 @@ func JSONifyFiles(paths []string) ([]string, error) {
 
 func deinterface(o interface{}) interface{} {
 	switch o.(type) {
-	case map[interface{}] interface{}:
-		return deinterfaceMap(o.(map[interface{}] interface{}))
+	case map[interface{}]interface{}:
+		return deinterfaceMap(o.(map[interface{}]interface{}))
 	case []interface{}:
 		return deinterfaceList(o.([]interface{}))
 	default:
@@ -57,8 +66,8 @@ func deinterface(o interface{}) interface{} {
 	}
 }
 
-func deinterfaceMap(o map[interface{}] interface{}) map[string] interface{} {
-	m := map[string] interface{} {}
+func deinterfaceMap(o map[interface{}]interface{}) map[string]interface{} {
+	m := map[string]interface{}{}
 	for k, v := range o {
 		m[fmt.Sprintf("%v", k)] = deinterface(v)
 	}

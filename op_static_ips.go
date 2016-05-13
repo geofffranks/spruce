@@ -1,12 +1,14 @@
-package main
+package spruce
 
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/jhunt/tree"
 	"net"
 	"strconv"
 	"strings"
+
+	. "github.com/geofffranks/spruce/log"
+	"github.com/jhunt/tree"
 )
 
 // UsedIPs ...

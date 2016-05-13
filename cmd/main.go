@@ -5,11 +5,15 @@ import (
 	"io/ioutil"
 	"os"
 
+	. "github.com/geofffranks/spruce"
+	. "github.com/geofffranks/spruce/log"
+
+	"regexp"
+	"strings"
+
 	"github.com/smallfish/simpleyaml"
 	"github.com/voxelbrain/goptions"
 	"gopkg.in/yaml.v2"
-	"regexp"
-	"strings"
 )
 
 // Version holds the Current version of spruce
@@ -39,35 +43,7 @@ var usage = func() {
 	exit(1)
 }
 
-var debug bool
-var trace bool
 var handleConcourseQuoting bool
-
-// DEBUG - Prints out a debug message
-func DEBUG(format string, args ...interface{}) {
-	if debug {
-		content := fmt.Sprintf(format, args...)
-		lines := strings.Split(content, "\n")
-		for i, line := range lines {
-			lines[i] = "DEBUG> " + line
-		}
-		content = strings.Join(lines, "\n")
-		printfStdErr("%s\n", content)
-	}
-}
-
-// TRACE - Prints out a trace message
-func TRACE(format string, args ...interface{}) {
-	if trace {
-		content := fmt.Sprintf(format, args...)
-		lines := strings.Split(content, "\n")
-		for i, line := range lines {
-			lines[i] = "-----> " + line
-		}
-		content = strings.Join(lines, "\n")
-		printfStdErr("%s\n", content)
-	}
-}
 
 func envFlag(varname string) bool {
 	val := os.Getenv(varname)
@@ -91,21 +67,13 @@ func main() {
 	}
 	getopts(&options)
 
-	if envFlag("DEBUG") {
-		debug = true
-	}
-	if options.Debug {
-		debug = options.Debug
+	if envFlag("DEBUG") || options.Debug {
+		DebugOn = true
 	}
 
-	if envFlag("TRACE") {
-		trace = true
-	}
-	if options.Trace {
-		trace = options.Trace
-	}
-	if trace {
-		debug = true
+	if envFlag("TRACE") || options.Trace {
+		TraceOn = true
+		DebugOn = true
 	}
 
 	handleConcourseQuoting = options.Concourse

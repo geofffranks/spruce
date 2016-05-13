@@ -1,8 +1,11 @@
-package main
+package spruce
 
 import (
 	"fmt"
+
 	"github.com/jhunt/tree"
+
+	. "github.com/geofffranks/spruce/log"
 )
 
 // InjectOperator ...

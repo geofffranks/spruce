@@ -9,6 +9,7 @@ import (
 	"github.com/smallfish/simpleyaml"
 	"gopkg.in/yaml.v2"
 
+	. "github.com/geofffranks/spruce/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -57,19 +58,19 @@ func TestMergeAllDocs(t *testing.T) {
 	Convey("mergeAllDocs()", t, func() {
 		Convey("Fails with readFile error on bad first doc", func() {
 			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"assets/merge/nonexistent.yml", "assets/merge/second.yml"})
+			err := mergeAllDocs(target, []string{"../assets/merge/nonexistent.yml", "../assets/merge/second.yml"})
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "Error reading file assets/merge/nonexistent.yml:")
+			So(err.Error(), ShouldContainSubstring, "Error reading file ../assets/merge/nonexistent.yml:")
 		})
 		Convey("Fails with parseYAML error on bad second doc", func() {
 			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"assets/merge/first.yml", "assets/merge/bad.yml"})
+			err := mergeAllDocs(target, []string{"../assets/merge/first.yml", "../assets/merge/bad.yml"})
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "assets/merge/bad.yml: Root of YAML document is not a hash/map:")
+			So(err.Error(), ShouldContainSubstring, "../assets/merge/bad.yml: Root of YAML document is not a hash/map:")
 		})
 		Convey("Fails with mergeMap error", func() {
 			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"assets/merge/first.yml", "assets/merge/error.yml"})
+			err := mergeAllDocs(target, []string{"../assets/merge/first.yml", "../assets/merge/error.yml"})
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "$.array_inline.0: new object is a string, not a map - cannot merge using keys")
 		})
@@ -107,7 +108,7 @@ func TestMergeAllDocs(t *testing.T) {
 					"key2": "val2",
 				},
 			}
-			err := mergeAllDocs(target, []string{"assets/merge/first.yml", "assets/merge/second.yml"})
+			err := mergeAllDocs(target, []string{"../assets/merge/first.yml", "../assets/merge/second.yml"})
 			So(err, ShouldBeNil)
 			So(target, ShouldResemble, expect)
 		})
@@ -180,11 +181,11 @@ func TestMain(t *testing.T) {
 			})
 		})
 		Convey("Should panic on errors merging docs", func() {
-			os.Args = []string{"spruce", "merge", "assets/merge/bad.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/merge/bad.yml"}
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldContainSubstring, "assets/merge/bad.yml: Root of YAML document is not a hash/map:")
+			So(stderr, ShouldContainSubstring, "../assets/merge/bad.yml: Root of YAML document is not a hash/map:")
 			So(rc, ShouldEqual, 2)
 		})
 		/* Fixme - how to trigger this?
@@ -192,7 +193,7 @@ func TestMain(t *testing.T) {
 		})
 		*/
 		Convey("Should output merged yaml on success", func() {
-			os.Args = []string{"spruce", "merge", "assets/merge/first.yml", "assets/merge/second.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/merge/first.yml", "../assets/merge/second.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -233,7 +234,7 @@ map:
 			So(stderr, ShouldEqual, "")
 		})
 		Convey("Should not fail when handling concourse-style yaml and --concourse", func() {
-			os.Args = []string{"spruce", "--concourse", "merge", "assets/concourse/first.yml", "assets/concourse/second.yml"}
+			os.Args = []string{"spruce", "--concourse", "merge", "../assets/concourse/first.yml", "../assets/concourse/second.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -248,7 +249,7 @@ map:
 		})
 
 		Convey("Should handle de-referencing", func() {
-			os.Args = []string{"spruce", "merge", "assets/dereference/first.yml", "assets/dereference/second.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/dereference/first.yml", "../assets/dereference/second.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -265,7 +266,7 @@ properties:
 			So(stderr, ShouldEqual, "")
 		})
 		Convey("De-referencing cyclical datastructures should throw an error", func() {
-			os.Args = []string{"spruce", "merge", "assets/dereference/cyclic-data.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/dereference/cyclic-data.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -274,8 +275,8 @@ properties:
 			So(rc, ShouldEqual, 2)
 		})
 		Convey("Dereferencing multiple values should behave as desired", func() {
-			UsedIPs = map[string]string{} // required because of globalness
-			os.Args = []string{"spruce", "merge", "assets/dereference/multi-value.yml"}
+			//UsedIPs = map[string]string{} // required because of globalness
+			os.Args = []string{"spruce", "merge", "../assets/dereference/multi-value.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -313,7 +314,7 @@ properties:
 `)
 		})
 		Convey("Should output error on bad de-reference", func() {
-			os.Args = []string{"spruce", "merge", "assets/dereference/bad.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/dereference/bad.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -321,7 +322,7 @@ properties:
 			So(rc, ShouldEqual, 2)
 		})
 		Convey("Pruning should happen after de-referencing", func() {
-			os.Args = []string{"spruce", "merge", "--prune", "jobs", "--prune", "properties.client.servers", "assets/dereference/first.yml", "assets/dereference/second.yml"}
+			os.Args = []string{"spruce", "merge", "--prune", "jobs", "--prune", "properties.client.servers", "../assets/dereference/first.yml", "../assets/dereference/second.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -332,7 +333,7 @@ properties:
 `)
 		})
 		Convey("can dereference ~ / null values", func() {
-			os.Args = []string{"spruce", "merge", "--prune", "meta", "assets/dereference/null.yml"}
+			os.Args = []string{"spruce", "merge", "--prune", "meta", "../assets/dereference/null.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -342,7 +343,7 @@ properties:
 `)
 		})
 		Convey("can dereference nestedly", func() {
-			os.Args = []string{"spruce", "merge", "assets/dereference/multi.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/dereference/multi.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -355,7 +356,7 @@ name4: name
 `)
 		})
 		Convey("static_ips() failures return errors to the user", func() {
-			os.Args = []string{"spruce", "merge", "assets/static_ips/jobs.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/static_ips/jobs.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -363,7 +364,7 @@ name4: name
 			So(stdout, ShouldEqual, "")
 		})
 		Convey("static_ips() get resolved, and are resolved prior to dereferencing", func() {
-			os.Args = []string{"spruce", "merge", "assets/static_ips/properties.yml", "assets/static_ips/jobs.yml", "assets/static_ips/network.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/static_ips/properties.yml", "../assets/static_ips/jobs.yml", "../assets/static_ips/network.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -391,7 +392,7 @@ properties:
 `)
 		})
 		Convey("Parameters override their requirement", func() {
-			os.Args = []string{"spruce", "merge", "assets/params/global.yml", "assets/params/good.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/params/global.yml", "../assets/params/good.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -407,7 +408,7 @@ storage: 4096
 			So(stderr, ShouldEqual, "")
 		})
 		Convey("Parameters must be specified", func() {
-			os.Args = []string{"spruce", "merge", "assets/params/global.yml", "assets/params/fail.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/params/global.yml", "../assets/params/fail.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -415,7 +416,7 @@ storage: 4096
 			So(stderr, ShouldContainSubstring, "$.nested.key.override: provide nested override\n")
 		})
 		Convey("Pruning takes place after parameters", func() {
-			os.Args = []string{"spruce", "merge", "--prune", "nested", "assets/params/global.yml", "assets/params/fail.yml"}
+			os.Args = []string{"spruce", "merge", "--prune", "nested", "../assets/params/global.yml", "../assets/params/fail.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -427,7 +428,7 @@ storage: 4096
 			So(stdout, ShouldEqual, "")
 		})
 		Convey("string concatenation works", func() {
-			os.Args = []string{"spruce", "merge", "--prune", "local", "--prune", "env", "--prune", "cluster", "assets/concat/concat.yml"}
+			os.Args = []string{"spruce", "merge", "--prune", "local", "--prune", "env", "--prune", "cluster", "../assets/concat/concat.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -437,7 +438,7 @@ storage: 4096
 `)
 		})
 		Convey("string concatenation handles non-strings correctly", func() {
-			os.Args = []string{"spruce", "merge", "--prune", "local", "assets/concat/coerce.yml"}
+			os.Args = []string{"spruce", "merge", "--prune", "local", "../assets/concat/coerce.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -447,7 +448,7 @@ storage: 4096
 `)
 		})
 		Convey("string concatenation failure detected", func() {
-			os.Args = []string{"spruce", "merge", "assets/concat/fail.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/concat/fail.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -455,7 +456,7 @@ storage: 4096
 			So(stderr, ShouldContainSubstring, "$.ident: Unable to resolve `local.sites.42.uuid`:")
 		})
 		Convey("string concatentation handles multiple levels of reference", func() {
-			os.Args = []string{"spruce", "merge", "assets/concat/multi.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/concat/multi.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -467,7 +468,7 @@ quux: quux
 
 `)
 			Convey("string concatenation handles infinite loop self-reference", func() {
-				os.Args = []string{"spruce", "merge", "assets/concat/loop.yml"}
+				os.Args = []string{"spruce", "merge", "../assets/concat/loop.yml"}
 				stdout = ""
 				stderr = ""
 				main()
@@ -477,7 +478,7 @@ quux: quux
 		})
 
 		Convey("all errors are displayed", func() {
-			os.Args = []string{"spruce", "merge", "assets/errors/multi.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/errors/multi.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -492,7 +493,7 @@ quux: quux
 		})
 
 		Convey("multiple errors of the same type on the same level are displayed", func() {
-			os.Args = []string{"spruce", "merge", "assets/errors/multi2.yml"}
+			os.Args = []string{"spruce", "merge", "../assets/errors/multi2.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -507,7 +508,7 @@ quux: quux
 		})
 
 		Convey("json command converts YAML to JSON", func() {
-			os.Args = []string{"spruce", "json", "assets/json/in.yml"}
+			os.Args = []string{"spruce", "json", "../assets/json/in.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -516,7 +517,7 @@ quux: quux
 		})
 
 		Convey("json command handles malformed YAML", func() {
-			os.Args = []string{"spruce", "json", "assets/json/malformed.yml"}
+			os.Args = []string{"spruce", "json", "../assets/json/malformed.yml"}
 			stdout = ""
 			stderr = ""
 			main()
@@ -527,85 +528,61 @@ quux: quux
 }
 
 func TestDebug(t *testing.T) {
-	var stderr string
 	usage = func() {}
-	printfStdErr = func(format string, args ...interface{}) {
-		stderr = fmt.Sprintf(format, args...)
-	}
-	Convey("debug", t, func() {
-		Convey("Outputs when debug is set to true", func() {
-			stderr = ""
-			debug = true
-			DEBUG("test debugging")
-			So(stderr, ShouldEqual, "DEBUG> test debugging\n")
-		})
-		Convey("Multi-line debug inputs are each prefixed", func() {
-			stderr = ""
-			debug = true
-			DEBUG("test debugging\nsecond line")
-			So(stderr, ShouldEqual, "DEBUG> test debugging\nDEBUG> second line\n")
-		})
-		Convey("Doesn't output when debug is set to false", func() {
-			stderr = ""
-			debug = false
-			DEBUG("test debugging")
-			So(stderr, ShouldEqual, "")
-		})
-	})
 	Convey("debug flags:", t, func() {
 		Convey("-D enables debugging", func() {
 			os.Args = []string{"spruce", "-D"}
-			debug = false
+			DebugOn = false
 			main()
-			So(debug, ShouldBeTrue)
+			So(DebugOn, ShouldBeTrue)
 		})
 		Convey("--debug enables debugging", func() {
 			os.Args = []string{"spruce", "--debug"}
-			debug = false
+			DebugOn = false
 			main()
-			So(debug, ShouldBeTrue)
+			So(DebugOn, ShouldBeTrue)
 		})
 		Convey("DEBUG=\"tRuE\" enables debugging", func() {
 			os.Setenv("DEBUG", "tRuE")
 			os.Args = []string{"spruce"}
-			debug = false
+			DebugOn = false
 			main()
-			So(debug, ShouldBeTrue)
+			So(DebugOn, ShouldBeTrue)
 		})
 		Convey("DEBUG=1 enables debugging", func() {
 			os.Setenv("DEBUG", "1")
 			os.Args = []string{"spruce"}
-			debug = false
+			DebugOn = false
 			main()
-			So(debug, ShouldBeTrue)
+			So(DebugOn, ShouldBeTrue)
 		})
 		Convey("DEBUG=randomval enables debugging", func() {
 			os.Setenv("DEBUG", "randomval")
 			os.Args = []string{"spruce"}
-			debug = false
+			DebugOn = false
 			main()
-			So(debug, ShouldBeTrue)
+			So(DebugOn, ShouldBeTrue)
 		})
 		Convey("DEBUG=\"fAlSe\" disables debugging", func() {
 			os.Setenv("DEBUG", "fAlSe")
 			os.Args = []string{"spruce"}
-			debug = false
+			DebugOn = false
 			main()
-			So(debug, ShouldBeFalse)
+			So(DebugOn, ShouldBeFalse)
 		})
 		Convey("DEBUG=0 disables debugging", func() {
 			os.Setenv("DEBUG", "0")
 			os.Args = []string{"spruce"}
-			debug = false
+			DebugOn = false
 			main()
-			So(debug, ShouldBeFalse)
+			So(DebugOn, ShouldBeFalse)
 		})
 		Convey("DEBUG=\"\" disables debugging", func() {
 			os.Setenv("DEBUG", "")
 			os.Args = []string{"spruce"}
-			debug = false
+			DebugOn = false
 			main()
-			So(debug, ShouldBeFalse)
+			So(DebugOn, ShouldBeFalse)
 		})
 	})
 }
@@ -690,66 +667,66 @@ func TestExamples(t *testing.T) {
 
 		Convey("Basic Example", func() {
 			example(
-				"examples/basic/main.yml",
-				"examples/basic/merge.yml",
+				"../examples/basic/main.yml",
+				"../examples/basic/merge.yml",
 
-				"examples/basic/output.yml",
+				"../examples/basic/output.yml",
 			)
 		})
 
 		Convey("Map Replacements", func() {
 			example(
-				"examples/map-replacement/original.yml",
-				"examples/map-replacement/delete.yml",
-				"examples/map-replacement/insert.yml",
+				"../examples/map-replacement/original.yml",
+				"../examples/map-replacement/delete.yml",
+				"../examples/map-replacement/insert.yml",
 
-				"examples/map-replacement/output.yml",
+				"../examples/map-replacement/output.yml",
 			)
 		})
 
 		Convey("Key Removal", func() {
 			example(
 				"--prune", "deleteme",
-				"examples/key-removal/original.yml",
-				"examples/key-removal/things.yml",
+				"../examples/key-removal/original.yml",
+				"../examples/key-removal/things.yml",
 
-				"examples/key-removal/output.yml",
+				"../examples/key-removal/output.yml",
 			)
 		})
 
 		Convey("Lists of Maps", func() {
 			example(
-				"examples/list-of-maps/original.yml",
-				"examples/list-of-maps/new.yml",
+				"../examples/list-of-maps/original.yml",
+				"../examples/list-of-maps/new.yml",
 
-				"examples/list-of-maps/output.yml",
+				"../examples/list-of-maps/output.yml",
 			)
 		})
 
 		Convey("Static IPs", func() {
 			example(
-				"examples/static-ips/jobs.yml",
-				"examples/static-ips/properties.yml",
-				"examples/static-ips/networks.yml",
+				"../examples/static-ips/jobs.yml",
+				"../examples/static-ips/properties.yml",
+				"../examples/static-ips/networks.yml",
 
-				"examples/static-ips/output.yml",
+				"../examples/static-ips/output.yml",
 			)
 		})
 
 		Convey("Injecting Subtrees", func() {
 			example(
 				"--prune", "meta",
-				"examples/inject/all-in-one.yml",
+				"../examples/inject/all-in-one.yml",
 
-				"examples/inject/output.yml",
+				"../examples/inject/output.yml",
 			)
 
 			example(
 				"--prune", "meta",
-				"examples/inject/templates.yml",
-				"examples/inject/green.yml",
+				"../examples/inject/templates.yml",
+				"../examples/inject/green.yml",
 
-				"examples/inject/output.yml",
+				"../examples/inject/output.yml",
 			)
 		})
 	})

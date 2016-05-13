@@ -1,10 +1,12 @@
-package main
+package spruce
 
 import (
 	"fmt"
-	"github.com/jhunt/tree"
 	"sort"
 	"strconv"
+
+	. "github.com/geofffranks/spruce/log"
+	"github.com/jhunt/tree"
 )
 
 // Evaluator ...

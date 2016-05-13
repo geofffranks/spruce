@@ -1,9 +1,11 @@
-package main
+package spruce
 
 import (
 	"fmt"
-	"github.com/jhunt/tree"
 	"sort"
+
+	. "github.com/geofffranks/spruce/log"
+	"github.com/jhunt/tree"
 )
 
 // KeysOperator ...
