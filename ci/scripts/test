@@ -1,5 +1,15 @@
 #!/bin/bash
 
+newgopath=${ROOT%%/gopath/*}/gopath
+if [[ -d ${newgopath} ]]; then
+	if [[ -z ${GOPATH} ]]; then
+		GOPATH="${newgopath}"
+	else
+		GOPATH="${newgopath}:${GOPATH}"
+	fi
+	PATH="${PATH}:${newgopath}/bin"
+fi
+
 # change to root of release
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 cd $DIR/../..
