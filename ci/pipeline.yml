@@ -65,6 +65,7 @@ groups:
       - shipit
       - major
       - minor
+      - bump-patch
       - (( grab meta.cf.app.name ))
       - update-homebrew
 
@@ -108,6 +109,11 @@ jobs:
       - { get: version, trigger: false, params: {bump: major} }
       - { put: version,                 params: {file: version/number} }
 
+  - name: bump-patch
+    public: true
+    plan:
+    - { get: version, trigger: true, params: { bump: minor}, passed: [shipit] }
+
   - name: shipit
     public: true
     serial: true
@@ -139,9 +145,6 @@ jobs:
             BRANCH:       (( grab meta.github.branch ))
 
       - aggregate:
-        - put: version
-          params:
-            bump: patch
         - put: git
           params:
             rebase: true
