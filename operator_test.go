@@ -172,7 +172,7 @@ func TestOperators(t *testing.T) {
 				opOk(`(( null $_SPRUCE ))`, "null", env("_SPRUCE"))
 				opOk(`(( null $ENOENT || $SPRUCE_FOO ))`, "null",
 					or(env("ENOENT"), env("SPRUCE_FOO")))
-			});
+			})
 
 			Convey("throws errors for malformed expression", func() {
 				opErr(`(( null meta.key ||, nil ))`,
@@ -553,6 +553,9 @@ math:
 
 	Convey("static_ips Operator", t, func() {
 		op := StaticIPOperator{}
+		Reset(func() {
+			UsedIPs = map[string]string{}
+		})
 
 		Convey("can resolve valid networks inside of job contexts", func() {
 			ev := &Evaluator{
@@ -582,6 +585,33 @@ jobs:
 			So(v[0], ShouldEqual, "10.0.0.5")
 			So(v[1], ShouldEqual, "10.0.0.6")
 			So(v[2], ShouldEqual, "10.0.0.7")
+		})
+		Convey("works with new style bosh manifests", func() {
+			ev := &Evaluator{
+				Here: cursor("instance_groups.job1.networks.0.static_ips"),
+				Tree: YAML(
+					`networks:
+- name: test-net
+  subnets:
+  - static: [ 10.0.0.5 - 10.0.0.10 ]
+instance_groups:
+- name: job1
+  instances: 2
+  networks:
+  - name: test-net
+    static_ips: <------------- HERE ------------
+`),
+			}
+
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			v, ok := r.Value.([]interface{})
+			So(ok, ShouldBeTrue)
+			So(len(v), ShouldEqual, 2)
+			So(v[0], ShouldEqual, "10.0.0.5")
+			So(v[1], ShouldEqual, "10.0.0.6")
 		})
 
 		Convey("can resolve valid large networks inside of job contexts", func() {
