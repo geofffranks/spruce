@@ -87,7 +87,7 @@ jobs:
             path: (( concat "./gopath/src/" meta.go.module "/ci/scripts/test" ))
             args: []
           params:
-            REPO_ROOT: git
+            MODULE: (( grab meta.go.module ))
 
   - name: rc
     public: true
