@@ -9,6 +9,7 @@ if [[ -d ${newgopath} ]]; then
 	fi
 	PATH="${PATH}:${newgopath}/bin"
 fi
+GOPATH=${GOPATH}:.
 
 # change to root of release
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
