@@ -54,16 +54,18 @@ func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*tree.Cursor)
 
 	// need all the job instance count decls
 	track("jobs.*.instances")
+	track("instance_groups.*.instances")
 
 	// need all the job network name decls
 	track("jobs.*.networks.*.name")
+	track("instance_groups.*.networks.*.name")
 
 	return l
 }
 
 func currentJob(ev *Evaluator) (*tree.Cursor, error) {
 	c := ev.Here.Copy()
-	for c.Depth() > 0 && c.Parent() != "jobs" {
+	for c.Depth() > 0 && c.Parent() != "jobs" && c.Parent() != "instance_groups" {
 		c.Pop()
 	}
 
