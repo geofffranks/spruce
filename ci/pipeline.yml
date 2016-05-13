@@ -147,6 +147,7 @@ jobs:
             CMD_PKG:      (( grab meta.go.cmd_module ))
 
       - aggregate:
+        - put: version
         - put: git
           params:
             rebase: true
