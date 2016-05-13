@@ -3,7 +3,7 @@
 set -e
 
 export GOPATH=${PWD}/gopath
-export PATH=${PATH:${GOPATH}/bin
+export PATH=${PATH}:${GOPATH}/bin
 cd ${GOPATH}/src/${MODULE}
 
 godep restore
