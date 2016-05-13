@@ -27,7 +27,7 @@ Alternatively,  you can download a [prebuilt binaries for 64-bit Linux, or Mac O
 or you can install via `go get` (provided you have installed go):
 
 ```
-go get github.com/geofffranks/spruce
+go get github.com/geofffranks/spruce/...
 ```
 
 ## Merging Rules
