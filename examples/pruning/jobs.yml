@@ -1,0 +1,6 @@
+jobs:
+  - name: test
+    instances: 1
+    networks:
+    - test
+    static_ips: (( static_ips(0) ))

@@ -1,0 +1,10 @@
+networks:
+- name: test
+  subnets:
+  - name: private
+    range: 10.0.0.0/24
+    gateway: 10.0.0.1
+    reserved:
+    - 10.0.0.2 - 10.0.0.49
+    static:
+    - 10.0.0.50 - 10.0.0.60

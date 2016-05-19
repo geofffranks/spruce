@@ -1,0 +1,7 @@
+jobs:
+  - name: test
+    instances: 1
+    networks:
+    - test
+    static_ips:
+    - 10.0.0.50

@@ -692,6 +692,14 @@ func TestExamples(t *testing.T) {
 
 				"../examples/key-removal/output.yml",
 			)
+
+			example(
+				"../examples/pruning/base.yml",
+				"../examples/pruning/jobs.yml",
+				"../examples/pruning/networks.yml",
+
+				"../examples/pruning/output.yml",
+			)
 		})
 
 		Convey("Lists of Maps", func() {

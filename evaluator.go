@@ -9,6 +9,8 @@ import (
 	"github.com/jhunt/tree"
 )
 
+var keysToPrune []string
+
 // Evaluator ...
 type Evaluator struct {
 	Tree map[interface{}]interface{}
@@ -341,7 +343,8 @@ func (ev *Evaluator) Run(prune []string) error {
 	errors := MultiError{Errors: []error{}}
 	errors.Append(ev.RunPhase(MergePhase))
 	errors.Append(ev.RunPhase(EvalPhase))
-	errors.Append(ev.Prune(prune))
+	errors.Append(ev.Prune(append(keysToPrune, prune...)))
+	keysToPrune = nil
 
 	// this is a big failure...
 	if err := ev.CheckForCycles(4096); err != nil {
