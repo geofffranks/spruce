@@ -6,9 +6,9 @@ import (
 	"github.com/smallfish/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/yaml.v2"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -168,17 +168,23 @@ secret: REDACTED
 		RunTests(`
 ################################################  emits sensitive credentials
 ---
-meta: secret/key:test
+meta:
+  prefix: secret
+  key: secret/key:test
 secret: (( vault "secret/hand:shake" ))
 username: (( vault "secret/admin:username" ))
 password: (( vault "secret/admin:password" ))
-key: (( vault $.meta ))
+prefixed: (( vault meta.prefix "/admin:password" ))
+key: (( vault $.meta.key ))
 
 ---
-meta: secret/key:test
+meta:
+  key: secret/key:test
+  prefix: secret
 secret: knock, knock
 username: admin
 password: x12345
+prefixed: x12345
 key: testing
 `)
 
@@ -200,7 +206,7 @@ secret: knock, knock
 		os.Setenv("HOME", "assets/home/svtoken")
 		ioutil.WriteFile("assets/home/svtoken/.svtoken",
 			[]byte("vault: "+mock.URL+"\n"+
-			       "token: sekrit-toekin\n"), 0644)
+				"token: sekrit-toekin\n"), 0644)
 		RunTests(`
 ##############################  retrieves token transparently from ~/.svtoken
 ---
@@ -221,7 +227,7 @@ secret: (( vault ))
 
 ---
 1 error(s) detected:
- - $.secret: vault operator requires exactly one argument
+ - $.secret: vault operator requires at least one argument
 
 #########################################  fails on non-existent reference
 ---

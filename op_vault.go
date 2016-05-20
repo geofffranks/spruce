@@ -45,51 +45,56 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	defer DEBUG("done with (( vault ... )) operation at $.%s\n", ev.Here)
 
 	// syntax: (( vault "secret/path:key" ))
-	if len(args) != 1 {
-		return nil, fmt.Errorf("vault operator requires exactly one argument")
+	// syntax: (( vault path.object "to concat with" other.object ))
+	if len(args) < 1 {
+		return nil, fmt.Errorf("vault operator requires at least one argument")
 	}
 
-	v, err := args[0].Resolve(ev.Tree)
-	if err != nil {
-		DEBUG("  arg[0]: failed to resolve expression to a concrete value")
-		DEBUG("     [0]: error was: %s", err)
-		return nil, err
-	}
-
-	var key string
-	switch v.Type {
-	case Literal:
-		DEBUG("  arg[0]: using string literal '%v'", v.Literal)
-		key = fmt.Sprintf("%v", v.Literal)
-
-	case Reference:
-		DEBUG("  arg[0]: trying to resolve reference $.%s", v.Reference)
-		s, err := v.Reference.Resolve(ev.Tree)
+	var l []string
+	for i, arg := range args {
+		v, err := arg.Resolve(ev.Tree)
 		if err != nil {
-			DEBUG("     [0]: resolution failed\n    error: %s", err)
-			return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
+			DEBUG("  arg[%d]: failed to resolve expression to a concrete value", i)
+			DEBUG("     [%d]: error was: %s", i, err)
+			return nil, err
 		}
 
-		switch s.(type) {
-		case map[interface{}]interface{}:
-			DEBUG("  arg[0]: %v is not a string scalar", s)
-			return nil, fmt.Errorf("tried to look up $.%s, which is not a string scalar", v.Reference)
+		switch v.Type {
+		case Literal:
+			DEBUG("  arg[%d]: using string literal '%v'", i, v.Literal)
+			l = append(l, fmt.Sprintf("%v", v.Literal))
 
-		case []interface{}:
-			DEBUG("  arg[0]: %v is not a string scalar", s)
-			return nil, fmt.Errorf("tried to look up $.%s, which is not a string scalar", v.Reference)
+		case Reference:
+			DEBUG("  arg[%d]: trying to resolve reference $.%s", i, v.Reference)
+			s, err := v.Reference.Resolve(ev.Tree)
+			if err != nil {
+				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
+				return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
+			}
+
+			switch s.(type) {
+			case map[interface{}]interface{}:
+				DEBUG("  arg[%d]: %v is not a string scalar", i, s)
+				return nil, fmt.Errorf("tried to look up $.%s, which is not a string scalar", v.Reference)
+
+			case []interface{}:
+				DEBUG("  arg[%d]: %v is not a string scalar", i, s)
+				return nil, fmt.Errorf("tried to look up $.%s, which is not a string scalar", v.Reference)
+
+			default:
+				l = append(l, fmt.Sprintf("%v", s))
+			}
 
 		default:
-			key = fmt.Sprintf("%v", s)
+			DEBUG("  arg[%d]: I don't know what to do with '%v'", i, arg)
+			return nil, fmt.Errorf("vault operator only accepts string literals and key reference arguments")
 		}
-
-	default:
-		DEBUG("  arg[0]: I don't know what to do with '%v'", args[0])
-		return nil, fmt.Errorf("vault operator only accepts string literals and key reference arguments")
 	}
+	key := strings.Join(l, "")
 	DEBUG("     [0]: Using vault key '%s'\n", key)
 
 	secret := "REDACTED"
+	var err error
 
 	if os.Getenv("REDACT") == "" {
 		/*
