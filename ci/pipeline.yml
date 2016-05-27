@@ -55,8 +55,6 @@ meta:
     password: (( param "Specify the password for the user deploying the app" ))
     url: (( param "Specify the URL to the CF api" ))
 
-  homebrew:
-    recipe: (( param "Specify the homebrew recipe to update" ))
 
 groups:
   - name: (( grab meta.name ))
@@ -68,7 +66,6 @@ groups:
       - minor
       - bump-patch
       - (( grab meta.cf.app.name ))
-      - update-homebrew
 
 jobs:
   - name: test
@@ -161,46 +158,6 @@ jobs:
             body:   gh/notes.md
             globs: [gh/artifacts/*]
 
-  - name: update-homebrew
-    public: true
-    serial: true
-    plan:
-    - aggregate:
-      - get: version
-        passed: [shipit]
-      - get: git
-        resource: git
-      - get: homebrew-repo
-        resource: homebrew
-      - get: github
-        resource: github
-        passed: [shipit]
-        trigger: true
-    - task: update-homebrew
-      config:
-        platform: linux
-        image: (( grab meta.image ))
-        inputs:
-        - name: homebrew-repo
-        - name: git
-        - name: github
-        - name: version
-        outputs:
-        - name: pushme
-        run:
-          path: "git/ci/scripts/update-homebrew.sh"
-          args:
-          - (( grab meta.homebrew.recipe ))
-        params:
-          REPO_ROOT: homebrew-repo
-          REPO_OUT: pushme
-          VERSION_FROM: version/number
-          BINARY: (( concat meta.go.binary "-darwin-amd64" ))
-    - put: homebrew
-      params:
-        repository: pushme/homebrew
-        rebase: true
-
   - name: (( grab meta.cf.app.name ))
     public: true
     serial: true
@@ -268,13 +225,6 @@ resources:
     user:         (( grab meta.github.owner ))
     repository:   (( grab meta.github.repo ))
     access_token: (( grab meta.github.access_token ))
-
-- name: homebrew
-  type: git
-  source:
-    uri: git@github.com:starkandwayne/homebrew-cf.git
-    branch: master
-    private_key: (( grab meta.github.private_key ))
 
 - name: (( grab meta.cf.app.name ))
   type: git
