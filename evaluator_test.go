@@ -1546,6 +1546,8 @@ value: (( grab meta.key ))
 			}
 
 			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldBeNil)
+			err = ev.RunPhase(ParamPhase)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "you must specify this")
 		})
@@ -1561,6 +1563,8 @@ value: (( concat "key=" meta.key ))
 			}
 
 			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldBeNil)
+			err = ev.RunPhase(ParamPhase)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "you must specify this")
 		})

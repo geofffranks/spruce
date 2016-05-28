@@ -477,17 +477,15 @@ quux: quux
 			})
 		})
 
-		Convey("all errors are displayed", func() {
+		Convey("only param errors are displayed, if present", func() {
 			os.Args = []string{"spruce", "merge", "../assets/errors/multi.yml"}
 			stdout = ""
 			stderr = ""
 			main()
 			So(stdout, ShouldEqual, "")
 			So(stderr, ShouldEqual, ""+
-				"3 error(s) detected:\n"+
+				"1 error(s) detected:\n"+
 				" - $.an-error: missing param!\n"+
-				" - $.another-error: Unable to resolve `meta.enoent`: `$.meta` could not be found in the datastructure\n"+
-				" - $.last-problem: Unable to resolve `meta.missing.host`: `$.meta` could not be found in the datastructure\n"+
 				"\n\n"+
 				"")
 		})

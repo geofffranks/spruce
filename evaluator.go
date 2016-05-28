@@ -339,13 +339,21 @@ func (ev *Evaluator) RunPhase(p OperatorPhase) error {
 // Run ...
 func (ev *Evaluator) Run(prune []string) error {
 	errors := MultiError{Errors: []error{}}
+	paramErrs := MultiError{Errors: []error{}}
+
 	errors.Append(ev.RunPhase(MergePhase))
 	errors.Append(ev.RunPhase(EvalPhase))
-	errors.Append(ev.Prune(prune))
 
 	// this is a big failure...
 	if err := ev.CheckForCycles(4096); err != nil {
 		return err
+	}
+
+	paramErrs.Append(ev.RunPhase(ParamPhase))
+	errors.Append(ev.Prune(prune))
+
+	if len(paramErrs.Errors) > 0 {
+		return paramErrs
 	}
 
 	if len(errors.Errors) > 0 {
