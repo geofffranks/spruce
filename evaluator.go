@@ -22,6 +22,26 @@ type Evaluator struct {
 	pointer *interface{}
 }
 
+func nameOfObj(o interface{}, def string) string {
+	for _, field := range tree.NameFields {
+		switch o.(type) {
+		case map[string]interface{}:
+			if value, ok := o.(map[string]interface{})[field]; ok {
+				if s, ok := value.(string); ok {
+					return s
+				}
+			}
+		case map[interface{}]interface{}:
+			if value, ok := o.(map[interface{}]interface{})[field]; ok {
+				if s, ok := value.(string); ok {
+					return s
+				}
+			}
+		}
+	}
+	return def
+}
+
 // DataFlow ...
 func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 	ev.Here = &tree.Cursor{}
@@ -67,7 +87,13 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 
 		case []interface{}:
 			for i, v := range o.([]interface{}) {
-				ev.Here.Push(tree.NameOfObj(v, fmt.Sprintf("%d", i)))
+				name := nameOfObj(v, fmt.Sprintf("%d", i))
+				op, _ := ParseOpcall(phase, name)
+				if op == nil {
+					ev.Here.Push(name)
+				} else {
+					ev.Here.Push(fmt.Sprintf("%d", i))
+				}
 				check(v)
 				ev.Here.Pop()
 			}
