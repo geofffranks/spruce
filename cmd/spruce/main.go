@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jhunt/ansi"
 	"io/ioutil"
 	"os"
 
@@ -24,7 +25,7 @@ var printfStdOut = func(format string, args ...interface{}) {
 }
 
 var printfStdErr = func(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format, args...)
+	fmt.Fprintf(os.Stdout, format, args...)
 }
 
 var getopts = func(o interface{}) {
@@ -162,7 +163,7 @@ func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 
 	doc, err := y.Map()
 	if err != nil {
-		return nil, fmt.Errorf("Root of YAML document is not a hash/map: %s\n", err.Error())
+		return nil, ansi.Errorf("@R{Root of YAML document is not a hash/map}: %s\n", err.Error())
 	}
 
 	return doc, nil
@@ -175,7 +176,7 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 		DEBUG("Processing file '%s'", path)
 		data, err := ioutil.ReadFile(path)
 		if err != nil {
-			return fmt.Errorf("Error reading file %s: %s\n", path, err.Error())
+			return ansi.Errorf("@R{Error reading file} @m{%s}: %s\n", path, err.Error())
 		}
 
 		if handleConcourseQuoting {
@@ -184,7 +185,7 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 
 		doc, err := parseYAML(data)
 		if err != nil {
-			return fmt.Errorf("%s: %s\n", path, err.Error())
+			return ansi.Errorf("@m{%s}: @R{%s}\n", path, err.Error())
 		}
 
 		m.Merge(root, doc)

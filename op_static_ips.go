@@ -3,6 +3,7 @@ package spruce
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/jhunt/ansi"
 	"net"
 	"strconv"
 	"strings"
@@ -85,10 +86,10 @@ func instances(ev *Evaluator, job *tree.Cursor) (int, error) {
 
 	i, err := strconv.ParseInt(inst, 10, 0)
 	if err != nil {
-		return 0, fmt.Errorf("the `instances:` for the current job is not numeric")
+		return 0, ansi.Errorf("@R{the `}@c{instances:}@R{` for the current job is not numeric}")
 	}
 	if i < 0 {
-		return 0, fmt.Errorf("negative number found in `instances:` for the current job")
+		return 0, ansi.Errorf("@R{negative number found in `}@c{instances:}@R{` for the current job}")
 	}
 	return int(i), nil
 }
@@ -121,7 +122,7 @@ func statics(ev *Evaluator) ([]string, error) {
 		}
 
 		if _, ok := r.(string); !ok {
-			return addrs, fmt.Errorf("%s is not a well-formed BOSH network", name)
+			return addrs, ansi.Errorf("@c{%s} @R{is not a well-formed BOSH network}", name)
 		}
 
 		segments := strings.Split(r.(string), "-")
@@ -131,7 +132,7 @@ func statics(ev *Evaluator) ([]string, error) {
 
 		start := net.ParseIP(segments[0])
 		if start == nil {
-			return nil, fmt.Errorf("%s: not a valid IP address", segments[0])
+			return nil, ansi.Errorf("@c{%s}@R{: not a valid IP address}", segments[0])
 		}
 
 		addrs = append(addrs, start.String())
@@ -141,11 +142,11 @@ func statics(ev *Evaluator) ([]string, error) {
 
 		end := net.ParseIP(segments[1])
 		if end == nil {
-			return nil, fmt.Errorf("%s: not a valid IP address", segments[1])
+			return nil, ansi.Errorf("@c{%s}@R{: not a valid IP address}", segments[1])
 		}
 
 		if binary.BigEndian.Uint32(start.To4()) > binary.BigEndian.Uint32(end.To4()) {
-			return nil, fmt.Errorf("Static IP pool [%s - %s] ends before it starts", start, end)
+			return nil, ansi.Errorf("@R{Static IP pool }@c{[%s - %s]} @R{ends before it starts}", start, end)
 		}
 
 		for !start.Equal(end) {
@@ -218,7 +219,7 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	DEBUG("  checking to see if the caller asked for enough static_ips to provision all job instances (need at least %d)", inst)
 	if len(args) < inst {
 		DEBUG("  oops.  you asked for %d IPs for a job with %d instances\n", len(args), inst)
-		return nil, fmt.Errorf("not enough static IPs requested for job of %d instances (only asked for %d)", inst, len(args))
+		return nil, ansi.Errorf("@R{not enough static IPs requested for} @c{job of %d instances} @R{(only asked for} @c{%d}@R{)}", inst, len(args))
 	}
 	DEBUG("  looks good.  asking for %d IPs for a job with %d instances\n", len(args), inst)
 
@@ -274,7 +275,7 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		DEBUG("  arg[%d]: asking for the %d%s IP from the static address pool", i, offset, ord(offset))
 		if offset >= len(pool) {
 			DEBUG("     [%d]: pool only has %d addresses; offset %d is out of bounds\n", i, len(pool), offset)
-			return nil, fmt.Errorf("request for static_ip(%d) in a pool of only %d (zero-indexed) static addresses", offset, len(pool))
+			return nil, ansi.Errorf("@R{request for} @c{static_ip(%d)} @R{in a pool of only} @c{%d (zero-indexed)} @R{static addresses}", offset, len(pool))
 		}
 
 		// check to see if the address is already claimed
@@ -282,7 +283,7 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		DEBUG("     [%d]: checking to see if %s is already claimed", i, ip)
 		if thief, taken := UsedIPs[ip]; taken {
 			DEBUG("     [%d]: %s is in use by %s\n", i, ip, thief)
-			return nil, fmt.Errorf("tried to use IP '%s', but that address is already allocated to %s", ip, thief)
+			return nil, ansi.Errorf("@R{tried to use IP '}@c{%s}@R{', but that address is already allocated to} @c{%s}", ip, thief)
 		}
 
 		// claim this address for ourselves

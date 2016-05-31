@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+	"github.com/jhunt/ansi"
 	"strings"
 
 	"github.com/jhunt/tree"
@@ -63,11 +64,11 @@ func (ConcatOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			switch s.(type) {
 			case map[interface{}]interface{}:
 				DEBUG("  arg[%d]: %v is not a string scalar", i, s)
-				return nil, fmt.Errorf("tried to concat %s, which is not a string scalar", v.Reference)
+				return nil, ansi.Errorf("@R{tried to concat} @c{%s}@R{, which is not a string scalar}", v.Reference)
 
 			case []interface{}:
 				DEBUG("  arg[%d]: %v is not a string scalar", i, s)
-				return nil, fmt.Errorf("tried to concat %s, which is not a string scalar", v.Reference)
+				return nil, ansi.Errorf("@R{tried to concat} @c{%s}@R{, which is not a string scalar}", v.Reference)
 
 			default:
 				DEBUG("     [%d]: appending '%s' to resultant string", i, s)

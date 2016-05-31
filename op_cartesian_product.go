@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+	"github.com/jhunt/ansi"
 
 	"github.com/jhunt/tree"
 
@@ -64,7 +65,7 @@ func (CartesianProductOperator) Run(ev *Evaluator, args []*Expr) (*Response, err
 			s, err := v.Reference.Resolve(ev.Tree)
 			if err != nil {
 				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
-				return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
+				return nil, ansi.Errorf("Unable to resolve `@m{%s}`: %s", v.Reference, err)
 			}
 			switch s.(type) {
 			case []interface{}:
@@ -105,7 +106,7 @@ func (CartesianProductOperator) Run(ev *Evaluator, args []*Expr) (*Response, err
 	switch len(args) {
 	case 0:
 		DEBUG("  no arguments supplied to (( cartesian-product ... )) operation.  oops.")
-		return nil, fmt.Errorf("no arguments specified to (( cartesian-product ... ))")
+		return nil, ansi.Errorf("no arguments specified to @c{(( cartesian-product ... ))}")
 
 	case 1:
 		DEBUG("  called with only one argument; returning value as-is")

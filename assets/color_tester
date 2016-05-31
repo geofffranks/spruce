@@ -1,0 +1,45 @@
+#!/bin/bash
+
+echo "Bad YAML for 'spruce json'"
+echo '"3"' | ./spruce json
+echo
+
+echo "Bad stdin for 'spruce json'"
+./spruce json </dev/null
+echo
+
+echo "Bad file for 'spruce json'"
+./spruce json nonexistent.yml
+echo; echo
+
+echo "Bad YAML root"
+./spruce merge assets/json/non-map.yml
+
+echo "Bad File"
+./spruce merge nonexistent.yml
+echo
+
+echo "Bad YAML parsing"
+./spruce merge assets/json/malformed.yml
+
+echo Recursion Depth
+./spruce merge assets/dereference/cyclic-data.yml
+echo; echo
+
+echo bad merge into non-array
+./spruce merge assets/merge/first.yml assets/merge/non-array-merge.yml
+
+echo bad merge using keys
+./spruce merge assets/merge/first.yml assets/merge/error.yml
+
+echo bad merge using keys that don\'t exist
+./spruce merge assets/merge/first.yml assets/merge/no-key-merge.yml
+echo
+
+echo Syntax error
+./spruce merge assets/concat/fail.yml
+
+echo NotFoundError, TypeMisMatchErrors, all operator errors, all tree errors
+./spruce merge assets/errors/colortest.yml
+
+exit 0

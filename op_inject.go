@@ -3,6 +3,7 @@ package spruce
 import (
 	"fmt"
 
+	"github.com/jhunt/ansi"
 	"github.com/jhunt/tree"
 
 	. "github.com/geofffranks/spruce/log"
@@ -33,7 +34,7 @@ func (InjectOperator) Dependencies(ev *Evaluator, args []*Expr, locs []*tree.Cur
 		for _, other := range locs {
 			canon, err := arg.Reference.Canonical(ev.Tree)
 			if err != nil {
-				panic(err)
+				return []*tree.Cursor{}
 			}
 			if other.Under(canon) {
 				l = append(l, other)
@@ -75,7 +76,7 @@ func (InjectOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			m, ok := s.(map[interface{}]interface{})
 			if !ok {
 				DEBUG("     [%d]: resolved to something that is not a map.  that is unacceptable.", i)
-				return nil, fmt.Errorf("%s is not a map", v.Reference)
+				return nil, ansi.Errorf("@c{%s} @R{is not a map}", v.Reference)
 			}
 
 			DEBUG("     [%d]: resolved to a map; appending to the list of maps to merge/inject", i)
@@ -91,7 +92,7 @@ func (InjectOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	switch len(vals) {
 	case 0:
 		DEBUG("  no arguments supplied to (( inject ... )) operation.  oops.")
-		return nil, fmt.Errorf("no arguments specified to (( inject ... ))")
+		return nil, ansi.Errorf("no arguments specified to @c{(( inject ... ))}")
 
 	default:
 		DEBUG("  merging found maps into a single map to be injected")

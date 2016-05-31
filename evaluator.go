@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+	"github.com/jhunt/ansi"
 	"sort"
 	"strconv"
 
@@ -66,7 +67,7 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 
 		case []interface{}:
 			for i, v := range o.([]interface{}) {
-				ev.Here.Push(fmt.Sprintf("%d", i))
+				ev.Here.Push(tree.NameOfObj(v, fmt.Sprintf("%d", i)))
 				check(v)
 				ev.Here.Pop()
 			}
@@ -138,7 +139,7 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 		wave++
 		free := freeNodes(g)
 		if len(free) == 0 {
-			return nil, fmt.Errorf("cycle detected in operator data-flow graph")
+			return nil, ansi.Errorf("@*{cycle detected in operator data-flow graph}")
 		}
 
 		for _, node := range free {
@@ -214,7 +215,7 @@ func (ev *Evaluator) CheckForCycles(maxDepth int) error {
 	var check func(o interface{}, depth int) error
 	check = func(o interface{}, depth int) error {
 		if depth == 0 {
-			return fmt.Errorf("Hit max recursion depth. You seem to have a self-referencing dataset")
+			return ansi.Errorf("@*{Hit max recursion depth. You seem to have a self-referencing dataset}")
 		}
 
 		switch o.(type) {
@@ -278,7 +279,7 @@ func (ev *Evaluator) RunOp(op *Opcall) error {
 			o.(map[interface{}]interface{})[key] = resp.Value
 
 		default:
-			err := TypeMismatchError{
+			err := tree.TypeMismatchError{
 				Path:   parent.Nodes,
 				Wanted: "a map or a list",
 				Got:    "a scalar",

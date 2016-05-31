@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+	"github.com/jhunt/ansi"
 	"os"
 	"regexp"
 	"strconv"
@@ -168,7 +169,7 @@ func (e *Expr) Reduce() (*Expr, error) {
 
 	reduced, short, more := reduce(e)
 	if more && short != nil {
-		return reduced, fmt.Errorf("literal %v short-circuits expression (%s)", short, e)
+		return reduced, ansi.Errorf("@R{literal} @c{%v} @R{short-circuits expression (}@c{%s}@R{)}", short, e)
 	}
 	return reduced, nil
 }
@@ -182,13 +183,13 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 	case EnvVar:
 		v := os.Getenv(e.Name)
 		if v == "" {
-			return nil, fmt.Errorf("Environment variable $%s is not set", e.Name)
+			return nil, ansi.Errorf("@R{Environment variable} @c{$%s} @R{is not set}", e.Name)
 		}
 		return &Expr{Type: Literal, Literal: v}, nil
 
 	case Reference:
 		if _, err := e.Reference.Resolve(tree); err != nil {
-			return nil, fmt.Errorf("Unable to resolve `%s`: %s", e.Reference, err)
+			return nil, ansi.Errorf("@R{Unable to resolve `}@c{%s}@R{`: %s}", e.Reference, err)
 		}
 		return e, nil
 
@@ -198,7 +199,7 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 		}
 		return e.Right.Resolve(tree)
 	}
-	return nil, fmt.Errorf("unknown expression operand type (%d)", e.Type)
+	return nil, ansi.Errorf("@R{unknown expression operand type (}@c{%d}@R{)}", e.Type)
 }
 
 // Evaluate ...
@@ -493,7 +494,7 @@ func (op *Opcall) Run(ev *Evaluator) (*Response, error) {
 	ev.Here = was
 
 	if err != nil {
-		return nil, fmt.Errorf("$.%s: %s", op.where, err)
+		return nil, ansi.Errorf("@m{$.%s}: @R{%s}", op.where, err)
 	}
 	return r, nil
 }
