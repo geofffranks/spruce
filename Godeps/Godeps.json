@@ -4,7 +4,7 @@
 	"Deps": [
 		{
 			"ImportPath": "github.com/jhunt/tree",
-			"Rev": "2ad45c3404f9ea8116987e8a36db6f6d892aad26"
+			"Rev": "9a14b11d623f55770b95a4193e35d42c849807be"
 		},
 		{
 			"ImportPath": "github.com/jtolds/gls",

@@ -12,6 +12,27 @@ type Cursor struct {
 	Nodes []string
 }
 
+var nameFields = []string{"name", "key", "id"}
+
+func NameOfObj(o interface{}, def string) string {
+	for _, field := range nameFields {
+		switch o.(type) {
+		case map[string]interface{}:
+			if value, ok := o.(map[string]interface{})[field]; ok {
+				if s, ok := value.(string); ok {
+					return s
+				}
+			}
+		case map[interface{}]interface{}:
+			if value, ok := o.(map[interface{}]interface{})[field]; ok {
+				if s, ok := value.(string); ok {
+					return s
+				}
+			}
+		}
+	}
+	return def
+}
 func listFind(l []interface{}, fields []string, key string) (interface{}, uint64, bool) {
 	for _, field := range fields {
 		for i, v := range l {
@@ -174,19 +195,18 @@ func (c *Cursor) Canonical(o interface{}) (*Cursor, error) {
 					}
 				}
 				o = o.([]interface{})[i]
-
 			} else {
 				// if k is a string, look for immediate map descendants who have
 				//     'name', 'key' or 'id' fields matching k
 				var found bool
-				o, i, found = listFind(o.([]interface{}), []string{"name", "key", "id"}, k)
+				o, i, found = listFind(o.([]interface{}), nameFields, k)
 				if !found {
 					return nil, NotFoundError{
 						Path: canon.Nodes,
 					}
 				}
 			}
-			canon.Push(fmt.Sprintf("%d", i))
+			canon.Push(NameOfObj(o, fmt.Sprintf("%d", i)))
 
 		case map[string]interface{}:
 			canon.Push(k)
@@ -296,7 +316,7 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 				// if k is a string, look for immediate map descendants who have
 				//     'name', 'key' or 'id' fields matching k
 				var found bool
-				o, _, found = listFind(o.([]interface{}), []string{"name", "key", "id"}, k)
+				o, _, found = listFind(o.([]interface{}), nameFields, k)
 				if !found {
 					return nil, NotFoundError{
 						Path: path[0 : pos+1],
@@ -413,7 +433,7 @@ func (c *Cursor) Resolve(o interface{}) (interface{}, error) {
 			// if k is a string, look for immediate map descendants who have
 			//     'name', 'key' or 'id' fields matching k
 			var found bool
-			o, _, found = listFind(o.([]interface{}), []string{"name", "key", "id"}, k)
+			o, _, found = listFind(o.([]interface{}), nameFields, k)
 			if !found {
 				return nil, NotFoundError{
 					Path: path,

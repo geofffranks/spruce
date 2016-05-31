@@ -2,6 +2,7 @@ package tree
 
 import (
 	"fmt"
+	"github.com/jhunt/ansi"
 	"strings"
 )
 
@@ -27,12 +28,12 @@ type TypeMismatchError struct {
 // Error ...
 func (e TypeMismatchError) Error() string {
 	if e.Got == "" {
-		return fmt.Sprintf("%s is not %s", strings.Join(e.Path, "."), e.Wanted)
+		return ansi.Sprintf("@c{%s} @R{is not} @m{%s}", strings.Join(e.Path, "."), e.Wanted)
 	}
 	if e.Value != nil {
-		return fmt.Sprintf("$.%s [=%v] is %s (not %s)", strings.Join(e.Path, "."), e.Value, e.Got, e.Wanted)
+		return ansi.Sprintf("@c{$.%s} @{R[=%v] is %s (not} @m{%s}@R{)}", strings.Join(e.Path, "."), e.Value, e.Got, e.Wanted)
 	}
-	return fmt.Sprintf("$.%s is %s (not %s)", strings.Join(e.Path, "."), e.Got, e.Wanted)
+	return ansi.Sprintf("@C{$.%s} @R{is %s} (not @m{%s}@R{)}", strings.Join(e.Path, "."), e.Got, e.Wanted)
 }
 
 // NotFoundError ...
@@ -42,5 +43,5 @@ type NotFoundError struct {
 
 // Error ...
 func (e NotFoundError) Error() string {
-	return fmt.Sprintf("`$.%s` could not be found in the datastructure", strings.Join(e.Path, "."))
+	return ansi.Sprintf("@R{`}@c{$.%s}@R{` could not be found in the datastructure}", strings.Join(e.Path, "."))
 }
