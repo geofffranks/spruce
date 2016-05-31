@@ -1,7 +1,14 @@
 {
 	"ImportPath": "github.com/geofffranks/spruce",
 	"GoVersion": "go1.5",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
+		{
+			"ImportPath": "github.com/jhunt/ansi",
+			"Rev": "00e72a4f1f15762f5878f6cf6a1c78b7173c3b5b"
+		},
 		{
 			"ImportPath": "github.com/jhunt/tree",
 			"Rev": "1d060b48c6f81b6924cb3e3d301c117498ee24dc"
@@ -9,6 +16,10 @@
 		{
 			"ImportPath": "github.com/jtolds/gls",
 			"Rev": "9a4a02dbe491bef4bab3c24fd9f3087d6c4c6690"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-isatty",
+			"Rev": "56b76bdf51f7708750eac80fa38b952bb9f32639"
 		},
 		{
 			"ImportPath": "github.com/smallfish/simpleyaml",
@@ -43,6 +54,10 @@
 			"ImportPath": "github.com/voxelbrain/goptions",
 			"Comment": "2.5.10",
 			"Rev": "68583de33d9209ba795a0a334dad27418e4c18f5"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/unix",
+			"Rev": "442cd600860ce722f6615730eb008a37a87b13ee"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
