@@ -1,6 +1,6 @@
 .DS_Store
 /spruce
-/pruce-*
+/spruce-*
 credentials.yml
 releases
 artifacts
