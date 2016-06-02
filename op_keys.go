@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/jhunt/ansi"
+
 	. "github.com/geofffranks/spruce/log"
 	"github.com/jhunt/tree"
 )
@@ -57,7 +59,7 @@ func (KeysOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			m, ok := s.(map[interface{}]interface{})
 			if !ok {
 				DEBUG("     [%d]: resolved to something that is not a map.  that is unacceptable.", i)
-				return nil, fmt.Errorf("%s is not a map", v.Reference)
+				return nil, ansi.Errorf("@c{%s} @R{is not a map}", v.Reference)
 			}
 			DEBUG("     [%d]: resolved to a map; extracting keys", i)
 			for k := range m {
@@ -74,7 +76,7 @@ func (KeysOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	switch len(args) {
 	case 0:
 		DEBUG("  no arguments supplied to (( keys ... )) operation.  oops.")
-		return nil, fmt.Errorf("no arguments specified to (( keys ... ))")
+		return nil, ansi.Errorf("no arguments specified to @c{(( keys ... ))}")
 
 	default:
 		sort.Strings(vals)

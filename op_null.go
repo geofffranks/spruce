@@ -1,8 +1,7 @@
 package spruce
 
 import (
-	"fmt"
-
+	"github.com/jhunt/ansi"
 	"github.com/jhunt/tree"
 )
 
@@ -28,5 +27,5 @@ func (NullOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*t
 
 // Run ...
 func (n NullOperator) Run(ev *Evaluator, _ []*Expr) (*Response, error) {
-	return nil, fmt.Errorf("(( %s )) operator not defined", n.Missing)
+	return nil, ansi.Errorf("@c{(( %s ))} @R{operator not defined}", n.Missing)
 }

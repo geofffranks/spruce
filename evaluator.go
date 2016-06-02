@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+	"github.com/jhunt/ansi"
 	"sort"
 	"strconv"
 
@@ -19,6 +20,26 @@ type Evaluator struct {
 	CheckOps []*Opcall
 
 	pointer *interface{}
+}
+
+func nameOfObj(o interface{}, def string) string {
+	for _, field := range tree.NameFields {
+		switch o.(type) {
+		case map[string]interface{}:
+			if value, ok := o.(map[string]interface{})[field]; ok {
+				if s, ok := value.(string); ok {
+					return s
+				}
+			}
+		case map[interface{}]interface{}:
+			if value, ok := o.(map[interface{}]interface{})[field]; ok {
+				if s, ok := value.(string); ok {
+					return s
+				}
+			}
+		}
+	}
+	return def
 }
 
 // DataFlow ...
@@ -66,7 +87,13 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 
 		case []interface{}:
 			for i, v := range o.([]interface{}) {
-				ev.Here.Push(fmt.Sprintf("%d", i))
+				name := nameOfObj(v, fmt.Sprintf("%d", i))
+				op, _ := ParseOpcall(phase, name)
+				if op == nil {
+					ev.Here.Push(name)
+				} else {
+					ev.Here.Push(fmt.Sprintf("%d", i))
+				}
 				check(v)
 				ev.Here.Pop()
 			}
@@ -138,7 +165,7 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 		wave++
 		free := freeNodes(g)
 		if len(free) == 0 {
-			return nil, fmt.Errorf("cycle detected in operator data-flow graph")
+			return nil, ansi.Errorf("@*{cycle detected in operator data-flow graph}")
 		}
 
 		for _, node := range free {
@@ -214,7 +241,7 @@ func (ev *Evaluator) CheckForCycles(maxDepth int) error {
 	var check func(o interface{}, depth int) error
 	check = func(o interface{}, depth int) error {
 		if depth == 0 {
-			return fmt.Errorf("Hit max recursion depth. You seem to have a self-referencing dataset")
+			return ansi.Errorf("@*{Hit max recursion depth. You seem to have a self-referencing dataset}")
 		}
 
 		switch o.(type) {
@@ -278,7 +305,7 @@ func (ev *Evaluator) RunOp(op *Opcall) error {
 			o.(map[interface{}]interface{})[key] = resp.Value
 
 		default:
-			err := TypeMismatchError{
+			err := tree.TypeMismatchError{
 				Path:   parent.Nodes,
 				Wanted: "a map or a list",
 				Got:    "a scalar",
@@ -339,13 +366,21 @@ func (ev *Evaluator) RunPhase(p OperatorPhase) error {
 // Run ...
 func (ev *Evaluator) Run(prune []string) error {
 	errors := MultiError{Errors: []error{}}
+	paramErrs := MultiError{Errors: []error{}}
+
 	errors.Append(ev.RunPhase(MergePhase))
 	errors.Append(ev.RunPhase(EvalPhase))
-	errors.Append(ev.Prune(prune))
 
 	// this is a big failure...
 	if err := ev.CheckForCycles(4096); err != nil {
 		return err
+	}
+
+	paramErrs.Append(ev.RunPhase(ParamPhase))
+	errors.Append(ev.Prune(prune))
+
+	if len(paramErrs.Errors) > 0 {
+		return paramErrs
 	}
 
 	if len(errors.Errors) > 0 {

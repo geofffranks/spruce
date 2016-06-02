@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/jhunt/ansi"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -75,11 +76,11 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			switch s.(type) {
 			case map[interface{}]interface{}:
 				DEBUG("  arg[%d]: %v is not a string scalar", i, s)
-				return nil, fmt.Errorf("tried to look up $.%s, which is not a string scalar", v.Reference)
+				return nil, ansi.Errorf("@R{tried to look up} @c{$.%s}@R{, which is not a string scalar}", v.Reference)
 
 			case []interface{}:
 				DEBUG("  arg[%d]: %v is not a string scalar", i, s)
-				return nil, fmt.Errorf("tried to look up $.%s, which is not a string scalar", v.Reference)
+				return nil, ansi.Errorf("@R{tried to look up} @c{$.%s}@R{, which is not a string scalar}", v.Reference)
 
 			default:
 				l = append(l, fmt.Sprintf("%v", s))
@@ -139,7 +140,7 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 
 		parts := strings.SplitN(key, ":", 2)
 		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid argument %s; must be in the form path/to/secret:key", key)
+			return nil, ansi.Errorf("@R{invalid argument} @c{%s}@R{; must be in the form} @m{path/to/secret:key}", key)
 		}
 		secret, err = getVaultSecret(parts[0], parts[1])
 		if err != nil {
@@ -183,7 +184,7 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		DEBUG("    !! failed to craft API request:\n    !! %s\n", err)
-		return "", fmt.Errorf("failed to retrieve %s:%s from Vault (%s): %s",
+		return "", ansi.Errorf("@R{failed to retrieve} @c{%s:%s}@R{ from Vault (%s): %s}",
 			secret, subkey, vault, err)
 	}
 	req.Header.Add("X-Vault-Token", os.Getenv("VAULT_TOKEN"))
@@ -192,7 +193,7 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	res, err := client.Do(req)
 	if err != nil {
 		DEBUG("    !! failed to issue API request:\n    !! %s\n", err)
-		return "", fmt.Errorf("failed to retrieve %s:%s from Vault (%s): %s",
+		return "", ansi.Errorf("@R{failed to retrieve} @c{%s:%s} @R{from Vault (%s): %s}",
 			secret, subkey, vault, err)
 	}
 	defer res.Body.Close()
@@ -201,7 +202,7 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		DEBUG("    !! failed to read JSON:\n    !! %s\n", err)
-		return "", fmt.Errorf("failed to retrieve %s:%s from Vault (%s): %s",
+		return "", ansi.Errorf("@R{failed to retrieve} @c{%s:%s} @R{from Vault (%s): %s}",
 			secret, subkey, vault, err)
 	}
 
@@ -217,7 +218,7 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	}
 	if len(raw.Errors) > 0 {
 		DEBUG("    !! error: %s", raw.Errors[0])
-		return "", fmt.Errorf("failed to retrieve %s:%s from Vault (%s): %s",
+		return "", ansi.Errorf("@R{failed to retrieve} @c{%s:%s} @R{from Vault (%s): %s}",
 			secret, subkey, vault, raw.Errors[0])
 	}
 
@@ -225,11 +226,11 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	v, ok := raw.Data[subkey]
 	if !ok {
 		DEBUG("    !! %s:%s not found!\n", secret, subkey)
-		return "", fmt.Errorf("secret %s:%s not found", secret, subkey)
+		return "", ansi.Errorf("@R{secret} @c{%s:%s} @R{not found}", secret, subkey)
 	}
 	if _, ok := v.(string); !ok {
 		DEBUG("    !! %s:%s is not a string!\n", secret, subkey)
-		return "", fmt.Errorf("secret %s:%s is not a string", secret, subkey)
+		return "", ansi.Errorf("@R{secret} @c{%s:%s} @R{is not a string}", secret, subkey)
 	}
 
 	DEBUG("  success.")

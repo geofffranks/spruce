@@ -1,0 +1,5 @@
+array_map_default:
+- (( merge on custom ))
+- name: bb8
+  custom: asdf
+  k1: failure
