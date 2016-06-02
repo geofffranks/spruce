@@ -5,3 +5,4 @@ credentials.yml
 releases
 artifacts
 .svtoken
+*.swp
