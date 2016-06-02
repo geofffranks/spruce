@@ -12,7 +12,7 @@ meta:
     url: "https://api.run.pivotal.io"
 
   go:
-    cmd_module: (( concat meta.go.module "/cmd" ))
+    cmd_module: (( concat meta.go.module "/cmd/spruce" ))
   github:
     owner: geofffranks
     repo: spruce
