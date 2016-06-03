@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/jhunt/ansi"
+	"github.com/mattn/go-isatty"
 	"io/ioutil"
 	"os"
 
@@ -25,7 +26,7 @@ var printfStdOut = func(format string, args ...interface{}) {
 }
 
 var printfStdErr = func(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stdout, format, args...)
+	fmt.Fprintf(os.Stderr, format, args...)
 }
 
 var getopts = func(o interface{}) {
@@ -84,6 +85,8 @@ func main() {
 		exit(0)
 		return
 	}
+
+	ansi.Color(isatty.IsTerminal(os.Stderr.Fd()))
 
 	switch options.Action {
 	case "merge":
