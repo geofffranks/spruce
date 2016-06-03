@@ -163,32 +163,19 @@ jobs:
     serial: true
     plan:
     - aggregate:
-      - get: app
-        resource: (( grab meta.cf.app.name ))
-        trigger: true
-      - get: git
-        resource: git
       - get: github
         passed: [shipit]
         trigger: true
-    - task: cf push
-      config:
-        platform: linux
-        image: (( grab meta.image ))
-        inputs:
-        - name: app
-        - name: git
-        run:
-          path: "git/ci/scripts/push-play.sh"
-          args: []
-        params:
-          APP_NAME: (( grab meta.cf.app.name ))
-          DOMAIN: (( grab meta.cf.app.domain ))
-          CF_ORG: (( grab meta.cf.org ))
-          CF_SPACE: (( grab meta.cf.space ))
-          CF_USER: (( grab meta.cf.user ))
-          CF_PASS: (( grab meta.cf.password ))
-          CF_ENDPOINT: (( grab meta.cf.url ))
+      - get: (( grab meta.cf.app.name ))
+        trigger: true
+    - put: live-app
+      params:
+        manifest: (( concat meta.cf.app.name "/manifest.yml" ))
+        path: (( grab meta.cf.app.name ))
+        current_app_name: (( grab meta.cf.app.name ))
+        environment_variables:
+          GITHUB_TOKEN: (( grab meta.cf.github_token ))
+
 
 resource_types:
   - name: slack-notification
@@ -232,3 +219,13 @@ resources:
     uri: (( grab meta.cf.app.source ))
     branch: master
     private_key: (( grab meta.github.private_key ))
+
+- name: live-app
+  type: cf
+  source:
+    api:             (( grab meta.cf.url ))
+    username:        (( grab meta.cf.user ))
+    password:        (( grab meta.cf.password ))
+    organization:    (( grab meta.cf.org ))
+    space:           (( grab meta.cf.space ))
+    skip_cert_check: false
