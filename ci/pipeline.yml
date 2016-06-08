@@ -90,8 +90,8 @@ jobs:
     public: true
     plan:
       - aggregate:
-          - { get: git,     trigger: true,  passed: [test] }
-          - { get: version, trigger: false, params: {pre: rc} }
+          - { get: git,     trigger: true, passed: [test] }
+          - { get: version, trigger: true, params: {pre: rc} }
       - put: version
         params: {file: version/number}
 
