@@ -10,11 +10,10 @@ meta:
     user: (( vault "secret/pipelines/spruce/cf:user" ))
     password: (( vault "secret/pipelines/spruce/cf:password" ))
     url: "https://api.run.pivotal.io"
+    github_token: (( vault "secret/pipelines/spruce/cf:github_token" ))
 
-  homebrew:
-    recipe: spruce.rb
   go:
-    cmd_module: (( concat meta.go.module "/cmd" ))
+    cmd_module: (( concat meta.go.module "/cmd/spruce" ))
   github:
     owner: geofffranks
     repo: spruce

@@ -12,6 +12,8 @@ type Cursor struct {
 	Nodes []string
 }
 
+var NameFields = []string{"name", "key", "id"}
+
 func listFind(l []interface{}, fields []string, key string) (interface{}, uint64, bool) {
 	for _, field := range fields {
 		for i, v := range l {
@@ -174,12 +176,11 @@ func (c *Cursor) Canonical(o interface{}) (*Cursor, error) {
 					}
 				}
 				o = o.([]interface{})[i]
-
 			} else {
 				// if k is a string, look for immediate map descendants who have
 				//     'name', 'key' or 'id' fields matching k
 				var found bool
-				o, i, found = listFind(o.([]interface{}), []string{"name", "key", "id"}, k)
+				o, i, found = listFind(o.([]interface{}), NameFields, k)
 				if !found {
 					return nil, NotFoundError{
 						Path: canon.Nodes,
@@ -296,7 +297,7 @@ func (c *Cursor) Glob(tree interface{}) ([]*Cursor, error) {
 				// if k is a string, look for immediate map descendants who have
 				//     'name', 'key' or 'id' fields matching k
 				var found bool
-				o, _, found = listFind(o.([]interface{}), []string{"name", "key", "id"}, k)
+				o, _, found = listFind(o.([]interface{}), NameFields, k)
 				if !found {
 					return nil, NotFoundError{
 						Path: path[0 : pos+1],
@@ -413,7 +414,7 @@ func (c *Cursor) Resolve(o interface{}) (interface{}, error) {
 			// if k is a string, look for immediate map descendants who have
 			//     'name', 'key' or 'id' fields matching k
 			var found bool
-			o, _, found = listFind(o.([]interface{}), []string{"name", "key", "id"}, k)
+			o, _, found = listFind(o.([]interface{}), NameFields, k)
 			if !found {
 				return nil, NotFoundError{
 					Path: path,

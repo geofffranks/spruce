@@ -2,7 +2,7 @@ package spruce
 
 import (
 	"fmt"
-
+	"github.com/jhunt/ansi"
 	"github.com/jhunt/tree"
 
 	. "github.com/geofffranks/spruce/log"
@@ -65,7 +65,7 @@ func (GrabOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	switch len(args) {
 	case 0:
 		DEBUG("  no arguments supplied to (( grab ... )) operation.  oops.")
-		return nil, fmt.Errorf("no arguments specified to (( grab ... ))")
+		return nil, ansi.Errorf("no arguments specified to @c{(( grab ... ))}")
 
 	case 1:
 		DEBUG("  called with only one argument; returning value as-is")

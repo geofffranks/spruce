@@ -1,6 +1,8 @@
 .DS_Store
-spruce
-spruce-*
+/spruce
+/spruce-*
 credentials.yml
 releases
+artifacts
 .svtoken
+*.swp

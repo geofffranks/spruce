@@ -1,0 +1,118 @@
+---
+mocks:
+  list:
+  - asdf
+  - fdsa
+  map:
+    key: value
+  listmap:
+  - key: val1
+  - key: val2
+  number: 1234
+  string: asdf
+
+cartesian:
+  badref: (( cartesian-product mocks.none ))
+  badmap: (( cartesian-product mocks.list mocks.map ))
+  badscalar: (( cartesian-product mocks.listmap mocks.list ))
+  noargs: (( cartesian-product ))
+
+concat:
+  arglength: (( concat "thing" ))
+  badref: (( concat mocks.none "oops" ))
+  badtypelist: (( concat "asdf" mocks.list ))
+  badtypemap: (( concat "asdf" mocks.map ))
+
+grab:
+  arglen: (( grab ))
+  badref: (( grab mocks.none ))
+
+inject:
+  arglen: (( inject ))
+  badarg: (( inject "asdf" ))
+  badlist: (( inject mocks.list ))
+  badscalar: (( inject mocks.string ))
+  badref: (( inject mocks.none ))
+
+keys:
+  arglen: (( keys ))
+  badarg: (( keys "asdf" ))
+  badscalar: (( keys mocks.string ))
+  badlist: (( keys mocks.list ))
+  badref: (( keys mocks.none ))
+
+nullop:
+  invalidop: (( notanop "stuff" ))
+
+# static ips
+jobs:
+- name: instances-non-numeric
+  instances: asdf
+  networks:
+  - name: regular
+    static_ips: (( static_ips(1) ))
+- name: instances-negative
+  instances: -1
+  networks:
+  - name: regular
+    static_ips: (( static_ips(1) ))
+- name: not-bosh-network
+  instances: 1
+  networks:
+  - name: non-bosh
+    static_ips: (( static_ips(1) ))
+- name: invalid-ip-in-network
+  instances: 1
+  networks:
+  - name: invalid-ip
+    static_ips: (( static_ips(1) ))
+- name: pool-ends-before-starts
+  instances: 1
+  networks:
+  - name: backwards
+    static_ips: (( static_ips(1) ))
+- name: not-enough-indices-for-instances
+  instances: 2
+  networks:
+  - name: regular
+    static_ips: (( static_ips(1) ))
+- name: not-enough-ips-for-instances
+  instances: 3
+  networks:
+  - name: small
+    static_ips: (( static_ips(1, 2, 3) ))
+- name: string-indices
+  instances: 1
+  networks:
+  - name: regular
+    static_ips: (( static_ips("asdf") ))
+- name: negative-indices
+  instances: 1
+  networks:
+  - name: regular
+    static_ips: (( static_ips(-11) ))
+- name: already-allocated1
+  instances: 1
+  networks:
+  - name: regular
+    static_ips: (( static_ips(10) ))
+- name: already-allocated2
+  instances: 1
+  networks:
+  - name: regular
+    static_ips: (( static_ips(10) ))
+
+networks:
+- name: non-bosh
+- name: small
+  subnets:
+  - static: [ 10.10.10.0 - 10.10.10.1 ]
+- name: regular
+  subnets:
+  - static: [ 10.10.10.10 - 10.10.10.50 ]
+- name: backwards
+  subnets:
+  - static: [ 10.10.10.8 - 10.10.10.7 ]
+- name: invalid-ip
+  subnets:
+  - static: [ 10.5.3.1.4 ]

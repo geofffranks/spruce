@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"regexp"
 
+	"github.com/jhunt/ansi"
+
 	. "github.com/geofffranks/spruce/log"
 )
 
@@ -68,7 +70,7 @@ func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]in
 		path := fmt.Sprintf("%s.%v", node, k)
 		if s, ok := val.(string); ok {
 			if mergeRx.MatchString(s) {
-				m.Errors.Append(fmt.Errorf("%s: inappropriate use of (( merge )) operator outside of a list (this is spruce, after all)", path))
+				m.Errors.Append(ansi.Errorf("@m{%s}: @R{inappropriate use of} @c{(( merge ))} @R{operator outside of a list} (this is @G{spruce}, after all)", path))
 			} else if pruneRx.MatchString(s) {
 				DEBUG("%s: found (( prune )) operator, adding key to prune list", path)
 				keysToPrune = append(keysToPrune, path)
@@ -293,12 +295,12 @@ func canKeyMergeArray(disp string, array []interface{}, node string, key string)
 
 	for i, o := range array {
 		if reflect.TypeOf(o).Kind() != reflect.Map {
-			return fmt.Errorf("%s.%d: %s object is a %s, not a map - cannot merge using keys", node, i, disp, reflect.TypeOf(o).Kind().String())
+			return ansi.Errorf("@m{%s.%d}: @R{%s object is a} @c{%s}@R{, not a} @c{map} @R{- cannot merge using keys}", node, i, disp, reflect.TypeOf(o).Kind().String())
 		}
 
 		obj := o.(map[interface{}]interface{})
 		if _, ok := obj[key]; !ok {
-			return fmt.Errorf("%s.%d: %s object does not contain the key '%s' - cannot merge", node, i, disp, key)
+			return ansi.Errorf("@m{%s.%d}: @R{%s object does not contain the key} @c{'%s'}@R{ - cannot merge}", node, i, disp, key)
 		}
 	}
 	return nil

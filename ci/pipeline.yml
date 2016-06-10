@@ -55,8 +55,6 @@ meta:
     password: (( param "Specify the password for the user deploying the app" ))
     url: (( param "Specify the URL to the CF api" ))
 
-  homebrew:
-    recipe: (( param "Specify the homebrew recipe to update" ))
 
 groups:
   - name: (( grab meta.name ))
@@ -68,7 +66,6 @@ groups:
       - minor
       - bump-patch
       - (( grab meta.cf.app.name ))
-      - update-homebrew
 
 jobs:
   - name: test
@@ -93,8 +90,8 @@ jobs:
     public: true
     plan:
       - aggregate:
-          - { get: git,     trigger: true,  passed: [test] }
-          - { get: version, trigger: false, params: {pre: rc} }
+          - { get: git,     trigger: true, passed: [test] }
+          - { get: version, trigger: true, params: {pre: rc} }
       - put: version
         params: {file: version/number}
 
@@ -113,7 +110,7 @@ jobs:
   - name: bump-patch
     public: true
     plan:
-    - { get: version, trigger: true, params: { bump: patch}, passed: [shipit] }
+    - { get: version, trigger: true, params: { bump: patch, pre: rc }, passed: [shipit] }
     - { put: version,                params: { file: version/number} }
 
   - name: shipit
@@ -147,91 +144,37 @@ jobs:
             BRANCH:       (( grab meta.github.branch ))
             CMD_PKG:      (( grab meta.go.cmd_module ))
 
-      - aggregate:
-        - put: version
-          params: { bump: final }
-        - put: git
-          params:
-            rebase: true
-            repository: pushme/git
-        - put: github
-          params:
-            name:   gh/name
-            tag:    gh/tag
-            body:   gh/notes.md
-            globs: [gh/artifacts/*]
-
-  - name: update-homebrew
-    public: true
-    serial: true
-    plan:
-    - aggregate:
-      - get: version
-        passed: [shipit]
-      - get: git
-        resource: git
-      - get: homebrew-repo
-        resource: homebrew
-      - get: github
-        resource: github
-        passed: [shipit]
-        trigger: true
-    - task: update-homebrew
-      config:
-        platform: linux
-        image: (( grab meta.image ))
-        inputs:
-        - name: homebrew-repo
-        - name: git
-        - name: github
-        - name: version
-        outputs:
-        - name: pushme
-        run:
-          path: "git/ci/scripts/update-homebrew.sh"
-          args:
-          - (( grab meta.homebrew.recipe ))
+      - put: version
+        params: { bump: final }
+      - put: git
         params:
-          REPO_ROOT: homebrew-repo
-          REPO_OUT: pushme
-          VERSION_FROM: version/number
-          BINARY: (( concat meta.go.binary "-darwin-amd64" ))
-    - put: homebrew
-      params:
-        repository: pushme/homebrew
-        rebase: true
+          rebase: true
+          repository: pushme/git
+      - put: github
+        params:
+          name:   gh/name
+          tag:    gh/tag
+          body:   gh/notes.md
+          globs: [gh/artifacts/*]
 
   - name: (( grab meta.cf.app.name ))
     public: true
     serial: true
     plan:
     - aggregate:
-      - get: app
-        resource: (( grab meta.cf.app.name ))
-        trigger: true
-      - get: git
-        resource: git
       - get: github
         passed: [shipit]
         trigger: true
-    - task: cf push
-      config:
-        platform: linux
-        image: (( grab meta.image ))
-        inputs:
-        - name: app
-        - name: git
-        run:
-          path: "git/ci/scripts/push-play.sh"
-          args: []
-        params:
-          APP_NAME: (( grab meta.cf.app.name ))
-          DOMAIN: (( grab meta.cf.app.domain ))
-          CF_ORG: (( grab meta.cf.org ))
-          CF_SPACE: (( grab meta.cf.space ))
-          CF_USER: (( grab meta.cf.user ))
-          CF_PASS: (( grab meta.cf.password ))
-          CF_ENDPOINT: (( grab meta.cf.url ))
+      - get: (( grab meta.cf.app.name ))
+        trigger: true
+    - put: live-app
+      params:
+        manifest: (( concat meta.cf.app.name "/manifest.yml" ))
+        path: (( grab meta.cf.app.name ))
+        current_app_name: (( grab meta.cf.app.name ))
+        environment_variables:
+          GITHUB_TOKEN: (( grab meta.cf.github_token ))
+
 
 resource_types:
   - name: slack-notification
@@ -269,16 +212,19 @@ resources:
     repository:   (( grab meta.github.repo ))
     access_token: (( grab meta.github.access_token ))
 
-- name: homebrew
-  type: git
-  source:
-    uri: git@github.com:starkandwayne/homebrew-cf.git
-    branch: master
-    private_key: (( grab meta.github.private_key ))
-
 - name: (( grab meta.cf.app.name ))
   type: git
   source:
     uri: (( grab meta.cf.app.source ))
     branch: master
     private_key: (( grab meta.github.private_key ))
+
+- name: live-app
+  type: cf
+  source:
+    api:             (( grab meta.cf.url ))
+    username:        (( grab meta.cf.user ))
+    password:        (( grab meta.cf.password ))
+    organization:    (( grab meta.cf.org ))
+    space:           (( grab meta.cf.space ))
+    skip_cert_check: false

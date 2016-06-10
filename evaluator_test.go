@@ -203,7 +203,7 @@ c:
 
 ---
 dataflow:
-- jobs.0.<<<: (( inject a ))
+- jobs.b.<<<: (( inject a ))
 - c.<<<: (( inject jobs.b ))
 
 ---
@@ -248,10 +248,10 @@ jobs:
 
 ---
 dataflow:
-- jobs.0.<<<: (( inject meta.jobs.api ))
-- jobs.1.<<<: (( inject meta.jobs.api ))
-- jobs.2.<<<: (( inject meta.jobs.worker ))
-- jobs.3.<<<: (( inject meta.jobs.db ))
+- jobs.api_z1.<<<: (( inject meta.jobs.api ))
+- jobs.api_z2.<<<: (( inject meta.jobs.api ))
+- jobs.worker_z3.<<<: (( inject meta.jobs.worker ))
+- jobs.db_z3.<<<: (( inject meta.jobs.db ))
 
 ---
 meta:
@@ -812,7 +812,7 @@ e: (( grab c.value ))
 
 ---
 dataflow:
-- b.0.value: (( grab c.value ))
+- b.squad.value: (( grab c.value ))
 - e:         (( grab c.value ))
 - a:         (( grab b.squad.value ))
 - d:         (( grab b.squad.value ))
@@ -953,8 +953,8 @@ boxen:
 
 ---
 dataflow:
-- boxen.0.env: (( grab meta.prod ))
-- boxen.1.env: (( grab meta.sandbox ))
+- boxen.www.env: (( grab meta.prod ))
+- boxen.wwwtest.env: (( grab meta.sandbox ))
 
 ---
 meta:
@@ -1087,8 +1087,8 @@ jobs:
 
 ---
 dataflow:
-- networks.0.name:               (( concat meta.net "-prod" ))
-- jobs.0.networks.0.static_ips:  (( static_ips 1 2 3 4 ))
+- networks.0.name:                         (( concat meta.net "-prod" ))
+- jobs.job1.networks.real-prod.static_ips: (( static_ips 1 2 3 4 ))
 
 ---
 meta:
@@ -1133,8 +1133,8 @@ jobs:
 
 ---
 dataflow:
-- jobs.0.networks.0.name:        (( grab meta.environment ))
-- jobs.0.networks.0.static_ips:  (( static_ips 1 2 3 4 ))
+- jobs.job1.networks.0.name:        (( grab meta.environment ))
+- jobs.job1.networks.0.static_ips:  (( static_ips 1 2 3 4 ))
 
 ---
 meta:
@@ -1179,7 +1179,7 @@ properties:
 
 ---
 dataflow:
-- jobs.0.networks.0.static_ips: (( static_ips(0, 1, 2) ))
+- jobs.api_z1.networks.net1.static_ips: (( static_ips(0, 1, 2) ))
 - properties.api_servers:       (( grab jobs.api_z1.networks.net1.static_ips ))
 
 ---
@@ -1220,7 +1220,7 @@ networks:
 
 ---
 dataflow:
-- jobs.0.networks.0.static_ips: (( static_ips 0 1 2 3 ))
+- jobs.api_z1.networks.net1.static_ips: (( static_ips 0 1 2 3 ))
 
 ---
 jobs:
@@ -1546,6 +1546,8 @@ value: (( grab meta.key ))
 			}
 
 			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldBeNil)
+			err = ev.RunPhase(ParamPhase)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "you must specify this")
 		})
@@ -1561,6 +1563,8 @@ value: (( concat "key=" meta.key ))
 			}
 
 			err := ev.RunPhase(EvalPhase)
+			So(err, ShouldBeNil)
+			err = ev.RunPhase(ParamPhase)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "you must specify this")
 		})
