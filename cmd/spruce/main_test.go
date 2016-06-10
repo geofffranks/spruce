@@ -692,11 +692,11 @@ func TestExamples(t *testing.T) {
 			)
 
 			example(
-				"../examples/pruning/base.yml",
-				"../examples/pruning/jobs.yml",
-				"../examples/pruning/networks.yml",
+				"../../examples/pruning/base.yml",
+				"../../examples/pruning/jobs.yml",
+				"../../examples/pruning/networks.yml",
 
-				"../examples/pruning/output.yml",
+				"../../examples/pruning/output.yml",
 			)
 		})
 
