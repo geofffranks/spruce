@@ -97,10 +97,16 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
 
 ### Cleaning Up After Yourself
 
-To prune a map key from the final output<br>
+To prune a map key from the final output, you can either use the `--prune` flag:<br>
 
 ```
 spruce merge --prune key.1.to.prune --prune key.2.to.prune file1.yml file2.yml
+```
+
+or you can use the `(( prune ))` operator:
+
+```
+key_to_prune: (( prune ))
 ```
 
 ### Referencing Other Data

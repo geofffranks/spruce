@@ -2,13 +2,16 @@ package spruce
 
 import (
 	"fmt"
-	"github.com/jhunt/ansi"
 	"sort"
 	"strconv"
+
+	"github.com/jhunt/ansi"
 
 	. "github.com/geofffranks/spruce/log"
 	"github.com/jhunt/tree"
 )
+
+var keysToPrune []string
 
 // Evaluator ...
 type Evaluator struct {
@@ -377,7 +380,8 @@ func (ev *Evaluator) Run(prune []string) error {
 	}
 
 	paramErrs.Append(ev.RunPhase(ParamPhase))
-	errors.Append(ev.Prune(prune))
+	errors.Append(ev.Prune(append(keysToPrune, prune...)))
+	keysToPrune = nil
 
 	if len(paramErrs.Errors) > 0 {
 		return paramErrs
