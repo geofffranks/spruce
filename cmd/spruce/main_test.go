@@ -166,8 +166,8 @@ func TestMain(t *testing.T) {
 				stdout = ""
 				stderr = ""
 				main()
-				So(stdout, ShouldEqual, "")
-				So(stderr, ShouldStartWith, fmt.Sprintf("spruce - Version %s", Version))
+				So(stdout, ShouldStartWith, fmt.Sprintf("spruce - Version %s", Version))
+				So(stderr, ShouldEqual, "")
 				So(rc, ShouldEqual, 0)
 			})
 			Convey("When '--version' is specified", func() {
