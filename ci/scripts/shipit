@@ -64,11 +64,11 @@ popd
 
 # Always check that linux/amd64 is statically built
 echo "Checking if ${BINARY}-linux-amd64 is a statically linked binary"
-if ldd artifacts/${BINARY}-linux-amd64 | grep "not a dynamic executable"; then
+if ldd ${REPO_ROOT}/artifacts/${BINARY}-linux-amd64 | grep "not a dynamic executable"; then
 	echo "Statically linked. Continuing"
 else
 	echo "Dynamically linked. Aborting."
-	ldd artifacts/${BINARY}-linux-amd64
+	ldd ${REPO_ROOT}/artifacts/${BINARY}-linux-amd64
 fi
 
 echo "v${VERSION}"                         > ${RELEASE_ROOT}/tag
