@@ -24,6 +24,7 @@ meta:
     module:  (( concat "github.com/" meta.github.owner "/" meta.github.repo ))
     cmd_module: (( grab meta.go.module ))
     binary:  (( grab meta.github.repo ))
+    force_static_binary: false
 
   aws:
     bucket:     (( concat meta.name "-pipeline" ))
@@ -143,6 +144,7 @@ jobs:
             REPO_OUT:     pushme
             BRANCH:       (( grab meta.github.branch ))
             CMD_PKG:      (( grab meta.go.cmd_module ))
+            STATIC_BINARY: (( grab meta.go.force_static_binary ))
 
       - put: version
         params: { bump: final }
