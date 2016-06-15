@@ -51,7 +51,7 @@ godep restore
 go get github.com/mitchellh/gox
 popd
 
-if [[ ${STATIC_BINARY} != "false" ]]; then
+if [[ -n ${STATIC_BINARY} && ${STATIC_BINARY} != "false" ]]; then
 	export CGO_ENABLED=0
 fi
 
