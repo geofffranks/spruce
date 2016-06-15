@@ -51,6 +51,9 @@ godep restore
 go get github.com/mitchellh/gox
 popd
 
+if [[ ${STATIC_BINARY} != "false" ]]; then
+	export CGO_ENABLED=0
+fi
 
 pushd $REPO_ROOT
 mkdir artifacts
@@ -59,6 +62,16 @@ go build -o "${BINARY}" -ldflags="-X main.Version=${VERSION}" ${CMD_PKG:-.}
 ./${BINARY} -v
 popd
 
+# Always check that linux/amd64 is statically built
+if [[ -x artifacts/${BINARY}-linux-amd64 ]]; then
+	echo "Checking if ${BINARY}-linux-amd64 is a statically linked binary"
+	if ldd artifacts/${BINARY}-linux-amd64 | grep "not a dynamic executable"; then
+		echo "Statically linked. Continuing"
+	else
+		echo "Dynamically linked. Aborting."
+		ldd artifacts/${BINARY}-linux-amd64
+	fi
+fi
 
 echo "v${VERSION}"                         > ${RELEASE_ROOT}/tag
 echo "${RELEASE_NAME} v${VERSION}"         > ${RELEASE_ROOT}/name
