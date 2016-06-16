@@ -69,6 +69,7 @@ if ldd ${REPO_ROOT}/artifacts/${BINARY}-linux-amd64 | grep "not a dynamic execut
 else
 	echo "Dynamically linked. Aborting."
 	ldd ${REPO_ROOT}/artifacts/${BINARY}-linux-amd64
+	exit 1
 fi
 
 echo "v${VERSION}"                         > ${RELEASE_ROOT}/tag
