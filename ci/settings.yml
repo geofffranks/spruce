@@ -14,6 +14,7 @@ meta:
 
   go:
     cmd_module: (( concat meta.go.module "/cmd/spruce" ))
+    force_static_binary: true
   github:
     owner: geofffranks
     repo: spruce
