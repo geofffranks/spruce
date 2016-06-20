@@ -1,0 +1,10 @@
+---
+properties:
+  uaa:
+    clients:
+      admin:
+        scope: uaa.none
+        id: admin
+        secret: something-from-the-vault
+        authorized-grant-types: client_credentials
+        authorities: (( join "," meta.authorities meta.additional ))

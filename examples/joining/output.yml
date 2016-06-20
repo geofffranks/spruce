@@ -1,0 +1,22 @@
+---
+meta:
+  authorities:
+  - password.write
+  - clients.write
+  - clients.read
+  - scim.write
+
+  additional:
+  - scim.read
+  - uaa.admin
+  - clients.secret
+
+properties:
+  uaa:
+    clients:
+      admin:
+        authorities: password.write,clients.write,clients.read,scim.write,scim.read,uaa.admin,clients.secret
+        authorized-grant-types: client_credentials
+        id: admin
+        scope: uaa.none
+        secret: something-from-the-vault

@@ -1,0 +1,12 @@
+---
+meta:
+  authorities:
+  - password.write
+  - clients.write
+  - clients.read
+  - scim.write
+
+  additional:
+  - scim.read
+  - uaa.admin
+  - clients.secret

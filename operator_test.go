@@ -995,4 +995,183 @@ jobs:
 			So(r, ShouldBeNil)
 		})
 	})
+
+	Convey("Join Operator", t, func() {
+		op := JoinOperator{}
+		ev := &Evaluator{
+			Tree: YAML(
+				`---
+meta:
+  authorities:
+  - password.write
+  - clients.write
+  - clients.read
+  - scim.write
+  - scim.read
+  - uaa.admin
+  - clients.secret
+
+  secondlist:
+  - admin.write
+  - admin.read
+
+  emptylist: []
+
+  anotherkey:
+  - entry1
+  - somekey: value
+  - entry2
+
+  somestanza:
+    foo: bar
+    wom: bat
+`),
+		}
+
+		Convey("can join a simple list", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(","),
+				ref("meta.authorities"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "password.write,clients.write,clients.read,scim.write,scim.read,uaa.admin,clients.secret")
+		})
+
+		Convey("can join a multiple lists", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(","),
+				ref("meta.authorities"),
+				ref("meta.secondlist"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "password.write,clients.write,clients.read,scim.write,scim.read,uaa.admin,clients.secret,admin.write,admin.read")
+		})
+
+		Convey("can join an empty list", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(","),
+				ref("meta.emptylist"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "")
+		})
+
+		Convey("can join literals", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(","),
+				str("password.write"),
+				str("clients.write"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "password.write,clients.write")
+		})
+
+		Convey("can join referenced string entry", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(","),
+				ref("meta.somestanza.foo"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "bar")
+		})
+
+		Convey("can join referenced string entries", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(","),
+				ref("meta.somestanza.foo"),
+				ref("meta.somestanza.wom"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "bar,bat")
+		})
+
+		Convey("can join multiple referenced entries", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(","),
+				ref("meta.authorities"),
+				ref("meta.somestanza.foo"),
+				ref("meta.somestanza.wom"),
+				str("ending"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "password.write,clients.write,clients.read,scim.write,scim.read,uaa.admin,clients.secret,bar,bat,ending")
+		})
+
+		Convey("throws an error when there are no arguments", func() {
+			r, err := op.Run(ev, []*Expr{})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "no arguments specified")
+			So(r, ShouldBeNil)
+		})
+
+		Convey("throws an error when there are too few arguments", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(","),
+			})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "too few arguments supplied")
+			So(r, ShouldBeNil)
+		})
+
+		Convey("throws an error when seperator argument is not a literal", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.emptylist"),
+				ref("meta.authorities"),
+			})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "join operator only accepts literal argument for the seperator")
+			So(r, ShouldBeNil)
+		})
+
+		Convey("throws an error when referenced entry is not a list or literal", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(","),
+				ref("meta.somestanza"),
+			})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "referenced entry is not a list or string")
+			So(r, ShouldBeNil)
+		})
+
+		Convey("throws an error when referenced list contains non-string entries", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(","),
+				ref("meta.anotherkey"),
+			})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "is not compatible for")
+			So(r, ShouldBeNil)
+		})
+
+		Convey("throws an error when there are unresolvable references", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(","),
+				ref("meta.non-existent"),
+			})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "Unable to resolve")
+			So(r, ShouldBeNil)
+		})
+	})
 }

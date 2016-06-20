@@ -202,6 +202,33 @@ ident: (( concat cluster.name "//" env ))
 
 Which will give you an `ident:` key of "mjolnir/production"
 
+But what if I have a list of strings that I want as a single line? Like a users list, authorities, or similar.
+Do I have to `concat` that piece by piece? No, you can use `join` to concatenate a list into one entry.
+
+```yml
+meta:
+  authorities:
+  - password.write
+  - clients.write
+  - clients.read
+  - scim.write
+
+properties:
+  uaa:
+    clients:
+      admin:
+        authorities: (( join "," meta.authorities ))
+```
+
+This will give you a concatenated list for `authorities`:
+```yml
+properties:
+  uaa:
+    clients:
+      admin:
+        authorities: password.write,clients.write,clients.read,scim.write
+```
+
 ## How About Some Examples?
 
 <a name="ex-basic"></a>
