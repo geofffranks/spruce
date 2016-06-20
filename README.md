@@ -220,7 +220,14 @@ properties:
         authorities: (( join meta.authorities "," ))
 ```
 
-This will give you a concatenated list for `authorities`: `password.write,clients.write,clients.read,scim.write`
+This will give you a concatenated list for `authorities`:
+```yml
+properties:
+  uaa:
+    clients:
+      admin:
+        authorities: password.write,clients.write,clients.read,scim.write
+```
 
 ## How About Some Examples?
 
