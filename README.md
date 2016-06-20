@@ -205,7 +205,7 @@ Which will give you an `ident:` key of "mjolnir/production"
 But, what if I have a list of strings that I want in a single line? Like a users list, or similar.
 Do I have to concat that piece by piece? No, you can `join` to concatinate a list into one entry.
 
-```
+```yml
 meta:
   authorities:
   - password.write
