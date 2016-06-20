@@ -995,4 +995,124 @@ jobs:
 			So(r, ShouldBeNil)
 		})
 	})
+
+	Convey("Join Operator", t, func() {
+		op := JoinOperator{}
+		ev := &Evaluator{
+			Tree: YAML(
+				`---
+meta:
+  authorities:
+  - password.write
+  - clients.write
+  - clients.read
+  - scim.write
+  - scim.read
+  - uaa.admin
+  - clients.secret
+
+  emptylist: []
+
+  anotherkey:
+  - entry1
+  - somekey: value
+  - entry2
+
+  somestanza:
+    foo: bar
+`),
+		}
+
+		Convey("can join a simple list", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.authorities"),
+				str(","),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "password.write,clients.write,clients.read,scim.write,scim.read,uaa.admin,clients.secret")
+		})
+
+		Convey("can join an empty list", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.emptylist"),
+				str(","),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "")
+		})
+
+		Convey("join will not work with no arguments", func() {
+			r, err := op.Run(ev, []*Expr{})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "no arguments specified")
+			So(r, ShouldBeNil)
+		})
+
+		Convey("join will not work with too many arguments", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.emptylist"),
+				str(","),
+				str("end"),
+			})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "too many arguments supplied")
+			So(r, ShouldBeNil)
+		})
+
+		Convey("join will not work with non-literal seperator argument", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.authorities"),
+				ref("meta.emptylist"),
+			})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "join operator only accepts literal argument for the seperator")
+			So(r, ShouldBeNil)
+		})
+
+		Convey("join will not work with a reference to a list", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("foobar"),
+				str(","),
+			})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "operator only accepts reference argument for the list")
+			So(r, ShouldBeNil)
+		})
+
+		Convey("join will not work on anything other than lists", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.somestanza"),
+				str(","),
+			})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "referenced argument is not a list")
+			So(r, ShouldBeNil)
+		})
+
+		Convey("join will not work on non-string list entries", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.anotherkey"),
+				str(","),
+			})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "is not compatible for")
+			So(r, ShouldBeNil)
+		})
+
+		Convey("join will not work with unresolvable references", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.non-existent"),
+				str(","),
+			})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "Unable to resolve")
+			So(r, ShouldBeNil)
+		})
+	})
 }
