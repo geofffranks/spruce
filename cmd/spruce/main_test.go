@@ -391,6 +391,29 @@ properties:
 
 `)
 		})
+		Convey("Included yaml file is escaped", func() {
+			os.Setenv("SPRUCE_FILE_BASE_PATH", "../../assets/file_operator")
+			os.Args = []string{"spruce", "merge", "../../assets/file_operator/test.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `content:
+  meta_test:
+    stuff: |
+      ---
+      meta:
+        filename: test.yml
+
+      content:
+        meta_test:
+          stuff: (( file meta.filename ))
+meta:
+  filename: test.yml
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+
 		Convey("Parameters override their requirement", func() {
 			os.Args = []string{"spruce", "merge", "../../assets/params/global.yml", "../../assets/params/good.yml"}
 			stdout = ""

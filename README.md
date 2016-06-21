@@ -638,6 +638,41 @@ case, `woot`) is removed from the final tree as part of the
 injection operator.
 
 
+<a name="file"></a>
+### File
+
+Sometimes you need to include large blocks of text in your YAML, such as the
+body of a configuration file, or a script block.  However, the indentation can
+cause issues when that block needs to be edited later, and there's no easy way
+to use tools to validate the block.
+
+Using the `(( file ... ))` operator allows you to keep the block in its
+natural state to allow for easy viewing, editing and processing, but then add
+it to YAML file as needed.  It supports specifying the file either by a string
+literal or a reference.
+
+The relative path to the file is based on where spruce is run from.
+Alternatively, you can set the `SPRUCE_FILE_BASE_PATH` environment variable to
+the desired root that your YAML file uses as the reference to the relative
+file paths specified.  You can also specify an absolute path in the YAML
+
+```yml
+$ SPRUCE_FILE_BASE_PATH=$HOME/myproj/configs
+
+--- # Source file
+server:
+  nginx:
+    name: nginx.conf
+    config_file: (( file server.nginx.name ))
+  haproxy:
+    name: haproxy.cfg
+    config_file: (( file "/haproxy/haproxy.cfg" ))
+```
+
+The `server.nginx.config_file` will contain the contents of
+`$HOME/myproj/configs/nginx.conf`, while the `server.haproxy.config_file` will
+contain the contents of `/haproxy/haproxy.cfg`
+
 
 <a name="params"></a>
 ### Parameters
