@@ -1065,7 +1065,7 @@ meta:
 			So(r.Value.(string), ShouldEqual, "")
 		})
 
-		Convey("can join literals", func() {
+		Convey("can join string literals", func() {
 			r, err := op.Run(ev, []*Expr{
 				str(","),
 				str("password.write"),
@@ -1076,6 +1076,19 @@ meta:
 
 			So(r.Type, ShouldEqual, Replace)
 			So(r.Value.(string), ShouldEqual, "password.write,clients.write")
+		})
+
+		Convey("can join integer literals", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(":"),
+				num(4), num(8), num(15),
+				num(16), num(23), num(42),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "4:8:15:16:23:42")
 		})
 
 		Convey("can join referenced string entry", func() {

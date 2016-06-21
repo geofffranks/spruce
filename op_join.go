@@ -72,7 +72,7 @@ func (JoinOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			switch ref.Type {
 			case Literal:
 				DEBUG("     [%d]: adding literal %s to the list", i, ref)
-				list = append(list, ref.Literal.(string))
+				list = append(list, fmt.Sprintf("%v", ref.Literal))
 
 			case Reference:
 				DEBUG("     [%d]: trying to resolve reference $.%s", i, ref.Reference)
@@ -83,25 +83,30 @@ func (JoinOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 				}
 
 				switch s.(type) {
-				case string:
-					DEBUG("     [%d]: $.%s is a string", i, ref.Reference)
-					list = append(list, s.(string))
-
 				case []interface{}:
 					DEBUG("     [%d]: $.%s is a list", i, ref.Reference)
 					for idx, entry := range s.([]interface{}) {
-						if str, ok := entry.(string); ok {
-							list = append(list, str)
-
-						} else {
-							DEBUG("     [%d]: entry #%d in list is not a string", i, idx)
+						switch entry.(type) {
+						case []interface{}:
+							DEBUG("     [%d]: entry #%d in list is a list (not a literal)", i, idx)
 							return nil, ansi.Errorf("entry #%d in list is not compatible for @c{(( join ... ))}", idx)
+
+						case map[interface{}]interface{}:
+							DEBUG("     [%d]: entry #%d in list is a map (not a literal)", i, idx)
+							return nil, ansi.Errorf("entry #%d in list is not compatible for @c{(( join ... ))}", idx)
+
+						default:
+							list = append(list, fmt.Sprintf("%v", entry))
 						}
 					}
 
-				default:
-					DEBUG("     [%d]: $.%s is not a list or string", i, ref.Reference)
+				case map[interface{}]interface{}:
+					DEBUG("     [%d]: $.%s is a map (not a list or a literal)", i, ref.Reference)
 					return nil, ansi.Errorf("referenced entry is not a list or string for @c{(( join ... ))}")
+
+				default:
+					DEBUG("     [%d]: $.%s is a literal", i, ref.Reference)
+					list = append(list, fmt.Sprintf("%v", s))
 				}
 
 			default:
