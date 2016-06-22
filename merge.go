@@ -355,12 +355,12 @@ func shouldInsertIntoArrayBasedOnName(obj []interface{}) (bool, string, string, 
 				DEBUG("%s", entry)
 			}
 
-      /* #0 is the whole string,
-       * #1 is after or before
-       * #2 contains the optional 'on <key>' string
-       * #3 contains the optional '<key>' string (because of nested capture groups)
-       * #4 is finally the target "<name>" string 
-       */
+			/* #0 is the whole string,
+			 * #1 is after or before
+			 * #2 contains the optional 'on <key>' string
+			 * #3 contains the optional '<key>' string (because of nested capture groups)
+			 * #4 is finally the target "<name>" string
+			 */
 			if len(captures) == 5 {
 				capturedRelative := strings.TrimSpace(captures[1])
 				capturedKey := strings.TrimSpace(captures[3])
