@@ -81,7 +81,7 @@ func main() {
 	handleConcourseQuoting = options.Concourse
 
 	if options.Version {
-		printfStdErr("%s - Version %s\n", os.Args[0], Version)
+		printfStdOut("%s - Version %s\n", os.Args[0], Version)
 		exit(0)
 		return
 	}

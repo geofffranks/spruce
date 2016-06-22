@@ -4,7 +4,9 @@ import (
 	"github.com/jhunt/tree"
 	"github.com/smallfish/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -296,6 +298,79 @@ meta:
 			So(err.Error(), ShouldContainSubstring, `literal "default" short-circuits expression (some.key || "default" || ignored.key)`)
 			exprOk(final, or(ref("some.key"), str("default")))
 		})
+	})
+
+	Convey("File Operator", t, func() {
+		op := FileOperator{}
+		ev := &Evaluator{
+			Tree: YAML(
+				`meta:
+  sample_file: assets/file_operator/sample.txt
+`),
+		}
+		basedir, _ := os.Getwd()
+
+		Convey("can read a direct file", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("assets/file_operator/test.txt"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "This is a test\n")
+		})
+
+		Convey("can read a file from a reference", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.sample_file"),
+			})
+
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+
+			content, err := ioutil.ReadFile("assets/file_operator/sample.txt")
+			So(r.Value.(string), ShouldEqual, string(content))
+		})
+
+		Convey("can read a file relative to a specified base path", func() {
+			os.Setenv("SPRUCE_FILE_BASE_PATH", filepath.Join(basedir, "assets/file_operator"))
+			r, err := op.Run(ev, []*Expr{
+				str("test.txt"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "This is a test\n")
+		})
+
+		if _, err := os.Stat("/etc/hosts"); err == nil {
+			Convey("can read an absolute path", func() {
+				os.Setenv("SPRUCE_FILE_BASE_PATH", filepath.Join(basedir, "assets/file_operator"))
+				r, err := op.Run(ev, []*Expr{
+					str("/etc/hosts"),
+				})
+				So(err, ShouldBeNil)
+				So(r, ShouldNotBeNil)
+
+				So(r.Type, ShouldEqual, Replace)
+
+				content, err := ioutil.ReadFile("/etc/hosts")
+				So(r.Value.(string), ShouldEqual, string(content))
+			})
+		}
+
+		Convey("can handle a missing file", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("no_one_should_ever_name_a_file_that_doesnt_exist_this_name"),
+			})
+			So(err, ShouldNotBeNil)
+			So(r, ShouldBeNil)
+		})
+
 	})
 
 	Convey("Grab Operator", t, func() {
@@ -1065,7 +1140,7 @@ meta:
 			So(r.Value.(string), ShouldEqual, "")
 		})
 
-		Convey("can join literals", func() {
+		Convey("can join string literals", func() {
 			r, err := op.Run(ev, []*Expr{
 				str(","),
 				str("password.write"),
@@ -1076,6 +1151,19 @@ meta:
 
 			So(r.Type, ShouldEqual, Replace)
 			So(r.Value.(string), ShouldEqual, "password.write,clients.write")
+		})
+
+		Convey("can join integer literals", func() {
+			r, err := op.Run(ev, []*Expr{
+				str(":"),
+				num(4), num(8), num(15),
+				num(16), num(23), num(42),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "4:8:15:16:23:42")
 		})
 
 		Convey("can join referenced string entry", func() {

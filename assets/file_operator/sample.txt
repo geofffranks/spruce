@@ -1,0 +1,20 @@
+```
+          *          .---. ,---.  ,---.  .-. .-.  ,--,  ,---.         *
+         /.\        ( .-._)| .-.\ | .-.\ | | | |.' .')  | .-'        /.\
+        /..'\      (_) \   | |-' )| `-'/ | | | ||  |(_) | `-.       /..'\
+        /'.'\      _  \ \  | |--' |   (  | | | |\  \    | .-'       /'.'\
+       /.''.'\    ( `-'  ) | |    | |\ \ | `-')| \  `-. |  `--.    /.''.'\
+       /.'.'.\     `----'  /(     |_| \)\`---(_)  \____\/( __.'    /.'.'.\
+"'""""/'.''.'.\""'"'""""""(__)""""""""(__)"""""""""""""(__)""'""""/'.''.'.\""'"'"
+      ^^^[_]^^^                                                   ^^^[_]^^^
+```
+
+[![Build Status](https://img.shields.io/travis/geofffranks/spruce.svg)](https://travis-ci.org/geofffranks/spruce)
+
+## Introducing Spruce
+
+`spruce` is a domain-specific YAML merging tool, for generating [BOSH](http://bosh.io) manifests.
+
+It was written with the goal of being the most intuitive solution for merging BOSH templates.
+As such, it pulls in a few semantics that may seem familiar to those used to merging with [the other merging tool](https://github.com/cloudfoundry-incubator/spiff),
+but there are a few key differences.
