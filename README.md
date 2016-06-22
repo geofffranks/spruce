@@ -87,7 +87,7 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
   - (( merge on <key> ))
   ```
 
-<br> The first merges using `name` as the key to determine
+  <br> The first merges using `name` as the key to determine
   like objects in the array elements. The second is used to customize which key to use. See [Merging Arrays of Maps](#mapmerge)
   for an example.
 
@@ -111,7 +111,7 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
     release: vNext
   ```
 
-  <br> or <br>
+  or <br>
 
   ```yml
   - (( insert after on <key> "<name>" ))
