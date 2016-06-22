@@ -86,14 +86,26 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
   ```yml
   - (( merge on <key> ))
   ```
+
 <br> The first merges using `name` as the key to determine
   like objects in the array elements. The second is used to customize which key to use. See [Merging Arrays of Maps](#mapmerge)
   for an example.
 
-- To insert new elements either after (or before) a specific position of an existing array, you can use `insert` with
+- To insert new elements either after or before a specific position of an existing array, you can use `insert` with
   a hint to the respective insertion point in the target list <br>
 
   ```yml
+  list:
+  - name: nats
+    release: v1
+  - name: consul
+    release: v1
+  - name: postgres
+    release: v1
+  ```
+
+  ```yml
+  list:
   - (( insert after "consul" ))
   - name: new-kid-on-the-block
     release: vNext
@@ -199,7 +211,7 @@ meta:
 that you're used to with [spiff](https://github.com/cloudfoundry-incubator/spiff),
 to specify the offsets in the static IP range for a job's network.
 
-Behind the scenes, there are a couple behavior improvements upon spiff. First,
+Behind the scenes, there are a couple behavior improvements upon spiff. First, 
 since all the merging is done first, then post-processing, there's no need
 to worry about getting the instances + networks defined before `(( static_ips() ))`
 is merged in. Second, the error messaging output should be a lot better to aid in
