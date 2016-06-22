@@ -1,0 +1,17 @@
+---
+meta:
+  list:
+  - name: first
+    release: v1
+  - name: second
+    release: v1
+  - name: third
+    release: v1
+  - name: fourth
+    release: v1
+  - name: fifth
+    release: v1
+  - name: new-kid-on-the-block
+    release: vNext
+  - name: sixth
+    release: v1
