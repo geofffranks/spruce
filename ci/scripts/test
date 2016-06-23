@@ -2,9 +2,6 @@
 
 set -e
 
-sudo -u worker bash <<EOF
-set -e
-
 export GOPATH=${PWD}/gopath
 export PATH=${PATH}:${GOPATH}/bin
 cd ${GOPATH}/src/${MODULE}
@@ -13,4 +10,3 @@ godep restore
 
 go vet -x ./...
 go test -v ./...
-EOF
