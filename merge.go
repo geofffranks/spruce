@@ -20,7 +20,7 @@ type Merger struct {
 	depth  int
 }
 
-type Foobar struct {
+type InsertSlice struct {
 	index    int
 	relative string
 	key      string
@@ -377,11 +377,11 @@ func shouldInsertIntoArrayBasedOnIndex(obj []interface{}) (bool, int) {
 	return false, -1
 }
 
-func shouldInsertIntoArrayBasedOnName(obj []interface{}) (bool, []Foobar) {
+func shouldInsertIntoArrayBasedOnName(obj []interface{}) (bool, []InsertSlice) {
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
 		re := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(on\\s+([^ ]+))?\\s*\"(.+)\"\\s*\\Q))\\E$")
 
-		var result []Foobar
+		var result []InsertSlice
 		for i, entry := range obj {
 			if reflect.TypeOf(entry).Kind() == reflect.String {
 				if re.MatchString(entry.(string)) {
@@ -403,12 +403,12 @@ func shouldInsertIntoArrayBasedOnName(obj []interface{}) (bool, []Foobar) {
 							key = capturedKey
 						}
 
-						foobar := &Foobar{}
-						foobar.index = i
-						foobar.relative = capturedRelative
-						foobar.key = key
-						foobar.name = capturedName
-						result = append(result, *foobar)
+						insertSlice := &InsertSlice{}
+						insertSlice.index = i
+						insertSlice.relative = capturedRelative
+						insertSlice.key = key
+						insertSlice.name = capturedName
+						result = append(result, *insertSlice)
 					}
 				}
 			}
