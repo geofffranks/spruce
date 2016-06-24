@@ -207,7 +207,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 			}
 
 			// Look up the index of the specified insertion point (based on its key/name)
-			idx := getIndexOfEntry(orig, key, name)
+			idx := getIndexOfEntry(result, key, name)
 			if idx < 0 {
 				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified insertion point with} @c{'%s: %s'}", node, key, name))
 				return nil

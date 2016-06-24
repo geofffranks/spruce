@@ -1225,6 +1225,48 @@ func TestMergeArray(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
+			Convey("Insert multiple new entries in different batches which will insert", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+					map[interface{}]interface{}{"id": "third", "release": "v1"},
+					map[interface{}]interface{}{"id": "fourth", "release": "v1"},
+					map[interface{}]interface{}{"id": "fifth", "release": "v1"},
+					map[interface{}]interface{}{"id": "sixth", "release": "v1"},
+					map[interface{}]interface{}{"id": "seventh", "release": "v1"},
+					map[interface{}]interface{}{"id": "eighth", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert after id \"second\" ))",
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-1", "release": "vNext"},
+					"(( insert after id \"fourth\" ))",
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-2", "release": "vNext"},
+					"(( insert after id \"sixth\" ))",
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-3", "release": "vNext"},
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-1", "release": "vNext"},
+					map[interface{}]interface{}{"id": "third", "release": "v1"},
+					map[interface{}]interface{}{"id": "fourth", "release": "v1"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-2", "release": "vNext"},
+					map[interface{}]interface{}{"id": "fifth", "release": "v1"},
+					map[interface{}]interface{}{"id": "sixth", "release": "v1"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-3", "release": "vNext"},
+					map[interface{}]interface{}{"id": "seventh", "release": "v1"},
+					map[interface{}]interface{}{"id": "eighth", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
 			Convey("throw an error when insertion point cannot be found", func() {
 				orig := []interface{}{
 					map[interface{}]interface{}{"name": "first", "release": "v1"},
