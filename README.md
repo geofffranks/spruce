@@ -95,20 +95,26 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
   a hint to the respective insertion point in the target list <br>
 
   ```yml
-  list:
-  - name: nats
-    release: v1
+  jobs:
   - name: consul
-    release: v1
-  - name: postgres
-    release: v1
+    instances: 1
+  - name: nats
+    instances: 2
+  - name: ccdb
+    instances: 2
+  - name: uaadb
+    instances: 2
+  - name: dea
+    instances: 8
+  - name: api
+    instances: 2
   ```
 
   ```yml
-  list:
-  - (( insert after "consul" ))
-  - name: new-kid-on-the-block
-    release: vNext
+  jobs:
+  - (( insert after "dea" ))
+  - name: dea_v2
+    instances: 2
   ```
 
   or <br>
