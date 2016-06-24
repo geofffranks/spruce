@@ -114,7 +114,7 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
   or <br>
 
   ```yml
-  - (( insert after on <key> "<name>" ))
+  - (( insert after <key> "<name>" ))
   - <key>: new-kid-on-the-block
   ```
   <br> Just like `merge`, the first `insert` is using `name` as the key to determine the target position in the target array.

@@ -1,6 +1,5 @@
 ---
-meta:
-  list:
-  - (( insert after "fifth" ))
-  - name: new-kid-on-the-block
-    release: vNext
+jobs:
+- (( insert after "dea" ))
+- name: dea_v2
+  instances: 2

@@ -266,7 +266,7 @@ func TestShouldInsertIntoArrayBasedOnName(t *testing.T) {
 		})
 
 		Convey("If insert token with after, key-name and insertion-name was found", func() {
-			result, insertSlices := shouldInsertIntoArrayBasedOnName([]interface{}{"(( insert after on name \"nats\" ))", "stuff"})
+			result, insertSlices := shouldInsertIntoArrayBasedOnName([]interface{}{"(( insert after name \"nats\" ))", "stuff"})
 			So(result, ShouldBeTrue)
 			So(insertSlices, ShouldNotBeNil)
 			So(len(insertSlices), ShouldEqual, 1)
@@ -276,7 +276,7 @@ func TestShouldInsertIntoArrayBasedOnName(t *testing.T) {
 		})
 
 		Convey("If insert token with before, another custom key-name and insertion-name was found", func() {
-			result, insertSlices := shouldInsertIntoArrayBasedOnName([]interface{}{"(( insert before on id \"ccdb\" ))", "stuff"})
+			result, insertSlices := shouldInsertIntoArrayBasedOnName([]interface{}{"(( insert before id \"ccdb\" ))", "stuff"})
 			So(result, ShouldBeTrue)
 			So(insertSlices, ShouldNotBeNil)
 			So(len(insertSlices), ShouldEqual, 1)
@@ -286,7 +286,7 @@ func TestShouldInsertIntoArrayBasedOnName(t *testing.T) {
 		})
 
 		Convey("If insert token with after, key-name and insertion-name was found without additional whitespaces", func() {
-			result, insertSlices := shouldInsertIntoArrayBasedOnName([]interface{}{"((insert after on name \"nats\"))", "stuff"})
+			result, insertSlices := shouldInsertIntoArrayBasedOnName([]interface{}{"((insert after name \"nats\"))", "stuff"})
 			So(result, ShouldBeTrue)
 			So(insertSlices, ShouldNotBeNil)
 			So(len(insertSlices), ShouldEqual, 1)
@@ -296,7 +296,7 @@ func TestShouldInsertIntoArrayBasedOnName(t *testing.T) {
 		})
 
 		Convey("If insert token with after, key-name and insertion-name was found with additional whitespaces", func() {
-			result, insertSlices := shouldInsertIntoArrayBasedOnName([]interface{}{"((   insert   after  on    name   \"nats\"   ))", "stuff"})
+			result, insertSlices := shouldInsertIntoArrayBasedOnName([]interface{}{"((   insert   after     name   \"nats\"   ))", "stuff"})
 			So(result, ShouldBeTrue)
 			So(insertSlices, ShouldNotBeNil)
 			So(len(insertSlices), ShouldEqual, 1)
@@ -306,7 +306,7 @@ func TestShouldInsertIntoArrayBasedOnName(t *testing.T) {
 		})
 
 		Convey("If insert token with after, key-name and insertion-name was found, but the list is empty", func() {
-			result, insertSlices := shouldInsertIntoArrayBasedOnName([]interface{}{"(( insert after on name \"nats\" ))"})
+			result, insertSlices := shouldInsertIntoArrayBasedOnName([]interface{}{"(( insert after name \"nats\" ))"})
 			So(result, ShouldBeTrue)
 			So(insertSlices, ShouldNotBeNil)
 			So(len(insertSlices), ShouldEqual, 1)
@@ -318,11 +318,11 @@ func TestShouldInsertIntoArrayBasedOnName(t *testing.T) {
 
 		Convey("If there are multiple insert token with after/before, different key names, and names (only technical usecase)", func() {
 			result, insertSlices := shouldInsertIntoArrayBasedOnName([]interface{}{
-				"(( insert after on name \"nats\" ))",
+				"(( insert after name \"nats\" ))",
 				"stuff1",
 				"stuff2",
 				"stuff3",
-				"(( insert before on id \"consul\" ))",
+				"(( insert before id \"consul\" ))",
 				"stuffX1",
 				"stuffX2",
 			})
@@ -1086,7 +1086,7 @@ func TestMergeArray(t *testing.T) {
 				}
 
 				array := []interface{}{
-					"(( insert after on id \"second\" ))",
+					"(( insert after id \"second\" ))",
 					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
 				}
 
@@ -1110,7 +1110,7 @@ func TestMergeArray(t *testing.T) {
 				}
 
 				array := []interface{}{
-					"(( insert before on id \"second\" ))",
+					"(( insert before id \"second\" ))",
 					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
 				}
 
@@ -1134,10 +1134,10 @@ func TestMergeArray(t *testing.T) {
 				}
 
 				array := []interface{}{
-					"(( insert before on id \"second\" ))",
+					"(( insert before id \"second\" ))",
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-1", "release": "vNext"},
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-2", "release": "vNext"},
-					"(( insert after on id \"first\" ))",
+					"(( insert after id \"first\" ))",
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-3", "release": "vNext"},
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-4", "release": "vNext"},
 				}
@@ -1165,10 +1165,10 @@ func TestMergeArray(t *testing.T) {
 				}
 
 				array := []interface{}{
-					"(( insert after on id \"first\" ))",
+					"(( insert after id \"first\" ))",
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-1", "release": "vNext"},
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-2", "release": "vNext"},
-					"(( insert after on id \"first\" ))",
+					"(( insert after id \"first\" ))",
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-3", "release": "vNext"},
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-4", "release": "vNext"},
 				}
@@ -1196,13 +1196,13 @@ func TestMergeArray(t *testing.T) {
 				}
 
 				array := []interface{}{
-					"(( insert after on id \"first\" ))",
+					"(( insert after id \"first\" ))",
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-1", "release": "vNext"},
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-2", "release": "vNext"},
-					"(( insert after on id \"first\" ))",
+					"(( insert after id \"first\" ))",
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-3", "release": "vNext"},
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-4", "release": "vNext"},
-					"(( insert after on id \"first\" ))",
+					"(( insert after id \"first\" ))",
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-5", "release": "vNext"},
 					map[interface{}]interface{}{"id": "new-kid-on-the-block-6", "release": "vNext"},
 				}
@@ -1232,7 +1232,7 @@ func TestMergeArray(t *testing.T) {
 				}
 
 				array := []interface{}{
-					"(( insert after on name \"not-existing\" ))",
+					"(( insert after name \"not-existing\" ))",
 					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
 				}
 
@@ -1251,7 +1251,7 @@ func TestMergeArray(t *testing.T) {
 				}
 
 				array := []interface{}{
-					"(( insert after on id \"second\" ))",
+					"(( insert after id \"second\" ))",
 					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
 				}
 
@@ -1270,7 +1270,7 @@ func TestMergeArray(t *testing.T) {
 				}
 
 				array := []interface{}{
-					"(( insert after on id \"second\" ))",
+					"(( insert after id \"second\" ))",
 					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
 				}
 
@@ -1289,7 +1289,7 @@ func TestMergeArray(t *testing.T) {
 				}
 
 				array := []interface{}{
-					"(( insert after on name \"second\" ))",
+					"(( insert after name \"second\" ))",
 					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
 					map[interface{}]interface{}{"name": "second", "release": "vNext"},
 				}

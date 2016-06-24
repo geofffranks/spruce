@@ -379,7 +379,7 @@ func shouldInsertIntoArrayBasedOnIndex(obj []interface{}) (bool, int) {
 
 func shouldInsertIntoArrayBasedOnName(obj []interface{}) (bool, []InsertSlice) {
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(on\\s+([^ ]+))?\\s*\"(.+)\"\\s*\\Q))\\E$")
+		re := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
 
 		var result []InsertSlice
 		for i, entry := range obj {
@@ -389,14 +389,13 @@ func shouldInsertIntoArrayBasedOnName(obj []interface{}) (bool, []InsertSlice) {
 
 					/* #0 is the whole string,
 					 * #1 is after or before
-					 * #2 contains the optional 'on <key>' string
-					 * #3 contains the optional '<key>' string (because of nested capture groups)
-					 * #4 is finally the target "<name>" string
+					 * #2 contains the optional '<key>' string
+					 * #3 is finally the target "<name>" string
 					 */
-					if len(captures) == 5 {
+					if len(captures) == 4 {
 						capturedRelative := strings.TrimSpace(captures[1])
-						capturedKey := strings.TrimSpace(captures[3])
-						capturedName := strings.TrimSpace(captures[4])
+						capturedKey := strings.TrimSpace(captures[2])
+						capturedName := strings.TrimSpace(captures[3])
 
 						key := "name"
 						if capturedKey != "" {
