@@ -1,0 +1,16 @@
+---
+jobs:
+- instances: 1
+  name: consul
+- instances: 2
+  name: nats
+- instances: 2
+  name: ccdb
+- instances: 2
+  name: uaadb
+- instances: 8
+  name: dea
+- instances: 2
+  name: dea_v2
+- instances: 2
+  name: api

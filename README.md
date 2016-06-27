@@ -87,9 +87,45 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
   - (( merge on <key> ))
   ```
 
-<br> The first merges using `name` as the key to determine
+  <br> The first merges using `name` as the key to determine
   like objects in the array elements. The second is used to customize which key to use. See [Merging Arrays of Maps](#mapmerge)
   for an example.
+
+- To insert new elements either after or before a specific position of an existing array, you can use `insert` with
+  a hint to the respective insertion point in the target list <br>
+
+  ```yml
+  jobs:
+  - name: consul
+    instances: 1
+  - name: nats
+    instances: 2
+  - name: ccdb
+    instances: 2
+  - name: uaadb
+    instances: 2
+  - name: dea
+    instances: 8
+  - name: api
+    instances: 2
+  ```
+
+  ```yml
+  jobs:
+  - (( insert after "dea" ))
+  - name: dea_v2
+    instances: 2
+  ```
+
+  or <br>
+
+  ```yml
+  - (( insert after <key> "<name>" ))
+  - <key>: new-kid-on-the-block
+  ```
+  <br> Just like `merge`, the first `insert` is using `name` as the key to determine the target position in the target array.
+  The second is used to customize which key to use. In any case, instead of `after`, you can also use `before`. This will
+  prepend the entries (relative to the specified insertion point).
 
 - If you don't specify a specific merge strategy, the array will
   be merged automatically; using keys if they exist (i.e. `((

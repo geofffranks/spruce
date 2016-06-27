@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/jhunt/ansi"
 
@@ -163,6 +165,50 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 		}
 
 		return m.mergeArrayByKey(orig, n[1:], node, key)
+
+	} else if should, idx := shouldInsertIntoArrayBasedOnIndex(n); should {
+		if idx < 0 || idx > len(orig) {
+			m.Errors.Append(ansi.Errorf("@m{%s}: @R{specified insertion index} @c{%d} @R{is out of bounds}", node, idx))
+			return nil
+		}
+
+		DEBUG("%s: inserting %d new elements to existing array, at index %d", node, len(n)-1, idx)
+		return append(orig[0:idx], append(n[1:], orig[idx:]...)...)
+
+	} else if should, relative, key, name := shouldInsertIntoArrayBasedOnName(n); should {
+		DEBUG("%s: inserting %d new elements to existing array %s entry '%s: %s'", node, len(n)-1, relative, key, name)
+
+		if err := canKeyMergeArray("new", n[1:], node, key); err != nil {
+			m.Errors.Append(err)
+			return nil
+		}
+
+		if err := canKeyMergeArray("original", orig, node, key); err != nil {
+			m.Errors.Append(err)
+			return nil
+		}
+
+		idx := getIndexOfEntry(orig, key, name)
+		if idx < 0 {
+			m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified insertion point with} @c{'%s: %s'}", node, key, name))
+			return nil
+		}
+
+		// Since we have a way to identify indiviual entries based on their key/id, we can sanity check for possible duplicates
+		for i, entry := range n[1:] {
+			obj := entry.(map[interface{}]interface{})
+			entryName := obj[key].(string)
+			if getIndexOfEntry(orig, key, entryName) > 0 {
+				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to insert, because new list entry} @c{%d} @R{is detected in both lists} @c{'%s: %s'}", node, i, key, entryName))
+				return nil
+			}
+		}
+
+		if relative == "after" {
+			idx++
+		}
+
+		return append(orig[0:idx], append(n[1:], orig[idx:]...)...)
 	}
 
 	DEBUG("%s: performing index-based array merge", node)
@@ -272,6 +318,61 @@ func shouldPrependToArray(obj []interface{}) bool {
 	return false
 }
 
+func shouldInsertIntoArrayBasedOnIndex(obj []interface{}) (bool, int) {
+	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
+		re := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(.+)\\s*\\Q))\\E$")
+		if re.MatchString(obj[0].(string)) {
+			captures := re.FindStringSubmatch(obj[0].(string))
+			relative := strings.TrimSpace(captures[1])
+			position := strings.TrimSpace(captures[2])
+			if idx, err := strconv.Atoi(position); err == nil {
+				// Back out if the index is lower than zero
+				if idx < 0 {
+					return false, -1
+				}
+
+				if relative == "after" {
+					return true, idx + 1
+
+				} else {
+					return true, idx
+				}
+			}
+		}
+	}
+
+	return false, -1
+}
+
+func shouldInsertIntoArrayBasedOnName(obj []interface{}) (bool, string, string, string) {
+	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
+		re := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
+		if re.MatchString(obj[0].(string)) {
+			captures := re.FindStringSubmatch(obj[0].(string))
+
+			/* #0 is the whole string,
+			 * #1 is after or before
+			 * #2 contains the optional '<key>' string (because of nested capture groups)
+			 * #3 is finally the target "<name>" string
+			 */
+			if len(captures) == 4 {
+				capturedRelative := strings.TrimSpace(captures[1])
+				capturedKey := strings.TrimSpace(captures[2])
+				capturedName := strings.TrimSpace(captures[3])
+
+				key := "name"
+				if capturedKey != "" {
+					key = capturedKey
+				}
+
+				return true, capturedRelative, key, capturedName
+			}
+		}
+	}
+
+	return false, "", "", ""
+}
+
 func shouldKeyMergeArray(obj []interface{}) (bool, string) {
 	key := "name"
 
@@ -315,4 +416,17 @@ func shouldReplaceArray(obj []interface{}) bool {
 		}
 	}
 	return false
+}
+
+func getIndexOfEntry(list []interface{}, key string, name string) int {
+	for i, entry := range list {
+		if reflect.TypeOf(entry).Kind() == reflect.Map {
+			obj := entry.(map[interface{}]interface{})
+			if obj[key] == name {
+				return i
+			}
+		}
+	}
+
+	return -1
 }

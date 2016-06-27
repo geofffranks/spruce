@@ -201,6 +201,110 @@ func TestShouldKeyMergeArrayOfHashes(t *testing.T) {
 	})
 }
 
+func TestShouldInsertIntoArrayBasedOnIndex(t *testing.T) {
+	Convey("We should insert into arrays based on index", t, func() {
+		Convey("If insert token with after and index is found", func() {
+			result, idx := shouldInsertIntoArrayBasedOnIndex([]interface{}{"(( insert after 0 ))", "stuff"})
+			So(result, ShouldBeTrue)
+			So(idx, ShouldEqual, 1)
+		})
+
+		Convey("If insert token with before and index is found", func() {
+			result, idx := shouldInsertIntoArrayBasedOnIndex([]interface{}{"(( insert before 0 ))", "stuff"})
+			So(result, ShouldBeTrue)
+			So(idx, ShouldEqual, 0)
+		})
+
+		Convey("If insert token with after and index is found independent of missing whitespaces", func() {
+			result, idx := shouldInsertIntoArrayBasedOnIndex([]interface{}{"((insert after 0))", "stuff"})
+			So(result, ShouldBeTrue)
+			So(idx, ShouldEqual, 1)
+		})
+
+		Convey("If insert token with after and index is found with a lot of additional whitespaces", func() {
+			result, idx := shouldInsertIntoArrayBasedOnIndex([]interface{}{"((  insert   after   0  ))", "stuff"})
+			So(result, ShouldBeTrue)
+			So(idx, ShouldEqual, 1)
+		})
+
+		Convey("But not if index is obviously out of bounds", func() {
+			result, idx := shouldInsertIntoArrayBasedOnIndex([]interface{}{"(( insert before -1 ))", "stuff"})
+			So(result, ShouldBeFalse)
+			So(idx, ShouldEqual, -1)
+		})
+
+		Convey("But not if the magic token is not specified", func() {
+			result, idx := shouldInsertIntoArrayBasedOnIndex([]interface{}{"not a magic token", "stuff"})
+			So(result, ShouldBeFalse)
+			So(idx, ShouldEqual, -1)
+		})
+
+		Convey("But not if the index is somehow quoted (and therefore not integer)", func() {
+			result, idx := shouldInsertIntoArrayBasedOnIndex([]interface{}{"(( insert after \"0\" ))", "stuff"})
+			So(result, ShouldBeFalse)
+			So(idx, ShouldEqual, -1)
+		})
+
+		Convey("But not if there is actually a different type of position style is wanted", func() {
+			result, idx := shouldInsertIntoArrayBasedOnIndex([]interface{}{"(( insert after \"foobar\" ))", "stuff"})
+			So(result, ShouldBeFalse)
+			So(idx, ShouldEqual, -1)
+		})
+	})
+}
+
+func TestShouldInsertIntoArrayBasedOnName(t *testing.T) {
+	Convey("We should insert into arrays based on key and name", t, func() {
+		Convey("If insert token with after, and insertion-name was found", func() {
+			result, relative, key, name := shouldInsertIntoArrayBasedOnName([]interface{}{"(( insert after \"nats\" ))", "stuff"})
+			So(result, ShouldBeTrue)
+			So(relative, ShouldEqual, "after")
+			So(key, ShouldEqual, "name")
+			So(name, ShouldEqual, "nats")
+		})
+
+		Convey("If insert token with after, key-name and insertion-name was found", func() {
+			result, relative, key, name := shouldInsertIntoArrayBasedOnName([]interface{}{"(( insert after name \"nats\" ))", "stuff"})
+			So(result, ShouldBeTrue)
+			So(relative, ShouldEqual, "after")
+			So(key, ShouldEqual, "name")
+			So(name, ShouldEqual, "nats")
+		})
+
+		Convey("If insert token with before, another custom key-name and insertion-name was found", func() {
+			result, relative, key, name := shouldInsertIntoArrayBasedOnName([]interface{}{"(( insert before id \"ccdb\" ))", "stuff"})
+			So(result, ShouldBeTrue)
+			So(relative, ShouldEqual, "before")
+			So(key, ShouldEqual, "id")
+			So(name, ShouldEqual, "ccdb")
+		})
+
+		Convey("If insert token with after, key-name and insertion-name was found without additional whitespaces", func() {
+			result, relative, key, name := shouldInsertIntoArrayBasedOnName([]interface{}{"((insert after name \"nats\"))", "stuff"})
+			So(result, ShouldBeTrue)
+			So(relative, ShouldEqual, "after")
+			So(key, ShouldEqual, "name")
+			So(name, ShouldEqual, "nats")
+		})
+
+		Convey("If insert token with after, key-name and insertion-name was found with additional whitespaces", func() {
+			result, relative, key, name := shouldInsertIntoArrayBasedOnName([]interface{}{"((   insert   after   name   \"nats\"   ))", "stuff"})
+			So(result, ShouldBeTrue)
+			So(relative, ShouldEqual, "after")
+			So(key, ShouldEqual, "name")
+			So(name, ShouldEqual, "nats")
+		})
+
+		Convey("But not if the magic token is not specified", func() {
+			result, relative, key, name := shouldInsertIntoArrayBasedOnName([]interface{}{"not a magic token", "stuff"})
+			So(result, ShouldBeFalse)
+			So(relative, ShouldEqual, "")
+			So(key, ShouldEqual, "")
+			So(name, ShouldEqual, "")
+		})
+	})
+}
+
 func TestMergeObj(t *testing.T) {
 	Convey("Passing a map to m.mergeObj merges as a map", t, func() {
 		Convey("merges as a map under normal conditions", func() {
@@ -822,6 +926,241 @@ func TestMergeArray(t *testing.T) {
 			err := m.Error()
 			So(o, ShouldResemble, expect)
 			So(err, ShouldBeNil)
+		})
+
+		Convey("with element '(( insert ))' inserts new data where wanted", func() {
+			Convey("After #0 put the new entry", func() {
+				orig := []interface{}{"first", "second", "third", "fourth", "fifth", "sixth"}
+				array := []interface{}{"(( insert after 0 ))", "new-kid-on-the-block"}
+				expect := []interface{}{"first", "new-kid-on-the-block", "second", "third", "fourth", "fifth", "sixth"}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Before #0 put the new entry", func() {
+				orig := []interface{}{"first", "second", "third", "fourth", "fifth", "sixth"}
+				array := []interface{}{"(( insert before 0 ))", "new-kid-on-the-block"}
+				expect := []interface{}{"new-kid-on-the-block", "first", "second", "third", "fourth", "fifth", "sixth"}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("After #4 put the new entry", func() {
+				orig := []interface{}{"first", "second", "third", "fourth", "fifth", "sixth"}
+				array := []interface{}{"(( insert after 4 ))", "new-kid-on-the-block"}
+				expect := []interface{}{"first", "second", "third", "fourth", "fifth", "new-kid-on-the-block", "sixth"}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("After #5 put the new entry", func() {
+				orig := []interface{}{"first", "second", "third", "fourth", "fifth", "sixth"}
+				array := []interface{}{"(( insert after 5 ))", "new-kid-on-the-block"}
+				expect := []interface{}{"first", "second", "third", "fourth", "fifth", "sixth", "new-kid-on-the-block"}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("throw an error if insertion point is out of bounds", func() {
+				orig := []interface{}{"first", "second", "third", "fourth", "fifth", "sixth"}
+				array := []interface{}{"(( insert after 6 ))", "new-kid-on-the-block"}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "specified insertion index 7 is out of bounds")
+			})
+
+			Convey("After '<default>: first' put the new entry", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert after \"first\" ))",
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Before '<default>: first' put the new entry", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert before \"first\" ))",
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("After 'id: second' put the new entry", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert after id \"second\" ))",
+					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Before 'id: second' put the new entry", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert before id \"second\" ))",
+					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("throw an error when insertion point cannot be found", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert after name \"not-existing\" ))",
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "unable to find specified insertion point")
+			})
+
+			Convey("throw an error when key cannot be found in new list", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert after id \"second\" ))",
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "new object does not contain the key")
+			})
+
+			Convey("throw an error when key cannot be found in original list", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert after id \"second\" ))",
+					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "original object does not contain the key")
+			})
+
+			Convey("throw an error when entry is already in target list", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert after name \"second\" ))",
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+					map[interface{}]interface{}{"name": "second", "release": "vNext"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "because new list entry 1 is detected in both lists")
+			})
 		})
 	})
 }
