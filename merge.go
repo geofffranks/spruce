@@ -20,6 +20,17 @@ type Merger struct {
 	depth  int
 }
 
+// Array operation helper structure
+type InsertDefinition struct {
+	index int
+
+	key  string
+	name string
+
+	relative string
+	list     []interface{}
+}
+
 // Merge ...
 func Merge(l ...map[interface{}]interface{}) (map[interface{}]interface{}, error) {
 	m := &Merger{}
@@ -136,15 +147,7 @@ func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interfac
 
 func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []interface{} {
 
-	if shouldAppendToArray(n) {
-		DEBUG("%s: appending %d new elements to existing array, starting at index %d", node, len(n)-1, len(orig))
-		return append(orig, n[1:]...)
-
-	} else if shouldPrependToArray(n) {
-		DEBUG("%s: prepending %d new elements to existing array", node, len(n)-1)
-		return append(n[1:], orig...)
-
-	} else if shouldInlineMergeArray(n) {
+	if shouldInlineMergeArray(n) {
 		DEBUG("%s: performing explicit inline array merge", node)
 		return m.mergeArrayInline(orig, n[1:], node)
 
@@ -166,49 +169,72 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 
 		return m.mergeArrayByKey(orig, n[1:], node, key)
 
-	} else if should, idx := shouldInsertIntoArrayBasedOnIndex(n); should {
-		if idx < 0 || idx > len(orig) {
-			m.Errors.Append(ansi.Errorf("@m{%s}: @R{specified insertion index} @c{%d} @R{is out of bounds}", node, idx))
-			return nil
-		}
+	} else if should, insertDefinitions := shouldInsertIntoArray(n); should {
+		DEBUG("%s: performing %d insert operations into array", node, len(insertDefinitions))
 
-		DEBUG("%s: inserting %d new elements to existing array, at index %d", node, len(n)-1, idx)
-		return append(orig[0:idx], append(n[1:], orig[idx:]...)...)
+		// Create a copy of orig for the (multiple) modifications that are about to happen
+		result := make([]interface{}, len(orig))
+		copy(result, orig)
 
-	} else if should, relative, key, name := shouldInsertIntoArrayBasedOnName(n); should {
-		DEBUG("%s: inserting %d new elements to existing array %s entry '%s: %s'", node, len(n)-1, relative, key, name)
+		var idx int
 
-		if err := canKeyMergeArray("new", n[1:], node, key); err != nil {
-			m.Errors.Append(err)
-			return nil
-		}
+		// Process the insert definitions that were found in the new list
+		for i := range insertDefinitions {
+			if insertDefinitions[i].key == "" && insertDefinitions[i].name == "" { // Index comes directly from insert definition
+				idx = insertDefinitions[i].index
 
-		if err := canKeyMergeArray("original", orig, node, key); err != nil {
-			m.Errors.Append(err)
-			return nil
-		}
+				// Replace the -1 marker with the actual 'end' index of the array
+				if idx == -1 {
+					idx = len(result)
+				}
 
-		idx := getIndexOfEntry(orig, key, name)
-		if idx < 0 {
-			m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified insertion point with} @c{'%s: %s'}", node, key, name))
-			return nil
-		}
+			} else { // Index look-up based on key and name
+				key := insertDefinitions[i].key
+				name := insertDefinitions[i].name
 
-		// Since we have a way to identify indiviual entries based on their key/id, we can sanity check for possible duplicates
-		for i, entry := range n[1:] {
-			obj := entry.(map[interface{}]interface{})
-			entryName := obj[key].(string)
-			if getIndexOfEntry(orig, key, entryName) > 0 {
-				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to insert, because new list entry} @c{%d} @R{is detected in both lists} @c{'%s: %s'}", node, i, key, entryName))
+				if err := canKeyMergeArray("original", result, node, key); err != nil {
+					m.Errors.Append(err)
+					return nil
+				}
+
+				if err := canKeyMergeArray("new", insertDefinitions[i].list, node, key); err != nil {
+					m.Errors.Append(err)
+					return nil
+				}
+
+				// Look up the index of the specified insertion point (based on its key/name)
+				idx = getIndexOfEntry(result, key, name)
+				if idx < 0 {
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified insertion point with} @c{'%s: %s'}", node, key, name))
+					return nil
+				}
+
+				// Since we have a way to identify indiviual entries based on their key/id, we can sanity check for possible duplicates
+				for _, entry := range insertDefinitions[i].list {
+					obj := entry.(map[interface{}]interface{})
+					entryName := obj[key].(string)
+					if getIndexOfEntry(result, key, entryName) > 0 {
+						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to insert, because new list entry} @c{'%s: %s'} @R{is detected multiple times}", node, key, entryName))
+						return nil
+					}
+				}
+			}
+
+			// If after is specified, add one to the index to actually put the entry where it is expected
+			if insertDefinitions[i].relative == "after" {
+				idx++
+			}
+
+			if idx > len(result) {
+				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to insert, because specified insertion index} @c{%d} @R{is out of bounds}", node, idx))
 				return nil
 			}
+
+			DEBUG("%s: inserting %d new elements to existing array at index %d", node, len(insertDefinitions[i].list), idx)
+			result = insertInto(result, idx, insertDefinitions[i].list)
 		}
 
-		if relative == "after" {
-			idx++
-		}
-
-		return append(orig[0:idx], append(n[1:], orig[idx:]...)...)
+		return result
 	}
 
 	DEBUG("%s: performing index-based array merge", node)
@@ -298,79 +324,77 @@ func shouldInlineMergeArray(obj []interface{}) bool {
 	return false
 }
 
-func shouldAppendToArray(obj []interface{}) bool {
+func shouldInsertIntoArray(obj []interface{}) (bool, []InsertDefinition) {
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
-		if re.MatchString(obj[0].(string)) {
-			return true
-		}
-	}
-	return false
-}
+		appendRegEx := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
+		prependRegEx := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
+		insertByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(\\d+)\\s*\\Q))\\E$")
+		insertByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
 
-func shouldPrependToArray(obj []interface{}) bool {
-	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
-		if re.MatchString(obj[0].(string)) {
-			return true
-		}
-	}
-	return false
-}
+		var result []InsertDefinition
+		for i, entry := range obj {
+			if reflect.TypeOf(entry).Kind() == reflect.String {
+				if appendRegEx.MatchString(entry.(string)) { // check for (( append ))
+					result = append(result, InsertDefinition{index: -1})
+					continue
 
-func shouldInsertIntoArrayBasedOnIndex(obj []interface{}) (bool, int) {
-	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(.+)\\s*\\Q))\\E$")
-		if re.MatchString(obj[0].(string)) {
-			captures := re.FindStringSubmatch(obj[0].(string))
-			relative := strings.TrimSpace(captures[1])
-			position := strings.TrimSpace(captures[2])
-			if idx, err := strconv.Atoi(position); err == nil {
-				// Back out if the index is lower than zero
-				if idx < 0 {
-					return false, -1
-				}
+				} else if prependRegEx.MatchString(entry.(string)) { // check for (( prepend ))
+					result = append(result, InsertDefinition{index: 0})
+					continue
 
-				if relative == "after" {
-					return true, idx + 1
+				} else if insertByIdxRegEx.MatchString(entry.(string)) { // check for (( insert ... <idx> ))
+					/* #0 is the whole string,
+					 * #1 is after or before
+					 * #2 is the insertion index
+					 */
+					if captures := insertByIdxRegEx.FindStringSubmatch(entry.(string)); len(captures) == 3 {
+						relative := strings.TrimSpace(captures[1])
+						position := strings.TrimSpace(captures[2])
+						if idx, err := strconv.Atoi(position); err == nil {
+							result = append(result, InsertDefinition{index: idx, relative: relative})
+							continue
+						}
+					}
 
-				} else {
-					return true, idx
+				} else if insertByNameRegEx.MatchString(entry.(string)) { // check for (( insert ... "<name>"" ))
+					/* #0 is the whole string,
+					 * #1 is after or before
+					 * #2 contains the optional '<key>' string
+					 * #3 is finally the target "<name>" string
+					 */
+					if captures := insertByNameRegEx.FindStringSubmatch(entry.(string)); len(captures) == 4 {
+						relative := strings.TrimSpace(captures[1])
+						key := strings.TrimSpace(captures[2])
+						name := strings.TrimSpace(captures[3])
+
+						if key == "" {
+							key = "name"
+						}
+
+						result = append(result, InsertDefinition{relative: relative, key: key, name: name})
+						continue
+					}
 				}
 			}
-		}
-	}
 
-	return false, -1
-}
+			lastResultIdx := len(result) - 1
+			if lastResultIdx >= 0 {
+				// Add the current entry to the 'current' insertion defition record (gathering the list)
+				result[lastResultIdx].list = append(result[lastResultIdx].list, entry)
 
-func shouldInsertIntoArrayBasedOnName(obj []interface{}) (bool, string, string, string) {
-	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
-		if re.MatchString(obj[0].(string)) {
-			captures := re.FindStringSubmatch(obj[0].(string))
-
-			/* #0 is the whole string,
-			 * #1 is after or before
-			 * #2 contains the optional '<key>' string (because of nested capture groups)
-			 * #3 is finally the target "<name>" string
-			 */
-			if len(captures) == 4 {
-				capturedRelative := strings.TrimSpace(captures[1])
-				capturedKey := strings.TrimSpace(captures[2])
-				capturedName := strings.TrimSpace(captures[3])
-
-				key := "name"
-				if capturedKey != "" {
-					key = capturedKey
-				}
-
-				return true, capturedRelative, key, capturedName
+			} else {
+				// Having no last result index at hand means we are dealing with an orphaned list entry
+				DEBUG("List entry %d cannot be connected to an insertion operation (orphaned entry)", i)
+				return false, nil
 			}
 		}
+
+		if len(result) > 0 {
+			return true, result
+		}
 	}
 
-	return false, "", "", ""
+	return false, nil
 }
 
 func shouldKeyMergeArray(obj []interface{}) (bool, string) {
@@ -429,4 +453,17 @@ func getIndexOfEntry(list []interface{}, key string, name string) int {
 	}
 
 	return -1
+}
+
+func insertInto(orig []interface{}, idx int, list []interface{}) []interface{} {
+	prefix := make([]interface{}, idx)
+	copy(prefix, orig[0:idx])
+
+	sublist := make([]interface{}, len(list))
+	copy(sublist, list)
+
+	suffix := make([]interface{}, len(orig)-idx)
+	copy(suffix, orig[idx:])
+
+	return append(prefix, append(sublist, suffix...)...)
 }

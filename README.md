@@ -46,7 +46,7 @@ the new keys in the file merged on top of the original.
 
 ### What about arrays?
 
-Arrays can be merged in three ways - prepending data, appending data, and completely replacing data.
+Arrays can be modified in multiple ways: prepending data, appending data, inserting data, merging data onto the existing data, or completely replacing data.
 
 - To append data to an existing array, ensure that the first element in the new array is <br>
 
@@ -59,37 +59,6 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
   ```yml
   - (( prepend ))
   ```
-
-- To replace the first array with the second,
-  ensure that the first element in the new array is <br>
-
-  ```yml
-  - (( replace ))
-  ```
-
-- To merge two arrays by way of their index, just make the first
-  element <br>
-
-  ```yml
-  - (( inline ))
-  ```
-
-- To merge two arrays of maps together (using a specific key for identifying like objects), ensure that the first element
-  in the new array is either <br>
-
-  ```yml
-  - (( merge ))
-  ```
-
-  <br> or <br>
-
-  ```yml
-  - (( merge on <key> ))
-  ```
-
-  <br> The first merges using `name` as the key to determine
-  like objects in the array elements. The second is used to customize which key to use. See [Merging Arrays of Maps](#mapmerge)
-  for an example.
 
 - To insert new elements either after or before a specific position of an existing array, you can use `insert` with
   a hint to the respective insertion point in the target list <br>
@@ -123,9 +92,44 @@ Arrays can be merged in three ways - prepending data, appending data, and comple
   - (( insert after <key> "<name>" ))
   - <key>: new-kid-on-the-block
   ```
-  <br> Just like `merge`, the first `insert` is using `name` as the key to determine the target position in the target array.
+  <br> The first `insert` is using `name` as the default key to determine the target position in the target array.
   The second is used to customize which key to use. In any case, instead of `after`, you can also use `before`. This will
   prepend the entries (relative to the specified insertion point).
+
+  <br> The array insertion opertions `(( append ))`, `(( prepend ))`, and `(( insert ... ))` can be used multiple times in
+  one list. They will be processed sequentially and the respective operation applies as long no other insertion operation
+  resets the designated insertion point.
+
+- To replace the first array with the second,
+  ensure that the first element in the new array is <br>
+
+  ```yml
+  - (( replace ))
+  ```
+
+- To merge two arrays by way of their index, just make the first
+  element <br>
+
+  ```yml
+  - (( inline ))
+  ```
+
+- To merge two arrays of maps together (using a specific key for identifying like objects), ensure that the first element
+  in the new array is either <br>
+
+  ```yml
+  - (( merge ))
+  ```
+
+  <br> or <br>
+
+  ```yml
+  - (( merge on <key> ))
+  ```
+
+  <br> The first merges using `name` as the key to determine
+  like objects in the array elements. The second is used to customize which key to use. See [Merging Arrays of Maps](#mapmerge)
+  for an example.
 
 - If you don't specify a specific merge strategy, the array will
   be merged automatically; using keys if they exist (i.e. `((
