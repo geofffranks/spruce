@@ -1545,11 +1545,13 @@ value: (( grab meta.key ))
 `),
 			}
 
-			err := ev.RunPhase(EvalPhase)
-			So(err, ShouldBeNil)
-			err = ev.RunPhase(ParamPhase)
+			err := ev.RunPhase(ParamPhase)
 			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "1 error(s) detected")
 			So(err.Error(), ShouldContainSubstring, "you must specify this")
+
+			err = ev.RunPhase(EvalPhase)
+			So(err, ShouldBeNil)
 		})
 
 		Convey("detects unsatisfied (( param )) inside of a (( concat ... )) call", func() {
@@ -1562,11 +1564,13 @@ value: (( concat "key=" meta.key ))
 `),
 			}
 
-			err := ev.RunPhase(EvalPhase)
-			So(err, ShouldBeNil)
-			err = ev.RunPhase(ParamPhase)
+			err := ev.RunPhase(ParamPhase)
 			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "1 error(s) detected")
 			So(err.Error(), ShouldContainSubstring, "you must specify this")
+
+			err = ev.RunPhase(EvalPhase)
+			So(err, ShouldBeNil)
 		})
 
 		Convey("handles non-list (direct) args to (( cartesian-product ... ))", func() {

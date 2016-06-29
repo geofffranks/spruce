@@ -372,6 +372,11 @@ func (ev *Evaluator) Run(prune []string) error {
 	paramErrs := MultiError{Errors: []error{}}
 
 	errors.Append(ev.RunPhase(MergePhase))
+	paramErrs.Append(ev.RunPhase(ParamPhase))
+	if len(paramErrs.Errors) > 0 {
+		return paramErrs
+	}
+
 	errors.Append(ev.RunPhase(EvalPhase))
 
 	// this is a big failure...
@@ -379,13 +384,8 @@ func (ev *Evaluator) Run(prune []string) error {
 		return err
 	}
 
-	paramErrs.Append(ev.RunPhase(ParamPhase))
 	errors.Append(ev.Prune(append(keysToPrune, prune...)))
 	keysToPrune = nil
-
-	if len(paramErrs.Errors) > 0 {
-		return paramErrs
-	}
 
 	if len(errors.Errors) > 0 {
 		return errors
