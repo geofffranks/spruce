@@ -1351,6 +1351,80 @@ func TestMergeArray(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
+			Convey("Insert multiple new entries in with different insertion styles which depend on each other (without name keys)", func() {
+				orig := []interface{}{
+					"1",
+					"2",
+					"3",
+				}
+
+				array := []interface{}{
+					"(( prepend ))",
+					"this thing",
+					"that thing",
+					"(( insert before 1 ))",
+					"first insert",
+					"(( insert before 2 ))",
+					"second insert",
+					"(( insert before 6 ))",
+					"stuff",
+				}
+
+				expect := []interface{}{
+					"this thing",
+					"first insert",
+					"second insert",
+					"that thing",
+					"1",
+					"2",
+					"stuff",
+					"3",
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Insert multiple new entries in with different insertion styles which depend on each other (with id keys)", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "1"},
+					map[interface{}]interface{}{"id": "2"},
+					map[interface{}]interface{}{"id": "3"},
+				}
+
+				array := []interface{}{
+					"(( prepend ))",
+					map[interface{}]interface{}{"id": "this thing"},
+					map[interface{}]interface{}{"id": "that thing"},
+					"(( insert after id \"this thing\" ))",
+					map[interface{}]interface{}{"id": "first insert"},
+					"(( insert after id \"first insert\" ))",
+					map[interface{}]interface{}{"id": "second insert"},
+					"(( insert after id \"2\" ))",
+					map[interface{}]interface{}{"id": "stuff"},
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"id": "this thing"},
+					map[interface{}]interface{}{"id": "first insert"},
+					map[interface{}]interface{}{"id": "second insert"},
+					map[interface{}]interface{}{"id": "that thing"},
+					map[interface{}]interface{}{"id": "1"},
+					map[interface{}]interface{}{"id": "2"},
+					map[interface{}]interface{}{"id": "stuff"},
+					map[interface{}]interface{}{"id": "3"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
 			Convey("throw an error when insertion point cannot be found", func() {
 				orig := []interface{}{
 					map[interface{}]interface{}{"name": "first", "release": "v1"},
