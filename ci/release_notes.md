@@ -12,7 +12,7 @@
   (`(( insert after "nats" ))`) or by index (`(( insert after 4 ))`).
 
 - The `(( append ))`,  `(( prepend ))`, and `(( insert ... ))`
-  operators are allowed multiple times in a list. This provides the
+  operators are now allowed multiple times in a list. This provides the
   flexibility to append, prepend, or insert elements using only one list:
   ```yml
   list:
