@@ -8,5 +8,5 @@ cd ${GOPATH}/src/${MODULE}
 
 godep restore
 
-go vet -x ./...
+go list ./... | grep -v vendor | xargs go vet
 go test -v ./...

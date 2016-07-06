@@ -21,3 +21,6 @@
   - (( append ))
   - The new last entry
   ``
+
+- Updated godep to use golang vendoring structure, in preparation for
+  removal of `Godeps/_workspace` in golang 1.8.
