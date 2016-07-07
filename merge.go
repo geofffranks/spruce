@@ -235,6 +235,36 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 		}
 
 		return result
+	}else if should, insertDefinitions := shouldDeleteIntoArray(n); should {
+		DEBUG("%s: performing %d delete operations into array", node, len(insertDefinitions))
+		// Create a copy of orig for the (multiple) modifications that are about to happen
+		result := make([]interface{}, len(orig))
+		copy(result, orig)
+		var idx int
+		// Process the insert definitions that were found in the new list
+		for i := range insertDefinitions {
+			// Index look-up based on key and name
+			key := insertDefinitions[i].key
+			name := insertDefinitions[i].name
+			if err := canKeyMergeArray("original", result, node, key); err != nil {
+				m.Errors.Append(err)
+				return nil
+			}
+			if err := canKeyMergeArray("new", insertDefinitions[i].list, node, key); err != nil {
+				m.Errors.Append(err)
+				return nil
+			}
+			// Look up the index of the specified insertion point (based on its key/name)
+			idx = getIndexOfEntry(result, key, name)
+			if idx < 0 {
+				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified delete point with} @c{'%s: %s'}", node, key, name))
+				return nil
+			}		
+			
+			DEBUG("%s: deleting %d element from existing array at index %d", node, len(insertDefinitions[i].list), idx)
+			result = deleteInto(result, idx, insertDefinitions[i].list)
+		}
+		return result		
 	}
 
 	DEBUG("%s: performing index-based array merge", node)
@@ -397,6 +427,47 @@ func shouldInsertIntoArray(obj []interface{}) (bool, []InsertDefinition) {
 	return false, nil
 }
 
+func shouldDeleteIntoArray(obj []interface{}) (bool, []InsertDefinition) {
+	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
+		deleteByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
+
+		var result []InsertDefinition
+		for i, entry := range obj {
+			if reflect.TypeOf(entry).Kind() == reflect.String {
+				if deleteByNameRegEx.MatchString(entry.(string)) {
+					/* #0 is the whole string,
+					 * #1 contains the optional '<key>' string
+					 * #2 is finally the target "<name>" string
+					 */
+					if captures := deleteByNameRegEx.FindStringSubmatch(entry.(string)); len(captures) == 3 {					
+						key := strings.TrimSpace(captures[1])
+						name := strings.TrimSpace(captures[2])
+
+						if key == "" {
+							key = "name"
+						}
+						result = append(result, InsertDefinition{key: key, name: name})
+						continue
+					}
+				}
+			}
+			lastResultIdx := len(result) - 1
+			if lastResultIdx >= 0 {
+				// Add the current entry to the 'current' insertion defition record (gathering the list)
+				result[lastResultIdx].list = append(result[lastResultIdx].list, entry)
+			} else {
+				// Having no last result index at hand means we are dealing with an orphaned list entry
+				DEBUG("List entry %d cannot be connected to an delete operation (orphaned entry)", i)
+				return false, nil
+			}
+		}
+		if len(result) > 0 {
+			return true, result
+		}
+	}
+	return false, nil
+}
+
 func shouldKeyMergeArray(obj []interface{}) (bool, string) {
 	key := "name"
 
@@ -466,4 +537,16 @@ func insertInto(orig []interface{}, idx int, list []interface{}) []interface{} {
 	copy(suffix, orig[idx:])
 
 	return append(prefix, append(sublist, suffix...)...)
+}
+
+func deleteInto(orig []interface{}, idx int, list []interface{}) []interface{} {
+	prefix := make([]interface{}, len(orig))
+	copy(prefix, orig)
+	
+	sublist := make([]interface{}, len(list))
+	copy(sublist, list)
+	
+	prefix = append(prefix[:idx],prefix[idx+1:]...)
+	prefix = append(prefix,sublist...)
+	return prefix
 }
