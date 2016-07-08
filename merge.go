@@ -21,11 +21,13 @@ type Merger struct {
 }
 
 // Array operation helper structure
-type InsertDefinition struct {
+type ModificationDefinition struct {
 	index int
 
 	key  string
 	name string
+
+	delete bool
 
 	relative string
 	list     []interface{}
@@ -169,8 +171,8 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 
 		return m.mergeArrayByKey(orig, n[1:], node, key)
 
-	} else if should, insertDefinitions := shouldInsertIntoArray(n); should {
-		DEBUG("%s: performing %d insert operations into array", node, len(insertDefinitions))
+	} else if should, modificationDefinitions := shouldModifyArray(n); should {
+		DEBUG("%s: performing %d modification operations against list", node, len(modificationDefinitions))
 
 		// Create a copy of orig for the (multiple) modifications that are about to happen
 		result := make([]interface{}, len(orig))
@@ -179,9 +181,9 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 		var idx int
 
 		// Process the insert definitions that were found in the new list
-		for i := range insertDefinitions {
-			if insertDefinitions[i].key == "" && insertDefinitions[i].name == "" { // Index comes directly from insert definition
-				idx = insertDefinitions[i].index
+		for i := range modificationDefinitions {
+			if modificationDefinitions[i].key == "" && modificationDefinitions[i].name == "" { // Index comes directly from operation definition
+				idx = modificationDefinitions[i].index
 
 				// Replace the -1 marker with the actual 'end' index of the array
 				if idx == -1 {
@@ -189,82 +191,66 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 				}
 
 			} else { // Index look-up based on key and name
-				key := insertDefinitions[i].key
-				name := insertDefinitions[i].name
+				key := modificationDefinitions[i].key
+				name := modificationDefinitions[i].name
+				delete := modificationDefinitions[i].delete
 
 				if err := canKeyMergeArray("original", result, node, key); err != nil {
 					m.Errors.Append(err)
 					return nil
 				}
 
-				if err := canKeyMergeArray("new", insertDefinitions[i].list, node, key); err != nil {
-					m.Errors.Append(err)
-					return nil
+				if delete == false {
+					if err := canKeyMergeArray("new", modificationDefinitions[i].list, node, key); err != nil {
+						m.Errors.Append(err)
+						return nil
+					}
+
+					// Since we have a way to identify indiviual entries based on their key/id, we can sanity check for possible duplicates
+					for _, entry := range modificationDefinitions[i].list {
+						obj := entry.(map[interface{}]interface{})
+						entryName := obj[key].(string)
+						if getIndexOfEntry(result, key, entryName) > 0 {
+							m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to insert, because new list entry} @c{'%s: %s'} @R{is detected multiple times}", node, key, entryName))
+							return nil
+						}
+					}
+				} else {
+					if len(modificationDefinitions[i].list) > 0 {
+						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to delete, orphan entries found after} @c{'%s: %s'}", node, key, name))
+						return nil
+					}
 				}
 
 				// Look up the index of the specified insertion point (based on its key/name)
 				idx = getIndexOfEntry(result, key, name)
 				if idx < 0 {
-					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified insertion point with} @c{'%s: %s'}", node, key, name))
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified modification point with} @c{'%s: %s'}", node, key, name))
 					return nil
-				}
-
-				// Since we have a way to identify indiviual entries based on their key/id, we can sanity check for possible duplicates
-				for _, entry := range insertDefinitions[i].list {
-					obj := entry.(map[interface{}]interface{})
-					entryName := obj[key].(string)
-					if getIndexOfEntry(result, key, entryName) > 0 {
-						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to insert, because new list entry} @c{'%s: %s'} @R{is detected multiple times}", node, key, entryName))
-						return nil
-					}
 				}
 			}
 
 			// If after is specified, add one to the index to actually put the entry where it is expected
-			if insertDefinitions[i].relative == "after" {
+			if modificationDefinitions[i].relative == "after" {
 				idx++
 			}
 
-			if idx > len(result) {
-				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to insert, because specified insertion index} @c{%d} @R{is out of bounds}", node, idx))
+			// Back out if idx is smaller than 0, or greater than the length (for inserts), or greater/equal than the length (for deletes)
+			if (idx < 0) || ( modificationDefinitions[i].delete == false && idx > len(result) )  || ( modificationDefinitions[i].delete == true && idx >= len(result) ) {
+				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to modify the list, because specified index} @c{%d} @R{is out of bounds}", node, idx))
 				return nil
 			}
 
-			DEBUG("%s: inserting %d new elements to existing array at index %d", node, len(insertDefinitions[i].list), idx)
-			result = insertInto(result, idx, insertDefinitions[i].list)
+			if modificationDefinitions[i].delete == false {
+				DEBUG("%s: inserting %d new elements to existing array at index %d", node, len(modificationDefinitions[i].list), idx)
+				result = insertIntoList(result, idx, modificationDefinitions[i].list)
+			} else {
+				DEBUG("%s: deleting element at array index %d", node, idx)
+				result = deleteIndexFromList(result, idx)
+			}
 		}
 
 		return result
-	}else if should, insertDefinitions := shouldDeleteIntoArray(n); should {
-		DEBUG("%s: performing %d delete operations into array", node, len(insertDefinitions))
-		// Create a copy of orig for the (multiple) modifications that are about to happen
-		result := make([]interface{}, len(orig))
-		copy(result, orig)
-		var idx int
-		// Process the insert definitions that were found in the new list
-		for i := range insertDefinitions {
-			// Index look-up based on key and name
-			key := insertDefinitions[i].key
-			name := insertDefinitions[i].name
-			if err := canKeyMergeArray("original", result, node, key); err != nil {
-				m.Errors.Append(err)
-				return nil
-			}
-			if err := canKeyMergeArray("new", insertDefinitions[i].list, node, key); err != nil {
-				m.Errors.Append(err)
-				return nil
-			}
-			// Look up the index of the specified insertion point (based on its key/name)
-			idx = getIndexOfEntry(result, key, name)
-			if idx < 0 {
-				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified delete point with} @c{'%s: %s'}", node, key, name))
-				return nil
-			}		
-			
-			DEBUG("%s: deleting %d element from existing array at index %d", node, len(insertDefinitions[i].list), idx)
-			result = deleteInto(result, idx, insertDefinitions[i].list)
-		}
-		return result		
 	}
 
 	DEBUG("%s: performing index-based array merge", node)
@@ -354,22 +340,24 @@ func shouldInlineMergeArray(obj []interface{}) bool {
 	return false
 }
 
-func shouldInsertIntoArray(obj []interface{}) (bool, []InsertDefinition) {
+func shouldModifyArray(obj []interface{}) (bool, []ModificationDefinition) {
 	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
 		appendRegEx := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
 		prependRegEx := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
 		insertByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(\\d+)\\s*\\Q))\\E$")
 		insertByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
+		deleteByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+(\\d+)\\s*\\Q))\\E$")
+		deleteByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
 
-		var result []InsertDefinition
+		var result []ModificationDefinition
 		for i, entry := range obj {
 			if reflect.TypeOf(entry).Kind() == reflect.String {
 				if appendRegEx.MatchString(entry.(string)) { // check for (( append ))
-					result = append(result, InsertDefinition{index: -1})
+					result = append(result, ModificationDefinition{index: -1})
 					continue
 
 				} else if prependRegEx.MatchString(entry.(string)) { // check for (( prepend ))
-					result = append(result, InsertDefinition{index: 0})
+					result = append(result, ModificationDefinition{index: 0})
 					continue
 
 				} else if insertByIdxRegEx.MatchString(entry.(string)) { // check for (( insert ... <idx> ))
@@ -381,7 +369,7 @@ func shouldInsertIntoArray(obj []interface{}) (bool, []InsertDefinition) {
 						relative := strings.TrimSpace(captures[1])
 						position := strings.TrimSpace(captures[2])
 						if idx, err := strconv.Atoi(position); err == nil {
-							result = append(result, InsertDefinition{index: idx, relative: relative})
+							result = append(result, ModificationDefinition{index: idx, relative: relative})
 							continue
 						}
 					}
@@ -401,63 +389,46 @@ func shouldInsertIntoArray(obj []interface{}) (bool, []InsertDefinition) {
 							key = "name"
 						}
 
-						result = append(result, InsertDefinition{relative: relative, key: key, name: name})
+						result = append(result, ModificationDefinition{relative: relative, key: key, name: name})
 						continue
 					}
-				}
-			}
-
-			lastResultIdx := len(result) - 1
-			if lastResultIdx >= 0 {
-				// Add the current entry to the 'current' insertion defition record (gathering the list)
-				result[lastResultIdx].list = append(result[lastResultIdx].list, entry)
-
-			} else {
-				// Having no last result index at hand means we are dealing with an orphaned list entry
-				DEBUG("List entry %d cannot be connected to an insertion operation (orphaned entry)", i)
-				return false, nil
-			}
-		}
-
-		if len(result) > 0 {
-			return true, result
-		}
-	}
-
-	return false, nil
-}
-
-func shouldDeleteIntoArray(obj []interface{}) (bool, []InsertDefinition) {
-	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		deleteByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
-
-		var result []InsertDefinition
-		for i, entry := range obj {
-			if reflect.TypeOf(entry).Kind() == reflect.String {
-				if deleteByNameRegEx.MatchString(entry.(string)) {
+				} else if deleteByIdxRegEx.MatchString(entry.(string)) { // check for (( delete <idx> ))
+					/* #0 is the whole string,
+					 * #1 is idx
+					 */
+					if captures := deleteByIdxRegEx.FindStringSubmatch(entry.(string)); len(captures) == 2 {
+						position := strings.TrimSpace(captures[1])
+						if idx, err := strconv.Atoi(position); err == nil {
+							result = append(result, ModificationDefinition{index: idx, delete: true})
+							continue
+						}
+					}
+				} else if deleteByNameRegEx.MatchString(entry.(string)) { // check for (( delete "<name>"" ))
 					/* #0 is the whole string,
 					 * #1 contains the optional '<key>' string
 					 * #2 is finally the target "<name>" string
 					 */
-					if captures := deleteByNameRegEx.FindStringSubmatch(entry.(string)); len(captures) == 3 {					
+					if captures := deleteByNameRegEx.FindStringSubmatch(entry.(string)); len(captures) == 3 {
 						key := strings.TrimSpace(captures[1])
 						name := strings.TrimSpace(captures[2])
 
 						if key == "" {
 							key = "name"
 						}
-						result = append(result, InsertDefinition{key: key, name: name})
+
+						result = append(result, ModificationDefinition{key: key, name: name, delete: true})
 						continue
 					}
 				}
 			}
+
 			lastResultIdx := len(result) - 1
 			if lastResultIdx >= 0 {
-				// Add the current entry to the 'current' insertion defition record (gathering the list)
+				// Add the current entry to the 'current' modification definition record (gathering the list)
 				result[lastResultIdx].list = append(result[lastResultIdx].list, entry)
 			} else {
 				// Having no last result index at hand means we are dealing with an orphaned list entry
-				DEBUG("List entry %d cannot be connected to an delete operation (orphaned entry)", i)
+				DEBUG("List entry %d cannot be connected to a modification operation (orphaned entry)", i)
 				return false, nil
 			}
 		}
@@ -526,7 +497,7 @@ func getIndexOfEntry(list []interface{}, key string, name string) int {
 	return -1
 }
 
-func insertInto(orig []interface{}, idx int, list []interface{}) []interface{} {
+func insertIntoList(orig []interface{}, idx int, list []interface{}) []interface{} {
 	prefix := make([]interface{}, idx)
 	copy(prefix, orig[0:idx])
 
@@ -539,14 +510,9 @@ func insertInto(orig []interface{}, idx int, list []interface{}) []interface{} {
 	return append(prefix, append(sublist, suffix...)...)
 }
 
-func deleteInto(orig []interface{}, idx int, list []interface{}) []interface{} {
-	prefix := make([]interface{}, len(orig))
-	copy(prefix, orig)
-	
-	sublist := make([]interface{}, len(list))
-	copy(sublist, list)
-	
-	prefix = append(prefix[:idx],prefix[idx+1:]...)
-	prefix = append(prefix,sublist...)
-	return prefix
+func deleteIndexFromList(orig []interface{}, idx int) []interface{} {
+	tmp := make([]interface{}, len(orig))
+	copy(tmp, orig)
+
+	return append(tmp[:idx], tmp[idx+1:]...)
 }
