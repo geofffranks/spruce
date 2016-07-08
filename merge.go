@@ -195,12 +195,16 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 				name := modificationDefinitions[i].name
 				delete := modificationDefinitions[i].delete
 
+				// Sanity check original list, list must contain key/id based entries
 				if err := canKeyMergeArray("original", result, node, key); err != nil {
 					m.Errors.Append(err)
 					return nil
 				}
 
+				// Sanity check new list, depending on the operation type (delete or insert)
 				if delete == false {
+
+				    // Sanity check new list, list must contain key/id based entries
 					if err := canKeyMergeArray("new", modificationDefinitions[i].list, node, key); err != nil {
 						m.Errors.Append(err)
 						return nil
@@ -216,6 +220,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 						}
 					}
 				} else {
+				    // Sanity check for delete operation, ensure no orphan entries follow the operator definition					
 					if len(modificationDefinitions[i].list) > 0 {
 						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to delete, orphan entries found after} @c{'%s: %s'}", node, key, name))
 						return nil
@@ -374,7 +379,7 @@ func shouldModifyArray(obj []interface{}) (bool, []ModificationDefinition) {
 						}
 					}
 
-				} else if insertByNameRegEx.MatchString(entry.(string)) { // check for (( insert ... "<name>"" ))
+				} else if insertByNameRegEx.MatchString(entry.(string)) { // check for (( insert ... "<name>" ))
 					/* #0 is the whole string,
 					 * #1 is after or before
 					 * #2 contains the optional '<key>' string
@@ -403,7 +408,7 @@ func shouldModifyArray(obj []interface{}) (bool, []ModificationDefinition) {
 							continue
 						}
 					}
-				} else if deleteByNameRegEx.MatchString(entry.(string)) { // check for (( delete "<name>"" ))
+				} else if deleteByNameRegEx.MatchString(entry.(string)) { // check for (( delete "<name>" ))
 					/* #0 is the whole string,
 					 * #1 contains the optional '<key>' string
 					 * #2 is finally the target "<name>" string
