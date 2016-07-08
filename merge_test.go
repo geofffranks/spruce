@@ -337,6 +337,95 @@ func TestShouldInsertIntoArray(t *testing.T) {
 	})
 }
 
+
+func TestShouldDeleteIntoArray(t *testing.T) {
+	Convey("We should delete into arrays based on key/name", t, func() {
+
+		Convey("Delete with key/name related test cases", func() {
+			Convey("If delete token with delete-name was found", func() {
+				result, deleteDefinitions := shouldDeleteIntoArray([]interface{}{"(( delete \"nats\" ))", "stuff"})
+				So(result, ShouldBeTrue)
+				So(deleteDefinitions, ShouldNotBeNil)
+				So(len(deleteDefinitions), ShouldEqual, 1)
+				So(deleteDefinitions[0].key, ShouldEqual, "name")
+				So(deleteDefinitions[0].name, ShouldEqual, "nats")
+			})
+
+			Convey("If delete token with key-name and delete-name was found", func() {
+				result, deleteDefinitions := shouldDeleteIntoArray([]interface{}{"(( delete name \"nats\" ))", "stuff"})
+				So(result, ShouldBeTrue)
+				So(deleteDefinitions, ShouldNotBeNil)
+				So(len(deleteDefinitions), ShouldEqual, 1)
+				So(deleteDefinitions[0].key, ShouldEqual, "name")
+				So(deleteDefinitions[0].name, ShouldEqual, "nats")
+			})
+
+			Convey("If delete token with another custom key-name and delete-name was found", func() {
+				result, deleteDefinitions := shouldDeleteIntoArray([]interface{}{"(( delete id \"ccdb\" ))", "stuff"})
+				So(result, ShouldBeTrue)
+				So(deleteDefinitions, ShouldNotBeNil)
+				So(len(deleteDefinitions), ShouldEqual, 1)
+				So(deleteDefinitions[0].key, ShouldEqual, "id")
+				So(deleteDefinitions[0].name, ShouldEqual, "ccdb")
+			})
+
+			Convey("If delete token with key-name and delete-name was found without additional whitespaces", func() {
+				result, deleteDefinitions := shouldDeleteIntoArray([]interface{}{"((delete name \"nats\"))", "stuff"})
+				So(result, ShouldBeTrue)
+				So(deleteDefinitions, ShouldNotBeNil)
+				So(len(deleteDefinitions), ShouldEqual, 1)
+				So(deleteDefinitions[0].key, ShouldEqual, "name")
+				So(deleteDefinitions[0].name, ShouldEqual, "nats")
+			})
+
+			Convey("If delete token with key-name and delete-name was found with additional whitespaces", func() {
+				result, deleteDefinitions := shouldDeleteIntoArray([]interface{}{"((   delete        name   \"nats\"   ))", "stuff"})
+				So(result, ShouldBeTrue)
+				So(deleteDefinitions, ShouldNotBeNil)
+				So(len(deleteDefinitions), ShouldEqual, 1)
+				So(deleteDefinitions[0].key, ShouldEqual, "name")
+				So(deleteDefinitions[0].name, ShouldEqual, "nats")
+			})
+
+			Convey("If delete token with key-name and delete-name was found, but the list is empty", func() {
+				result, deleteDefinitions := shouldDeleteIntoArray([]interface{}{"(( delete name \"nats\" ))"})
+				So(result, ShouldBeTrue)
+				So(deleteDefinitions, ShouldNotBeNil)
+				So(len(deleteDefinitions), ShouldEqual, 1)
+				So(deleteDefinitions[0].key, ShouldEqual, "name")
+				So(deleteDefinitions[0].name, ShouldEqual, "nats")
+				So(deleteDefinitions[0].list, ShouldBeNil)
+			})
+
+			Convey("If there are multiple delete token with different key names, and names (only technical usecase)", func() {
+				result, deleteDefinitions := shouldDeleteIntoArray([]interface{}{
+					"(( delete name \"nats\" ))",
+					"stuff1",
+					"stuff2",
+					"stuff3",
+					"(( delete id \"consul\" ))",
+					"stuffX1",
+					"stuffX2",
+				})
+				So(result, ShouldBeTrue)
+				So(deleteDefinitions, ShouldNotBeNil)
+				So(len(deleteDefinitions), ShouldEqual, 2)
+				So(deleteDefinitions[0].key, ShouldEqual, "name")
+				So(deleteDefinitions[0].name, ShouldEqual, "nats")
+				So(deleteDefinitions[0].list, ShouldResemble, []interface{}{"stuff1", "stuff2", "stuff3"})
+				So(deleteDefinitions[1].key, ShouldEqual, "id")
+				So(deleteDefinitions[1].name, ShouldEqual, "consul")
+				So(deleteDefinitions[1].list, ShouldResemble, []interface{}{"stuffX1", "stuffX2"})
+			})
+
+			Convey("But not if the magic token is not specified", func() {
+				result, deleteDefinitions := shouldDeleteIntoArray([]interface{}{"not a magic token", "stuff"})
+				So(result, ShouldBeFalse)
+				So(deleteDefinitions, ShouldBeNil)
+			})
+		})
+	})
+}
 func TestMergeObj(t *testing.T) {
 	Convey("Passing a map to m.mergeObj merges as a map", t, func() {
 		Convey("merges as a map under normal conditions", func() {
