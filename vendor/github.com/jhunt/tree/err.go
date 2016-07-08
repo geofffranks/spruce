@@ -31,9 +31,9 @@ func (e TypeMismatchError) Error() string {
 		return ansi.Sprintf("@c{%s} @R{is not} @m{%s}", strings.Join(e.Path, "."), e.Wanted)
 	}
 	if e.Value != nil {
-		return ansi.Sprintf("@c{$.%s} @{R[=%v] is %s (not} @m{%s}@R{)}", strings.Join(e.Path, "."), e.Value, e.Got, e.Wanted)
+		return ansi.Sprintf("@c{$.%s} @R{[=%v] is %s (not} @m{%s}@R{)}", strings.Join(e.Path, "."), e.Value, e.Got, e.Wanted)
 	}
-	return ansi.Sprintf("@C{$.%s} @R{is %s} (not @m{%s}@R{)}", strings.Join(e.Path, "."), e.Got, e.Wanted)
+	return ansi.Sprintf("@C{$.%s} @R{is %s (not} @m{%s}@R{)}", strings.Join(e.Path, "."), e.Got, e.Wanted)
 }
 
 // NotFoundError ...
