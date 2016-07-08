@@ -96,10 +96,23 @@ Arrays can be modified in multiple ways: prepending data, appending data, insert
   The second is used to customize which key to use. In any case, instead of `after`, you can also use `before`. This will
   prepend the entries (relative to the specified insertion point).
 
-  <br> The array insertion opertions `(( append ))`, `(( prepend ))`, and `(( insert ... ))` can be used multiple times in
+  <br> The array insertion operations `(( append ))`, `(( prepend ))`, and `(( insert ... ))` can be used multiple times in
   one list. They will be processed sequentially and the respective operation applies as long no other insertion operation
   resets the designated insertion point.
 
+- Similar to the `insert` operation, you can also use a `(( delete ... ))` operation multiple times in a list. The `delete` 
+  will remove a map from the list <br>
+
+  ```yml
+  jobs:
+  - (( delete "dea" ))
+  - (( delete "api" ))
+  ```
+  or <br>
+
+  ```yml
+  - (( delete <key> "<name>" ))
+  ```
 - To replace the first array with the second,
   ensure that the first element in the new array is <br>
 
