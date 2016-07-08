@@ -180,7 +180,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 
 		var idx int
 
-		// Process the insert definitions that were found in the new list
+		// Process the modifications definitions that were found in the new list
 		for i := range modificationDefinitions {
 			if modificationDefinitions[i].key == "" && modificationDefinitions[i].name == "" { // Index comes directly from operation definition
 				idx = modificationDefinitions[i].index
