@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/jhunt/ansi"
 	"github.com/mattn/go-isatty"
+	"github.com/starkandwayne/goutils/ansi"
 	"io/ioutil"
 	"os"
 

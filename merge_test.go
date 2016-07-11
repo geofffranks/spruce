@@ -5,8 +5,8 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/jhunt/tree"
 	"github.com/smallfish/simpleyaml"
+	"github.com/starkandwayne/goutils/tree"
 )
 
 func TestShouldReplaceArray(t *testing.T) {

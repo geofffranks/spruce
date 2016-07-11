@@ -3,7 +3,7 @@ package spruce
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jhunt/ansi"
+	"github.com/starkandwayne/goutils/ansi"
 	"io"
 	"io/ioutil"
 

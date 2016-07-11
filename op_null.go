@@ -1,8 +1,8 @@
 package spruce
 
 import (
-	"github.com/jhunt/ansi"
-	"github.com/jhunt/tree"
+	"github.com/starkandwayne/goutils/ansi"
+	"github.com/starkandwayne/goutils/tree"
 )
 
 // NullOperator ...

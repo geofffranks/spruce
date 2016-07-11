@@ -1,9 +1,9 @@
 package spruce
 
 import (
-	"github.com/jhunt/tree"
 	"github.com/smallfish/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/starkandwayne/goutils/tree"
 	"io/ioutil"
 	"os"
 	"path/filepath"
