@@ -1,9 +1,20 @@
 // Package assertions contains the implementations for all assertions which
 // are referenced in goconvey's `convey` package
-// (github.com/smartystreets/goconvey/convey) for use with the So(...) method.
+// (github.com/smartystreets/goconvey/convey) and gunit (github.com/smartystreets/gunit)
+// for use with the So(...) method.
 // They can also be used in traditional Go test functions and even in
-// applicaitons.
+// applications.
+//
+// Many of the assertions lean heavily on work done by Aaron Jacobs in his excellent oglematchers library.
+// (https://github.com/jacobsa/oglematchers)
+// The ShouldResemble assertion leans heavily on work done by Daniel Jacques in his very helpful go-render library.
+// (https://github.com/luci/go-render)
 package assertions
+
+import (
+	"fmt"
+	"runtime"
+)
 
 // By default we use a no-op serializer. The actual Serializer provides a JSON
 // representation of failure results on selected assertions so the goconvey
@@ -24,7 +35,38 @@ func GoConveyMode(yes bool) {
 	}
 }
 
-// So is a convenience function
+type testingT interface {
+	Error(args ...interface{})
+}
+
+type Assertion struct {
+	t      testingT
+	failed bool
+}
+
+// New swallows the *testing.T struct and prints failed assertions using t.Error.
+// Example: assertions.New(t).So(1, should.Equal, 1)
+func New(t testingT) *Assertion {
+	return &Assertion{t: t}
+}
+
+// Failed reports whether any calls to So (on this Assertion instance) have failed.
+func (this *Assertion) Failed() bool {
+	return this.failed
+}
+
+// So calls the standalone So function and additionally, calls t.Error in failure scenarios.
+func (this *Assertion) So(actual interface{}, assert assertion, expected ...interface{}) bool {
+	ok, result := So(actual, assert, expected...)
+	if !ok {
+		this.failed = true
+		_, file, line, _ := runtime.Caller(1)
+		this.t.Error(fmt.Sprintf("\n%s:%d\n%s", file, line, result))
+	}
+	return ok
+}
+
+// So is a convenience function (as opposed to an inconvenience function?)
 // for running assertions on arbitrary arguments in any context, be it for testing or even
 // application logging. It allows you to perform assertion-like behavior (and get nicely
 // formatted messages detailing discrepancies) but without the program blowing up or panicking.

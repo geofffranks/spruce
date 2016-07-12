@@ -4,31 +4,16 @@
 
 Package assertions contains the implementations for all assertions which are
 referenced in goconvey's `convey` package
-(github.com/smartystreets/goconvey/convey) for use with the So(...) method. They
-can also be used in traditional Go test functions and even in applicaitons.
+(github.com/smartystreets/goconvey/convey) and gunit
+(github.com/smartystreets/gunit) for use with the So(...) method. They can also
+be used in traditional Go test functions and even in applications.
+
+Many of the assertions lean heavily on work done by Aaron Jacobs in his
+excellent oglematchers library. (https://github.com/jacobsa/oglematchers) The
+ShouldResemble assertion leans heavily on work done by Daniel Jacques in his
+very helpful go-render library. (https://github.com/luci/go-render)
 
 ## Usage
-
-#### func  So
-
-```go
-func So(actual interface{}, assert assertion, expected ...interface{}) (bool, string)
-```
-So is a convenience function for running assertions on arbitrary arguments in
-any context, be it for testing or even application logging. It allows you to
-perform assertion-like behavior (and get nicely formatted messages detailing
-discrepancies) but without the program blowing up or panicking. All that is
-required is to import this package and call `So` with one of the assertions
-exported by this package as the second parameter. The first return parameter is
-a boolean indicating if the assertion was true. The second return parameter is
-the well-formatted message showing why an assertion was incorrect, or blank if
-the assertion was correct.
-
-Example:
-
-    if ok, message := So(x, ShouldBeGreaterThan, y); !ok {
-         log.Println(message)
-    }
 
 #### func  GoConveyMode
 
@@ -173,6 +158,14 @@ func ShouldContain(actual interface{}, expected ...interface{}) string
 ShouldContain receives exactly two parameters. The first is a slice and the
 second is a proposed member. Membership is determined using ShouldEqual.
 
+#### func  ShouldContainKey
+
+```go
+func ShouldContainKey(actual interface{}, expected ...interface{}) string
+```
+ShouldContainKey receives exactly two parameters. The first is a map and the
+second is a proposed key. Keys are compared with a simple '=='.
+
 #### func  ShouldContainSubstring
 
 ```go
@@ -195,6 +188,24 @@ ends with the second.
 func ShouldEqual(actual interface{}, expected ...interface{}) string
 ```
 ShouldEqual receives exactly two parameters and does an equality check.
+
+#### func  ShouldEqualTrimSpace
+
+```go
+func ShouldEqualTrimSpace(actual interface{}, expected ...interface{}) string
+```
+ShouldEqualTrimSpace receives exactly 2 string parameters and ensures that the
+first is equal to the second after removing all leading and trailing whitespace
+using strings.TrimSpace(first).
+
+#### func  ShouldEqualWithout
+
+```go
+func ShouldEqualWithout(actual interface{}, expected ...interface{}) string
+```
+ShouldEqualWithout receives exactly 3 string parameters and ensures that the
+first is equal to the second after removing all instances of the third from the
+first using strings.Replace(first, third, "", -1).
 
 #### func  ShouldHappenAfter
 
@@ -252,6 +263,15 @@ func ShouldHappenWithin(actual interface{}, expected ...interface{}) string
 ShouldHappenWithin receives a time.Time, a time.Duration, and a time.Time (3
 arguments) and asserts that the first time.Time happens within or on the
 duration specified relative to the other time.Time.
+
+#### func  ShouldHaveLength
+
+```go
+func ShouldHaveLength(actual interface{}, expected ...interface{}) string
+```
+ShouldHaveLength receives 2 parameters. The first is a collection to check the
+length of, the second being the expected length. It obeys the rules specified by
+the len function for determining length: http://golang.org/pkg/builtin/#len
 
 #### func  ShouldHaveSameTypeAs
 
@@ -336,6 +356,14 @@ func ShouldNotContain(actual interface{}, expected ...interface{}) string
 ```
 ShouldNotContain receives exactly two parameters. The first is a slice and the
 second is a proposed member. Membership is determinied using ShouldEqual.
+
+#### func  ShouldNotContainKey
+
+```go
+func ShouldNotContainKey(actual interface{}, expected ...interface{}) string
+```
+ShouldNotContainKey receives exactly two parameters. The first is a map and the
+second is a proposed absent key. Keys are compared with a simple '=='.
 
 #### func  ShouldNotContainSubstring
 
@@ -471,6 +499,72 @@ func ShouldStartWith(actual interface{}, expected ...interface{}) string
 ```
 ShouldStartWith receives exactly 2 string parameters and ensures that the first
 starts with the second.
+
+#### func  So
+
+```go
+func So(actual interface{}, assert assertion, expected ...interface{}) (bool, string)
+```
+So is a convenience function (as opposed to an inconvenience function?) for
+running assertions on arbitrary arguments in any context, be it for testing or
+even application logging. It allows you to perform assertion-like behavior (and
+get nicely formatted messages detailing discrepancies) but without the program
+blowing up or panicking. All that is required is to import this package and call
+`So` with one of the assertions exported by this package as the second
+parameter. The first return parameter is a boolean indicating if the assertion
+was true. The second return parameter is the well-formatted message showing why
+an assertion was incorrect, or blank if the assertion was correct.
+
+Example:
+
+    if ok, message := So(x, ShouldBeGreaterThan, y); !ok {
+         log.Println(message)
+    }
+
+#### type Assertion
+
+```go
+type Assertion struct {
+}
+```
+
+
+#### func  New
+
+```go
+func New(t testingT) *Assertion
+```
+New swallows the *testing.T struct and prints failed assertions using t.Error.
+Example: assertions.New(t).So(1, should.Equal, 1)
+
+#### func (*Assertion) Failed
+
+```go
+func (this *Assertion) Failed() bool
+```
+Failed reports whether any calls to So (on this Assertion instance) have failed.
+
+#### func (*Assertion) So
+
+```go
+func (this *Assertion) So(actual interface{}, assert assertion, expected ...interface{}) bool
+```
+So calls the standalone So function and additionally, calls t.Error in failure
+scenarios.
+
+#### type FailureView
+
+```go
+type FailureView struct {
+	Message  string `json:"Message"`
+	Expected string `json:"Expected"`
+	Actual   string `json:"Actual"`
+}
+```
+
+This struct is also declared in
+github.com/smartystreets/goconvey/convey/reporting. The json struct tags should
+be equal in both declarations.
 
 #### type Serializer
 

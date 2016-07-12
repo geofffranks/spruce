@@ -42,6 +42,61 @@ func ShouldNotContain(actual interface{}, expected ...interface{}) string {
 	return fmt.Sprintf(shouldNotHaveContained, typeName, expected[0])
 }
 
+// ShouldContainKey receives exactly two parameters. The first is a map and the
+// second is a proposed key. Keys are compared with a simple '=='.
+func ShouldContainKey(actual interface{}, expected ...interface{}) string {
+	if fail := need(1, expected); fail != success {
+		return fail
+	}
+
+	keys, isMap := mapKeys(actual)
+	if !isMap {
+		return fmt.Sprintf(shouldHaveBeenAValidMap, reflect.TypeOf(actual))
+	}
+
+	if !keyFound(keys, expected[0]) {
+		return fmt.Sprintf(shouldHaveContainedKey, reflect.TypeOf(actual), expected)
+	}
+
+	return ""
+}
+
+// ShouldNotContainKey receives exactly two parameters. The first is a map and the
+// second is a proposed absent key. Keys are compared with a simple '=='.
+func ShouldNotContainKey(actual interface{}, expected ...interface{}) string {
+	if fail := need(1, expected); fail != success {
+		return fail
+	}
+
+	keys, isMap := mapKeys(actual)
+	if !isMap {
+		return fmt.Sprintf(shouldHaveBeenAValidMap, reflect.TypeOf(actual))
+	}
+
+	if keyFound(keys, expected[0]) {
+		return fmt.Sprintf(shouldNotHaveContainedKey, reflect.TypeOf(actual), expected)
+	}
+
+	return ""
+}
+
+func mapKeys(m interface{}) ([]reflect.Value, bool) {
+	value := reflect.ValueOf(m)
+	if value.Kind() != reflect.Map {
+		return nil, false
+	}
+	return value.MapKeys(), true
+}
+func keyFound(keys []reflect.Value, expectedKey interface{}) bool {
+	found := false
+	for _, key := range keys {
+		if key.Interface() == expectedKey {
+			found = true
+		}
+	}
+	return found
+}
+
 // ShouldBeIn receives at least 2 parameters. The first is a proposed member of the collection
 // that is passed in either as the second parameter, or of the collection that is comprised
 // of all the remaining parameters. This assertion ensures that the proposed member is in
@@ -137,4 +192,53 @@ func ShouldNotBeEmpty(actual interface{}, expected ...interface{}) string {
 		return success
 	}
 	return fmt.Sprintf(shouldNotHaveBeenEmpty, actual)
+}
+
+// ShouldHaveLength receives 2 parameters. The first is a collection to check
+// the length of, the second being the expected length. It obeys the rules
+// specified by the len function for determining length:
+// http://golang.org/pkg/builtin/#len
+func ShouldHaveLength(actual interface{}, expected ...interface{}) string {
+	if fail := need(1, expected); fail != success {
+		return fail
+	}
+
+	var expectedLen int64
+	lenValue := reflect.ValueOf(expected[0])
+	switch lenValue.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		expectedLen = lenValue.Int()
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		expectedLen = int64(lenValue.Uint())
+	default:
+		return fmt.Sprintf(shouldHaveBeenAValidInteger, reflect.TypeOf(expected[0]))
+	}
+
+	if expectedLen < 0 {
+		return fmt.Sprintf(shouldHaveBeenAValidLength, expected[0])
+	}
+
+	value := reflect.ValueOf(actual)
+	switch value.Kind() {
+	case reflect.Slice,
+		reflect.Chan,
+		reflect.Map,
+		reflect.String:
+		if int64(value.Len()) == expectedLen {
+			return success
+		} else {
+			return fmt.Sprintf(shouldHaveHadLength, actual, value.Len(), expectedLen)
+		}
+	case reflect.Ptr:
+		elem := value.Elem()
+		kind := elem.Kind()
+		if kind == reflect.Slice || kind == reflect.Array {
+			if int64(elem.Len()) == expectedLen {
+				return success
+			} else {
+				return fmt.Sprintf(shouldHaveHadLength, actual, elem.Len(), expectedLen)
+			}
+		}
+	}
+	return fmt.Sprintf(shouldHaveBeenAValidCollection, reflect.TypeOf(actual))
 }

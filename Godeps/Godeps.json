@@ -1,7 +1,6 @@
 {
 	"ImportPath": "github.com/geofffranks/spruce",
 	"GoVersion": "go1.6",
-	"GodepVersion": "v74",
 	"Packages": [
 		"./..."
 	],
@@ -20,13 +19,13 @@
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions",
-			"Comment": "1.5.0-380-g4727d76",
-			"Rev": "4727d767ce8a81811c40eedc2a836c85aebb4d09"
+			"Comment": "1.6.0",
+			"Rev": "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions/internal/oglematchers",
-			"Comment": "1.5.0-380-g4727d76",
-			"Rev": "4727d767ce8a81811c40eedc2a836c85aebb4d09"
+			"Comment": "1.6.0",
+			"Rev": "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/goconvey/convey",
