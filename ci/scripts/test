@@ -9,4 +9,4 @@ cd ${GOPATH}/src/${MODULE}
 godep restore
 
 go list ./... | grep -v vendor | xargs go vet
-go test -v ./...
+go list ./... | grep -v vendor | xargs go test

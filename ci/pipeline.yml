@@ -46,17 +46,6 @@ meta:
     username:      concourse
     icon:          http://cl.ly/image/3e1h0H3H2s0P/concourse-logo.png
 
-  cf:
-    app:
-      name: (( param "Specify the name of the app to push" ))
-      domain: (( param "Specify the domain to push the app under" ))
-    org: (( param "Specify the CF org that the app will live in" ))
-    space: (( param "Specify the CF space that the app will live in" ))
-    user: (( param "Specify the CF User that will deploy the app" ))
-    password: (( param "Specify the password for the user deploying the app" ))
-    url: (( param "Specify the URL to the CF api" ))
-
-
 groups:
   - name: (( grab meta.name ))
     jobs:
@@ -66,7 +55,6 @@ groups:
       - major
       - minor
       - bump-patch
-      - (( grab meta.cf.app.name ))
 
 jobs:
   - name: test
@@ -91,10 +79,16 @@ jobs:
     public: true
     plan:
       - aggregate:
-          - { get: git,     trigger: true, passed: [test] }
+          - { get: git,     trigger: true,  passed: [test] }
           - { get: version, trigger: true, params: {pre: rc} }
       - put: version
         params: {file: version/number}
+
+  - name: bump-patch
+    public: true
+    plan:
+      - { get: version, trigger: true, params: { bump: patch, pre: rc }, passed: [shipit] } # bump rc + patch, so that subesquent version bumps can trigger a new bump-patch
+      - { put: version,                params: { file: version/number} }
 
   - name: minor
     public: true
@@ -107,12 +101,6 @@ jobs:
     plan:
       - { get: version, trigger: false, params: {bump: major} }
       - { put: version,                 params: {file: version/number} }
-
-  - name: bump-patch
-    public: true
-    plan:
-    - { get: version, trigger: true, params: { bump: patch, pre: rc }, passed: [shipit] }
-    - { put: version,                params: { file: version/number} }
 
   - name: shipit
     public: true
@@ -159,25 +147,6 @@ jobs:
           body:   gh/notes.md
           globs: [gh/artifacts/*]
 
-  - name: (( grab meta.cf.app.name ))
-    public: true
-    serial: true
-    plan:
-    - aggregate:
-      - get: github
-        passed: [shipit]
-        trigger: true
-      - get: (( grab meta.cf.app.name ))
-        trigger: true
-    - put: live-app
-      params:
-        manifest: (( concat meta.cf.app.name "/manifest.yml" ))
-        path: (( grab meta.cf.app.name ))
-        current_app_name: (( grab meta.cf.app.name ))
-        environment_variables:
-          GITHUB_TOKEN: (( grab meta.cf.github_token ))
-
-
 resource_types:
   - name: slack-notification
     type: docker-image
@@ -185,48 +154,31 @@ resource_types:
       repository: cfcommunity/slack-notification-resource
 
 resources:
-- name: git
-  type: git
-  source:
-    uri:         (( grab meta.github.uri ))
-    branch:      (( grab meta.github.branch ))
-    private_key: (( grab meta.github.private_key ))
+  - name: git
+    type: git
+    source:
+      uri:         (( grab meta.github.uri ))
+      branch:      (( grab meta.github.branch ))
+      private_key: (( grab meta.github.private_key ))
 
-- name: version
-  type: semver
-  source :
-    driver:            s3
-    bucket:            (( grab meta.aws.bucket ))
-    key:               version
-    access_key_id:     (( grab meta.aws.access_key ))
-    secret_access_key: (( grab meta.aws.secret_key ))
-    initial_version:   (( grab meta.initial_version || "0.2.0" ))
+  - name: version
+    type: semver
+    source :
+      driver:            s3
+      bucket:            (( grab meta.aws.bucket ))
+      key:               version
+      access_key_id:     (( grab meta.aws.access_key ))
+      secret_access_key: (( grab meta.aws.secret_key ))
+      initial_version:   (( grab meta.initial_version || "0.0.1" ))
 
-- name: notify
-  type: slack-notification
-  source:
-    url: (( grab meta.slack.webhook ))
+  - name: notify
+    type: slack-notification
+    source:
+      url: (( grab meta.slack.webhook ))
 
-- name: github
-  type: github-release
-  source:
-    user:         (( grab meta.github.owner ))
-    repository:   (( grab meta.github.repo ))
-    access_token: (( grab meta.github.access_token ))
-
-- name: (( grab meta.cf.app.name ))
-  type: git
-  source:
-    uri: (( grab meta.cf.app.source ))
-    branch: master
-    private_key: (( grab meta.github.private_key ))
-
-- name: live-app
-  type: cf
-  source:
-    api:             (( grab meta.cf.url ))
-    username:        (( grab meta.cf.user ))
-    password:        (( grab meta.cf.password ))
-    organization:    (( grab meta.cf.org ))
-    space:           (( grab meta.cf.space ))
-    skip_cert_check: false
+  - name: github
+    type: github-release
+    source:
+      user:         (( grab meta.github.owner ))
+      repository:   (( grab meta.github.repo ))
+      access_token: (( grab meta.github.access_token ))
