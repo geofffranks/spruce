@@ -23,6 +23,11 @@
 			"Rev": "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
 		},
 		{
+			"ImportPath": "github.com/smartystreets/assertions/internal/go-render/render",
+			"Comment": "1.6.0",
+			"Rev": "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
+		},
+		{
 			"ImportPath": "github.com/smartystreets/assertions/internal/oglematchers",
 			"Comment": "1.6.0",
 			"Rev": "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
