@@ -2,9 +2,9 @@ package spruce
 
 import (
 	"fmt"
-	"github.com/jhunt/ansi"
+	"github.com/starkandwayne/goutils/ansi"
 
-	"github.com/jhunt/tree"
+	"github.com/starkandwayne/goutils/tree"
 
 	. "github.com/geofffranks/spruce/log"
 )

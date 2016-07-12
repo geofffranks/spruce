@@ -2,7 +2,7 @@ package spruce
 
 import (
 	"fmt"
-	"github.com/jhunt/ansi"
+	"github.com/starkandwayne/goutils/ansi"
 	"sort"
 	"strings"
 )

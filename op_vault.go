@@ -5,14 +5,14 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/jhunt/ansi"
+	"github.com/starkandwayne/goutils/ansi"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
 
 	. "github.com/geofffranks/spruce/log"
-	"github.com/jhunt/tree"
+	"github.com/starkandwayne/goutils/tree"
 	"gopkg.in/yaml.v2"
 )
 

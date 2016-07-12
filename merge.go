@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jhunt/ansi"
+	"github.com/starkandwayne/goutils/ansi"
 
 	. "github.com/geofffranks/spruce/log"
 )

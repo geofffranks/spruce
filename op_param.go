@@ -2,7 +2,7 @@ package spruce
 
 import (
 	"fmt"
-	"github.com/jhunt/tree"
+	"github.com/starkandwayne/goutils/tree"
 )
 
 // ParamOperator ...

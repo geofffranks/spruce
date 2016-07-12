@@ -3,13 +3,13 @@ package spruce
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/jhunt/ansi"
+	"github.com/starkandwayne/goutils/ansi"
 	"net"
 	"strconv"
 	"strings"
 
 	. "github.com/geofffranks/spruce/log"
-	"github.com/jhunt/tree"
+	"github.com/starkandwayne/goutils/tree"
 )
 
 // UsedIPs ...

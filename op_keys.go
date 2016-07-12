@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/jhunt/ansi"
+	"github.com/starkandwayne/goutils/ansi"
 
 	. "github.com/geofffranks/spruce/log"
-	"github.com/jhunt/tree"
+	"github.com/starkandwayne/goutils/tree"
 )
 
 // KeysOperator ...
