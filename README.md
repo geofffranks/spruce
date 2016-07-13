@@ -221,7 +221,7 @@ meta:
 that you're used to with [spiff](https://github.com/cloudfoundry-incubator/spiff),
 to specify the offsets in the static IP range for a job's network.
 
-Behind the scenes, there are a couple behavior improvements upon spiff. First, 
+Behind the scenes, there are a couple behavior improvements upon spiff. First,
 since all the merging is done first, then post-processing, there's no need
 to worry about getting the instances + networks defined before `(( static_ips() ))`
 is merged in. Second, the error messaging output should be a lot better to aid in
@@ -612,6 +612,119 @@ properties:
   - 192.168.0.2
   - 192.168.0.4
   - 192.168.0.6
+```
+
+
+
+<a name="ex-availability-zones"></a>
+### Static IPs with Availability Zones
+
+Lets define our `jobs.yml`:
+
+```yml
+# examples/availability-zones/jobs.yml
+instance_groups:
+- name: staticIP
+  instances: 3
+  azs: [z1,z2]
+  networks:
+  - name: net1
+    static_ips: (( static_ips(0, "z2:2", "z1:3") ))
+- name: api
+  instances: 3
+  azs: [z1]
+  networks:
+  - name: net1
+    static_ips: (( static_ips(1, "z1:4", 5) ))
+- name: web
+  instances: 3
+  networks:
+  - name: net1
+    static_ips: (( static_ips(9, 10, 11) ))
+```
+
+Next, we'll define our `properties.yml`:
+
+```yml
+# examples/availability-zones/properties.yml
+properties:
+  staticIP_servers: (( grab instance_groups.staticIP.networks.net1.static_ips ))
+  api_servers: (( grab instance_groups.api.networks.net1.static_ips ))
+  web_servers: (( grab instance_groups.web.networks.net1.static_ips ))
+```
+
+And lastly, define our `networks.yml`:
+
+```yml
+# examples/availability-zones/networks.yml
+networks:
+- name: net1
+  subnets:
+  - cloud_properties: random
+    az: z1
+    static:
+    - 192.168.0.1 - 192.168.0.10
+  - cloud_properties: random
+    az: z2
+    static:
+    - 192.168.2.1 - 192.168.2.10
+```
+
+Merge it all together, and see what we get:
+
+```yml
+$ spruce merge jobs.yml properties.yml networks.yml
+instance_groups:
+- name: staticIP
+  instances: 3
+  azs: [z1,z2]
+  networks:
+  - name: net1
+    static_ips:
+    - 192.168.0.1
+    - 192.168.2.3
+    - 192.168.0.4
+- name: api
+  instances: 3
+  azs: [z1]
+  networks:
+  - name: net1
+    static_ips:
+    - 192.168.0.2
+    - 192.168.0.5
+    - 192.168.0.6
+- name: web
+  instances: 3
+  networks:
+  - name: net1
+    static_ips:
+    - 192.168.0.10
+    - 192.168.2.1
+    - 192.168.2.2
+networks:
+- name: net1
+  subnets:
+  - cloud_properties: random
+    az: z1
+    static:
+    - 192.168.0.1 - 192.168.0.10
+  - cloud_properties: random
+    az: z2
+    static:
+    - 192.168.2.1 - 192.168.2.10
+properties:
+  api_servers:
+  - 192.168.0.2
+  - 192.168.0.5
+  - 192.168.0.6
+  staticIP_servers:
+  - 192.168.0.1
+  - 192.168.2.3
+  - 192.168.0.4
+  web_servers:
+  - 192.168.0.10
+  - 192.168.2.1
+  - 192.168.2.2
 ```
 
 

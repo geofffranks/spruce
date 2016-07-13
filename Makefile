@@ -1,4 +1,7 @@
-all: test build
+all: vet test build
+
+vet:
+	go list ./... | grep -v vendor | xargs go vet
 
 test:
 	go list ./... | grep -v vendor | xargs go test

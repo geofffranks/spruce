@@ -1,0 +1,11 @@
+networks:
+- name: net1
+  subnets:
+  - cloud_properties: random
+    az: z1
+    static:
+    - 192.168.0.1 - 192.168.0.10
+  - cloud_properties: random
+    az: z2
+    static:
+    - 192.168.2.1 - 192.168.2.10
