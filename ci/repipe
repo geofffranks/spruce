@@ -25,11 +25,6 @@ cd $(dirname $BASH_SOURCE[0])
 echo "Working in $(pwd)"
 need_command spruce
 
-if [[ -z "$VAULT_ADDR" ]] ; then
-	echo >&2 "Vault address not specified in VAULT_ADDR environment variable"
-	exit 1
-fi
-
 # Allow for target-specific settings
 settings_file="$(ls -1 settings.yml ${CONCOURSE_TARGET:+"settings-${CONCOURSE_TARGET}.yml"} 2>/dev/null | tail -n1)"
 if [[ -z "$settings_file" ]]
