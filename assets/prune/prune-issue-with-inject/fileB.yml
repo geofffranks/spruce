@@ -1,0 +1,8 @@
+---
+jobs:
+- name: another-job
+  <<<: (( inject meta.default ))
+  instances: 1
+  update:
+    canaries: 2
+    max_in_flight: (( prune ))

@@ -1,0 +1,13 @@
+---
+list:
+- name: A
+  release: A
+  version: A
+
+- name: B
+  release: B
+  version: B
+
+- name: C
+  release: C
+  version: C

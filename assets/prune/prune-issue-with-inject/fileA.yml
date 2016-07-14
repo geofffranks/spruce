@@ -1,0 +1,14 @@
+---
+meta:
+  default:
+    templates:
+    - name: one
+    - name: two
+    update:
+      canaries: 1
+      max_in_flight: 3
+
+jobs:
+- name: main-job
+  <<<: (( inject meta.default ))
+  instances: 2

@@ -545,6 +545,56 @@ quux: quux
 			So(stdout, ShouldEqual, "")
 			So(stderr, ShouldContainSubstring, "Root of YAML document is not a hash/map:")
 		})
+
+		Convey("Issue - prune and inject cause side-effect", func() {
+			os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/prune/prune-issue-with-inject/fileA.yml", "../../assets/prune/prune-issue-with-inject/fileB.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `jobs:
+- instances: 2
+  name: main-job
+  templates:
+  - name: one
+  - name: two
+  update:
+    canaries: 1
+    max_in_flight: 3
+- instances: 1
+  name: another-job
+  templates:
+  - name: one
+  - name: two
+  update:
+    canaries: 2
+
+`)
+		})
+
+		Convey("Issue - prune and new-list-entry cause side-effect", func() {
+			os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/prune/prune-issue-in-lists-with-new-entry/fileA.yml", "../../assets/prune/prune-issue-in-lists-with-new-entry/fileB.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `list:
+  - name: A
+    release: A
+    version: A
+  - name: B
+    release: B
+    version: B
+  - name: C
+    release: C
+    version: C
+  - name: D
+    release: D
+
+`)
+		})
 	})
 }
 
