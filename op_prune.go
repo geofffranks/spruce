@@ -57,7 +57,7 @@ func (PruneOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	// simply replace it with an empty string (will be pruned at the end anyway)
 	return &Response{
 		Type:  Replace,
-		Value: "",
+		Value: nil,
 	}, nil
 }
 

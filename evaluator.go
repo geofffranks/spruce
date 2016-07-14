@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 
@@ -224,11 +225,28 @@ func (ev *Evaluator) Prune(paths []string) error {
 				delete(o.(map[interface{}]interface{}), key)
 			}
 
-		// NOTE: `--prune` does not currently handle list index removal,
-		//       i.e. `--prune meta.things[3]`;  This was deemed unnecessary
+		case []interface{}:
+			if list, ok := o.([]interface{}); ok {
+				if idx, err := strconv.Atoi(key); err == nil {
+					parent.Pop()
+					if s, err := parent.Resolve(ev.Tree); err == nil {
+						if reflect.TypeOf(s).Kind() == reflect.Map {
+							parentName := fmt.Sprintf("%s", c.Component(-2))
+							DEBUG("  pruning index %d of array '%s'", idx, parentName)
+
+							length := len(list) - 1
+							replacement := make([]interface{}, length)
+							copy(replacement, append(list[:idx], list[idx+1:]...))
+
+							delete(s.(map[interface{}]interface{}), parentName)
+							s.(map[interface{}]interface{})[parentName] = replacement
+						}
+					}
+				}
+			}
 
 		default:
-			DEBUG("  I don't know how to prune %s\n    value=%v\n", path, o)
+			DEBUG("  I don't know how to prune %s\n    value=%v\n     type=%v\n", path, o, reflect.TypeOf(o))
 		}
 	}
 	DEBUG("")

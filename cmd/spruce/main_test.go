@@ -546,6 +546,36 @@ quux: quux
 			So(stderr, ShouldContainSubstring, "Root of YAML document is not a hash/map:")
 		})
 
+		Convey("Adding (dynamic) prune support for list entries (edge case scenario)", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/prune/prune-in-lists/fileA.yml", "../../assets/prune/prune-in-lists/fileB.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `meta:
+  list:
+  - one
+  - three
+
+`)
+		})
+
+		Convey("Adding (static) prune support for list entries (edge case scenario)", func() {
+			os.Args = []string{"spruce", "merge", "--prune", "meta.list.1", "../../assets/prune/prune-in-lists/fileA.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `meta:
+  list:
+  - one
+  - three
+
+`)
+		})
+
 		Convey("Issue - prune and inject cause side-effect", func() {
 			os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/prune/prune-issue-with-inject/fileA.yml", "../../assets/prune/prune-issue-with-inject/fileB.yml"}
 			stdout = ""
