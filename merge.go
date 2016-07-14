@@ -95,6 +95,7 @@ func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]in
 }
 
 func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interface{} {
+	// prune has a special behavior: even if the value is replaced during processing, the key will be removed at the end of the processing
 	pruneRx := regexp.MustCompile(`^\s*\Q((\E\s*prune\s*\Q))\E`)
 	if orig != nil && reflect.TypeOf(orig).Kind() == reflect.String && pruneRx.MatchString(orig.(string)) {
 		DEBUG("%s: a (( prune )) operator is about to be replaced, check if its path needs to be saved")

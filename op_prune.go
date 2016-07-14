@@ -54,7 +54,7 @@ func (PruneOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 
 	addToPruneListIfNecessary(fmt.Sprintf("%s", ev.Here))
 
-	// simply replace it with an empty string (will be pruned at the end anyway)
+	// simply replace it with nil (will be pruned at the end anyway)
 	return &Response{
 		Type:  Replace,
 		Value: nil,
