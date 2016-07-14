@@ -246,7 +246,7 @@ func (ev *Evaluator) Prune(paths []string) error {
 			}
 
 		default:
-			DEBUG("  I don't know how to prune %s\n    value=%v\n     type=%v\n", path, o, reflect.TypeOf(o))
+			DEBUG("  I don't know how to prune %s\n    value=%v\n", path, o)
 		}
 	}
 	DEBUG("")
