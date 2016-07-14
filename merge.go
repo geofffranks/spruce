@@ -78,18 +78,12 @@ func (m *Merger) Merge(a map[interface{}]interface{}, b map[interface{}]interfac
 
 func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]interface{}, node string) {
 	mergeRx := regexp.MustCompile(`^\s*\Q((\E\s*merge\s*.*\Q))\E`)
-	pruneRx := regexp.MustCompile(`^\s*\Q((\E\s*prune\s*.*\Q))\E`)
 	for k, val := range n {
 		path := fmt.Sprintf("%s.%v", node, k)
-		if s, ok := val.(string); ok {
-			if mergeRx.MatchString(s) {
-				m.Errors.Append(ansi.Errorf("@m{%s}: @R{inappropriate use of} @c{(( merge ))} @R{operator outside of a list} (this is @G{spruce}, after all)", path))
-			} else if pruneRx.MatchString(s) {
-				DEBUG("%s: found (( prune )) operator, adding key to prune list", path)
-				keysToPrune = append(keysToPrune, path)
-				continue
-			}
+		if s, ok := val.(string); ok && mergeRx.MatchString(s) {
+			m.Errors.Append(ansi.Errorf("@m{%s}: @R{inappropriate use of} @c{(( merge ))} @R{operator outside of a list} (this is @G{spruce}, after all)", path))
 		}
+
 		if _, exists := orig[k]; exists {
 			DEBUG("%s: found upstream, merging it", path)
 			orig[k] = m.mergeObj(orig[k], val, path)
@@ -101,6 +95,12 @@ func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]in
 }
 
 func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interface{} {
+	pruneRx := regexp.MustCompile(`^\s*\Q((\E\s*prune\s*\Q))\E`)
+	if orig != nil && reflect.TypeOf(orig).Kind() == reflect.String && pruneRx.MatchString(orig.(string)) {
+		DEBUG("%s: a (( prune )) operator is about to be replaced, check if its path needs to be saved")
+		addToPruneListIfNecessary(strings.Replace(node, "$.", "", -1))
+	}
+
 	switch t := n.(type) {
 	case map[interface{}]interface{}:
 		switch orig.(type) {

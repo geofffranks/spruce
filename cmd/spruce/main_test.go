@@ -581,17 +581,17 @@ quux: quux
 			main()
 			So(stderr, ShouldEqual, "")
 			So(stdout, ShouldEqual, `list:
-  - name: A
-    release: A
-    version: A
-  - name: B
-    release: B
-    version: B
-  - name: C
-    release: C
-    version: C
-  - name: D
-    release: D
+- name: A
+  release: A
+  version: A
+- name: B
+  release: B
+  version: B
+- name: C
+  release: C
+  version: C
+- name: D
+  release: D
 
 `)
 		})

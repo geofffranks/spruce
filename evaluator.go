@@ -11,8 +11,6 @@ import (
 	"github.com/starkandwayne/goutils/tree"
 )
 
-var keysToPrune []string
-
 // Evaluator ...
 type Evaluator struct {
 	Tree map[interface{}]interface{}
@@ -384,7 +382,8 @@ func (ev *Evaluator) Run(prune []string) error {
 		return err
 	}
 
-	errors.Append(ev.Prune(append(keysToPrune, prune...)))
+	addToPruneListIfNecessary(prune...)
+	errors.Append(ev.Prune(keysToPrune))
 	keysToPrune = nil
 
 	if len(errors.Errors) > 0 {
