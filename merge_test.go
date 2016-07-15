@@ -147,28 +147,28 @@ func TestShouldInsertIntoArray(t *testing.T) {
 	Convey("We should insert into arrays based on append/prepend, index, and key/name", t, func() {
 		Convey("Append related test cases", func() {
 			Convey("If the element is a string with the right append token", func() {
-				result, _ := shouldInsertIntoArray([]interface{}{"(( append ))", "stuff"})
+				result, _ := shouldModifyArray([]interface{}{"(( append ))", "stuff"})
 				So(result, ShouldBeTrue)
 			})
 			Convey("But not if the element is not a string", func() {
-				result, _ := shouldInsertIntoArray([]interface{}{42})
+				result, _ := shouldModifyArray([]interface{}{42})
 				So(result, ShouldBeFalse)
 			})
 			Convey("But not if the slice has no elements", func() {
-				result, _ := shouldInsertIntoArray([]interface{}{})
+				result, _ := shouldModifyArray([]interface{}{})
 				So(result, ShouldBeFalse)
 			})
 			Convey("Is whitespace agnostic", func() {
 				Convey("No surrounding whitespace", func() {
-					yes, _ := shouldInsertIntoArray([]interface{}{"((append))"})
+					yes, _ := shouldModifyArray([]interface{}{"((append))"})
 					So(yes, ShouldBeTrue)
 				})
 				Convey("Surrounding tabs", func() {
-					yes, _ := shouldInsertIntoArray([]interface{}{"((	append	))"})
+					yes, _ := shouldModifyArray([]interface{}{"((	append	))"})
 					So(yes, ShouldBeTrue)
 				})
 				Convey("Multiple surrounding whitespaces", func() {
-					yes, _ := shouldInsertIntoArray([]interface{}{"((  append  ))"})
+					yes, _ := shouldModifyArray([]interface{}{"((  append  ))"})
 					So(yes, ShouldBeTrue)
 				})
 			})
@@ -176,28 +176,28 @@ func TestShouldInsertIntoArray(t *testing.T) {
 
 		Convey("Prepend related test cases", func() {
 			Convey("If the element is a string with the right prepend token", func() {
-				result, _ := shouldInsertIntoArray([]interface{}{"(( prepend ))", "stuff"})
+				result, _ := shouldModifyArray([]interface{}{"(( prepend ))", "stuff"})
 				So(result, ShouldBeTrue)
 			})
 			Convey("But not if the element is not a string", func() {
-				result, _ := shouldInsertIntoArray([]interface{}{42})
+				result, _ := shouldModifyArray([]interface{}{42})
 				So(result, ShouldBeFalse)
 			})
 			Convey("But not if the slice has no elements", func() {
-				result, _ := shouldInsertIntoArray([]interface{}{})
+				result, _ := shouldModifyArray([]interface{}{})
 				So(result, ShouldBeFalse)
 			})
 			Convey("Is whitespace agnostic", func() {
 				Convey("No surrounding whitespace", func() {
-					yes, _ := shouldInsertIntoArray([]interface{}{"((prepend))"})
+					yes, _ := shouldModifyArray([]interface{}{"((prepend))"})
 					So(yes, ShouldBeTrue)
 				})
 				Convey("Surrounding tabs", func() {
-					yes, _ := shouldInsertIntoArray([]interface{}{"((	prepend	))"})
+					yes, _ := shouldModifyArray([]interface{}{"((	prepend	))"})
 					So(yes, ShouldBeTrue)
 				})
 				Convey("Multiple surrounding whitespaces", func() {
-					yes, _ := shouldInsertIntoArray([]interface{}{"((  prepend  ))"})
+					yes, _ := shouldModifyArray([]interface{}{"((  prepend  ))"})
 					So(yes, ShouldBeTrue)
 				})
 			})
@@ -205,108 +205,108 @@ func TestShouldInsertIntoArray(t *testing.T) {
 
 		Convey("Insert with index related test cases", func() {
 			Convey("If insert token with after and index is found", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"(( insert after 0 ))", "stuff"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"(( insert after 0 ))", "stuff"})
 				So(result, ShouldBeTrue)
-				So(len(insertDefinitions), ShouldEqual, 1)
-				So(insertDefinitions[0].relative, ShouldEqual, "after")
-				So(insertDefinitions[0].index, ShouldEqual, 0)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].relative, ShouldEqual, "after")
+				So(modificationDefinitions[0].index, ShouldEqual, 0)
 			})
 
 			Convey("If insert token with before and index is found", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"(( insert before 0 ))", "stuff"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"(( insert before 0 ))", "stuff"})
 				So(result, ShouldBeTrue)
-				So(len(insertDefinitions), ShouldEqual, 1)
-				So(insertDefinitions[0].relative, ShouldEqual, "before")
-				So(insertDefinitions[0].index, ShouldEqual, 0)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].relative, ShouldEqual, "before")
+				So(modificationDefinitions[0].index, ShouldEqual, 0)
 			})
 
 			Convey("If insert token with after and index is found independent of missing whitespaces", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"((insert after 0))", "stuff"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"((insert after 0))", "stuff"})
 				So(result, ShouldBeTrue)
-				So(len(insertDefinitions), ShouldEqual, 1)
-				So(insertDefinitions[0].relative, ShouldEqual, "after")
-				So(insertDefinitions[0].index, ShouldEqual, 0)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].relative, ShouldEqual, "after")
+				So(modificationDefinitions[0].index, ShouldEqual, 0)
 			})
 
 			Convey("If insert token with after and index is found with a lot of additional whitespaces", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"((  insert   after   0  ))", "stuff"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"((  insert   after   0  ))", "stuff"})
 				So(result, ShouldBeTrue)
-				So(len(insertDefinitions), ShouldEqual, 1)
-				So(insertDefinitions[0].relative, ShouldEqual, "after")
-				So(insertDefinitions[0].index, ShouldEqual, 0)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].relative, ShouldEqual, "after")
+				So(modificationDefinitions[0].index, ShouldEqual, 0)
 			})
 
 			Convey("But not if index is obviously out of bounds", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"(( insert before -1 ))", "stuff"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"(( insert before -1 ))", "stuff"})
 				So(result, ShouldBeFalse)
-				So(insertDefinitions, ShouldBeNil)
+				So(modificationDefinitions, ShouldBeNil)
 			})
 		})
 
 		Convey("Insert with key/name related test cases", func() {
 			Convey("If insert token with after, and insertion-name was found", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"(( insert after \"nats\" ))", "stuff"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"(( insert after \"nats\" ))", "stuff"})
 				So(result, ShouldBeTrue)
-				So(insertDefinitions, ShouldNotBeNil)
-				So(len(insertDefinitions), ShouldEqual, 1)
-				So(insertDefinitions[0].relative, ShouldEqual, "after")
-				So(insertDefinitions[0].key, ShouldEqual, "name")
-				So(insertDefinitions[0].name, ShouldEqual, "nats")
+				So(modificationDefinitions, ShouldNotBeNil)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].relative, ShouldEqual, "after")
+				So(modificationDefinitions[0].key, ShouldEqual, "name")
+				So(modificationDefinitions[0].name, ShouldEqual, "nats")
 			})
 
 			Convey("If insert token with after, key-name and insertion-name was found", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"(( insert after name \"nats\" ))", "stuff"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"(( insert after name \"nats\" ))", "stuff"})
 				So(result, ShouldBeTrue)
-				So(insertDefinitions, ShouldNotBeNil)
-				So(len(insertDefinitions), ShouldEqual, 1)
-				So(insertDefinitions[0].relative, ShouldEqual, "after")
-				So(insertDefinitions[0].key, ShouldEqual, "name")
-				So(insertDefinitions[0].name, ShouldEqual, "nats")
+				So(modificationDefinitions, ShouldNotBeNil)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].relative, ShouldEqual, "after")
+				So(modificationDefinitions[0].key, ShouldEqual, "name")
+				So(modificationDefinitions[0].name, ShouldEqual, "nats")
 			})
 
 			Convey("If insert token with before, another custom key-name and insertion-name was found", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"(( insert before id \"ccdb\" ))", "stuff"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"(( insert before id \"ccdb\" ))", "stuff"})
 				So(result, ShouldBeTrue)
-				So(insertDefinitions, ShouldNotBeNil)
-				So(len(insertDefinitions), ShouldEqual, 1)
-				So(insertDefinitions[0].relative, ShouldEqual, "before")
-				So(insertDefinitions[0].key, ShouldEqual, "id")
-				So(insertDefinitions[0].name, ShouldEqual, "ccdb")
+				So(modificationDefinitions, ShouldNotBeNil)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].relative, ShouldEqual, "before")
+				So(modificationDefinitions[0].key, ShouldEqual, "id")
+				So(modificationDefinitions[0].name, ShouldEqual, "ccdb")
 			})
 
 			Convey("If insert token with after, key-name and insertion-name was found without additional whitespaces", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"((insert after name \"nats\"))", "stuff"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"((insert after name \"nats\"))", "stuff"})
 				So(result, ShouldBeTrue)
-				So(insertDefinitions, ShouldNotBeNil)
-				So(len(insertDefinitions), ShouldEqual, 1)
-				So(insertDefinitions[0].relative, ShouldEqual, "after")
-				So(insertDefinitions[0].key, ShouldEqual, "name")
-				So(insertDefinitions[0].name, ShouldEqual, "nats")
+				So(modificationDefinitions, ShouldNotBeNil)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].relative, ShouldEqual, "after")
+				So(modificationDefinitions[0].key, ShouldEqual, "name")
+				So(modificationDefinitions[0].name, ShouldEqual, "nats")
 			})
 
 			Convey("If insert token with after, key-name and insertion-name was found with additional whitespaces", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"((   insert   after     name   \"nats\"   ))", "stuff"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"((   insert   after     name   \"nats\"   ))", "stuff"})
 				So(result, ShouldBeTrue)
-				So(insertDefinitions, ShouldNotBeNil)
-				So(len(insertDefinitions), ShouldEqual, 1)
-				So(insertDefinitions[0].relative, ShouldEqual, "after")
-				So(insertDefinitions[0].key, ShouldEqual, "name")
-				So(insertDefinitions[0].name, ShouldEqual, "nats")
+				So(modificationDefinitions, ShouldNotBeNil)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].relative, ShouldEqual, "after")
+				So(modificationDefinitions[0].key, ShouldEqual, "name")
+				So(modificationDefinitions[0].name, ShouldEqual, "nats")
 			})
 
 			Convey("If insert token with after, key-name and insertion-name was found, but the list is empty", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"(( insert after name \"nats\" ))"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"(( insert after name \"nats\" ))"})
 				So(result, ShouldBeTrue)
-				So(insertDefinitions, ShouldNotBeNil)
-				So(len(insertDefinitions), ShouldEqual, 1)
-				So(insertDefinitions[0].relative, ShouldEqual, "after")
-				So(insertDefinitions[0].key, ShouldEqual, "name")
-				So(insertDefinitions[0].name, ShouldEqual, "nats")
-				So(insertDefinitions[0].list, ShouldBeNil)
+				So(modificationDefinitions, ShouldNotBeNil)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].relative, ShouldEqual, "after")
+				So(modificationDefinitions[0].key, ShouldEqual, "name")
+				So(modificationDefinitions[0].name, ShouldEqual, "nats")
+				So(modificationDefinitions[0].list, ShouldBeNil)
 			})
 
 			Convey("If there are multiple insert token with after/before, different key names, and names (only technical usecase)", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{
+				result, modificationDefinitions := shouldModifyArray([]interface{}{
 					"(( insert after name \"nats\" ))",
 					"stuff1",
 					"stuff2",
@@ -316,22 +316,113 @@ func TestShouldInsertIntoArray(t *testing.T) {
 					"stuffX2",
 				})
 				So(result, ShouldBeTrue)
-				So(insertDefinitions, ShouldNotBeNil)
-				So(len(insertDefinitions), ShouldEqual, 2)
-				So(insertDefinitions[0].relative, ShouldEqual, "after")
-				So(insertDefinitions[0].key, ShouldEqual, "name")
-				So(insertDefinitions[0].name, ShouldEqual, "nats")
-				So(insertDefinitions[0].list, ShouldResemble, []interface{}{"stuff1", "stuff2", "stuff3"})
-				So(insertDefinitions[1].relative, ShouldEqual, "before")
-				So(insertDefinitions[1].key, ShouldEqual, "id")
-				So(insertDefinitions[1].name, ShouldEqual, "consul")
-				So(insertDefinitions[1].list, ShouldResemble, []interface{}{"stuffX1", "stuffX2"})
+				So(modificationDefinitions, ShouldNotBeNil)
+				So(len(modificationDefinitions), ShouldEqual, 2)
+				So(modificationDefinitions[0].relative, ShouldEqual, "after")
+				So(modificationDefinitions[0].key, ShouldEqual, "name")
+				So(modificationDefinitions[0].name, ShouldEqual, "nats")
+				So(modificationDefinitions[0].list, ShouldResemble, []interface{}{"stuff1", "stuff2", "stuff3"})
+				So(modificationDefinitions[1].relative, ShouldEqual, "before")
+				So(modificationDefinitions[1].key, ShouldEqual, "id")
+				So(modificationDefinitions[1].name, ShouldEqual, "consul")
+				So(modificationDefinitions[1].list, ShouldResemble, []interface{}{"stuffX1", "stuffX2"})
 			})
 
 			Convey("But not if the magic token is not specified", func() {
-				result, insertDefinitions := shouldInsertIntoArray([]interface{}{"not a magic token", "stuff"})
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"not a magic token", "stuff"})
 				So(result, ShouldBeFalse)
-				So(insertDefinitions, ShouldBeNil)
+				So(modificationDefinitions, ShouldBeNil)
+			})
+		})
+
+		Convey("Delete with index related test cases", func() {
+			Convey("If delete token with index is found", func() {
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"(( delete 0 ))", "stuff"})
+				So(result, ShouldBeTrue)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].index, ShouldEqual, 0)
+			})
+
+			Convey("If delete token with another index is found", func() {
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"(( delete 2 ))", "stuff"})
+				So(result, ShouldBeTrue)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].index, ShouldEqual, 2)
+			})
+
+			Convey("If delete token with index is found independent of missing whitespaces", func() {
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"((delete 0))", "stuff"})
+				So(result, ShouldBeTrue)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].index, ShouldEqual, 0)
+			})
+
+			Convey("If delete token with index is found with a lot of additional whitespaces", func() {
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"((  delete   0  ))", "stuff"})
+				So(result, ShouldBeTrue)
+				So(len(modificationDefinitions), ShouldEqual, 1)
+				So(modificationDefinitions[0].index, ShouldEqual, 0)
+			})
+
+			Convey("But not if index is obviously out of bounds", func() {
+				result, modificationDefinitions := shouldModifyArray([]interface{}{"(( delete -1 ))", "stuff"})
+				So(result, ShouldBeFalse)
+				So(modificationDefinitions, ShouldBeNil)
+			})
+		})
+
+		Convey("We should delete into arrays based on key/name", func() {
+			Convey("Delete with key/name related test cases", func() {
+				Convey("If delete token with delete-name was found", func() {
+					result, deleteDefinitions := shouldModifyArray([]interface{}{"(( delete \"nats\" ))", "stuff"})
+					So(result, ShouldBeTrue)
+					So(deleteDefinitions, ShouldNotBeNil)
+					So(len(deleteDefinitions), ShouldEqual, 1)
+					So(deleteDefinitions[0].key, ShouldEqual, "name")
+					So(deleteDefinitions[0].name, ShouldEqual, "nats")
+				})
+
+				Convey("If delete token with key-name and delete-name was found", func() {
+					result, deleteDefinitions := shouldModifyArray([]interface{}{"(( delete name \"nats\" ))", "stuff"})
+					So(result, ShouldBeTrue)
+					So(deleteDefinitions, ShouldNotBeNil)
+					So(len(deleteDefinitions), ShouldEqual, 1)
+					So(deleteDefinitions[0].key, ShouldEqual, "name")
+					So(deleteDefinitions[0].name, ShouldEqual, "nats")
+				})
+
+				Convey("If delete token with another custom key-name and delete-name was found", func() {
+					result, deleteDefinitions := shouldModifyArray([]interface{}{"(( delete id \"ccdb\" ))", "stuff"})
+					So(result, ShouldBeTrue)
+					So(deleteDefinitions, ShouldNotBeNil)
+					So(len(deleteDefinitions), ShouldEqual, 1)
+					So(deleteDefinitions[0].key, ShouldEqual, "id")
+					So(deleteDefinitions[0].name, ShouldEqual, "ccdb")
+				})
+
+				Convey("If delete token with key-name and delete-name was found without additional whitespaces", func() {
+					result, deleteDefinitions := shouldModifyArray([]interface{}{"((delete name \"nats\"))", "stuff"})
+					So(result, ShouldBeTrue)
+					So(deleteDefinitions, ShouldNotBeNil)
+					So(len(deleteDefinitions), ShouldEqual, 1)
+					So(deleteDefinitions[0].key, ShouldEqual, "name")
+					So(deleteDefinitions[0].name, ShouldEqual, "nats")
+				})
+
+				Convey("If delete token with key-name and delete-name was found with additional whitespaces", func() {
+					result, deleteDefinitions := shouldModifyArray([]interface{}{"((   delete        name   \"nats\"   ))", "stuff"})
+					So(result, ShouldBeTrue)
+					So(deleteDefinitions, ShouldNotBeNil)
+					So(len(deleteDefinitions), ShouldEqual, 1)
+					So(deleteDefinitions[0].key, ShouldEqual, "name")
+					So(deleteDefinitions[0].name, ShouldEqual, "nats")
+				})
+
+				Convey("But not if the magic token is not specified", func() {
+					result, deleteDefinitions := shouldModifyArray([]interface{}{"not a magic token", "stuff"})
+					So(result, ShouldBeFalse)
+					So(deleteDefinitions, ShouldBeNil)
+				})
 			})
 		})
 	})
@@ -1018,7 +1109,7 @@ func TestMergeArray(t *testing.T) {
 				err := m.Error()
 				So(a, ShouldBeNil)
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "specified insertion index 7 is out of bounds")
+				So(err.Error(), ShouldContainSubstring, "unable to modify the list, because specified index 7 is out of bounds")
 			})
 
 			Convey("After '<default>: first' put the new entry", func() {
@@ -1441,7 +1532,7 @@ func TestMergeArray(t *testing.T) {
 				err := m.Error()
 				So(a, ShouldBeNil)
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "unable to find specified insertion point")
+				So(err.Error(), ShouldContainSubstring, "unable to find specified modification point")
 			})
 
 			Convey("throw an error when key cannot be found in new list", func() {
@@ -1500,6 +1591,220 @@ func TestMergeArray(t *testing.T) {
 				So(a, ShouldBeNil)
 				So(err, ShouldNotBeNil)
 				So(err.Error(), ShouldContainSubstring, "because new list entry 'name: second' is detected multiple times")
+			})
+		})
+
+		Convey("with element '(( delete ))' deletes data where wanted", func() {
+			Convey("Delete entry #0", func() {
+				orig := []interface{}{"first", "second", "third", "fourth", "fifth", "sixth"}
+				array := []interface{}{"(( delete 0 ))"}
+				expect := []interface{}{"second", "third", "fourth", "fifth", "sixth"}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Delete entry #4", func() {
+				orig := []interface{}{"first", "second", "third", "fourth", "fifth", "sixth"}
+				array := []interface{}{"(( delete 4 ))"}
+				expect := []interface{}{"first", "second", "third", "fourth", "sixth"}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("throw an error if delete point is out of bounds", func() {
+				orig := []interface{}{"first", "second", "third", "fourth", "fifth", "sixth"}
+				array := []interface{}{"(( delete 6 ))"}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "unable to modify the list, because specified index 6 is out of bounds")
+			})
+
+			Convey("Delete '<default>: first'", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete \"first\" ))",
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Delete 'id: second'", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete id \"second\" ))",
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("delete multiple entries, second and first", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete id \"second\" ))",
+					"(( delete id \"first\" ))",
+				}
+
+				expect := []interface{}{}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("delete multiple entries in different batches", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+					map[interface{}]interface{}{"id": "third", "release": "v1"},
+					map[interface{}]interface{}{"id": "fourth", "release": "v1"},
+					map[interface{}]interface{}{"id": "fifth", "release": "v1"},
+					map[interface{}]interface{}{"id": "sixth", "release": "v1"},
+					map[interface{}]interface{}{"id": "seventh", "release": "v1"},
+					map[interface{}]interface{}{"id": "eighth", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete id \"second\" ))",
+					"(( delete id \"fourth\" ))",
+					"(( delete id \"sixth\" ))",
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "third", "release": "v1"},
+					map[interface{}]interface{}{"id": "fifth", "release": "v1"},
+					map[interface{}]interface{}{"id": "seventh", "release": "v1"},
+					map[interface{}]interface{}{"id": "eighth", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("delete multiple entries, together with different modification styles", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+					map[interface{}]interface{}{"id": "third", "release": "v1"},
+					map[interface{}]interface{}{"id": "fourth", "release": "v1"},
+					map[interface{}]interface{}{"id": "fifth", "release": "v1"},
+					map[interface{}]interface{}{"id": "sixth", "release": "v1"},
+					map[interface{}]interface{}{"id": "seventh", "release": "v1"},
+					map[interface{}]interface{}{"id": "eighth", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete id \"second\" ))",
+					"(( prepend ))",
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-3", "release": "vNext"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-4", "release": "vNext"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-5", "release": "vNext"},
+					"(( append ))",
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-6", "release": "vNext"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-7", "release": "vNext"},
+					"(( delete id \"fourth\" ))",
+					"(( delete 0 ))",
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-4", "release": "vNext"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-5", "release": "vNext"},
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "third", "release": "v1"},
+					map[interface{}]interface{}{"id": "fifth", "release": "v1"},
+					map[interface{}]interface{}{"id": "sixth", "release": "v1"},
+					map[interface{}]interface{}{"id": "seventh", "release": "v1"},
+					map[interface{}]interface{}{"id": "eighth", "release": "v1"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-6", "release": "vNext"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block-7", "release": "vNext"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("throw an error when delete point cannot be found", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete name \"not-existing\" ))",
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "unable to find specified modification point with 'name: not-existing'")
+			})
+
+			Convey("throw an error when key cannot be found in original list", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete id \"second\" ))",
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "original object does not contain the key")
 			})
 		})
 	})
