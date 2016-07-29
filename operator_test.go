@@ -721,7 +721,7 @@ instance_groups:
 			So(v[3], ShouldEqual, "10.0.1.6")
 		})
 
-		Convey("works with multiple subnets with an az", func() {
+		Convey("works with multiple subnets with an availability zone", func() {
 			ev := &Evaluator{
 				Here: cursor("instance_groups.job1.networks.0.static_ips"),
 				Tree: YAML(
@@ -830,7 +830,7 @@ instance_groups:
 			So(v[5], ShouldEqual, "10.0.2.10")
 		})
 
-		Convey("throws an error if unknown az is used in operator", func() {
+		Convey("throws an error if an unknown availability zone is used in operator", func() {
 			ev := &Evaluator{
 				Here: cursor("instance_groups.job1.networks.0.static_ips"),
 				Tree: YAML(
@@ -859,7 +859,36 @@ instance_groups:
 			So(r, ShouldBeNil)
 		})
 
-		Convey("throws an error if instance_group az is not found in subnets", func() {
+		Convey("throws an error if offset for an availability zone is out of bounds", func() {
+			ev := &Evaluator{
+				Here: cursor("instance_groups.job1.networks.0.static_ips"),
+				Tree: YAML(
+					`networks:
+- name: test-net
+  subnets:
+  - static: [ 10.0.0.1 - 10.0.0.5 ]
+    az: z1
+  - static: [ 10.0.2.1 - 10.0.2.5 ]
+    az: z2
+instance_groups:
+- name: job1
+  instances: 2
+  azs: [z1,z2]
+  networks:
+  - name: test-net
+    static_ips: <------------- HERE ------------
+`),
+			}
+
+			r, err := op.Run(ev, []*Expr{
+				str("z1:4"),
+				str("z1:5"),
+			})
+			So(err, ShouldNotBeNil)
+			So(r, ShouldBeNil)
+		})
+
+		Convey("throws an error if an instance_group availability zone is not found in subnets", func() {
 			ev := &Evaluator{
 				Here: cursor("instance_groups.job1.networks.0.static_ips"),
 				Tree: YAML(
