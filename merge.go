@@ -205,7 +205,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 				// Sanity check new list, depending on the operation type (delete or insert)
 				if delete == false {
 
-				    // Sanity check new list, list must contain key/id based entries
+					// Sanity check new list, list must contain key/id based entries
 					if err := canKeyMergeArray("new", modificationDefinitions[i].list, node, key); err != nil {
 						m.Errors.Append(err)
 						return nil
@@ -221,7 +221,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 						}
 					}
 				} else {
-				    // Sanity check for delete operation, ensure no orphan entries follow the operator definition					
+					// Sanity check for delete operation, ensure no orphan entries follow the operator definition
 					if len(modificationDefinitions[i].list) > 0 {
 						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to delete, orphan entries found after} @c{'%s: %s'}", node, key, name))
 						return nil
@@ -242,7 +242,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 			}
 
 			// Back out if idx is smaller than 0, or greater than the length (for inserts), or greater/equal than the length (for deletes)
-			if (idx < 0) || ( modificationDefinitions[i].delete == false && idx > len(result) )  || ( modificationDefinitions[i].delete == true && idx >= len(result) ) {
+			if (idx < 0) || (modificationDefinitions[i].delete == false && idx > len(result)) || (modificationDefinitions[i].delete == true && idx >= len(result)) {
 				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to modify the list, because specified index} @c{%d} @R{is out of bounds}", node, idx))
 				return nil
 			}
