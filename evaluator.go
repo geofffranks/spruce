@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 
@@ -10,8 +11,6 @@ import (
 	. "github.com/geofffranks/spruce/log"
 	"github.com/starkandwayne/goutils/tree"
 )
-
-var keysToPrune []string
 
 // Evaluator ...
 type Evaluator struct {
@@ -226,8 +225,25 @@ func (ev *Evaluator) Prune(paths []string) error {
 				delete(o.(map[interface{}]interface{}), key)
 			}
 
-		// NOTE: `--prune` does not currently handle list index removal,
-		//       i.e. `--prune meta.things[3]`;  This was deemed unnecessary
+		case []interface{}:
+			if list, ok := o.([]interface{}); ok {
+				if idx, err := strconv.Atoi(key); err == nil {
+					parent.Pop()
+					if s, err := parent.Resolve(ev.Tree); err == nil {
+						if reflect.TypeOf(s).Kind() == reflect.Map {
+							parentName := fmt.Sprintf("%s", c.Component(-2))
+							DEBUG("  pruning index %d of array '%s'", idx, parentName)
+
+							length := len(list) - 1
+							replacement := make([]interface{}, length)
+							copy(replacement, append(list[:idx], list[idx+1:]...))
+
+							delete(s.(map[interface{}]interface{}), parentName)
+							s.(map[interface{}]interface{})[parentName] = replacement
+						}
+					}
+				}
+			}
 
 		default:
 			DEBUG("  I don't know how to prune %s\n    value=%v\n", path, o)
@@ -384,7 +400,8 @@ func (ev *Evaluator) Run(prune []string) error {
 		return err
 	}
 
-	errors.Append(ev.Prune(append(keysToPrune, prune...)))
+	addToPruneListIfNecessary(prune...)
+	errors.Append(ev.Prune(keysToPrune))
 	keysToPrune = nil
 
 	if len(errors.Errors) > 0 {
