@@ -742,6 +742,16 @@ func TestExamples(t *testing.T) {
 			)
 		})
 
+		Convey("Static IPs with availability zones", func() {
+			example(
+				"../../examples/availability-zones/jobs.yml",
+				"../../examples/availability-zones/properties.yml",
+				"../../examples/availability-zones/networks.yml",
+
+				"../../examples/availability-zones/output.yml",
+			)
+		})
+
 		Convey("Injecting Subtrees", func() {
 			example(
 				"--prune", "meta",

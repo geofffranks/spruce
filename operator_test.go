@@ -1,13 +1,14 @@
 package spruce
 
 import (
-	"github.com/smallfish/simpleyaml"
-	. "github.com/smartystreets/goconvey/convey"
-	"github.com/starkandwayne/goutils/tree"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/smallfish/simpleyaml"
+	. "github.com/smartystreets/goconvey/convey"
+	"github.com/starkandwayne/goutils/tree"
 )
 
 func TestOperators(t *testing.T) {
@@ -687,6 +688,233 @@ instance_groups:
 			So(len(v), ShouldEqual, 2)
 			So(v[0], ShouldEqual, "10.0.0.5")
 			So(v[1], ShouldEqual, "10.0.0.6")
+		})
+
+		Convey("works with multiple subnets", func() {
+			ev := &Evaluator{
+				Here: cursor("instance_groups.job1.networks.0.static_ips"),
+				Tree: YAML(
+					`networks:
+- name: test-net
+  subnets:
+  - static: [ 10.0.0.2 - 10.0.0.3 ]
+  - static: [ 10.0.1.5 - 10.0.1.10 ]
+instance_groups:
+- name: job1
+  instances: 4
+  networks:
+  - name: test-net
+    static_ips: <------------- HERE ------------
+`),
+			}
+
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2), num(3)})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			v, ok := r.Value.([]interface{})
+			So(ok, ShouldBeTrue)
+			So(len(v), ShouldEqual, 4)
+			So(v[0], ShouldEqual, "10.0.0.2")
+			So(v[1], ShouldEqual, "10.0.0.3")
+			So(v[2], ShouldEqual, "10.0.1.5")
+			So(v[3], ShouldEqual, "10.0.1.6")
+		})
+
+		Convey("works with multiple subnets with an availability zone", func() {
+			ev := &Evaluator{
+				Here: cursor("instance_groups.job1.networks.0.static_ips"),
+				Tree: YAML(
+					`networks:
+- name: test-net
+  subnets:
+  - static: [ 10.0.0.2 - 10.0.0.3 ]
+    az: z2
+  - static: [ 10.0.1.5 - 10.0.1.10 ]
+    az: z1
+instance_groups:
+- name: job1
+  instances: 4
+  networks:
+  - name: test-net
+    static_ips: <------------- HERE ------------
+`),
+			}
+
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2), num(3)})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			v, ok := r.Value.([]interface{})
+			So(ok, ShouldBeTrue)
+			So(len(v), ShouldEqual, 4)
+			So(v[0], ShouldEqual, "10.0.0.2")
+			So(v[1], ShouldEqual, "10.0.0.3")
+			So(v[2], ShouldEqual, "10.0.1.5")
+			So(v[3], ShouldEqual, "10.0.1.6")
+		})
+
+		Convey("works with instance_group availability zones", func() {
+			ev := &Evaluator{
+				Here: cursor("instance_groups.job1.networks.0.static_ips"),
+				Tree: YAML(
+					`networks:
+- name: test-net
+  subnets:
+  - static: [ 10.0.0.2 - 10.0.0.3 ]
+    az: z1
+  - static: [ 10.0.1.5 - 10.0.1.10 ]
+    az: z2
+instance_groups:
+- name: job1
+  instances: 3
+  azs: [z2]
+  networks:
+  - name: test-net
+    static_ips: <------------- HERE ------------
+`),
+			}
+
+			r, err := op.Run(ev, []*Expr{num(0), num(1), num(2)})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			v, ok := r.Value.([]interface{})
+			So(ok, ShouldBeTrue)
+			So(len(v), ShouldEqual, 3)
+			So(v[0], ShouldEqual, "10.0.1.5")
+			So(v[1], ShouldEqual, "10.0.1.6")
+			So(v[2], ShouldEqual, "10.0.1.7")
+		})
+
+		Convey("works with directly specified availability zones", func() {
+			ev := &Evaluator{
+				Here: cursor("instance_groups.job1.networks.0.static_ips"),
+				Tree: YAML(
+					`networks:
+- name: test-net
+  subnets:
+  - static: [ 10.0.0.2 - 10.0.0.4 ]
+    az: z1
+  - static: [ 10.0.2.6 - 10.0.2.10 ]
+    az: z2
+instance_groups:
+- name: job1
+  instances: 6
+  azs: [z1,z2]
+  networks:
+  - name: test-net
+    static_ips: <------------- HERE ------------
+`),
+			}
+
+			r, err := op.Run(ev, []*Expr{
+				str("z2:1"),
+				num(0),
+				str("z1:2"),
+				str("z2:2"),
+				num(1),
+				str("z2:4"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			v, ok := r.Value.([]interface{})
+			So(ok, ShouldBeTrue)
+			So(len(v), ShouldEqual, 6)
+			So(v[0], ShouldEqual, "10.0.2.7")
+			So(v[1], ShouldEqual, "10.0.0.2")
+			So(v[2], ShouldEqual, "10.0.0.4")
+			So(v[3], ShouldEqual, "10.0.2.8")
+			So(v[4], ShouldEqual, "10.0.0.3")
+			So(v[5], ShouldEqual, "10.0.2.10")
+		})
+
+		Convey("throws an error if an unknown availability zone is used in operator", func() {
+			ev := &Evaluator{
+				Here: cursor("instance_groups.job1.networks.0.static_ips"),
+				Tree: YAML(
+					`networks:
+- name: test-net
+  subnets:
+  - static: [ 10.0.0.2 - 10.0.0.4 ]
+    az: z1
+  - static: [ 10.0.2.6 - 10.0.2.10 ]
+    az: z2
+instance_groups:
+- name: job1
+  instances: 2
+  azs: [z1,z2]
+  networks:
+  - name: test-net
+    static_ips: <------------- HERE ------------
+`),
+			}
+
+			r, err := op.Run(ev, []*Expr{
+				str("z2:0"),
+				str("z3:1"),
+			})
+			So(err, ShouldNotBeNil)
+			So(r, ShouldBeNil)
+		})
+
+		Convey("throws an error if offset for an availability zone is out of bounds", func() {
+			ev := &Evaluator{
+				Here: cursor("instance_groups.job1.networks.0.static_ips"),
+				Tree: YAML(
+					`networks:
+- name: test-net
+  subnets:
+  - static: [ 10.0.0.1 - 10.0.0.5 ]
+    az: z1
+  - static: [ 10.0.2.1 - 10.0.2.5 ]
+    az: z2
+instance_groups:
+- name: job1
+  instances: 2
+  azs: [z1,z2]
+  networks:
+  - name: test-net
+    static_ips: <------------- HERE ------------
+`),
+			}
+
+			r, err := op.Run(ev, []*Expr{
+				str("z1:4"),
+				str("z1:5"),
+			})
+			So(err, ShouldNotBeNil)
+			So(r, ShouldBeNil)
+		})
+
+		Convey("throws an error if an instance_group availability zone is not found in subnets", func() {
+			ev := &Evaluator{
+				Here: cursor("instance_groups.job1.networks.0.static_ips"),
+				Tree: YAML(
+					`networks:
+- name: test-net
+  subnets:
+  - static: [ 10.0.0.2 - 10.0.0.4 ]
+    az: z1
+  - static: [ 10.0.2.6 - 10.0.2.10 ]
+    az: z2
+instance_groups:
+- name: job1
+  instances: 2
+  azs: [z1,z2,z3]
+  networks:
+  - name: test-net
+    static_ips: <------------- HERE ------------
+`),
+			}
+
+			r, err := op.Run(ev, []*Expr{
+				str("z1:0"),
+				str("z2:1"),
+			})
+			So(err, ShouldNotBeNil)
+			So(r, ShouldBeNil)
 		})
 
 		Convey("can resolve valid large networks inside of job contexts", func() {

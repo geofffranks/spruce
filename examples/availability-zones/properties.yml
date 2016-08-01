@@ -1,0 +1,4 @@
+properties:
+  staticIP_servers: (( grab instance_groups.staticIP.networks.net1.static_ips ))
+  api_servers: (( grab instance_groups.api.networks.net1.static_ips ))
+  web_servers: (( grab instance_groups.web.networks.net1.static_ips ))

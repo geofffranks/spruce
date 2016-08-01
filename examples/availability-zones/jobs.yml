@@ -1,0 +1,18 @@
+instance_groups:
+- name: staticIP
+  instances: 3
+  azs: [z1,z2]
+  networks:
+  - name: net1
+    static_ips: (( static_ips(0, "z2:2", "z1:3") ))
+- name: api
+  instances: 3
+  azs: [z1]
+  networks:
+  - name: net1
+    static_ips: (( static_ips(1, "z1:4", 5) ))
+- name: web
+  instances: 3
+  networks:
+  - name: net1
+    static_ips: (( static_ips(9, 10, 11) ))

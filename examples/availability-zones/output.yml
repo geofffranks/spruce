@@ -1,0 +1,51 @@
+instance_groups:
+- name: staticIP
+  instances: 3
+  azs: [z1,z2]
+  networks:
+  - name: net1
+    static_ips:
+    - 192.168.0.1
+    - 192.168.2.3
+    - 192.168.0.4
+- name: api
+  instances: 3
+  azs: [z1]
+  networks:
+  - name: net1
+    static_ips:
+    - 192.168.0.2
+    - 192.168.0.5
+    - 192.168.0.6
+- name: web
+  instances: 3
+  networks:
+  - name: net1
+    static_ips:
+    - 192.168.0.10
+    - 192.168.2.1
+    - 192.168.2.2
+networks:
+- name: net1
+  subnets:
+  - cloud_properties: random
+    az: z1
+    static:
+    - 192.168.0.1 - 192.168.0.10
+  - cloud_properties: random
+    az: z2
+    static:
+    - 192.168.2.1 - 192.168.2.10
+properties:
+  api_servers:
+  - 192.168.0.2
+  - 192.168.0.5
+  - 192.168.0.6
+  staticIP_servers:
+  - 192.168.0.1
+  - 192.168.2.3
+  - 192.168.0.4
+  web_servers:
+  - 192.168.0.10
+  - 192.168.2.1
+  - 192.168.2.2
