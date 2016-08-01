@@ -858,5 +858,14 @@ func TestExamples(t *testing.T) {
 				"../../examples/pruning/output.yml",
 			)
 		})
+
+		Convey("Inserting", func() {
+			example(
+				"../../examples/inserting/main.yml",
+				"../../examples/inserting/addon.yml",
+
+				"../../examples/inserting/result.yml",
+			)
+		})
 	})
 }
