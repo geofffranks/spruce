@@ -97,11 +97,20 @@ func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]in
 }
 
 func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interface{} {
-	// prune has a special behavior: even if the value is replaced during processing, the key will be removed at the end of the processing
+  // regular expression to search for prune operator to make its special behavior possible
 	pruneRx := regexp.MustCompile(`^\s*\Q((\E\s*prune\s*\Q))\E`)
-	if orig != nil && reflect.TypeOf(orig).Kind() == reflect.String && pruneRx.MatchString(orig.(string)) {
-		DEBUG("%s: a (( prune )) operator is about to be replaced, check if its path needs to be saved")
+
+	// prune special behavior I/II: if the value is replaced during processing (overwritten), the path will be removed at the end of the processing anyway
+	if origString, ok := orig.(string); ok && pruneRx.MatchString(origString) {
+		DEBUG("%s: a (( prune )) operator is about to be replaced, check if its path needs to be saved", node)
 		addToPruneListIfNecessary(strings.Replace(node, "$.", "", -1))
+	}
+
+	// prune special behavior II/II: if a new prune operator would overwrite something, this will be omitted but the path saved for later pruning
+	if nString, ok := n.(string); ok && pruneRx.MatchString(nString) && orig != nil {
+		DEBUG("%s: a (( prune )) operator is about to replace existing content, check if its path needs to be saved", node)
+		addToPruneListIfNecessary(strings.Replace(node, "$.", "", -1))
+		return orig
 	}
 
 	switch t := n.(type) {

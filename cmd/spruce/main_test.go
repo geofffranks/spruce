@@ -625,6 +625,30 @@ quux: quux
 
 `)
 		})
+
+		Convey("Issue #158 prune doesn't work when goes at the end (regression?) - variant A (https://github.com/geofffranks/spruce/issues/158)", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/prune/issue-158/test.yml", "../../assets/prune/issue-158/prune.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `test1: t2
+
+`)
+		})
+
+		Convey("Issue #158 prune doesn't work when goes at the end (regression?) - variant B (https://github.com/geofffranks/spruce/issues/158)", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/prune/issue-158/prune.yml", "../../assets/prune/issue-158/test.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `test1: t2
+
+`)
+		})
 	})
 }
 

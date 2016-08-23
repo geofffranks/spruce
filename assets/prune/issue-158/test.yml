@@ -1,0 +1,4 @@
+---
+test1: (( grab test2.test ))
+test2:
+  test: t2
