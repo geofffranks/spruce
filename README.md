@@ -96,7 +96,7 @@ Arrays can be modified in multiple ways: prepending data, appending data, insert
   The second is used to customize which key to use. In any case, instead of `after`, you can also use `before`. This will
   prepend the entries (relative to the specified insertion point).
 
-- Similar to the `insert` operation, you can also use a `(( delete ... ))` operation multiple times in a list. The `delete` 
+- Similar to the `insert` operation, you can also use a `(( delete ... ))` operation multiple times in a list. The `delete`
   will remove a map from the list <br>
 
   ```yml
@@ -141,12 +141,13 @@ Arrays can be modified in multiple ways: prepending data, appending data, insert
   ```
 
   <br> The first merges using `name` as the key to determine
-  like objects in the array elements. The second is used to customize which key to use. See [Merging Arrays of Maps](#mapmerge)
-  for an example.
+  like objects in the array elements. The second is used to customize which key to use.
 
 - If you don't specify a specific merge strategy, the array will
   be merged automatically; using keys if they exist (i.e. `((
   merge ))`, and array indices otherwise (`(( inline ))`).
+
+Do you want to learn about array modifications in more detail? See [modifying arrays](/doc/arrays.md) for examples and explanations.
 
 ### Cleaning Up After Yourself
 
