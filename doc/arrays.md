@@ -53,13 +53,15 @@ list:
 To emphasize the new annotation an empty line was added. This is technically not needed, however it increases the readability.
 
 ## Operators that work the same for either type of array
-- `(( append ))` - The append operator tells Spruce to place the following content before the first existing entry.
+- `(( append ))` - The append operator tells Spruce to place the following content after the last existing entry.
 
-- `(( prepend ))` - The append operator tells Spruce to place the following content after the last existing entry.
+- `(( prepend ))` - The prepend operator tells Spruce to place the following content before the first existing entry.
 
 - `(( replace ))` - The replace operator tells Spruce to completely remove the existing array and replace it with the following entries.
 
-- `(( inline ))` - The inline operator might be a bit confusing at first glance. It takes the given entries and puts them on top of the existing ones based on their respective position in the array (index). The first one of the new entries is merged with the first one of the existing array and so on and so forth. This works with both types of arrays, however it is not _recommended_ to be used with arrays of maps, because this greatly reduces the maintainability due to the fact that a change in the order of the existing list creates somehow weird results. Use this operator if you really know what you are doing and for arrays that do not change very much, that use simple types, or that are relatively small in size.
+- `(( inline ))` - The inline operator might be a bit confusing at first glance. It takes the given entries and puts them on top of the existing ones based on their respective position in the array (index). The first one of the new entries is merged with the first one of the existing array and so on and so forth.
+  The inline operator works with both types of arrays, however it is not _recommended_ to be used with arrays of maps, because this greatly reduces the maintainability. This is due to the fact that a change in the order of the existing list can create unexpected results.
+  Use this operator if you really know what you are doing and for arrays that do not change very much, that use simple types, or that are relatively small in size.
 
 ## Operators that modify arrays of maps (based on identifiers)
 There are three well-known key names that serve as identifiers: `name`, `key`, and `id`. The key name `name` is the most common one and heavily used in BOSH deployment manifests.
@@ -95,9 +97,12 @@ This makes is possible to tell Spruce to do modifications based on the name and 
     active: false
   ```
 
-- `(( insert ... ))` - The insert operator expects two or three arguments: You tell Spruce whether new entries should be inserted `before` or `after` the insertion point. Furthermore, you specify the insertion point itself by providing the identifier key name and the actual identifiable name. The identifier key name can be omitted in which case `name` is used as the default. Based on the given example, if you specify `(( insert after name "consul" ))`, the following entries will be inserted after `consul` and before `doppler`. Since the identifier key name is `name` in our example, you can shorten it to: `(( insert after "consul" ))`. The insert operator will not work if either the insertion point cannot be found or one of the new entries is already part the existing array.
+- `(( insert ... ))` - The insert operator expects two or three arguments: You tell Spruce whether new entries should be inserted `before` or `after` the insertion point. Furthermore, you specify the insertion point itself by providing the identifier key name and the actual identifiable name.
+  The identifier key name can be omitted in which case `name` is used as the default. Based on the given example, if you specify `(( insert after name "consul" ))`, the following entries will be inserted after `consul` and before `doppler`. Since the identifier key name is `name` in our example, you can shorten it to: `(( insert after "consul" ))`.
+  The insert operator will not work if either the insertion point cannot be found or one of the new entries is already part the existing array.
 
-- `(( delete ... ))` - Like the insert operator, the delete operator expects arguments to locate the array entry of the existing array that needs to be removed: You provide the identifier key name and the identifiable name. Again, the identifier key name can be omitted and defaults to `name`. Based on given example, if you specify `(( delete "consul" ))`, the `consul` entry would be deleted leaving the list with only the `doppler` entry.
+- `(( delete ... ))` - Like the insert operator, the delete operator expects arguments to locate the array entry of the existing array that needs to be removed: You provide the identifier key name and the identifiable name.
+  Again, the identifier key name can be omitted and defaults to `name`. Based on given example, if you specify `(( delete "consul" ))`, the `consul` entry would be deleted leaving the list with only the `doppler` entry.
 
 ## Operators that modify simple arrays (based on index)
 Without the possibility to reference an array entry by an identifier, you can only use the index of each array entry as a point of reference for operators that need a specified reference point.
