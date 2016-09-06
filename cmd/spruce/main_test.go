@@ -681,17 +681,14 @@ quux: quux
 				})
 			})
 
-			Convey("Merging over nothing", func() {
-
-				Convey("when merging over maps", func() {
-					Convey("with references as the type", func() {
-						mergeFile = "../../assets/empty/references.yml"
-						testEmpty(mergeFile)
-					})
-					Convey("with literals as the type", func() {
-						mergeFile = "../../assets/empty/literals.yml"
-						testEmpty(mergeFile)
-					})
+			Convey("when merging over nothing", func() {
+				Convey("with references as the type", func() {
+					mergeFile = "../../assets/empty/references.yml"
+					testEmpty(mergeFile)
+				})
+				Convey("with literals as the type", func() {
+					mergeFile = "../../assets/empty/literals.yml"
+					testEmpty(mergeFile)
 				})
 			})
 		})
