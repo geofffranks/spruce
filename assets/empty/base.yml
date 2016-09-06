@@ -1,0 +1,8 @@
+---
+meta:
+  first:
+    foo: bar
+  second:
+    beep: boop
+  third:
+    wom: bat

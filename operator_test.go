@@ -1490,4 +1490,89 @@ meta:
 			So(r, ShouldBeNil)
 		})
 	})
+
+	Convey("empty operator", t, func() {
+		op := EmptyOperator{}
+		ev := &Evaluator{
+			Tree: YAML(
+				`---
+meta:
+  authorities: meep
+`),
+		}
+
+		//These three are with unquoted arguments (references)
+		Convey("can replace with a hash", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("hash"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			val, isHash := r.Value.(map[string]interface{})
+			So(isHash, ShouldBeTrue)
+			So(val, ShouldResemble, map[string]interface{}{})
+		})
+
+		Convey("can replace with an array", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("array"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			val, isArray := r.Value.([]interface{})
+			So(isArray, ShouldBeTrue)
+			So(val, ShouldResemble, []interface{}{})
+		})
+
+		Convey("can replace with an empty string", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("string"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			val, isString := r.Value.(string)
+			So(isString, ShouldBeTrue)
+			So(val, ShouldEqual, "")
+		})
+
+		Convey("throws an error for unrecognized types", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("void"),
+			})
+			So(r, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("works with string literals", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("hash"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			val, isHash := r.Value.(map[string]interface{})
+			So(isHash, ShouldBeTrue)
+			So(val, ShouldResemble, map[string]interface{}{})
+		})
+
+		Convey("throws an error with no args", func() {
+			r, err := op.Run(ev, []*Expr{})
+			So(r, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("throws an error with too many args", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("hash"),
+				ref("array"),
+			})
+			So(r, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+		})
+
+	})
+
 }
