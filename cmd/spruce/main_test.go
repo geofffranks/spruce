@@ -649,6 +649,52 @@ quux: quux
 
 `)
 		})
+
+		Convey("Empty operator works", func() {
+
+			var baseFile, mergeFile string
+			baseFile = "../../assets/empty/base.yml"
+
+			testEmpty := func(files ...string) {
+				os.Args = append([]string{"spruce", "merge"}, files...)
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `meta:
+  first: {}
+  second: []
+  third: ""
+
+`)
+			}
+
+			Convey("when merging over maps", func() {
+
+				Convey("with references as the type", func() {
+					mergeFile = "../../assets/empty/references.yml"
+					testEmpty(baseFile, mergeFile)
+				})
+				Convey("with literals as the type", func() {
+					mergeFile = "../../assets/empty/literals.yml"
+					testEmpty(baseFile, mergeFile)
+				})
+			})
+
+			Convey("Merging over nothing", func() {
+
+				Convey("when merging over maps", func() {
+					Convey("with references as the type", func() {
+						mergeFile = "../../assets/empty/references.yml"
+						testEmpty(mergeFile)
+					})
+					Convey("with literals as the type", func() {
+						mergeFile = "../../assets/empty/literals.yml"
+						testEmpty(mergeFile)
+					})
+				})
+			})
+		})
 	})
 }
 
