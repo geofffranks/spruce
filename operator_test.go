@@ -1558,6 +1558,21 @@ meta:
 			So(val, ShouldResemble, map[string]interface{}{})
 		})
 
+		Convey("throws an error with no args", func() {
+			r, err := op.Run(ev, []*Expr{})
+			So(r, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("throws an error with too many args", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("hash"),
+				ref("array"),
+			})
+			So(r, ShouldBeNil)
+			So(err, ShouldNotBeNil)
+		})
+
 	})
 
 }
