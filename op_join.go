@@ -28,24 +28,32 @@ func (JoinOperator) Phase() OperatorPhase {
 // before its evaluation. Returns no dependencies on error, because who cares
 // about eval order if Run is going to bomb out anyway.
 func (JoinOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor) []*tree.Cursor {
+	DEBUG("Calculating dependencies for (( join ... ))")
 	deps := []*tree.Cursor{}
 	if len(args) < 2 {
+		DEBUG("Not enough arguments to (( join ... ))")
 		return []*tree.Cursor{}
 	}
 
 	//skip the separator arg
 	for _, arg := range args[1:] {
+		if arg.Type == Literal {
+			continue
+		}
 		if arg.Type != Reference {
+			DEBUG("(( join ... )) argument not Literal or Reference type")
 			return []*tree.Cursor{}
 		}
 		//get the real cursor
 		finalCursor, err := arg.Resolve(ev.Tree)
 		if err != nil {
+			DEBUG("Could not resolve to a canonical path '%s'", arg.String())
 			return []*tree.Cursor{}
 		}
 		//get the list at this location
 		list, err := finalCursor.Reference.Resolve(ev.Tree)
 		if err != nil {
+			DEBUG("Could not retrieve object at path '%s'", arg.String())
 			return []*tree.Cursor{}
 		}
 		//must be a list or a string
@@ -57,6 +65,7 @@ func (JoinOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor) 
 				//add an array index to the end of the cursor string and re-cursor-fy it
 				newCursor, err := tree.ParseCursor(fmt.Sprintf("%s.[%d]", finalCursor.Reference.String(), i))
 				if err != nil {
+					DEBUG("Failure when converting to array cursor. THIS IS A BUG.")
 					return []*tree.Cursor{}
 				}
 				deps = append(deps, newCursor)
@@ -64,8 +73,14 @@ func (JoinOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor) 
 		case string:
 			deps = append(deps, finalCursor.Reference)
 		default:
+			DEBUG("Unsupported type at object location")
 			return []*tree.Cursor{}
 		}
+	}
+	//TODO  REMOVE
+	DEBUG("Dependencies for (( join ... )):")
+	for i, dep := range deps {
+		DEBUG("\t#%d %s", i, dep.String())
 	}
 	return deps
 }

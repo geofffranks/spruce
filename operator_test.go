@@ -1,9 +1,12 @@
 package spruce
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/smallfish/simpleyaml"
@@ -1343,7 +1346,7 @@ meta:
 			So(r.Value.(string), ShouldEqual, "password.write,clients.write,clients.read,scim.write,scim.read,uaa.admin,clients.secret")
 		})
 
-		Convey("can join a multiple lists", func() {
+		Convey("can join multiple lists", func() {
 			r, err := op.Run(ev, []*Expr{
 				str(","),
 				ref("meta.authorities"),
@@ -1488,6 +1491,102 @@ meta:
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "Unable to resolve")
 			So(r, ShouldBeNil)
+		})
+
+		Convey("calculates dependencies correctly", func() {
+
+			//TODO: Move this to a higher scope when more dependencies tests are added
+			shouldHaveDeps := func(actual interface{}, expected ...interface{}) string {
+				deps := actual.([]*tree.Cursor)
+				fmt.Printf("%+v", actual.([]*tree.Cursor))
+				paths := []string{}
+				for _, path := range expected {
+					normalizedPath, err := tree.ParseCursor(path.(string))
+					if err != nil {
+						panic(fmt.Sprintf("improper path %s passed to test", path.(string)))
+					}
+					paths = append(paths, normalizedPath.String())
+				}
+				actualPaths := []string{}
+				//make an array so we can give some coherent output on error
+				for _, dep := range deps {
+					//Pass through tree so that tests can tolerate changes to the cursor lib
+					actualPaths = append(actualPaths, dep.String())
+				}
+				//sort and compare
+				sort.Strings(actualPaths)
+				sort.Strings(paths)
+				match := reflect.DeepEqual(actualPaths, paths)
+				//give result
+				if !match {
+					return fmt.Sprintf("actual: %+v\n expected: %+v", actualPaths, paths)
+				}
+				return ""
+			}
+
+			Convey("with a single list", func() {
+				deps := op.Dependencies(ev, []*Expr{
+					str(" "),
+					ref("meta.secondlist"),
+				}, nil)
+				So(deps, shouldHaveDeps, "meta.secondlist.[0]", "meta.secondlist.[1]")
+			})
+
+			Convey("with multiple lists", func() {
+				deps := op.Dependencies(ev, []*Expr{
+					str(" "),
+					ref("meta.authorities"),
+					ref("meta.secondlist"),
+				}, nil)
+				So(deps, shouldHaveDeps, "meta.authorities.[0]", "meta.authorities.[1]",
+					"meta.authorities.[2]", "meta.authorities.[3]", "meta.authorities.[4]",
+					"meta.authorities.[5]", "meta.authorities.[6]",
+					"meta.secondlist.[0]", "meta.secondlist.[1]")
+			})
+
+			Convey("with a reference string", func() {
+				deps := op.Dependencies(ev, []*Expr{
+					str(" "),
+					ref("meta.somestanza.foo"),
+				}, nil)
+				So(deps, shouldHaveDeps, "meta.somestanza.foo")
+			})
+
+			Convey("with multiple reference strings", func() {
+				deps := op.Dependencies(ev, []*Expr{
+					str(" "),
+					ref("meta.somestanza.foo"),
+					ref("meta.somestanza.wom"),
+				}, nil)
+				So(deps, shouldHaveDeps, "meta.somestanza.foo", "meta.somestanza.wom")
+			})
+
+			Convey("with a reference string and a list", func() {
+				deps := op.Dependencies(ev, []*Expr{
+					str(" "),
+					ref("meta.somestanza.foo"),
+					ref("meta.secondlist"),
+				}, nil)
+				So(deps, shouldHaveDeps, "meta.somestanza.foo", "meta.secondlist.[0]",
+					"meta.secondlist.[1]")
+			})
+
+			Convey("with a literal string", func() {
+				deps := op.Dependencies(ev, []*Expr{
+					str(" "),
+					str("literally literal"),
+				}, nil)
+				So(deps, shouldHaveDeps)
+			})
+
+			Convey("with a literal string and a reference string", func() {
+				deps := op.Dependencies(ev, []*Expr{
+					str(" "),
+					str("beep"),
+					ref("meta.somestanza.foo"),
+				}, nil)
+				So(deps, shouldHaveDeps, "meta.somestanza.foo")
+			})
 		})
 	})
 
