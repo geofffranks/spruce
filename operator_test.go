@@ -1498,7 +1498,6 @@ meta:
 			//TODO: Move this to a higher scope when more dependencies tests are added
 			shouldHaveDeps := func(actual interface{}, expected ...interface{}) string {
 				deps := actual.([]*tree.Cursor)
-				fmt.Printf("%+v", actual.([]*tree.Cursor))
 				paths := []string{}
 				for _, path := range expected {
 					normalizedPath, err := tree.ParseCursor(path.(string))
