@@ -10,7 +10,8 @@ import (
 	. "github.com/geofffranks/spruce/log"
 )
 
-// JoinOperator ...
+// JoinOperator is invoked with (( join <separator> <lists/strings>... )) and
+// joins lists and strings into one string, separated by <separator>
 type JoinOperator struct{}
 
 // Setup ...
@@ -23,9 +24,50 @@ func (JoinOperator) Phase() OperatorPhase {
 	return EvalPhase
 }
 
-// Dependencies ...
-func (JoinOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
-	return []*tree.Cursor{}
+// Dependencies returns the nodes that (( join ... )) requires to be resolved
+// before its evaluation. Returns no dependencies on error, because who cares
+// about eval order if Run is going to bomb out anyway.
+func (JoinOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor) []*tree.Cursor {
+	deps := []*tree.Cursor{}
+	if len(args) < 2 {
+		return []*tree.Cursor{}
+	}
+
+	//skip the separator arg
+	for _, arg := range args[1:] {
+		if arg.Type != Reference {
+			return []*tree.Cursor{}
+		}
+		//get the real cursor
+		finalCursor, err := arg.Resolve(ev.Tree)
+		if err != nil {
+			return []*tree.Cursor{}
+		}
+		//get the list at this location
+		list, err := finalCursor.Reference.Resolve(ev.Tree)
+		if err != nil {
+			return []*tree.Cursor{}
+		}
+		//must be a list or a string
+		switch list.(type) {
+		case []interface{}:
+			numObjs := len(list.([]interface{}))
+			//Make a cursor for every item in the list
+			for i := 0; i < numObjs; i++ {
+				//add an array index to the end of the cursor string and re-cursor-fy it
+				newCursor, err := tree.ParseCursor(fmt.Sprintf("%s.[%d]", finalCursor.Reference.String(), i))
+				if err != nil {
+					return []*tree.Cursor{}
+				}
+				deps = append(deps, newCursor)
+			}
+		case string:
+			deps = append(deps, finalCursor.Reference)
+		default:
+			return []*tree.Cursor{}
+		}
+	}
+	return deps
 }
 
 // Run ...
