@@ -2,12 +2,13 @@ package spruce
 
 import (
 	"bufio"
-	"github.com/smallfish/simpleyaml"
-	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/yaml.v2"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/smallfish/simpleyaml"
+	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/yaml.v2"
 )
 
 func TestEvaluator(t *testing.T) {
@@ -1465,6 +1466,64 @@ keys:
   - second
   - third
 
+#################################### (( join ... )) an array with (( grab ...))
+---
+greeting: hello
+
+z:
+- (( grab greeting ))
+- world
+
+output: (( join " " z ))
+---
+dataflow:
+- z.0: (( grab greeting ))
+- output: (( join " " z ))
+---
+greeting: hello
+output: hello world
+z:
+- hello
+- world
+#################################### (( join ... )) an array with several (( grab ...))s
+---
+greeting: hello
+greeting2: world
+
+z:
+- (( grab greeting ))
+- (( grab greeting2 ))
+
+output: (( join " " z ))
+---
+dataflow:
+- z.0: (( grab greeting ))
+- z.1: (( grab greeting2 ))
+- output: (( join " " z ))
+---
+greeting: hello
+greeting2: world
+output: hello world
+z:
+- hello
+- world
+#################################### (( join ... )) a string reference with a grab
+---
+greeting: hello
+z_one: (( grab greeting ))
+z_two: world
+output:
+- (( join " " z_one z_two ))
+---
+dataflow:
+- z_one: (( grab greeting ))
+- output.0: (( join " " z_one z_two ))
+---
+greeting: hello
+output:
+- hello world
+z_one: hello
+z_two: world
 `)
 	})
 

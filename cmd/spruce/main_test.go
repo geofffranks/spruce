@@ -692,6 +692,28 @@ quux: quux
 				})
 			})
 		})
+
+		Convey("Join operator works", func() {
+			Convey("when dependencies could cause improper evaluation order", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/join/issue-155/deps.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `b:
+- hello
+- world
+greeting: hello
+output:
+- hello world
+- hello bye
+z:
+- hello
+- bye
+
+`)
+			})
+		})
 	})
 }
 
