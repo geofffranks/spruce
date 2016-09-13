@@ -97,7 +97,7 @@ func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]in
 }
 
 func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interface{} {
-  // regular expression to search for prune operator to make its special behavior possible
+	// regular expression to search for prune operator to make its special behavior possible
 	pruneRx := regexp.MustCompile(`^\s*\Q((\E\s*prune\s*\Q))\E`)
 
 	// prune special behavior I/II: if the value is replaced during processing (overwritten), the path will be removed at the end of the processing anyway
@@ -356,102 +356,104 @@ func shouldInlineMergeArray(obj []interface{}) bool {
 }
 
 func shouldModifyArray(obj []interface{}) (bool, []ModificationDefinition) {
-	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		appendRegEx := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
-		prependRegEx := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
-		insertByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(\\d+)\\s*\\Q))\\E$")
-		insertByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
-		deleteByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+(\\d+)\\s*\\Q))\\E$")
-		deleteByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
+	if len(obj) < 1 || reflect.TypeOf(obj[0]).Kind() != reflect.String {
+		return false, nil
+	}
+	appendRegEx := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
+	prependRegEx := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
+	insertByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(\\d+)\\s*\\Q))\\E$")
+	insertByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
+	deleteByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+(\\d+)\\s*\\Q))\\E$")
+	deleteByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
 
-		var result []ModificationDefinition
-		for i, entry := range obj {
-			if reflect.TypeOf(entry).Kind() == reflect.String {
-				if appendRegEx.MatchString(entry.(string)) { // check for (( append ))
-					result = append(result, ModificationDefinition{index: -1})
+	var result []ModificationDefinition
+	for i, entry := range obj {
+		e, isString := entry.(string)
+		switch {
+		case !isString:
+			//Do absolutely nothing
+
+		case appendRegEx.MatchString(e): // check for (( append ))
+			result = append(result, ModificationDefinition{index: -1})
+			continue
+
+		case prependRegEx.MatchString(e): // check for (( prepend ))
+			result = append(result, ModificationDefinition{index: 0})
+			continue
+
+		case insertByIdxRegEx.MatchString(e): // check for (( insert ... <idx> ))
+			/* #0 is the whole string,
+			 * #1 is after or before
+			 * #2 is the insertion index
+			 */
+			if captures := insertByIdxRegEx.FindStringSubmatch(e); len(captures) == 3 {
+				relative := strings.TrimSpace(captures[1])
+				position := strings.TrimSpace(captures[2])
+				if idx, err := strconv.Atoi(position); err == nil {
+					result = append(result, ModificationDefinition{index: idx, relative: relative})
 					continue
-
-				} else if prependRegEx.MatchString(entry.(string)) { // check for (( prepend ))
-					result = append(result, ModificationDefinition{index: 0})
-					continue
-
-				} else if insertByIdxRegEx.MatchString(entry.(string)) { // check for (( insert ... <idx> ))
-					/* #0 is the whole string,
-					 * #1 is after or before
-					 * #2 is the insertion index
-					 */
-					if captures := insertByIdxRegEx.FindStringSubmatch(entry.(string)); len(captures) == 3 {
-						relative := strings.TrimSpace(captures[1])
-						position := strings.TrimSpace(captures[2])
-						if idx, err := strconv.Atoi(position); err == nil {
-							result = append(result, ModificationDefinition{index: idx, relative: relative})
-							continue
-						}
-					}
-
-				} else if insertByNameRegEx.MatchString(entry.(string)) { // check for (( insert ... "<name>" ))
-					/* #0 is the whole string,
-					 * #1 is after or before
-					 * #2 contains the optional '<key>' string
-					 * #3 is finally the target "<name>" string
-					 */
-					if captures := insertByNameRegEx.FindStringSubmatch(entry.(string)); len(captures) == 4 {
-						relative := strings.TrimSpace(captures[1])
-						key := strings.TrimSpace(captures[2])
-						name := strings.TrimSpace(captures[3])
-
-						if key == "" {
-							key = "name"
-						}
-
-						result = append(result, ModificationDefinition{relative: relative, key: key, name: name})
-						continue
-					}
-				} else if deleteByIdxRegEx.MatchString(entry.(string)) { // check for (( delete <idx> ))
-					/* #0 is the whole string,
-					 * #1 is idx
-					 */
-					if captures := deleteByIdxRegEx.FindStringSubmatch(entry.(string)); len(captures) == 2 {
-						position := strings.TrimSpace(captures[1])
-						if idx, err := strconv.Atoi(position); err == nil {
-							result = append(result, ModificationDefinition{index: idx, delete: true})
-							continue
-						}
-					}
-				} else if deleteByNameRegEx.MatchString(entry.(string)) { // check for (( delete "<name>" ))
-					/* #0 is the whole string,
-					 * #1 contains the optional '<key>' string
-					 * #2 is finally the target "<name>" string
-					 */
-					if captures := deleteByNameRegEx.FindStringSubmatch(entry.(string)); len(captures) == 3 {
-						key := strings.TrimSpace(captures[1])
-						name := strings.TrimSpace(captures[2])
-
-						if key == "" {
-							key = "name"
-						}
-
-						result = append(result, ModificationDefinition{key: key, name: name, delete: true})
-						continue
-					}
 				}
 			}
 
-			lastResultIdx := len(result) - 1
-			if lastResultIdx >= 0 {
-				// Add the current entry to the 'current' modification definition record (gathering the list)
-				result[lastResultIdx].list = append(result[lastResultIdx].list, entry)
-			} else {
-				// Having no last result index at hand means we are dealing with an orphaned list entry
-				DEBUG("List entry %d cannot be connected to a modification operation (orphaned entry)", i)
-				return false, nil
+		case insertByNameRegEx.MatchString(e): // check for (( insert ... "<name>" ))
+			/* #0 is the whole string,
+			 * #1 is after or before
+			 * #2 contains the optional '<key>' string
+			 * #3 is finally the target "<name>" string
+			 */
+			if captures := insertByNameRegEx.FindStringSubmatch(entry.(string)); len(captures) == 4 {
+				relative := strings.TrimSpace(captures[1])
+				key := strings.TrimSpace(captures[2])
+				name := strings.TrimSpace(captures[3])
+
+				if key == "" {
+					key = "name"
+				}
+
+				result = append(result, ModificationDefinition{relative: relative, key: key, name: name})
+				continue
+			}
+		case deleteByIdxRegEx.MatchString(e): // check for (( delete <idx> ))
+			/* #0 is the whole string,
+			 * #1 is idx
+			 */
+			if captures := deleteByIdxRegEx.FindStringSubmatch(e); len(captures) == 2 {
+				position := strings.TrimSpace(captures[1])
+				if idx, err := strconv.Atoi(position); err == nil {
+					result = append(result, ModificationDefinition{index: idx, delete: true})
+					continue
+				}
+			}
+		case deleteByNameRegEx.MatchString(e): // check for (( delete "<name>" ))
+			/* #0 is the whole string,
+			 * #1 contains the optional '<key>' string
+			 * #2 is finally the target "<name>" string
+			 */
+			if captures := deleteByNameRegEx.FindStringSubmatch(e); len(captures) == 3 {
+				key := strings.TrimSpace(captures[1])
+				name := strings.TrimSpace(captures[2])
+
+				if key == "" {
+					key = "name"
+				}
+
+				result = append(result, ModificationDefinition{key: key, name: name, delete: true})
+				continue
 			}
 		}
+
+		lastResultIdx := len(result) - 1
 		if len(result) > 0 {
-			return true, result
+			// Add the current entry to the 'current' modification definition record (gathering the list)
+			result[lastResultIdx].list = append(result[lastResultIdx].list, entry)
+		} else {
+			// Having no results means we are dealing with an orphaned list entry
+			DEBUG("List entry %d cannot be connected to a modification operation (orphaned entry)", i)
+			return false, nil
 		}
 	}
-	return false, nil
+	//should modify if there are more than zero things to modify
+	return len(result) > 0, result
 }
 
 func shouldKeyMergeArray(obj []interface{}) (bool, string) {
