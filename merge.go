@@ -232,7 +232,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 				} else {
 					// Sanity check for delete operation, ensure no orphan entries follow the operator definition
 					if len(modificationDefinitions[i].list) > 0 {
-						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to delete, orphan entries found after} @c{'%s: %s'}", node, key, name))
+						m.Errors.Append(ansi.Errorf("@m{%s}: @R{item in array directly after} @c{(( delete %s: \"%s\" ))} @r{must be one of commands 'append', 'prepend', 'delete', or 'insert'}", node, key, name))
 						return nil
 					}
 				}
