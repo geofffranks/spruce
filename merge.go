@@ -372,6 +372,8 @@ func shouldInlineMergeArray(obj []interface{}) bool {
 // array operations to apply to which entries. The first object in the returned
 // will always represent the default merge behavior.
 func getArrayModifications(obj []interface{}) []ModificationDefinition {
+
+	//Starts with an entry representing the default merge behavior
 	result := []ModificationDefinition{ModificationDefinition{defaultMerge: true}}
 	//easy shortcircuit
 	if len(obj) == 0 {
@@ -384,8 +386,6 @@ func getArrayModifications(obj []interface{}) []ModificationDefinition {
 	insertByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
 	deleteByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+(\\d+)\\s*\\Q))\\E$")
 	deleteByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
-
-	//Represents the default merging behavior if the user doesn't specify anything
 
 	for _, entry := range obj {
 		e, isString := entry.(string)
