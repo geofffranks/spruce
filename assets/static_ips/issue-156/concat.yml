@@ -1,0 +1,16 @@
+---
+meta:
+  network_prefix: "10.4"
+
+networks:
+- name: cf1
+  subnets:
+  - range: 10.4.36.0/24
+    static: [ (( concat meta.network_prefix ".5.4 - " meta.network_prefix ".5.100" )) ]
+
+jobs:
+- name: pepe
+  instances: 1
+  networks:
+  - name: cf1
+    static_ips: (( static_ips(0) ))
