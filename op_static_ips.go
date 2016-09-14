@@ -57,6 +57,7 @@ func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*tree.Cursor)
 
 	// need all the az decls
 	track("networks.*.subnets.*.az")
+	track("networks.*.subnets.*.static.*")
 
 	// need all the job instance count decls
 	track("jobs.*.instances")
@@ -68,6 +69,7 @@ func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*tree.Cursor)
 
 	// need all the instance_group azs decls
 	track("instance_groups.*.azs")
+	track("instance_groups.*.azs.*")
 
 	return l
 }
