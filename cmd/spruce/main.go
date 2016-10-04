@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	. "github.com/HeavyWombat/spruce"
+	. "github.com/geofffranks/spruce"
 	. "github.com/geofffranks/spruce/log"
 
 	"regexp"
