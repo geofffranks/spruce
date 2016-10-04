@@ -814,7 +814,7 @@ releases:
 `)
 			})
 
-			Convey("Cherry pick a path and prune something at the same time", func() {
+			Convey("Cherry pick a path and prune something at the same time in a map", func() {
 				os.Args = []string{"spruce", "merge", "--cherry-pick", "properties", "--prune", "properties.vb.flags", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
 				stdout = ""
 				stderr = ""
@@ -838,6 +838,98 @@ releases:
 				So(stderr, ShouldEqual, "1 error(s) detected:\n"+
 					" - `$.properties` could not be found in the datastructure\n\n\n")
 				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Cherry picking should fail if picking a sub-level path while prune wipes the parent", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "releases.vb", "--prune", "releases", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "1 error(s) detected:\n"+
+					" - `$.releases` could not be found in the datastructure\n\n\n")
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Cherry pick a list entry path of a list that uses 'key' as its identifier", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "list.two", "../../assets/cherry-pick/key-based-list.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `list:
+- desc: The second one
+  key: two
+  version: v2
+
+`)
+			})
+
+			Convey("Cherry pick a list entry path of a list that uses 'id' as its identifier", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "list.two", "../../assets/cherry-pick/id-based-list.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `list:
+- desc: The second one
+  id: two
+  version: v2
+
+`)
+			})
+
+			Convey("Cherry pick one list entry path that references the index", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "list.1", "../../assets/cherry-pick/name-based-list.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `list:
+- desc: The second one
+  name: two
+  version: v2
+
+`)
+			})
+
+			Convey("Cherry pick two list entry paths that reference indexes", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "list.1", "--cherry-pick", "list.4", "../../assets/cherry-pick/name-based-list.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `list:
+- desc: The fifth one
+  name: five
+  version: v5
+- desc: The second one
+  name: two
+  version: v2
+
+`)
+			})
+
+			Convey("Cherry pick one list entry path that references an invalid index", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "list.10", "../../assets/cherry-pick/name-based-list.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "1 error(s) detected:\n"+
+					" - `$.list.10` could not be found in the datastructure\n\n\n")
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Cherry pick should only pick the exact name based on the path", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "map", "--prune", "subkey", "../../assets/cherry-pick/test-exact-names.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `map:
+  other: value
+  subkey: this is the real subkey
+
+`)
 			})
 		})
 	})

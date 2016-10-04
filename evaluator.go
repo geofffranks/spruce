@@ -257,7 +257,7 @@ func (ev *Evaluator) Prune(paths []string) error {
 func (ev *Evaluator) CherryPick(paths []string) error {
 	DEBUG("cherry-picking %d paths from the final YAML structure", len(paths))
 
-  if len(paths) > 0 {
+	if len(paths) > 0 {
 		// This will serve as the replacement tree ...
 		replacement := make(map[interface{}]interface{})
 
@@ -293,9 +293,19 @@ func (ev *Evaluator) CherryPick(paths []string) error {
 					// Empty parent string means we reached the root, setting the pointer nil to stop processing ...
 					pointer = nil
 
-					// ... and adding the cherry to the replacement map
-					DEBUG("Adding '%s' to the replacement tree", path)
-					replacement[cherryName] = cherryValue
+					// ... create the final cherry wrapped in its container ...
+					tmp := make(map[interface{}]interface{})
+					tmp[cherryName] = cherryValue
+
+					// ... and add it to the replacement map
+					DEBUG("Merging '%s' into the replacement tree", path)
+					merger := &Merger{AppendByDefault: true}
+					merged := merger.mergeObj(tmp, replacement, path)
+					if err := merger.Error(); err != nil {
+						return err
+					}
+
+					replacement = merged.(map[interface{}]interface{})
 
 				} else {
 					// Reassign the pointer to the parent and restructre the current cherry value to address the parent structure and name
