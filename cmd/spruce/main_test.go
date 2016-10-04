@@ -740,6 +740,106 @@ z:
 `)
 			})
 		})
+
+		Convey("Cherry picking test cases", func() {
+			Convey("Cherry pick just one root level path", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "properties", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `properties:
+  hahn:
+    flags: open
+    id: b503e54a-c872-4643-a09c-5480c5940d0c
+  vb:
+    flags: auth,block,read-only
+    id: 74a03820-3f81-45ca-afd5-d7d57b947ff1
+
+`)
+			})
+
+			Convey("Cherry pick a path that is a list entry", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "releases.vb", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `releases:
+- name: vb
+
+`)
+			})
+
+			Convey("Cherry pick a path that is deep down the structure", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "meta.some.deep.structure.maplist", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `meta:
+  some:
+    deep:
+      structure:
+        maplist:
+          keyA: valueA
+          keyB: valueB
+
+`)
+			})
+
+			Convey("Cherry pick a series of different paths at the same time", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "properties", "--cherry-pick", "releases.vb", "--cherry-pick", "meta.some.deep.structure.maplist", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `meta:
+  some:
+    deep:
+      structure:
+        maplist:
+          keyA: valueA
+          keyB: valueB
+properties:
+  hahn:
+    flags: open
+    id: b503e54a-c872-4643-a09c-5480c5940d0c
+  vb:
+    flags: auth,block,read-only
+    id: 74a03820-3f81-45ca-afd5-d7d57b947ff1
+releases:
+- name: vb
+
+`)
+			})
+
+			Convey("Cherry pick a path and prune something at the same time", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "properties", "--prune", "properties.vb.flags", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `properties:
+  hahn:
+    flags: open
+    id: b503e54a-c872-4643-a09c-5480c5940d0c
+  vb:
+    id: 74a03820-3f81-45ca-afd5-d7d57b947ff1
+
+`)
+			})
+
+			Convey("Cherry picking should fail if you cherry-pick a prune path", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "properties", "--prune", "properties", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "1 error(s) detected:\n"+
+					" - `$.properties` could not be found in the datastructure\n\n\n")
+				So(stdout, ShouldEqual, "")
+			})
+		})
 	})
 }
 

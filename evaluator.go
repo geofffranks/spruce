@@ -253,6 +253,90 @@ func (ev *Evaluator) Prune(paths []string) error {
 	return nil
 }
 
+// Cherry-pick ...
+func (ev *Evaluator) CherryPick(paths []string) error {
+	DEBUG("cherry-picking %d paths from the final YAML structure", len(paths))
+
+  if len(paths) > 0 {
+		// This will serve as the replacement tree ...
+		replacement := make(map[interface{}]interface{})
+
+		for _, path := range paths {
+			cursor, err := tree.ParseCursor(path)
+			if err != nil {
+				return err
+			}
+
+			// These variables will potentially be modified (depending on the structure)
+			var cherryName string
+			var cherryValue interface{}
+
+			// Resolve the value that needs to be cherry picked
+			cherryValue, err = cursor.Resolve(ev.Tree)
+			if err != nil {
+				return err
+			}
+
+			// Name of the parameter of the to-be-picked value
+			cherryName = cursor.Nodes[len(cursor.Nodes)-1]
+
+			// Since the cherry can be deep down the structure, we need to go down
+			// (or up, depending how you read it) the structure to include the parent
+			// names of the respective cherry. The pointer will be reassigned with
+			// each level.
+			pointer := cursor
+			for pointer != nil {
+				parent := pointer.Copy()
+				parent.Pop()
+
+				if parent.String() == "" {
+					// Empty parent string means we reached the root, setting the pointer nil to stop processing ...
+					pointer = nil
+
+					// ... and adding the cherry to the replacement map
+					DEBUG("Adding '%s' to the replacement tree", path)
+					replacement[cherryName] = cherryValue
+
+				} else {
+					// Reassign the pointer to the parent and restructre the current cherry value to address the parent structure and name
+					pointer = parent
+
+					// Depending on the type of the parent, either a map or a list is created for the new parent of the cherry value
+					if obj, err := parent.Resolve(ev.Tree); err == nil {
+						switch obj.(type) {
+						case map[interface{}]interface{}:
+							tmp := make(map[interface{}]interface{})
+							tmp[cherryName] = cherryValue
+
+							cherryName = parent.Nodes[len(parent.Nodes)-1]
+							cherryValue = tmp
+
+						case []interface{}:
+							tmp := make([]interface{}, 0, 0)
+							tmp = append(tmp, cherryValue)
+
+							cherryName = parent.Nodes[len(parent.Nodes)-1]
+							cherryValue = tmp
+
+						default:
+							return ansi.Errorf("@*{Unsupported type detected, %s is neither a map nor a list}", parent.String())
+						}
+
+					} else {
+						return err
+					}
+				}
+			}
+		}
+
+		// replace the existing tree with a new one that contain the cherry-picks
+		ev.Tree = replacement
+	}
+
+	DEBUG("")
+	return nil
+}
+
 // CheckForCycles ...
 func (ev *Evaluator) CheckForCycles(maxDepth int) error {
 	DEBUG("checking for cycles in final YAML structure")
@@ -383,7 +467,7 @@ func (ev *Evaluator) RunPhase(p OperatorPhase) error {
 }
 
 // Run ...
-func (ev *Evaluator) Run(prune []string) error {
+func (ev *Evaluator) Run(prune []string, picks []string) error {
 	errors := MultiError{Errors: []error{}}
 	paramErrs := MultiError{Errors: []error{}}
 
@@ -400,9 +484,13 @@ func (ev *Evaluator) Run(prune []string) error {
 		return err
 	}
 
+	// post-processing: prune
 	addToPruneListIfNecessary(prune...)
 	errors.Append(ev.Prune(keysToPrune))
 	keysToPrune = nil
+
+	// post-processing: cherry-pick
+	errors.Append(ev.CherryPick(picks))
 
 	if len(errors.Errors) > 0 {
 		return errors
