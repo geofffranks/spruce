@@ -111,9 +111,18 @@ Arrays can be modified in multiple ways: prepending data, appending data, insert
   ```yml
   - (( delete <key> "<name>" ))
   ```
+  Additionally, this operation supports **regex**. For example you could use something like the following to remove `dea_z1`, `dea_z2`,..., `dea_zN`:
+
+  ```yml
+  jobs:
+  - (( delete "dea.*" ))
+  ```
+
   <br> The array modification operations `(( append ))`, `(( prepend ))`, `(( delete ... ))`, and `(( insert ... ))` can be
   used multiple times in one list. Entries that follow `(( append ))`, `(( prepend ))`, and `(( insert ... ))` belong to the
   same operation. This however does not apply to `(( delete ... ))`, which always stands alone.
+
+
 
 - To replace the first array with the second,
   ensure that the first element in the new array is <br>

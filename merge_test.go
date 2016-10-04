@@ -1652,6 +1652,29 @@ func TestMergeArray(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
+			Convey("Delete  '<default>: .*first.*' with simple regex", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "first_z2", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete \"first.+\" ))",
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
 			Convey("Delete 'id: second'", func() {
 				orig := []interface{}{
 					map[interface{}]interface{}{"id": "first", "release": "v1"},
@@ -1685,6 +1708,28 @@ func TestMergeArray(t *testing.T) {
 				}
 
 				expect := []interface{}{}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("delete multiple entries with a regex", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first_z1", "release": "v1"},
+					map[interface{}]interface{}{"id": "first_z2", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete id \"first.+\" ))",
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
 
 				m := &Merger{}
 				a := m.mergeArray(orig, array, "node-path")
@@ -1771,7 +1816,7 @@ func TestMergeArray(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
-			Convey("throw an error when delete point cannot be found", func() {
+			Convey("don't throw an error when delete point cannot be found", func() {
 				orig := []interface{}{
 					map[interface{}]interface{}{"name": "first", "release": "v1"},
 					map[interface{}]interface{}{"name": "second", "release": "v1"},
@@ -1784,9 +1829,25 @@ func TestMergeArray(t *testing.T) {
 				m := &Merger{}
 				a := m.mergeArray(orig, array, "node-path")
 				err := m.Error()
+				So(a, ShouldResemble, orig)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("throw an error when delete cannot be compile a regex", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+				array := []interface{}{
+					"(( delete name \"++\" ))",
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
 				So(a, ShouldBeNil)
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "unable to find specified modification point with 'name: not-existing'")
+				So(err.Error(), ShouldContainSubstring, "unable to compile regex")
 			})
 
 			Convey("throw an error when key cannot be found in original list", func() {

@@ -97,7 +97,7 @@ func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]in
 }
 
 func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interface{} {
-  // regular expression to search for prune operator to make its special behavior possible
+	// regular expression to search for prune operator to make its special behavior possible
 	pruneRx := regexp.MustCompile(`^\s*\Q((\E\s*prune\s*\Q))\E`)
 
 	// prune special behavior I/II: if the value is replaced during processing (overwritten), the path will be removed at the end of the processing anyway
@@ -187,11 +187,10 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 		// Create a copy of orig for the (multiple) modifications that are about to happen
 		result := make([]interface{}, len(orig))
 		copy(result, orig)
-
 		var idx int
-
 		// Process the modifications definitions that were found in the new list
 		for i := range modificationDefinitions {
+
 			if modificationDefinitions[i].key == "" && modificationDefinitions[i].name == "" { // Index comes directly from operation definition
 				idx = modificationDefinitions[i].index
 
@@ -229,12 +228,27 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 							return nil
 						}
 					}
+
 				} else {
 					// Sanity check for delete operation, ensure no orphan entries follow the operator definition
 					if len(modificationDefinitions[i].list) > 0 {
 						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to delete, orphan entries found after} @c{'%s: %s'}", node, key, name))
 						return nil
 					}
+
+					if _, err := regexp.Compile(name); err != nil {
+						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to compile regex} @c{%s} @R{is out of bounds}", node, name))
+						return nil
+					}
+
+					idx = getIndexOfEntry(result, key, name)
+
+					for idx >= 0 {
+						DEBUG("%s: deleting element at array index %d", node, idx)
+						result = deleteIndexFromList(result, idx)
+						idx = getIndexOfEntry(result, key, name)
+					}
+					continue
 				}
 
 				// Look up the index of the specified insertion point (based on its key/name)
@@ -243,13 +257,13 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified modification point with} @c{'%s: %s'}", node, key, name))
 					return nil
 				}
+
 			}
 
 			// If after is specified, add one to the index to actually put the entry where it is expected
 			if modificationDefinitions[i].relative == "after" {
 				idx++
 			}
-
 			// Back out if idx is smaller than 0, or greater than the length (for inserts), or greater/equal than the length (for deletes)
 			if (idx < 0) || (modificationDefinitions[i].delete == false && idx > len(result)) || (modificationDefinitions[i].delete == true && idx >= len(result)) {
 				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to modify the list, because specified index} @c{%d} @R{is out of bounds}", node, idx))
@@ -423,6 +437,7 @@ func shouldModifyArray(obj []interface{}) (bool, []ModificationDefinition) {
 					 * #1 contains the optional '<key>' string
 					 * #2 is finally the target "<name>" string
 					 */
+
 					if captures := deleteByNameRegEx.FindStringSubmatch(entry.(string)); len(captures) == 3 {
 						key := strings.TrimSpace(captures[1])
 						name := strings.TrimSpace(captures[2])
@@ -500,10 +515,11 @@ func shouldReplaceArray(obj []interface{}) bool {
 }
 
 func getIndexOfEntry(list []interface{}, key string, name string) int {
+	r := regexp.MustCompile(name)
 	for i, entry := range list {
 		if reflect.TypeOf(entry).Kind() == reflect.Map {
 			obj := entry.(map[interface{}]interface{})
-			if obj[key] == name {
+			if r.MatchString(obj[key].(string)) {
 				return i
 			}
 		}

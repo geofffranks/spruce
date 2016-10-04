@@ -3,7 +3,3 @@ jobs:
   name: consul
 - instances: 2
   name: nats
-- instances: 4
-  name: uaadb
-- instances: 6
-  name: api
