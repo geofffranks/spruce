@@ -3,3 +3,6 @@ jobs:
 - (( insert after "dea" ))
 - name: dea_v2
   instances: 2
+- (( insert after "dea.+" ))
+- name: dea_v3
+  instances: 2

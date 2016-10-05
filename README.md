@@ -117,6 +117,28 @@ Arrays can be modified in multiple ways: prepending data, appending data, insert
   jobs:
   - (( delete "dea.*" ))
   ```
+  Same works also in case of `(( insert after/before ))`. In this case, it will insert the item after the first occurrence. Ex:
+  ```yml
+  jobs:
+  - (( insert after "dea.*" ))
+  - name: dea_z2
+  ```
+  ```yml
+  jobs:
+  - name: dea
+  - name: brain
+  - name: dea09
+  ```
+  Result:
+  ```yml
+  jobs:
+  - name: dea_z1
+  - name: dea_z2
+  - name: brain
+  - name: dea_z3
+  ```
+
+
 
   <br> The array modification operations `(( append ))`, `(( prepend ))`, `(( delete ... ))`, and `(( insert ... ))` can be
   used multiple times in one list. Entries that follow `(( append ))`, `(( prepend ))`, and `(( insert ... ))` belong to the
