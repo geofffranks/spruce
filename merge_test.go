@@ -1886,7 +1886,7 @@ func TestMergeArray(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
-			Convey("don't throw an error when delete point cannot be found", func() {
+			Convey("throw an error when delete point cannot be found", func() {
 				orig := []interface{}{
 					map[interface{}]interface{}{"name": "first", "release": "v1"},
 					map[interface{}]interface{}{"name": "second", "release": "v1"},
@@ -1899,8 +1899,9 @@ func TestMergeArray(t *testing.T) {
 				m := &Merger{}
 				a := m.mergeArray(orig, array, "node-path")
 				err := m.Error()
-				So(a, ShouldResemble, orig)
-				So(err, ShouldBeNil)
+				So(a, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "unable to find specified modification point with 'name: not-existing'")
 			})
 
 			Convey("throw an error when delete cannot be compile a regex", func() {

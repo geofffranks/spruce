@@ -246,11 +246,16 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 					return nil
 				}
 				if _, err := regexp.Compile(name); err != nil {
-					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to compile regex} @c{%s} @R{is out of bounds}", node, name))
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to compile regex} @c{%s}", node, name))
 					return nil
 				}
 
 				idx = getIndexOfEntry(result, key, name)
+
+				if idx < 0 {
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to modify the list, because specified index} @c{%d} @R{is out of bounds}", node, idx))
+					return nil
+				}
 
 				for idx >= 0 {
 					DEBUG("%s: deleting element at array index %d", node, idx)
