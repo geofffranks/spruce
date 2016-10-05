@@ -1722,7 +1722,7 @@ func TestMergeArray(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
-			Convey("Delete  '<default>: .*first.*' with simple regex", func() {
+			Convey("Delete  '<default>: first.+' with simple regex", func() {
 				orig := []interface{}{
 					map[interface{}]interface{}{"name": "first", "release": "v1"},
 					map[interface{}]interface{}{"name": "first_z2", "release": "v1"},
@@ -1735,6 +1735,29 @@ func TestMergeArray(t *testing.T) {
 
 				expect := []interface{}{
 					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Delete when key contains special characters", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "fi.st", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+					map[interface{}]interface{}{"name": "th*rd+", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete \"fi\\.st\" ))",
+					"(( delete \"th\\*rd\\+\" ))",
+				}
+
+				expect := []interface{}{
 					map[interface{}]interface{}{"name": "second", "release": "v1"},
 				}
 
