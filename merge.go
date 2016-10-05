@@ -27,7 +27,8 @@ type ModificationDefinition struct {
 	key  string
 	name string
 
-	delete bool
+	delete       bool
+	defaultMerge bool //True if modification represents the default merge behavior
 
 	relative string
 	list     []interface{}
@@ -181,107 +182,119 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 
 		return m.mergeArrayByKey(orig, n[1:], node, key)
 
-	} else if should, modificationDefinitions := shouldModifyArray(n); should {
-		DEBUG("%s: performing %d modification operations against list", node, len(modificationDefinitions))
+	}
 
-		// Create a copy of orig for the (multiple) modifications that are about to happen
-		result := make([]interface{}, len(orig))
-		copy(result, orig)
-		var idx int
-		// Process the modifications definitions that were found in the new list
-		for i := range modificationDefinitions {
+	modificationDefinitions := getArrayModifications(n)
+	DEBUG("%s: performing %d modification operations against list", node, len(modificationDefinitions))
+	DEBUG("%+v", modificationDefinitions)
 
-			if modificationDefinitions[i].key == "" && modificationDefinitions[i].name == "" { // Index comes directly from operation definition
-				idx = modificationDefinitions[i].index
+	// Create a copy of orig for the (multiple) modifications that are about to happen
+	result := make([]interface{}, len(orig))
+	copy(result, orig)
 
-				// Replace the -1 marker with the actual 'end' index of the array
-				if idx == -1 {
-					idx = len(result)
-				}
+	var idx int
 
-			} else { // Index look-up based on key and name
-				key := modificationDefinitions[i].key
-				name := modificationDefinitions[i].name
-				delete := modificationDefinitions[i].delete
+	// Process the modifications definitions that were found in the new list
+	for i := range modificationDefinitions {
+		//Special tag for default behavior. Cannot be invoked explicitly by users
+		if modificationDefinitions[i].defaultMerge {
+			result = m.mergeArrayDefault(orig, modificationDefinitions[0].list, node)
+			continue
+		}
+		if modificationDefinitions[i].key == "" && modificationDefinitions[i].name == "" { // Index comes directly from operation definition
+			idx = modificationDefinitions[i].index
 
-				// Sanity check original list, list must contain key/id based entries
-				if err := canKeyMergeArray("original", result, node, key); err != nil {
+			// Replace the -1 marker with the actual 'end' index of the array
+			if idx == -1 {
+				idx = len(result)
+			}
+
+		} else { // Index look-up based on key and name
+			key := modificationDefinitions[i].key
+			name := modificationDefinitions[i].name
+			delete := modificationDefinitions[i].delete
+
+			// Sanity check original list, list must contain key/id based entries
+			if err := canKeyMergeArray("original", result, node, key); err != nil {
+				m.Errors.Append(err)
+				return nil
+			}
+
+			// Sanity check new list, depending on the operation type (delete or insert)
+			if delete == false {
+
+				// Sanity check new list, list must contain key/id based entries
+				if err := canKeyMergeArray("new", modificationDefinitions[i].list, node, key); err != nil {
 					m.Errors.Append(err)
 					return nil
 				}
 
-				// Sanity check new list, depending on the operation type (delete or insert)
-				if delete == false {
-
-					// Sanity check new list, list must contain key/id based entries
-					if err := canKeyMergeArray("new", modificationDefinitions[i].list, node, key); err != nil {
-						m.Errors.Append(err)
+				// Since we have a way to identify indiviual entries based on their key/id, we can sanity check for possible duplicates
+				for _, entry := range modificationDefinitions[i].list {
+					obj := entry.(map[interface{}]interface{})
+					entryName := obj[key].(string)
+					if getIndexOfEntry(result, key, entryName) > 0 {
+						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to insert, because new list entry} @c{'%s: %s'} @R{is detected multiple times}", node, key, entryName))
 						return nil
 					}
 
-					// Since we have a way to identify indiviual entries based on their key/id, we can sanity check for possible duplicates
-					for _, entry := range modificationDefinitions[i].list {
-						obj := entry.(map[interface{}]interface{})
-						entryName := obj[key].(string)
-						if getIndexOfEntry(result, key, entryName) > 0 {
-							m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to insert, because new list entry} @c{'%s: %s'} @R{is detected multiple times}", node, key, entryName))
-							return nil
-						}
-					}
-
-				} else {
-					// Sanity check for delete operation, ensure no orphan entries follow the operator definition
-					if len(modificationDefinitions[i].list) > 0 {
-						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to delete, orphan entries found after} @c{'%s: %s'}", node, key, name))
-						return nil
-					}
-
-					if _, err := regexp.Compile(name); err != nil {
-						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to compile regex} @c{%s} @R{is out of bounds}", node, name))
-						return nil
-					}
-
-					idx = getIndexOfEntry(result, key, name)
-
-					for idx >= 0 {
-						DEBUG("%s: deleting element at array index %d", node, idx)
-						result = deleteIndexFromList(result, idx)
-						idx = getIndexOfEntry(result, key, name)
-					}
-					continue
 				}
-
-				// Look up the index of the specified insertion point (based on its key/name)
-				idx = getIndexOfEntry(result, key, name)
-				if idx < 0 {
-					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified modification point with} @c{'%s: %s'}", node, key, name))
+			} else {
+				// Sanity check for delete operation, ensure no orphan entries follow the operator definition
+				if len(modificationDefinitions[i].list) > 0 {
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{item in array directly after} @c{(( delete %s: \"%s\" ))} @r{must be one of the array operators 'append', 'prepend', 'delete', or 'insert'}", node, key, name))
+					return nil
+				}
+				if _, err := regexp.Compile(name); err != nil {
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to compile regex} @c{%s} @R{is out of bounds}", node, name))
 					return nil
 				}
 
+				idx = getIndexOfEntry(result, key, name)
+
+				for idx >= 0 {
+					DEBUG("%s: deleting element at array index %d", node, idx)
+					result = deleteIndexFromList(result, idx)
+					idx = getIndexOfEntry(result, key, name)
+				}
+				continue
 			}
 
-			// If after is specified, add one to the index to actually put the entry where it is expected
-			if modificationDefinitions[i].relative == "after" {
-				idx++
-			}
-			// Back out if idx is smaller than 0, or greater than the length (for inserts), or greater/equal than the length (for deletes)
-			if (idx < 0) || (modificationDefinitions[i].delete == false && idx > len(result)) || (modificationDefinitions[i].delete == true && idx >= len(result)) {
-				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to modify the list, because specified index} @c{%d} @R{is out of bounds}", node, idx))
+			// Look up the index of the specified insertion point (based on its key/name)
+			idx = getIndexOfEntry(result, key, name)
+			if idx < 0 {
+				m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified modification point with} @c{'%s: %s'}", node, key, name))
 				return nil
-			}
-
-			if modificationDefinitions[i].delete == false {
-				DEBUG("%s: inserting %d new elements to existing array at index %d", node, len(modificationDefinitions[i].list), idx)
-				result = insertIntoList(result, idx, modificationDefinitions[i].list)
-			} else {
-				DEBUG("%s: deleting element at array index %d", node, idx)
-				result = deleteIndexFromList(result, idx)
 			}
 		}
 
-		return result
+		// If after is specified, add one to the index to actually put the entry where it is expected
+		if modificationDefinitions[i].relative == "after" {
+			idx++
+		}
+
+		// Back out if idx is smaller than 0, or greater than the length (for inserts), or greater/equal than the length (for deletes)
+		if (idx < 0) || (modificationDefinitions[i].delete == false && idx > len(result)) || (modificationDefinitions[i].delete == true && idx >= len(result)) {
+			m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to modify the list, because specified index} @c{%d} @R{is out of bounds}", node, idx))
+			return nil
+		}
+
+		if modificationDefinitions[i].delete == false {
+			DEBUG("%s: inserting %d new elements to existing array at index %d", node, len(modificationDefinitions[i].list), idx)
+			result = insertIntoList(result, idx, modificationDefinitions[i].list)
+		} else {
+			DEBUG("%s: deleting element at array index %d", node, idx)
+			result = deleteIndexFromList(result, idx)
+		}
 	}
 
+	return result
+
+}
+
+// The magic which chooses to merge, append, or inline based on the contents of
+// the array
+func (m *Merger) mergeArrayDefault(orig []interface{}, n []interface{}, node string) []interface{} {
 	DEBUG("%s: performing index-based array merge", node)
 	if err := canKeyMergeArray("original", orig, node, "name"); err == nil {
 		if err := canKeyMergeArray("new", n, node, "name"); err == nil {
@@ -369,104 +382,105 @@ func shouldInlineMergeArray(obj []interface{}) bool {
 	return false
 }
 
-func shouldModifyArray(obj []interface{}) (bool, []ModificationDefinition) {
-	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		appendRegEx := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
-		prependRegEx := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
-		insertByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(\\d+)\\s*\\Q))\\E$")
-		insertByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
-		deleteByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+(\\d+)\\s*\\Q))\\E$")
-		deleteByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
+//Returns a list of ModificationDefinition objects with information on which
+// array operations to apply to which entries. The first object in the returned
+// will always represent the default merge behavior.
+func getArrayModifications(obj []interface{}) []ModificationDefinition {
 
-		var result []ModificationDefinition
-		for i, entry := range obj {
-			if reflect.TypeOf(entry).Kind() == reflect.String {
-				if appendRegEx.MatchString(entry.(string)) { // check for (( append ))
-					result = append(result, ModificationDefinition{index: -1})
+	//Starts with an entry representing the default merge behavior
+	result := []ModificationDefinition{ModificationDefinition{defaultMerge: true}}
+	//easy shortcircuit
+	if len(obj) == 0 {
+		return result
+	}
+
+	appendRegEx := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
+	prependRegEx := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
+	insertByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(\\d+)\\s*\\Q))\\E$")
+	insertByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
+	deleteByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+(\\d+)\\s*\\Q))\\E$")
+	deleteByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
+
+	for _, entry := range obj {
+		e, isString := entry.(string)
+		switch {
+		case !isString:
+			//Do absolutely nothing
+
+		case appendRegEx.MatchString(e): // check for (( append ))
+			result = append(result, ModificationDefinition{index: -1})
+			continue
+
+		case prependRegEx.MatchString(e): // check for (( prepend ))
+			result = append(result, ModificationDefinition{index: 0})
+			continue
+
+		case insertByIdxRegEx.MatchString(e): // check for (( insert ... <idx> ))
+			/* #0 is the whole string,
+			 * #1 is after or before
+			 * #2 is the insertion index
+			 */
+			if captures := insertByIdxRegEx.FindStringSubmatch(e); len(captures) == 3 {
+				relative := strings.TrimSpace(captures[1])
+				position := strings.TrimSpace(captures[2])
+				if idx, err := strconv.Atoi(position); err == nil {
+					result = append(result, ModificationDefinition{index: idx, relative: relative})
 					continue
-
-				} else if prependRegEx.MatchString(entry.(string)) { // check for (( prepend ))
-					result = append(result, ModificationDefinition{index: 0})
-					continue
-
-				} else if insertByIdxRegEx.MatchString(entry.(string)) { // check for (( insert ... <idx> ))
-					/* #0 is the whole string,
-					 * #1 is after or before
-					 * #2 is the insertion index
-					 */
-					if captures := insertByIdxRegEx.FindStringSubmatch(entry.(string)); len(captures) == 3 {
-						relative := strings.TrimSpace(captures[1])
-						position := strings.TrimSpace(captures[2])
-						if idx, err := strconv.Atoi(position); err == nil {
-							result = append(result, ModificationDefinition{index: idx, relative: relative})
-							continue
-						}
-					}
-
-				} else if insertByNameRegEx.MatchString(entry.(string)) { // check for (( insert ... "<name>" ))
-					/* #0 is the whole string,
-					 * #1 is after or before
-					 * #2 contains the optional '<key>' string
-					 * #3 is finally the target "<name>" string
-					 */
-					if captures := insertByNameRegEx.FindStringSubmatch(entry.(string)); len(captures) == 4 {
-						relative := strings.TrimSpace(captures[1])
-						key := strings.TrimSpace(captures[2])
-						name := strings.TrimSpace(captures[3])
-
-						if key == "" {
-							key = "name"
-						}
-
-						result = append(result, ModificationDefinition{relative: relative, key: key, name: name})
-						continue
-					}
-				} else if deleteByIdxRegEx.MatchString(entry.(string)) { // check for (( delete <idx> ))
-					/* #0 is the whole string,
-					 * #1 is idx
-					 */
-					if captures := deleteByIdxRegEx.FindStringSubmatch(entry.(string)); len(captures) == 2 {
-						position := strings.TrimSpace(captures[1])
-						if idx, err := strconv.Atoi(position); err == nil {
-							result = append(result, ModificationDefinition{index: idx, delete: true})
-							continue
-						}
-					}
-				} else if deleteByNameRegEx.MatchString(entry.(string)) { // check for (( delete "<name>" ))
-					/* #0 is the whole string,
-					 * #1 contains the optional '<key>' string
-					 * #2 is finally the target "<name>" string
-					 */
-
-					if captures := deleteByNameRegEx.FindStringSubmatch(entry.(string)); len(captures) == 3 {
-						key := strings.TrimSpace(captures[1])
-						name := strings.TrimSpace(captures[2])
-
-						if key == "" {
-							key = "name"
-						}
-
-						result = append(result, ModificationDefinition{key: key, name: name, delete: true})
-						continue
-					}
 				}
 			}
 
-			lastResultIdx := len(result) - 1
-			if lastResultIdx >= 0 {
-				// Add the current entry to the 'current' modification definition record (gathering the list)
-				result[lastResultIdx].list = append(result[lastResultIdx].list, entry)
-			} else {
-				// Having no last result index at hand means we are dealing with an orphaned list entry
-				DEBUG("List entry %d cannot be connected to a modification operation (orphaned entry)", i)
-				return false, nil
+		case insertByNameRegEx.MatchString(e): // check for (( insert ... "<name>" ))
+			/* #0 is the whole string,
+			 * #1 is after or before
+			 * #2 contains the optional '<key>' string
+			 * #3 is finally the target "<name>" string
+			 */
+			if captures := insertByNameRegEx.FindStringSubmatch(entry.(string)); len(captures) == 4 {
+				relative := strings.TrimSpace(captures[1])
+				key := strings.TrimSpace(captures[2])
+				name := strings.TrimSpace(captures[3])
+
+				if key == "" {
+					key = "name"
+				}
+				result = append(result, ModificationDefinition{relative: relative, key: key, name: name})
+				continue
+			}
+		case deleteByIdxRegEx.MatchString(e): // check for (( delete <idx> ))
+			/* #0 is the whole string,
+			 * #1 is idx
+			 */
+			if captures := deleteByIdxRegEx.FindStringSubmatch(e); len(captures) == 2 {
+				position := strings.TrimSpace(captures[1])
+				if idx, err := strconv.Atoi(position); err == nil {
+					result = append(result, ModificationDefinition{index: idx, delete: true})
+					continue
+				}
+			}
+		case deleteByNameRegEx.MatchString(e): // check for (( delete "<name>" ))
+			/* #0 is the whole string,
+			 * #1 contains the optional '<key>' string
+			 * #2 is finally the target "<name>" string
+			 */
+			if captures := deleteByNameRegEx.FindStringSubmatch(e); len(captures) == 3 {
+				key := strings.TrimSpace(captures[1])
+				name := strings.TrimSpace(captures[2])
+
+				if key == "" {
+					key = "name"
+				}
+
+				result = append(result, ModificationDefinition{key: key, name: name, delete: true})
+				continue
 			}
 		}
-		if len(result) > 0 {
-			return true, result
-		}
+
+		lastResultIdx := len(result) - 1
+		// Add the current entry to the 'current' modification definition record (gathering the list)
+		result[lastResultIdx].list = append(result[lastResultIdx].list, entry)
 	}
-	return false, nil
+
+	return result
 }
 
 func shouldKeyMergeArray(obj []interface{}) (bool, string) {

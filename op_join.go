@@ -10,7 +10,8 @@ import (
 	. "github.com/geofffranks/spruce/log"
 )
 
-// JoinOperator ...
+// JoinOperator is invoked with (( join <separator> <lists/strings>... )) and
+// joins lists and strings into one string, separated by <separator>
 type JoinOperator struct{}
 
 // Setup ...
@@ -23,9 +24,66 @@ func (JoinOperator) Phase() OperatorPhase {
 	return EvalPhase
 }
 
-// Dependencies ...
-func (JoinOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
-	return []*tree.Cursor{}
+// Dependencies returns the nodes that (( join ... )) requires to be resolved
+// before its evaluation. Returns no dependencies on error, because who cares
+// about eval order if Run is going to bomb out anyway.
+func (JoinOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor) []*tree.Cursor {
+	DEBUG("Calculating dependencies for (( join ... ))")
+	deps := []*tree.Cursor{}
+	if len(args) < 2 {
+		DEBUG("Not enough arguments to (( join ... ))")
+		return []*tree.Cursor{}
+	}
+
+	//skip the separator arg
+	for _, arg := range args[1:] {
+		if arg.Type == Literal {
+			continue
+		}
+		if arg.Type != Reference {
+			DEBUG("(( join ... )) argument not Literal or Reference type")
+			return []*tree.Cursor{}
+		}
+		//get the real cursor
+		finalCursor, err := arg.Resolve(ev.Tree)
+		if err != nil {
+			DEBUG("Could not resolve to a canonical path '%s'", arg.String())
+			return []*tree.Cursor{}
+		}
+		//get the list at this location
+		list, err := finalCursor.Reference.Resolve(ev.Tree)
+		if err != nil {
+			DEBUG("Could not retrieve object at path '%s'", arg.String())
+			return []*tree.Cursor{}
+		}
+		//must be a list or a string
+		switch list.(type) {
+		case []interface{}:
+			//add .* to the end of the cursor so we can glob all the elements
+			globCursor, err := tree.ParseCursor(fmt.Sprintf("%s.*", finalCursor.Reference.String()))
+			if err != nil {
+				DEBUG("Could not parse cursor with '.*' appended. This is a BUG")
+				return []*tree.Cursor{}
+			}
+			//have the cursor library get all the subelements for us
+			subElements, err := globCursor.Glob(ev.Tree)
+			if err != nil {
+				DEBUG("Could not retrieve subelements at path '%s'. This may be a BUG.", arg.String())
+				return []*tree.Cursor{}
+			}
+			deps = append(deps, subElements...)
+		case string:
+			deps = append(deps, finalCursor.Reference)
+		default:
+			DEBUG("Unsupported type at object location")
+			return []*tree.Cursor{}
+		}
+	}
+	DEBUG("Dependencies for (( join ... )):")
+	for i, dep := range deps {
+		DEBUG("\t#%d %s", i, dep.String())
+	}
+	return deps
 }
 
 // Run ...

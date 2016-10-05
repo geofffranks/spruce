@@ -1,0 +1,14 @@
+---
+greeting: hello
+
+b:
+  - (( grab greeting ))
+  - world
+
+z:
+  - (( grab greeting ))
+  - bye
+
+output:
+  - (( join " " b ))
+  - (( join " " z ))

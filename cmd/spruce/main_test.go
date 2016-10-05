@@ -650,6 +650,32 @@ quux: quux
 `)
 		})
 
+		Convey("Issue #156 Can use concat with static ips", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/static_ips/issue-156/concat.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `jobs:
+- instances: 1
+  name: pepe
+  networks:
+  - name: cf1
+    static_ips:
+    - 10.4.5.4
+meta:
+  network_prefix: "10.4"
+networks:
+- name: cf1
+  subnets:
+  - range: 10.4.36.0/24
+    static:
+    - 10.4.5.4 - 10.4.5.100
+
+`)
+		})
+
 		Convey("Empty operator works", func() {
 
 			var baseFile, mergeFile string
@@ -690,6 +716,28 @@ quux: quux
 					mergeFile = "../../assets/empty/literals.yml"
 					testEmpty(mergeFile)
 				})
+			})
+		})
+
+		Convey("Join operator works", func() {
+			Convey("when dependencies could cause improper evaluation order", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/join/issue-155/deps.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `b:
+- hello
+- world
+greeting: hello
+output:
+- hello world
+- hello bye
+z:
+- hello
+- bye
+
+`)
 			})
 		})
 	})
