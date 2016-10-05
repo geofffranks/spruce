@@ -253,7 +253,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 				idx = getIndexOfEntry(result, key, name)
 
 				if idx < 0 {
-					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to modify the list, because specified index} @c{%d} @R{is out of bounds}", node, idx))
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified modification point with} @c{'%s: %s'}", node, key, name))
 					return nil
 				}
 
