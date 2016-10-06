@@ -1278,6 +1278,32 @@ func TestMergeArray(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
+			Convey("Insert after when key contains special characters", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "fi.st", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+					map[interface{}]interface{}{"name": "th*rd+", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert after \"fi\\.st\" ))",
+					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"name": "fi.st", "release": "v1"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+					map[interface{}]interface{}{"name": "th*rd+", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
 			Convey("Insert multiple new entries before second and after first", func() {
 				orig := []interface{}{
 					map[interface{}]interface{}{"id": "first", "release": "v1"},
