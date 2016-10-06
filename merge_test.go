@@ -1282,19 +1282,17 @@ func TestMergeArray(t *testing.T) {
 				orig := []interface{}{
 					map[interface{}]interface{}{"name": "fi.st", "release": "v1"},
 					map[interface{}]interface{}{"name": "second", "release": "v1"},
-					map[interface{}]interface{}{"name": "th*rd+", "release": "v1"},
 				}
 
 				array := []interface{}{
 					"(( insert after \"fi\\.st\" ))",
-					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
 				}
 
 				expect := []interface{}{
 					map[interface{}]interface{}{"name": "fi.st", "release": "v1"},
-					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
 					map[interface{}]interface{}{"name": "second", "release": "v1"},
-					map[interface{}]interface{}{"name": "th*rd+", "release": "v1"},
 				}
 
 				m := &Merger{}
