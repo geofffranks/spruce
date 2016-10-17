@@ -276,7 +276,16 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 
 		for _, c := range src {
 			if escaped {
-				buf += string(c)
+				switch c {
+				case 'n':
+					buf += "\n"
+				case 'r':
+					buf += "\r"
+				case 't':
+					buf += "\t"
+				default:
+					buf += string(c)
+				}
 				escaped = false
 				continue
 			}
@@ -319,7 +328,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 	}
 
 	argify := func(src string) (args []*Expr, err error) {
-		qstring := regexp.MustCompile(`^"(.*)"$`)
+		qstring := regexp.MustCompile(`(?s)^"(.*)"$`)
 		integer := regexp.MustCompile(`^[+-]?\d+(\.\d+)?$`)
 		float := regexp.MustCompile(`^[+-]?\d*\.\d+$`)
 		envvar := regexp.MustCompile(`^\$[A-Z_][A-Z0-9_]*$`)
