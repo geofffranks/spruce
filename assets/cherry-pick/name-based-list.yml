@@ -1,0 +1,19 @@
+list:
+- name: one
+  desc: The first one
+  version: v1
+- name: two
+  desc: The second one
+  version: v2
+- name: three
+  desc: The third one
+  version: v3
+- name: four
+  desc: The fourth one
+  version: v4
+- name: five
+  desc: The fifth one
+  version: v5
+- name: six
+  desc: The sixth one
+  version: v6

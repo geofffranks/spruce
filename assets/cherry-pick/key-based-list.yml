@@ -1,0 +1,10 @@
+list:
+- key: one
+  desc: The first one
+  version: v1
+- key: two
+  desc: The second one
+  version: v2
+- key: three
+  desc: The third one
+  version: v3

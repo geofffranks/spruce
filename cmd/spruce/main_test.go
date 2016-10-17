@@ -740,6 +740,198 @@ z:
 `)
 			})
 		})
+
+		Convey("Cherry picking test cases", func() {
+			Convey("Cherry pick just one root level path", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "properties", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `properties:
+  hahn:
+    flags: open
+    id: b503e54a-c872-4643-a09c-5480c5940d0c
+  vb:
+    flags: auth,block,read-only
+    id: 74a03820-3f81-45ca-afd5-d7d57b947ff1
+
+`)
+			})
+
+			Convey("Cherry pick a path that is a list entry", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "releases.vb", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `releases:
+- name: vb
+
+`)
+			})
+
+			Convey("Cherry pick a path that is deep down the structure", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "meta.some.deep.structure.maplist", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `meta:
+  some:
+    deep:
+      structure:
+        maplist:
+          keyA: valueA
+          keyB: valueB
+
+`)
+			})
+
+			Convey("Cherry pick a series of different paths at the same time", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "properties", "--cherry-pick", "releases.vb", "--cherry-pick", "meta.some.deep.structure.maplist", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `meta:
+  some:
+    deep:
+      structure:
+        maplist:
+          keyA: valueA
+          keyB: valueB
+properties:
+  hahn:
+    flags: open
+    id: b503e54a-c872-4643-a09c-5480c5940d0c
+  vb:
+    flags: auth,block,read-only
+    id: 74a03820-3f81-45ca-afd5-d7d57b947ff1
+releases:
+- name: vb
+
+`)
+			})
+
+			Convey("Cherry pick a path and prune something at the same time in a map", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "properties", "--prune", "properties.vb.flags", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `properties:
+  hahn:
+    flags: open
+    id: b503e54a-c872-4643-a09c-5480c5940d0c
+  vb:
+    id: 74a03820-3f81-45ca-afd5-d7d57b947ff1
+
+`)
+			})
+
+			Convey("Cherry picking should fail if you cherry-pick a prune path", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "properties", "--prune", "properties", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "1 error(s) detected:\n"+
+					" - `$.properties` could not be found in the datastructure\n\n\n")
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Cherry picking should fail if picking a sub-level path while prune wipes the parent", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "releases.vb", "--prune", "releases", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "1 error(s) detected:\n"+
+					" - `$.releases` could not be found in the datastructure\n\n\n")
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Cherry pick a list entry path of a list that uses 'key' as its identifier", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "list.two", "../../assets/cherry-pick/key-based-list.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `list:
+- desc: The second one
+  key: two
+  version: v2
+
+`)
+			})
+
+			Convey("Cherry pick a list entry path of a list that uses 'id' as its identifier", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "list.two", "../../assets/cherry-pick/id-based-list.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `list:
+- desc: The second one
+  id: two
+  version: v2
+
+`)
+			})
+
+			Convey("Cherry pick one list entry path that references the index", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "list.1", "../../assets/cherry-pick/name-based-list.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `list:
+- desc: The second one
+  name: two
+  version: v2
+
+`)
+			})
+
+			Convey("Cherry pick two list entry paths that reference indexes", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "list.1", "--cherry-pick", "list.4", "../../assets/cherry-pick/name-based-list.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `list:
+- desc: The fifth one
+  name: five
+  version: v5
+- desc: The second one
+  name: two
+  version: v2
+
+`)
+			})
+
+			Convey("Cherry pick one list entry path that references an invalid index", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "list.10", "../../assets/cherry-pick/name-based-list.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "1 error(s) detected:\n"+
+					" - `$.list.10` could not be found in the datastructure\n\n\n")
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Cherry pick should only pick the exact name based on the path", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "map", "--prune", "subkey", "../../assets/cherry-pick/test-exact-names.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `map:
+  other: value
+  subkey: this is the real subkey
+
+`)
+			})
+		})
 	})
 }
 

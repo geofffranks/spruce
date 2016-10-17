@@ -1,0 +1,18 @@
+meta:
+  some:
+    deep:
+      structure:
+        maplist:
+          keyB: valueB
+        ignoreme: foobar
+
+releases:
+- name: hahn
+
+jobs:
+- name: hahn
+
+properties:
+  hahn:
+    id: b503e54a-c872-4643-a09c-5480c5940d0c
+    flags: open

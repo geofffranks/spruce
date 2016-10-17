@@ -165,6 +165,14 @@ or you can use the `(( prune ))` operator:
 key_to_prune: (( prune ))
 ```
 
+If you actually want to prune everything but one or two paths from your YAML, you can use the `--cherry-pick` flag to only select what you want to have in the end:<br>
+
+```
+spruce merge --cherry-pick jobs --cherry-pick properties file1.yml file2.yml
+```
+
+The `--cherry-pick` flag can be used in combination with the `--prune` flag as long as you do not prune the exact path you are about to cherry-pick.
+
 ### Referencing Other Data
 
 Need to reference existing data in your datastructure? No problem! `spruce` will wait until

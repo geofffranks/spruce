@@ -1,0 +1,17 @@
+meta:
+  some:
+    deep:
+      structure:
+        maplist:
+          keyA: valueA
+
+releases:
+- name: vb
+
+jobs:
+- name: vb
+
+properties:
+  vb:
+    id: 74a03820-3f81-45ca-afd5-d7d57b947ff1
+    flags: auth,block,read-only
