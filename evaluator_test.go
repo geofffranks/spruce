@@ -1524,6 +1524,99 @@ output:
 - hello world
 z_one: hello
 z_two: world
+
+
+################################################   basic escape sequence handling
+---
+test: ""
+cr:   (( concat test "a\rb" ))
+nl:   (( concat test "a\nb" ))
+tab:  (( concat test "a\tb" ))
+back: (( concat test "a\\b" ))
+dq:   (( concat test "a\"b" ))
+sq:   (( concat test "a\'b" ))
+
+---
+dataflow:
+- back: (( concat test "a\\b" ))
+- cr:   (( concat test "a\rb" ))
+- dq:   (( concat test "a\"b" ))
+- nl:   (( concat test "a\nb" ))
+- sq:   (( concat test "a\'b" ))
+- tab:  (( concat test "a\tb" ))
+
+---
+test: ""
+cr:   "a\rb"
+nl:   "a\nb"
+tab:  "a\tb"
+back: a\b
+dq:   'a"b'
+sq:   "a'b"
+
+
+#############################################   repeated escape sequence handling
+---
+compound: (( concat "Line1\nLine2\nLine3" "\n" "Line4\ttabbed\n" ))
+
+---
+dataflow:
+- compound: (( concat "Line1\nLine2\nLine3" "\n" "Line4\ttabbed\n" ))
+
+---
+compound: |
+  Line1
+  Line2
+  Line3
+  Line4	tabbed
+
+
+########################################   concat certs with newlines (escape seq)
+---
+cert: |-
+  -- BEGIN CERT --
+  unei3Eet2mahbou8
+  weiXi7choo7ufei8
+  --- END CERT ---
+
+key: |-
+  -- BEGIN KEY ---
+  chaev0Gai3Baedul
+  noithaifu0ree0Ka
+  shoowuBaoti4chee
+  -- END KEY -----
+
+combined: (( concat cert "\n" key "\n" ))
+
+---
+dataflow:
+- combined: (( concat cert "\n" key "\n" ))
+
+---
+cert: |-
+  -- BEGIN CERT --
+  unei3Eet2mahbou8
+  weiXi7choo7ufei8
+  --- END CERT ---
+
+key: |-
+  -- BEGIN KEY ---
+  chaev0Gai3Baedul
+  noithaifu0ree0Ka
+  shoowuBaoti4chee
+  -- END KEY -----
+
+combined: |
+  -- BEGIN CERT --
+  unei3Eet2mahbou8
+  weiXi7choo7ufei8
+  --- END CERT ---
+  -- BEGIN KEY ---
+  chaev0Gai3Baedul
+  noithaifu0ree0Ka
+  shoowuBaoti4chee
+  -- END KEY -----
+
 `)
 	})
 
