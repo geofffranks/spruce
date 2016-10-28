@@ -33,6 +33,7 @@ meta:
 
   name: spruce-release
   target: sw
+  url: https://ci.vsphere.starkandwayne.com
 
 groups:
 - name: (( grab meta.name ))
