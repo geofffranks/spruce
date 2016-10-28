@@ -333,6 +333,7 @@ secret: (( vault "secret/hand:shake" ))
 			{"just/a/secret", "just/a/secret", ""},
 			{"secret/with/colon:", "secret/with/colon", ""},
 			{":", "", ""},
+			{"a:", "a", ""},
 			{"", "", ""},
 			{"secret/and:key", "secret/and", "key"},
 			{":justakey", "", "justakey"},

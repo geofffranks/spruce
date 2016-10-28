@@ -139,12 +139,11 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		os.Setenv("VAULT_ADDR", url)
 		os.Setenv("VAULT_TOKEN", token)
 
-		parts := strings.SplitN(key, ":", 2)
 		leftPart, rightPart := parsePath(key)
 		if leftPart == "" || rightPart == "" {
 			return nil, ansi.Errorf("@R{invalid argument} @c{%s}@R{; must be in the form} @m{path/to/secret:key}", key)
 		}
-		secret, err = getVaultSecret(parts[0], parts[1])
+		secret, err = getVaultSecret(leftPart, rightPart)
 		if err != nil {
 			return nil, err
 		}
@@ -241,16 +240,9 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 
 func parsePath(path string) (secret, key string) {
 	secret = path
-	if len(path) >= 2 { //must contain at least "a:", so two characters
-		for i := len(path) - 1; i >= 0; i-- {
-			if path[i] == ':' {
-				secret = path[0:i]
-				key = path[i+1 : len(path)]
-				break
-			}
-		}
-	} else if len(path) == 1 && path[0] == ':' { // if just ":"
-		secret = ""
+	if idx := strings.LastIndex(path, ":"); idx >= 0 {
+		secret = path[:idx]
+		key = path[idx+1:]
 	}
 	return
 }
