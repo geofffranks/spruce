@@ -10,3 +10,8 @@
   everything except a specific path
 
   Thanks @HeavyWombat!
+
+# Fixes
+
+- The `spruce-darwin-amd64` binary attached to the release is now
+  macOS Sierra compatible (it was built with golang 1.7.3)
