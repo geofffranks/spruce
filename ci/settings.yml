@@ -36,7 +36,7 @@ meta:
   url: https://ci.vsphere.starkandwayne.com
 
 groups:
-- name: (( grab meta.name ))
+- name: (( grab meta.pipeline ))
   jobs:
   - (( append ))
   - (( grab meta.cf.app.name ))
