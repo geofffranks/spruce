@@ -173,11 +173,13 @@ func TestOperators(t *testing.T) {
 				os.Setenv("SPRUCE_FOO", "first test")
 				os.Setenv("_SPRUCE", "_sprucify!")
 				os.Setenv("ENOENT", "")
+				os.Setenv("http_proxy", "no://thank/you")
 
 				opOk(`(( null $SPRUCE_FOO ))`, "null", env("SPRUCE"))
 				opOk(`(( null $_SPRUCE ))`, "null", env("_SPRUCE"))
 				opOk(`(( null $ENOENT || $SPRUCE_FOO ))`, "null",
 					or(env("ENOENT"), env("SPRUCE_FOO")))
+				opOk(`(( null $http_proxy))`, "null", env("http_proxy"))
 			})
 
 			Convey("throws errors for malformed expression", func() {
