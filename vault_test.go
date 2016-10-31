@@ -3,9 +3,6 @@ package spruce
 import (
 	"bufio"
 	"fmt"
-	"github.com/smallfish/simpleyaml"
-	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +10,10 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/smallfish/simpleyaml"
+	. "github.com/smartystreets/goconvey/convey"
+	"gopkg.in/yaml.v2"
 )
 
 func TestVault(t *testing.T) {
@@ -319,5 +320,32 @@ secret: (( vault "secret/hand:shake" ))
 
 `)
 		os.Setenv("HOME", oldhome)
+	})
+
+	Convey("It correctly parses path", t, func() {
+		for _, test := range []struct {
+			path      string //The full path to run through the parse function
+			expSecret string //What is expected to be left of the colon
+			expKey    string //What is expected to be right of the colon
+		}{
+			//-----TEST CASES GO HERE-----
+			// { "path to parse", "expected secret", "expected key" }
+			{"just/a/secret", "just/a/secret", ""},
+			{"secret/with/colon:", "secret/with/colon", ""},
+			{":", "", ""},
+			{"a:", "a", ""},
+			{"", "", ""},
+			{"secret/and:key", "secret/and", "key"},
+			{":justakey", "", "justakey"},
+			{"secretwithcolon://127.0.0.1:", "secretwithcolon://127.0.0.1", ""},
+			{"secretwithcolons://127.0.0.1:8500:", "secretwithcolons://127.0.0.1:8500", ""},
+			{"secretwithcolons://127.0.0.1:8500:andkey", "secretwithcolons://127.0.0.1:8500", "andkey"},
+		} {
+			Convey(test.path, func() {
+				secret, key := parsePath(test.path)
+				So(secret, ShouldEqual, test.expSecret)
+				So(key, ShouldEqual, test.expKey)
+			})
+		}
 	})
 }

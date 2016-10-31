@@ -5,11 +5,12 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/starkandwayne/goutils/ansi"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/starkandwayne/goutils/ansi"
 
 	. "github.com/geofffranks/spruce/log"
 	"github.com/starkandwayne/goutils/tree"
@@ -138,11 +139,11 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		os.Setenv("VAULT_ADDR", url)
 		os.Setenv("VAULT_TOKEN", token)
 
-		parts := strings.SplitN(key, ":", 2)
-		if len(parts) != 2 {
+		leftPart, rightPart := parsePath(key)
+		if leftPart == "" || rightPart == "" {
 			return nil, ansi.Errorf("@R{invalid argument} @c{%s}@R{; must be in the form} @m{path/to/secret:key}", key)
 		}
-		secret, err = getVaultSecret(parts[0], parts[1])
+		secret, err = getVaultSecret(leftPart, rightPart)
 		if err != nil {
 			return nil, err
 		}
@@ -235,4 +236,13 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 
 	DEBUG("  success.")
 	return v.(string), nil
+}
+
+func parsePath(path string) (secret, key string) {
+	secret = path
+	if idx := strings.LastIndex(path, ":"); idx >= 0 {
+		secret = path[:idx]
+		key = path[idx+1:]
+	}
+	return
 }
