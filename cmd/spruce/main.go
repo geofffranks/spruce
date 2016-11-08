@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/mattn/go-isatty"
-	"github.com/starkandwayne/goutils/ansi"
 	"io/ioutil"
 	"os"
+
+	"github.com/mattn/go-isatty"
+	"github.com/starkandwayne/goutils/ansi"
 
 	. "github.com/geofffranks/spruce"
 	. "github.com/geofffranks/spruce/log"
@@ -13,9 +14,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/smallfish/simpleyaml"
+	// Use geofffranks forks to persist the fix in https://github.com/go-yaml/yaml/pull/133/commits
+	"github.com/geofffranks/simpleyaml"
+	"github.com/geofffranks/yaml"
 	"github.com/voxelbrain/goptions"
-	"gopkg.in/yaml.v2"
 )
 
 // Version holds the Current version of spruce
@@ -60,9 +62,9 @@ func main() {
 		Concourse bool `goptions:"--concourse, description='Pre/Post-process YAML for Concourse CI (handles {{ }} quoting)'"`
 		Action    goptions.Verbs
 		Merge     struct {
-			Prune []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
-			CherryPick []string      `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
-			Files goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml'"`
+			Prune      []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
+			CherryPick []string           `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
+			Files      goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml'"`
 		} `goptions:"merge"`
 		JSON struct {
 			Files goptions.Remainder `goptions:"description='Files to convert to JSON'"`

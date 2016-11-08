@@ -7,16 +7,20 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/geofffranks/simpleyaml",
+			"Rev": "c9320f076de50350542482dfe99e66c8732a426f"
+		},
+		{
+			"ImportPath": "github.com/geofffranks/yaml",
+			"Rev": "e74b9d7561a0a802ed2f3420fe070fce594576a7"
+		},
+		{
 			"ImportPath": "github.com/jtolds/gls",
 			"Rev": "9a4a02dbe491bef4bab3c24fd9f3087d6c4c6690"
 		},
 		{
 			"ImportPath": "github.com/mattn/go-isatty",
 			"Rev": "56b76bdf51f7708750eac80fa38b952bb9f32639"
-		},
-		{
-			"ImportPath": "github.com/smallfish/simpleyaml",
-			"Rev": "e0865b8fe0bb302895f2862494f1d5b2f471face"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions",
@@ -64,10 +68,6 @@
 		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "442cd600860ce722f6615730eb008a37a87b13ee"
-		},
-		{
-			"ImportPath": "gopkg.in/yaml.v2",
-			"Rev": "49c95bdc21843256fb6c4e0d370a05f24a0bf213"
 		}
 	]
 }

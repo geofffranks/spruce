@@ -14,7 +14,8 @@ import (
 
 	. "github.com/geofffranks/spruce/log"
 	"github.com/starkandwayne/goutils/tree"
-	"gopkg.in/yaml.v2"
+	// Use geofffranks forks to persist the fix in https://github.com/go-yaml/yaml/pull/133/commits
+	"github.com/geofffranks/yaml"
 )
 
 // The VaultOperator provides a means of injecting credentials and
