@@ -60,9 +60,9 @@ func main() {
 		Concourse bool `goptions:"--concourse, description='Pre/Post-process YAML for Concourse CI (handles {{ }} quoting)'"`
 		Action    goptions.Verbs
 		Merge     struct {
-			Prune []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
-			CherryPick []string      `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
-			Files goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml'"`
+			Prune      []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
+			CherryPick []string           `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
+			Files      goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml'"`
 		} `goptions:"merge"`
 		JSON struct {
 			Files goptions.Remainder `goptions:"description='Files to convert to JSON'"`
