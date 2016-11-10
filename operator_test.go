@@ -9,7 +9,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/smallfish/simpleyaml"
+	"github.com/geofffranks/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/starkandwayne/goutils/tree"
 )

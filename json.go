@@ -3,12 +3,13 @@ package spruce
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/starkandwayne/goutils/ansi"
 	"io"
 	"io/ioutil"
 
+	"github.com/starkandwayne/goutils/ansi"
+
+	"github.com/geofffranks/simpleyaml"
 	. "github.com/geofffranks/spruce/log"
-	"github.com/smallfish/simpleyaml"
 )
 
 func jsonifyData(data []byte) (string, error) {

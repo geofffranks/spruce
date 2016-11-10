@@ -31,7 +31,8 @@ package simpleyaml
 
 import (
 	"errors"
-	"gopkg.in/yaml.v2"
+
+	"github.com/geofffranks/yaml"
 )
 
 type Yaml struct {

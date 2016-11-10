@@ -6,7 +6,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/smallfish/simpleyaml"
+	"github.com/geofffranks/simpleyaml"
 	"github.com/starkandwayne/goutils/tree"
 )
 

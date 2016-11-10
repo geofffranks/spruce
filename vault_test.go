@@ -11,9 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/smallfish/simpleyaml"
+	// Use geofffranks forks to persist the fix in https://github.com/go-yaml/yaml/pull/133/commits
+	"github.com/geofffranks/simpleyaml"
+	"github.com/geofffranks/yaml"
+
 	. "github.com/smartystreets/goconvey/convey"
-	"gopkg.in/yaml.v2"
 )
 
 func TestVault(t *testing.T) {
