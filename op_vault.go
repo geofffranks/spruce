@@ -110,11 +110,16 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 
 		url := os.Getenv("VAULT_ADDR")
 		token := os.Getenv("VAULT_TOKEN")
+		skip := false
+		if os.Getenv("VAULT_SKIP_VERIFY") != "" {
+			skip = true
+		}
 
 		if url == "" || token == "" {
 			svtoken := struct {
-				Vault string `yaml:"vault"`
-				Token string `yaml:"token"`
+				Vault      string `yaml:"vault"`
+				Token      string `yaml:"token"`
+				SkipVerify bool   `yaml:"skip_verify"`
 			}{}
 			b, err := ioutil.ReadFile(os.ExpandEnv("${HOME}/.svtoken"))
 			if err == nil {
@@ -122,6 +127,7 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 				if err == nil {
 					url = svtoken.Vault
 					token = svtoken.Token
+					skip = svtoken.SkipVerify
 				}
 			}
 		}
@@ -139,6 +145,11 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 
 		os.Setenv("VAULT_ADDR", url)
 		os.Setenv("VAULT_TOKEN", token)
+		if skip {
+			os.Setenv("VAULT_SKIP_VERIFY", "1")
+		} else {
+			os.Unsetenv("VAULT_SKIP_VERIFY")
+		}
 
 		leftPart, rightPart := parsePath(key)
 		if leftPart == "" || rightPart == "" {
@@ -164,7 +175,7 @@ func init() {
 
 func getVaultSecret(secret string, subkey string) (string, error) {
 	vault := os.Getenv("VAULT_ADDR")
-	DEBUG("  accessing the vault at %s", vault)
+	DEBUG("  accessing the vault at %s (with VAULT_SKIP_VERIFY='%s')", vault, os.Getenv("VAULT_SKIP_VERIFY"))
 
 	url := fmt.Sprintf("%s/v1/%s", vault, secret)
 	DEBUG("  crafting GET %s", url)
