@@ -1247,5 +1247,13 @@ func TestExamples(t *testing.T) {
 				"../../examples/inserting/result.yml",
 			)
 		})
+		Convey("Delete", func() {
+			example(
+				"../../examples/delete/main.yml",
+				"../../examples/delete/addon.yml",
+
+				"../../examples/delete/result.yml",
+			)
+		})
 	})
 }

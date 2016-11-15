@@ -237,6 +237,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 						m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to insert, because new list entry} @c{'%s: %s'} @R{is detected multiple times}", node, key, entryName))
 						return nil
 					}
+
 				}
 			} else {
 				// Sanity check for delete operation, ensure no orphan entries follow the operator definition
@@ -244,6 +245,24 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 					m.Errors.Append(ansi.Errorf("@m{%s}: @R{item in array directly after} @c{(( delete %s: \"%s\" ))} @r{must be one of the array operators 'append', 'prepend', 'delete', or 'insert'}", node, key, name))
 					return nil
 				}
+				if _, err := regexp.Compile(name); err != nil {
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to compile regex} @c{%s}", node, name))
+					return nil
+				}
+
+				idx = getIndexOfEntry(result, key, name)
+
+				if idx < 0 {
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified modification point with} @c{'%s: %s'}", node, key, name))
+					return nil
+				}
+
+				for idx >= 0 {
+					DEBUG("%s: deleting element at array index %d", node, idx)
+					result = deleteIndexFromList(result, idx)
+					idx = getIndexOfEntry(result, key, name)
+				}
+				continue
 			}
 
 			// Look up the index of the specified insertion point (based on its key/name)
@@ -429,7 +448,6 @@ func getArrayModifications(obj []interface{}) []ModificationDefinition {
 				if key == "" {
 					key = "name"
 				}
-
 				result = append(result, ModificationDefinition{relative: relative, key: key, name: name})
 				continue
 			}
@@ -516,10 +534,11 @@ func shouldReplaceArray(obj []interface{}) bool {
 }
 
 func getIndexOfEntry(list []interface{}, key string, name string) int {
+	r := regexp.MustCompile(name)
 	for i, entry := range list {
 		if reflect.TypeOf(entry).Kind() == reflect.Map {
 			obj := entry.(map[interface{}]interface{})
-			if obj[key] == name {
+			if r.MatchString(obj[key].(string)) {
 				return i
 			}
 		}

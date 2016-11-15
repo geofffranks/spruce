@@ -1132,6 +1132,56 @@ func TestMergeArray(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
+			Convey("After '<default>: first.+' put the new entry", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first_z1", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert after \"first.+\" ))",
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"name": "first_z1", "release": "v1"},
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("After '<default>: first.+' put the new entry after the first occurrence", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first_z1", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+					map[interface{}]interface{}{"name": "first_z2", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert after \"first.+\" ))",
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"name": "first_z1", "release": "v1"},
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+					map[interface{}]interface{}{"name": "first_z2", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
 			Convey("Before '<default>: first' put the new entry", func() {
 				orig := []interface{}{
 					map[interface{}]interface{}{"name": "first", "release": "v1"},
@@ -1180,6 +1230,30 @@ func TestMergeArray(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
+			Convey("Before 'id: second.+' put the new entry", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second_z2", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert before id \"second.+\" ))",
+					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
+					map[interface{}]interface{}{"id": "second_z2", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
 			Convey("Before 'id: second' put the new entry", func() {
 				orig := []interface{}{
 					map[interface{}]interface{}{"id": "first", "release": "v1"},
@@ -1195,6 +1269,30 @@ func TestMergeArray(t *testing.T) {
 					map[interface{}]interface{}{"id": "first", "release": "v1"},
 					map[interface{}]interface{}{"id": "new-kid-on-the-block", "release": "vNext"},
 					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Insert after when key contains special characters", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "fi.st", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( insert after \"fi\\.st\" ))",
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"name": "fi.st", "release": "v1"},
+					map[interface{}]interface{}{"name": "new-kid-on-the-block", "release": "vNext"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
 				}
 
 				m := &Merger{}
@@ -1648,6 +1746,52 @@ func TestMergeArray(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
+			Convey("Delete  '<default>: first.+' with simple regex", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "first_z2", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete \"first.+\" ))",
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Delete when key contains special characters", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "fi.st", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+					map[interface{}]interface{}{"name": "th*rd+", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete \"fi\\.st\" ))",
+					"(( delete \"th\\*rd\\+\" ))",
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
 			Convey("Delete 'id: second'", func() {
 				orig := []interface{}{
 					map[interface{}]interface{}{"id": "first", "release": "v1"},
@@ -1681,6 +1825,28 @@ func TestMergeArray(t *testing.T) {
 				}
 
 				expect := []interface{}{}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("delete multiple entries with a regex", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first_z1", "release": "v1"},
+					map[interface{}]interface{}{"id": "first_z2", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete id \"first.+\" ))",
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
 
 				m := &Merger{}
 				a := m.mergeArray(orig, array, "node-path")
@@ -1783,6 +1949,23 @@ func TestMergeArray(t *testing.T) {
 				So(a, ShouldBeNil)
 				So(err, ShouldNotBeNil)
 				So(err.Error(), ShouldContainSubstring, "unable to find specified modification point with 'name: not-existing'")
+			})
+
+			Convey("throw an error when delete cannot be compile a regex", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+				array := []interface{}{
+					"(( delete name \"++\" ))",
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "unable to compile regex")
 			})
 
 			Convey("throw an error when key cannot be found in original list", func() {

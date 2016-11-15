@@ -13,4 +13,6 @@ jobs:
 - instances: 2
   name: dea_v2
 - instances: 2
+  name: dea_v3
+- instances: 2
   name: api
