@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	// Use geofffranks forks to persist the fix in https://github.com/go-yaml/yaml/pull/133/commits
+	// Also https://github.com/go-yaml/yaml/pull/195
 	"github.com/geofffranks/simpleyaml"
 	"github.com/geofffranks/yaml"
 	"github.com/voxelbrain/goptions"
