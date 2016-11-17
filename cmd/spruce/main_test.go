@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	// Use geofffranks forks to persist the fix in https://github.com/go-yaml/yaml/pull/133/commits
+	// Also https://github.com/go-yaml/yaml/pull/195
 	"github.com/geofffranks/simpleyaml"
 	"github.com/geofffranks/yaml"
 
@@ -740,6 +741,27 @@ z:
 
 `)
 			})
+		})
+
+		Convey("YAML output is ordered the same way each time (#184)", func() {
+			for i := 0; i < 30; i++ {
+				os.Args = []string{"spruce", "merge", "../../assets/output-order/sample.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `properties:
+  cc:
+    quota_definitions:
+      q2GB:
+        non_basic_services_allowed: true
+      q4GB:
+        non_basic_services_allowed: true
+      q256MB:
+        non_basic_services_allowed: true
+
+`)
+			}
 		})
 
 		Convey("Cherry picking test cases", func() {
