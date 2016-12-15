@@ -1,0 +1,7 @@
+---
+meta:
+  string: "Hello, World!"
+
+jobs:
+- name: one
+  instances: (( calc "3.1415 * meta.string" ))

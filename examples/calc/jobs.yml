@@ -1,0 +1,9 @@
+---
+jobs:
+- name: big_ones
+  resource_pool: 32G_boxes
+  instances: (( calc "floor(meta.target_mem / 32)" ))
+
+- name: small_ones
+  resource_pool: 16G_boxes
+  instances: (( calc "floor((meta.target_mem - jobs.big_ones.instances * 32) / 16)" ))

@@ -1,0 +1,10 @@
+---
+jobs:
+- name: zero
+  instances: 0
+
+- name: one
+  instances: (( calc "1 + 1" "2 + 2" ))
+
+- name: two
+  instances: (( calc jobs.zero.instances ))

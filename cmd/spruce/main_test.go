@@ -743,6 +743,101 @@ z:
 			})
 		})
 
+		Convey("Calc operator works", func() {
+			Convey("Calc comes with built-in functions", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/functions.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `properties:
+  homework:
+    ceil: 9
+    floor: 3
+    max: 8.333
+    min: 3.666
+    mod: 1.001
+    pow: 2374.9685
+    sqrt: 2.8866937
+
+`)
+			})
+
+			Convey("Calc works with dependencies", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/dependencies.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `jobs:
+- instances: 4
+  name: big_ones
+- instances: 1
+  name: small_ones
+
+`)
+			})
+
+			Convey("Calc expects only one argument which is a quoted mathematical expression (as a Literal in Spruce)", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/wrong-syntax.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `2 error(s) detected:
+ - $.jobs.one.instances: calc operator only expects one argument containing the expression
+ - $.jobs.two.instances: calc operator argument is suppose to be a quoted mathematical expression (type Literal)
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Calc operator does not support named variables", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/no-named-variables.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.jobs.one.instances: calc operator does not support named variables in expression: pi, r
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Calc operator checks input for built-in functions", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/bad-functions.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `7 error(s) detected:
+ - $.properties.homework.ceil: ceil function expects one argument of type float64
+ - $.properties.homework.floor: floor function expects one argument of type float64
+ - $.properties.homework.max: max function expects two arguments of type float64
+ - $.properties.homework.min: min function expects two arguments of type float64
+ - $.properties.homework.mod: mod function expects two arguments of type float64
+ - $.properties.homework.pow: pow function expects two arguments of type float64
+ - $.properties.homework.sqrt: sqrt function expects one argument of type float64
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Calc operator checks referenced types", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/wrong-type.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.jobs.one.instances: path meta.string resolves into 'Hello, World!', which is of unsupported type string
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+		})
+
 		Convey("YAML output is ordered the same way each time (#184)", func() {
 			for i := 0; i < 30; i++ {
 				os.Args = []string{"spruce", "merge", "../../assets/output-order/sample.yml"}
@@ -1267,6 +1362,16 @@ func TestExamples(t *testing.T) {
 				"../../examples/inserting/addon.yml",
 
 				"../../examples/inserting/result.yml",
+			)
+		})
+
+		Convey("Calc", func() {
+			example(
+				"--prune", "meta",
+				"../../examples/calc/meta.yml",
+				"../../examples/calc/jobs.yml",
+
+				"../../examples/calc/result.yml",
 			)
 		})
 	})
