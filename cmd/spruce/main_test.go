@@ -829,8 +829,11 @@ z:
 				stdout = ""
 				stderr = ""
 				main()
-				So(stderr, ShouldEqual, `1 error(s) detected:
- - $.jobs.one.instances: path meta.string resolves into 'Hello, World!', which is of unsupported type string
+				So(stderr, ShouldEqual, `4 error(s) detected:
+ - $.properties.homework.list: path meta.list is of type slice, which cannot be used in calculations
+ - $.properties.homework.map: path meta.map is of type map, which cannot be used in calculations
+ - $.properties.homework.nil: path meta.nil references a nil value, which cannot be used in calculations
+ - $.properties.homework.string: path meta.string is of type string, which cannot be used in calculations
 
 
 `)

@@ -149,8 +149,11 @@ func replaceReferences(ev *Evaluator, input string) (string, error) {
 		case float64:
 			input = strings.Replace(input, path, fmt.Sprintf("%f", value), -1)
 
+		case nil:
+			return "", ansi.Errorf("@R{path} @r{%s} @R{references a }@r{nil}@R{ value, which cannot be used in calculations}", path)
+
 		default:
-			return "", ansi.Errorf("@R{path} @r{%s} @R{resolves into '}@r{%s}@R{', which is of unsupported type} @r{%v}", path, value, reflect.TypeOf(value).Kind())
+			return "", ansi.Errorf("@R{path} @r{%s} @R{is of type} @r{%s}@R{, which cannot be used in calculations}", path, reflect.TypeOf(value).Kind())
 		}
 	}
 
