@@ -7,6 +7,11 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/Knetic/govaluate",
+			"Comment": "2.2.0-7-g36d12fd",
+			"Rev": "36d12fdf60d2eced73454479e9935c9ea8bbe46a"
+		},
+		{
 			"ImportPath": "github.com/geofffranks/simpleyaml",
 			"Rev": "c9320f076de50350542482dfe99e66c8732a426f"
 		},

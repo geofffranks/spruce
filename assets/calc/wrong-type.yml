@@ -1,0 +1,13 @@
+---
+meta:
+  string: "Hello, World!"
+  nil: ~
+  map: { key: value }
+  list: [ 1, 2, 3, 4 ]
+
+properties:
+  homework:
+      string: (( calc "1.0 * meta.string" ))
+      nil: (( calc "1.0 * meta.nil" ))
+      map: (( calc "1.0 * meta.map" ))
+      list: (( calc "1.0 * meta.list" ))

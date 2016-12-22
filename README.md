@@ -253,6 +253,40 @@ tracking down why `static_ips()` calls fail.
 
 Check out the [static_ips() example](#static-ips)
 
+### Hmm.. How about calculating some simple mathematical expressions?
+
+This is also possible with `spruce`. You can use the `(( calc ... ))` operator to
+specify a mathematical expression. Inside these expressions you can reference
+other values using the same path syntax like `grab`. The mathematical expression
+needs to be put in quotes since it can contain parenthesis and white spaces
+between your operators, references, or numbers.
+
+```yml
+meta:
+  offset: 2
+
+jobs:
+- name: one
+  instances: (( calc "meta.offset + 4" ))
+```
+
+If you have more sophisticated calculations in mind, you can use these built-in
+functions inside your expressions: `max`, `min`, `mod`, `pow`, `sqrt`, `floor`, and `ceil`.
+
+Maybe you want to calculate instance counts based on given target value.
+
+```yml
+meta:
+  target_mem: 144
+
+jobs:
+- name: big_ones
+  instances: (( calc "floor(meta.target_mem / 32)" ))
+
+- name: small_ones
+  instances: (( calc "floor((meta.target_mem - jobs.big_ones.instances * 32) / 16)" ))
+```
+
 ### But I Want To Make Strings!!
 
 Yeah, `spruce` can do that!

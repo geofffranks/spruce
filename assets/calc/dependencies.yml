@@ -1,0 +1,10 @@
+---
+meta:
+  target_mem: 144
+
+jobs:
+- name: big_ones
+  instances: (( calc "floor(meta.target_mem / 32)" ))
+
+- name: small_ones
+  instances: (( calc "floor((meta.target_mem - jobs.big_ones.instances * 32) / 16)" ))
