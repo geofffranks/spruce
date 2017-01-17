@@ -774,6 +774,8 @@ z:
   name: big_ones
 - instances: 1
   name: small_ones
+- instances: 2
+  name: extra_ones
 
 `)
 			})

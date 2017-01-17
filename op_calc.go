@@ -143,10 +143,10 @@ func replaceReferences(ev *Evaluator, input string) (string, error) {
 		DEBUG("    path/value: %s=%v", path, value)
 
 		switch value.(type) {
-		case int:
+		case int, uint8, uint16, uint32, uint64, int8, int16, int32, int64:
 			input = strings.Replace(input, path, fmt.Sprintf("%d", value), -1)
 
-		case float64:
+		case float32, float64:
 			input = strings.Replace(input, path, fmt.Sprintf("%f", value), -1)
 
 		case nil:
