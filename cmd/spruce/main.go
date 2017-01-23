@@ -65,7 +65,7 @@ func main() {
 		Merge     struct {
 			Prune      []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
 			CherryPick []string           `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
-			Files      goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml'"`
+			Files      goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml. To read STDIN, specify a filename of \\'-\\'.'"`
 		} `goptions:"merge"`
 		JSON struct {
 			Files goptions.Remainder `goptions:"description='Files to convert to JSON'"`
@@ -94,46 +94,44 @@ func main() {
 
 	switch options.Action {
 	case "merge":
-		if len(options.Merge.Files) >= 1 {
-			root := make(map[interface{}]interface{})
+		if len(options.Merge.Files) < 1 {
+			options.Merge.Files = append(options.Merge.Files, "-")
+		}
 
-			err := mergeAllDocs(root, options.Merge.Files)
-			if err != nil {
-				printfStdErr("%s\n", err.Error())
-				exit(2)
-				return
-			}
+		root := make(map[interface{}]interface{})
 
-			ev := &Evaluator{Tree: root}
-			err = ev.Run(options.Merge.Prune, options.Merge.CherryPick)
-			if err != nil {
-				printfStdErr("%s\n", err.Error())
-				exit(2)
-				return
-			}
-
-			TRACE("Converting the following data back to YML:")
-			TRACE("%#v", ev.Tree)
-			merged, err := yaml.Marshal(ev.Tree)
-			if err != nil {
-				printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), ev.Tree)
-				exit(2)
-				return
-
-			}
-
-			var output string
-			if handleConcourseQuoting {
-				output = dequoteConcourse(merged)
-			} else {
-				output = string(merged)
-			}
-			printfStdOut("%s\n", output)
-
-		} else {
-			usage()
+		err := mergeAllDocs(root, options.Merge.Files)
+		if err != nil {
+			printfStdErr("%s\n", err.Error())
+			exit(2)
 			return
 		}
+
+		ev := &Evaluator{Tree: root}
+		err = ev.Run(options.Merge.Prune, options.Merge.CherryPick)
+		if err != nil {
+			printfStdErr("%s\n", err.Error())
+			exit(2)
+			return
+		}
+
+		TRACE("Converting the following data back to YML:")
+		TRACE("%#v", ev.Tree)
+		merged, err := yaml.Marshal(ev.Tree)
+		if err != nil {
+			printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), ev.Tree)
+			exit(2)
+			return
+
+		}
+
+		var output string
+		if handleConcourseQuoting {
+			output = dequoteConcourse(merged)
+		} else {
+			output = string(merged)
+		}
+		printfStdOut("%s\n", output)
 
 	case "json":
 		if len(options.JSON.Files) > 0 {
@@ -181,9 +179,29 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 
 	for _, path := range paths {
 		DEBUG("Processing file '%s'", path)
-		data, err := ioutil.ReadFile(path)
-		if err != nil {
-			return ansi.Errorf("@R{Error reading file} @m{%s}: %s\n", path, err.Error())
+		var data []byte
+		var err error
+
+		if path == "-" {
+			stat, err := os.Stdin.Stat()
+			if err != nil {
+				return ansi.Errorf("@R{Error statting STDIN} - Bailing out: %s\n", err.Error())
+			}
+			if stat.Mode()&os.ModeCharDevice == 0 {
+				data, err = ioutil.ReadAll(os.Stdin)
+				if err != nil {
+					return ansi.Errorf("@R{Error reading STDIN}: %s\n", err.Error())
+				}
+			}
+			if len(data) == 0 {
+				return ansi.Errorf("@R{Error reading STDIN}: no data found. Did you forget to pipe data to STDIN, or specify yaml files to merge?")
+			}
+			path = "STDIN"
+		} else {
+			data, err = ioutil.ReadFile(path)
+			if err != nil {
+				return ansi.Errorf("@R{Error reading file} @m{%s}: %s\n", path, err.Error())
+			}
 		}
 
 		if handleConcourseQuoting {

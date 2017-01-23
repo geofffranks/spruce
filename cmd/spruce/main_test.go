@@ -154,13 +154,13 @@ func TestMain(t *testing.T) {
 			So(stderr, ShouldEqual, "usage was called")
 			So(rc, ShouldEqual, 1)
 		})
-		Convey("Should output usage if no args to merge", func() {
+		Convey("Should error if no args to merge and no files listed", func() {
 			os.Args = []string{"spruce", "merge"}
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldEqual, "usage was called")
-			So(rc, ShouldEqual, 1)
+			So(stderr, ShouldEqual, "Error reading STDIN: no data found. Did you forget to pipe data to STDIN, or specify yaml files to merge?\n")
+			So(rc, ShouldEqual, 2)
 		})
 		Convey("Should output version", func() {
 			Convey("When '-v' is specified", func() {

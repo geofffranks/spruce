@@ -1,0 +1,35 @@
+#!/bin/bash
+
+cleanup() {
+	rm -rf ${TMPDIR}
+}
+
+TMPDIR=$(mktemp -d)
+trap cleanup QUIT INT EXIT
+
+cat <<EOF > ${TMPDIR}/first.yml
+---
+first: beginning
+EOF
+
+cat <<EOF > ${TMPDIR}/last.yml
+---
+last: ending
+EOF
+
+cp spruce ${TMPDIR}
+pushd ${TMPDIR}
+
+result=$(echo "first: stdin" | ./spruce merge)
+[[ ${result} == "first: stdin" ]]
+
+result=$(echo "first: stdin" | ./spruce merge -)
+[[ ${result} == "first: stdin" ]]
+
+result=$(echo "first: stdin" | ./spruce merge first.yml - last.yml)
+[[ ${result} == "first: stdin\nlast: ending" ]]
+
+result=$(echo "last: stdin" | ./spruce merge first.yml - last.yml)
+[[ ${result} == "first: beginning\nlast: ending" ]]
+
+popd
