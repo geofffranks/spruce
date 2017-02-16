@@ -59,11 +59,11 @@
 		},
 		{
 			"ImportPath": "github.com/starkandwayne/goutils/ansi",
-			"Rev": "1af0d9806cdff1eaa84c422f7bea313f3c4d073f"
+			"Rev": "c408a779c021921dd1a7a7779edc80dec0d91a4e"
 		},
 		{
 			"ImportPath": "github.com/starkandwayne/goutils/tree",
-			"Rev": "1af0d9806cdff1eaa84c422f7bea313f3c4d073f"
+			"Rev": "c408a779c021921dd1a7a7779edc80dec0d91a4e"
 		},
 		{
 			"ImportPath": "github.com/voxelbrain/goptions",

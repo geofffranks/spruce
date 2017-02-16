@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"unicode"
 
 	"github.com/mattn/go-isatty"
 )
@@ -38,7 +39,7 @@ var (
 		"W": "01;37", // white (BOLD)
 	}
 
-	re = regexp.MustCompile(`@[kKrRgGyYbBmMpPcCwW*]{.*?}`)
+	re = regexp.MustCompile(`(?s)@[kKrRgGyYbBmMpPcCwW*]{.*?}`)
 )
 
 var colorable = isatty.IsTerminal(os.Stdout.Fd())
@@ -54,9 +55,15 @@ func colorize(s string) string {
 		}
 		if m[1:2] == "*" {
 			rainbow := "RYGCBM"
+			skipCount := 0
 			s := ""
 			for i, c := range m[3 : len(m)-1] {
-				j := i % len(rainbow)
+				if unicode.IsSpace(c) { //No color wasted on whitespace
+					skipCount++
+					s += string(c)
+					continue
+				}
+				j := (i - skipCount) % len(rainbow)
 				s += "\033[" + colors[rainbow[j:j+1]] + "m" + string(c) + "\033[00m"
 			}
 			return s
