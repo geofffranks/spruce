@@ -250,6 +250,29 @@ map:
 			So(stderr, ShouldEqual, "")
 		})
 
+		Convey("Should not evaluate spruce logic when --no-eval", func() {
+			os.Args = []string{"spruce", "merge", "--skip-eval", "../../assets/no-eval/first.yml", "../../assets/no-eval/second.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `jobs:
+- instances: 12
+  name: consul
+- instances: 2
+  name: route
+- instances: 2
+  name: cell
+- instances: 12
+  name: cc_bridge
+properties:
+  consul: not-empty
+  diego: (( grab property ))
+  loggregator: true
+  pruneme: (( prune ))
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
 		Convey("Should handle de-referencing", func() {
 			os.Args = []string{"spruce", "merge", "../../assets/dereference/first.yml", "../../assets/dereference/second.yml"}
 			stdout = ""

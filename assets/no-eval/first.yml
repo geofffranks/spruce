@@ -1,0 +1,12 @@
+# This is the jobs section
+jobs: 
+- name: route
+  instances: 2
+- (( append ))
+- name: cell
+  instances: 2
+
+properties:
+  diego: (( grab property ))
+  loggregator: true
+  pruneme: (( prune ))

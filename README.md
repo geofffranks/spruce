@@ -239,6 +239,12 @@ meta:
   environment: (( grab $ENV_NAME || "default-env" ))
 ```
 
+### Hmm.. How about merging Spruce stubs without evaluating the commands? 
+
+In some cases you may want to merge 2 or more Spruce files into one so that you can apply their logic with a single file. In other to do that, you can make use of the option `--no-eval` in merge. 
+
+Check out the [no-eval example](#no-eval)
+
 ### Hmm.. How about auto-calculating static IPs for a BOSH manifest?
 
 `spruce` supports that too! Just use the same `(( static_ips(x, y, z) ))` syntax
@@ -848,6 +854,48 @@ green:
 case, `woot`) is removed from the final tree as part of the
 injection operator.
 
+
+<a name="no-eval"></a>
+### Option --no-eval in merge 
+
+This option can be used to merge several stubs without evaluating the spruce logic inside such as `(( grab ))` or `(( concat ))`. For instance, if you have the following two files: 
+
+```
+$ cat first.yml
+jobs: 
+- name: cell 
+  templates:
+  - name: garden
+
+$ cat second.yml 
+jobs:
+- name: cc_bridge
+- name: router
+- name: cell 
+  templates:
+  - (( prepend ))
+  - name: metron_agent
+properties: 
+  diego: (( grab meta.diego_enabled ))
+  ```
+
+You could merge them simply running: 
+
+```
+$ spruce merge --skip-eval first.yml second.yml
+
+jobs:
+- name: cell 
+  templates:
+  - name: metron_agent
+  - name: garden
+- name: cc_bridge
+- name: router
+
+properties: 
+  diego: (( grab meta.diego_enabled ))
+
+```
 
 <a name="file"></a>
 ### File
