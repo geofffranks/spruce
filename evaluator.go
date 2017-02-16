@@ -21,6 +21,8 @@ type Evaluator struct {
 
 	CheckOps []*Opcall
 
+	Only []string
+
 	pointer *interface{}
 }
 
@@ -106,13 +108,144 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 
 	// construct the data flow graph, where a -> b = b calls/requires a
 	// represent the graph as list of adjancies, that is [a,b] = a -> b
-	var g [][2]*Opcall
+	var g [][]*Opcall
 	for _, a := range all {
 		for _, path := range a.Dependencies(ev, locs) {
 			if b, found := all[path.String()]; found {
-				g = append(g, [2]*Opcall{b, a})
+				g = append(g, []*Opcall{b, a})
 			}
 		}
+	}
+
+	if len(ev.Only) > 0 {
+		/*
+			[],
+			[
+			  { name:(( concat env "-" type )), list.1:(( grab name )) }
+			  { name:(( concat env "-" type )), list.2:(( grab name )) }
+			  { name:(( concat env "-" type )), list.3:(( grab name )) }
+			  { name:(( concat env "-" type )), list.4:(( grab name )) }
+			  { name:(( concat env "-" type )), params.bosh_username:(( grab name )) }
+			  { type:(( grab meta.type )), name:(( concat env "-" type )) }
+			  { name:(( concat env "-" type )), list.0:(( grab name )) }
+			]
+
+			pass 1:
+			[
+			  # add this one, because it is under `params`
+			  { name:(( concat env "-" type )), params.bosh_username:(( grab name )) }
+			], [
+			  { name:(( concat env "-" type )), list.1:(( grab name )) }
+			  { name:(( concat env "-" type )), list.2:(( grab name )) }
+			  { name:(( concat env "-" type )), list.3:(( grab name )) }
+			  { name:(( concat env "-" type )), list.4:(( grab name )) }
+			  { type:(( grab meta.type )), name:(( concat env "-" type )) }
+			  { name:(( concat env "-" type )), list.0:(( grab name )) }
+			]
+
+			pass2:
+			[
+			  { name:(( concat env "-" type )), params.bosh_username:(( grab name )) }
+
+			  # add this one, because in[1] is a out[0] of a previously partitioned element.
+			  { type:(( grab meta.type )), name:(( concat env "-" type )) }
+			], [
+			  { name:(( concat env "-" type )), list.1:(( grab name )) }
+			  { name:(( concat env "-" type )), list.2:(( grab name )) }
+			  { name:(( concat env "-" type )), list.3:(( grab name )) }
+			  { name:(( concat env "-" type )), list.4:(( grab name )) }
+			  { name:(( concat env "-" type )), list.0:(( grab name )) }
+			]
+
+			pass3:
+			[
+			  { name:(( concat env "-" type )), params.bosh_username:(( grab name )) }
+			  { type:(( grab meta.type )), name:(( concat env "-" type )) }
+
+			  # add nothing, because there is no [1] in the second list that is also a [0]
+			  # in the first list.  partitioning is complete, and we use just the first list.
+			], [
+			  { name:(( concat env "-" type )), list.1:(( grab name )) }
+			  { name:(( concat env "-" type )), list.2:(( grab name )) }
+			  { name:(( concat env "-" type )), list.3:(( grab name )) }
+			  { name:(( concat env "-" type )), list.4:(( grab name )) }
+			  { name:(( concat env "-" type )), list.0:(( grab name )) }
+			]
+		*/
+
+		// filter `in`, migrating elements to `out` if they are
+		// dependencies of anything already in `out`.
+		filter := func (out, in *[][]*Opcall) int {
+			l := make([][]*Opcall, 0)
+
+			for i, candidate := range *in {
+				if candidate == nil {
+					continue
+				}
+				for _, op := range *out {
+					if candidate[1] == op[0] {
+						TRACE("data flow - adding [%s: %s, %s: %s] to data flow set (it matched {%s})",
+							candidate[0].canonical, candidate[0].src,
+							candidate[1].canonical, candidate[1].src,
+							op[0].canonical)
+						l = append(l, candidate)
+						(*in)[i] = nil
+						break
+					}
+				}
+			}
+
+			*out = append(*out, l...)
+			return len(l)
+		}
+
+		// return a subset of `ops` that is strictly related to
+		// the processing of the top-levels listed in `picks`
+		firsts := func (ops [][]*Opcall, picks []*tree.Cursor) [][]*Opcall {
+			final := make([][]*Opcall, 0)
+			for i, op := range ops {
+				// check to see if this op.src is underneath
+				// any of the paths in `picks` -- if so, we
+				// want that opcall adjacency in `final`
+
+				for _, pick := range picks {
+					if pick.Contains(op[1].canonical) {
+						final = append(final, op)
+						ops[i] = nil
+						TRACE("data flow - adding [%s: %s, %s: %s] to data flow set (it matched --cherry-pick %s)",
+							op[0].canonical, op[0].src,
+							op[1].canonical, op[1].src,
+							pick)
+						break
+					}
+				}
+			}
+
+			for filter(&final, &ops) > 0 { }
+
+			return final
+		}
+
+		picks := make([]*tree.Cursor, len(ev.Only))
+		for i, s := range ev.Only{
+			c, err := tree.ParseCursor(s)
+			if err != nil {
+				panic(err) // FIXME
+			}
+			picks[i] = c
+		}
+		g = firsts(g, picks)
+
+		// repackage `all`, since follow-on logic needs it
+		all = map[string]*Opcall{}
+		for _, ops := range g {
+			all[ops[0].canonical.String()] = ops[0]
+			all[ops[1].canonical.String()] = ops[1]
+		}
+	}
+
+	for i, node := range g {
+		TRACE("data flow -- g[%d] is { %s:%s, %s:%s }\n", i, node[0].where, node[0].src, node[1].where, node[1].src)
 	}
 
 	// construct a sorted list of keys in $all, so that we
@@ -124,7 +257,7 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 	sort.Strings(sortedKeys)
 
 	// find all nodes in g that are free (no futher dependencies)
-	freeNodes := func(g [][2]*Opcall) []*Opcall {
+	freeNodes := func(g [][]*Opcall) []*Opcall {
 		l := []*Opcall{}
 		for _, k := range sortedKeys {
 			node, ok := all[k]
@@ -150,8 +283,8 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 	}
 
 	// removes (nullifies) all dependencies on n in g
-	remove := func(old [][2]*Opcall, n *Opcall) [][2]*Opcall {
-		l := [][2]*Opcall{}
+	remove := func(old [][]*Opcall, n *Opcall) [][]*Opcall {
+		l := [][]*Opcall{}
 		for _, pair := range old {
 			if pair[0] != n {
 				l = append(l, pair)
@@ -469,10 +602,12 @@ func (ev *Evaluator) RunPhase(p OperatorPhase) error {
 	if err != nil {
 		return err
 	}
+
 	op, err := ev.DataFlow(p)
 	if err != nil {
 		return err
 	}
+
 	return ev.RunOps(op)
 }
 
@@ -481,6 +616,7 @@ func (ev *Evaluator) Run(prune []string, picks []string) error {
 	errors := MultiError{Errors: []error{}}
 	paramErrs := MultiError{Errors: []error{}}
 
+	ev.Only = picks
 	errors.Append(ev.RunPhase(MergePhase))
 	paramErrs.Append(ev.RunPhase(ParamPhase))
 	if len(paramErrs.Errors) > 0 {
