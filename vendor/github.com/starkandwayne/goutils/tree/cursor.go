@@ -103,6 +103,21 @@ func (c *Cursor) Copy() *Cursor {
 	return other
 }
 
+// Contains ...
+func (c *Cursor) Contains(other *Cursor) bool {
+	if len(other.Nodes) < len(c.Nodes) {
+		return false
+	}
+	match := false
+	for i := range c.Nodes {
+		if c.Nodes[i] != other.Nodes[i] {
+			return false
+		}
+		match = true
+	}
+	return match
+}
+
 // Under ...
 func (c *Cursor) Under(other *Cursor) bool {
 	if len(c.Nodes) <= len(other.Nodes) {
