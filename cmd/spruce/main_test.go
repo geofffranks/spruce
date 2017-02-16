@@ -268,7 +268,6 @@ properties:
   consul: not-empty
   diego: (( grab property ))
   loggregator: true
-  pruneme: (( prune ))
 
 `)
 			So(stderr, ShouldEqual, "")

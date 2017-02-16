@@ -111,16 +111,12 @@ func main() {
 			return
 		}
 
-		ev := &Evaluator{Tree: root}
-		if !options.Merge.SkipEval {
-			err = ev.Run(options.Merge.Prune, options.Merge.CherryPick)
-			if err != nil {
-				printfStdErr("%s\n", err.Error())
-				exit(2)
-				return
-			}
-		} else {
-			TRACE("skipping evaluation")
+		ev := &Evaluator{Tree: root, SkipRunPhase: options.Merge.SkipEval}
+		err = ev.Run(options.Merge.Prune, options.Merge.CherryPick)
+		if err != nil {
+			printfStdErr("%s\n", err.Error())
+			exit(2)
+			return
 		}
 
 		TRACE("Converting the following data back to YML:")

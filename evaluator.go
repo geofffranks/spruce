@@ -14,10 +14,10 @@ import (
 
 // Evaluator ...
 type Evaluator struct {
-	Tree map[interface{}]interface{}
-	Deps map[string][]tree.Cursor
-
-	Here *tree.Cursor
+	Tree         map[interface{}]interface{}
+	Deps         map[string][]tree.Cursor
+	SkipRunPhase bool
+	Here         *tree.Cursor
 
 	CheckOps []*Opcall
 
@@ -521,6 +521,11 @@ func (ev *Evaluator) CheckForCycles(maxDepth int) error {
 
 // RunOp ...
 func (ev *Evaluator) RunOp(op *Opcall) error {
+	if _, ok := op.op.(PruneOperator); !ok && ev.SkipRunPhase {
+		DEBUG("Skipping operator")
+		return nil
+	}
+
 	resp, err := op.Run(ev)
 	if err != nil {
 		return err
