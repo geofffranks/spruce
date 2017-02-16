@@ -678,6 +678,34 @@ networks:
 `)
 		})
 
+		Convey("Issue #194 Globs with missing sub-items track data flow deps properly", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/static_ips/vips-plus-grab.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `jobs:
+- instances: 1
+  name: bosh
+  networks:
+  - name: stuff
+    static_ips:
+    - 1.2.3.4
+meta:
+  ips:
+  - 1.2.3.4
+networks:
+- name: stuff
+  subnets:
+  - static:
+    - 1.2.3.4
+- name: stuff2
+  type: vip
+
+`)
+		})
+
 		Convey("Empty operator works", func() {
 
 			var baseFile, mergeFile string
