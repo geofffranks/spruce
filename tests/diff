@@ -188,6 +188,24 @@ $.items[1] changed value
   from 2
     to second
 
+### diff handles simple list re-arrangement
+---
+items: [a, b, c]
+---
+items: [b, c, a]
+---
+$.items[0] changed value
+  from a
+    to b
+
+$.items[1] changed value
+  from b
+    to c
+
+$.items[2] changed value
+  from c
+    to a
+
 ### diff handles keyed list additions
 ---
 jobs:
