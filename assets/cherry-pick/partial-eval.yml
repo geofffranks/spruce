@@ -1,0 +1,12 @@
+---
+meta:
+  type: thing
+params:
+  name: (( grab name ))
+  mode: default
+
+env: sandbox
+type: (( grab meta.type ))
+name: (( concat env "-" type ))
+
+skipped: (( grab should.throw.an.error.if.evaluated ))

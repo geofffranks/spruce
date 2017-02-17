@@ -1082,6 +1082,19 @@ releases:
 
 `)
 			})
+
+			Convey("Cherry pick should only evaluate the dynamic operators that are relevant", func() {
+				os.Args = []string{"spruce", "merge", "--cherry-pick", "params", "../../assets/cherry-pick/partial-eval.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `params:
+  mode: default
+  name: sandbox-thing
+
+`)
+			})
 		})
 
 		Convey("non-specific node tags specific test cases", func() {
