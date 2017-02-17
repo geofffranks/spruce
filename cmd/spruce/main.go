@@ -70,6 +70,9 @@ func main() {
 		JSON struct {
 			Files goptions.Remainder `goptions:"description='Files to convert to JSON'"`
 		} `goptions:"json"`
+		Diff struct {
+			Files goptions.Remainder `goption:"description='Show the semantic differences between two YAML files'"`
+		} `goptions:"diff"`
 	}
 	getopts(&options)
 
@@ -154,6 +157,19 @@ func main() {
 			printfStdOut("%s\n", output)
 		}
 
+	case "diff":
+		if len(options.Diff.Files) != 2 {
+			usage()
+			return
+		}
+		output, err := diffFiles(options.Diff.Files)
+		if err != nil {
+			printfStdErr("%s\n", err)
+			exit(2)
+			return
+		}
+		printfStdOut("%s\n", output)
+
 	default:
 		usage()
 		return
@@ -232,4 +248,38 @@ func quoteConcourse(input []byte) []byte {
 func dequoteConcourse(input []byte) string {
 	re := regexp.MustCompile("['\"](" + concourseRegex + ")[\"']")
 	return re.ReplaceAllString(string(input), "$1")
+}
+
+func diffFiles (paths []string) (string, error) {
+	if len(paths) != 2 {
+		return "", ansi.Errorf("incorrect number of files given to diffFiles(); please file a bug report")
+	}
+
+	data, err := ioutil.ReadFile(paths[0])
+	if err != nil {
+		return "", ansi.Errorf("@R{Error reading file} @m{%s}: %s\n", paths[0], err)
+	}
+	a, err := parseYAML(data)
+	if err != nil {
+		return "", ansi.Errorf("@m{%s}: @R{%s}\n", paths[0], err)
+	}
+
+	data, err = ioutil.ReadFile(paths[1])
+	if err != nil {
+		return "", ansi.Errorf("@R{Error reading file} @m{%s}: %s\n", paths[1], err)
+	}
+	b, err := parseYAML(data)
+	if err != nil {
+		return "", ansi.Errorf("@m{%s}: @R{%s}\n", paths[1], err)
+	}
+
+	d, err := Diff(a, b)
+	if err != nil {
+		return "", ansi.Errorf("@R{Failed to diff} @m{%s} -> @m{%s}: %s\n", paths[0], paths[1], err)
+	}
+
+	if !d.Changed() {
+		return ansi.Sprintf("@G{both files are semantically equivalent; no differences found!}\n"), nil
+	}
+	return d.String("$"), nil
 }

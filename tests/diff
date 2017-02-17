@@ -1,0 +1,320 @@
+# vim:ft=yaml
+#
+# Spruce tests for the `spruce diff` utility
+#
+# This file defines a set of tests for exercising the
+# functionality of the `spruce diff` utility.
+#
+# Each test starts with '### (test name)' and runs
+# until the next '### ...', or end-of-file, whichever
+# comes first.
+#
+# The first YAML document between the '###' delimiters
+# will be diff'd against the second YAML document, and
+# the output of that operation compared against the
+# text following the third '---' delimiters.
+#
+# This should make it trivial to add new diff tests
+# for edge cases, as they crop up, without having
+# to write a ton of dense golang testing code.
+#
+# OH! If you want to just run this test, interactively,
+# you can do so with the following `go test` invocation:
+#
+#    go test -run Diff | cat
+#
+# (the '|cat' but is in there to forcibly disable the
+#  ANSI colorizing you get when running `spruce diff`)
+#
+# Happy Testing!
+#
+
+### diff handles empty maps
+---
+{}
+---
+{}
+---
+
+
+### diff handles identical maps
+---
+map: same
+---
+map: same
+---
+
+
+### diff recognizes singular top-level value changes
+---
+value: original
+---
+value: changed
+---
+$.value changed value
+  from original
+    to changed
+
+
+### diff recognizes the removal of top-level map keys
+---
+first: 1
+second: 2
+---
+first: 1
+---
+$.second removed
+  2
+
+### diff recognizes the addition of top-level map kys
+---
+only: lonely
+---
+only: lonely
+not-so: lonely
+---
+$.not-so added
+  lonely
+
+### diff recognizes singular top-level type changes
+---
+thing: { isa: map }
+---
+thing: is-a-scalar
+---
+$.thing changed type
+  from map
+    to scalar
+
+### diff recognizes multiple top-level value changes
+---
+a: alpha
+b: beta
+---
+a: A
+b: B
+---
+$.a changed value
+  from alpha
+    to A
+
+$.b changed value
+  from beta
+    to B
+
+### diff recognizes n-th tier map value changes
+---
+a:
+  b:
+    c: old-value-c
+  d: old-value-d
+e: old-value-e
+---
+a:
+  b:
+    c: new-value-c
+  d: new-value-d
+e: new-value-e
+---
+$.a.b.c changed value
+  from old-value-c
+    to new-value-c
+
+$.a.d changed value
+  from old-value-d
+    to new-value-d
+
+$.e changed value
+  from old-value-e
+    to new-value-e
+
+### diff handles simple list additions
+---
+items:
+  - first
+  - second
+---
+items:
+  - first
+  - second
+  - third
+---
+$.items[2] added
+  third
+
+### diff handles simple list removals
+---
+items:
+  - first
+  - second
+---
+items:
+  - first
+---
+$.items[1] removed
+  second
+
+### diff handles simple list changes
+---
+items:
+  - first
+  - second
+  - 3
+---
+items:
+  - first
+  - second
+  - third
+---
+$.items[2] changed value
+  from 3
+    to third
+
+### diff handles multiple simple list operations
+---
+items:
+  - first
+  - 2
+  - third
+---
+items:
+  - first
+  - second
+---
+$.items[2] removed
+  third
+
+$.items[1] changed value
+  from 2
+    to second
+
+### diff handles simple list re-arrangement
+---
+items: [a, b, c]
+---
+items: [b, c, a]
+---
+$.items[0] changed value
+  from a
+    to b
+
+$.items[1] changed value
+  from b
+    to c
+
+$.items[2] changed value
+  from c
+    to a
+
+### diff handles keyed list additions
+---
+jobs:
+  - name: lb
+  - name: web
+---
+jobs:
+  - name: web
+  - name: db
+    type: database
+  - name: lb
+---
+$.jobs[db] added
+  name: db
+  type: database
+
+
+### diff handles keyed list removals
+---
+jobs:
+  - name: lb
+  - name: web
+  - name: db
+    type: database
+---
+jobs:
+  - name: web
+  - name: lb
+---
+$.jobs[db] removed
+  name: db
+  type: database
+
+
+### diff handles keyed list changes
+---
+jobs:
+  - name: lb
+    type: ha-proxy
+  - name: web
+---
+jobs:
+  - name: web
+  - name: lb
+    type: haproxy
+---
+$.jobs[lb].type changed value
+  from ha-proxy
+    to haproxy
+
+### diff handles multiple keyed list operations
+---
+jobs:
+  - name: lb
+    type: ha-proxy
+  - name: db
+---
+jobs:
+  - name: web
+    type: www
+  - name: lb
+    type: haproxy
+---
+$.jobs[web] added
+  name: web
+  type: www
+
+$.jobs[db] removed
+  name: db
+
+$.jobs[lb].type changed value
+  from ha-proxy
+    to haproxy
+
+
+### diff handles multiline strings sanely
+---
+ssh:
+  key: |
+    -----BEGIN RSA PRIVATE KEY-----
+    MIIEogIBAAKCAQEAq3yBs6iJKscqU199yFFr75nPLku4ZwEAWQCOW2pKf/3lnXGF
+    U0/4TQOUpQx3ZUsWqrcnAGyV5G5o5B2/9/TPBVYWv7zr5sp2B3we/nOnGuKNU/gj
+    bKawbmGQtruU/nrIzsRK54l9wr4NQdl6JkDDFZ0no0dntYbH+H+Ds9cHDDrpJsZx
+    rJfD556UNc0RWqXLJMQUQcU4SqJLZ1+ix/UtyI9k+CwIF+7vJuGeFmoe0YGDSzDB
+    z1mYxXiJnxSjFaXWp1mx6adXYo8I8NJ/88jQZBJRoYjmOY9Ri5k=
+    -----END RSA PRIVATE KEY-----
+---
+ssh:
+  key: |
+    -----BEGIN RSA PRIVATE KEY-----
+    OuecpmgVznXvzhOvMbgk5f4hWCyuqe1/ACQyjhsCgYBvT/+wMTCft9hw7MUjsoAn
+    Yv5ClH0sTzP7FTrOp9bCq2040LSegIbUHjSMAv9UGCRm/VoCAJEWCoea9vPujOPt
+    KCVSVhl0W5+v1NjnydSwuBrY8Jl0woXQR/1iFkc8AxPOM25dM8Q0OHhbR76gUgML
+    fcyZxTjgorndWVJUeygzMQKBgEWx2kzvnvzhI1czAJIELqyanWJL7Uy84pzVlP22
+    EFJsS7ZlD7x8RPDQYxdMbqxWDm2OXJfPFGt1lg7QSFMv+2T0vkGZSGxS12LIx+oo
+    -----END RSA PRIVATE KEY-----
+---
+$.ssh.key changed value
+  from -----BEGIN RSA PRIVATE KEY-----
+       MIIEogIBAAKCAQEAq3yBs6iJKscqU199yFFr75nPLku4ZwEAWQCOW2pKf/3lnXGF
+       U0/4TQOUpQx3ZUsWqrcnAGyV5G5o5B2/9/TPBVYWv7zr5sp2B3we/nOnGuKNU/gj
+       bKawbmGQtruU/nrIzsRK54l9wr4NQdl6JkDDFZ0no0dntYbH+H+Ds9cHDDrpJsZx
+       rJfD556UNc0RWqXLJMQUQcU4SqJLZ1+ix/UtyI9k+CwIF+7vJuGeFmoe0YGDSzDB
+       z1mYxXiJnxSjFaXWp1mx6adXYo8I8NJ/88jQZBJRoYjmOY9Ri5k=
+       -----END RSA PRIVATE KEY-----
+    to -----BEGIN RSA PRIVATE KEY-----
+       OuecpmgVznXvzhOvMbgk5f4hWCyuqe1/ACQyjhsCgYBvT/+wMTCft9hw7MUjsoAn
+       Yv5ClH0sTzP7FTrOp9bCq2040LSegIbUHjSMAv9UGCRm/VoCAJEWCoea9vPujOPt
+       KCVSVhl0W5+v1NjnydSwuBrY8Jl0woXQR/1iFkc8AxPOM25dM8Q0OHhbR76gUgML
+       fcyZxTjgorndWVJUeygzMQKBgEWx2kzvnvzhI1czAJIELqyanWJL7Uy84pzVlP22
+       EFJsS7ZlD7x8RPDQYxdMbqxWDm2OXJfPFGt1lg7QSFMv+2T0vkGZSGxS12LIx+oo
+       -----END RSA PRIVATE KEY-----
