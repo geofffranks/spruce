@@ -51,6 +51,7 @@ func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*tree.Cursor)
 
 	// need all the network name decls
 	track("networks.*.name")
+	track("networks.*.subnets")
 
 	// need all the static range decls
 	track("networks.*.subnets.*.static")

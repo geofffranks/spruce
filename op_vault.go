@@ -112,9 +112,6 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		url := os.Getenv("VAULT_ADDR")
 		token := os.Getenv("VAULT_TOKEN")
 		skip := false
-		if os.Getenv("VAULT_SKIP_VERIFY") != "" {
-			skip = true
-		}
 
 		if url == "" || token == "" {
 			svtoken := struct {
@@ -131,6 +128,10 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 					skip = svtoken.SkipVerify
 				}
 			}
+		}
+
+		if skipVaultVerify(os.Getenv("VAULT_SKIP_VERIFY")) {
+			skip = true
 		}
 
 		if token == "" {
@@ -184,7 +185,7 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: os.Getenv("VAULT_SKIP_VERIFY") != "",
+				InsecureSkipVerify: skipVaultVerify(os.Getenv("VAULT_SKIP_VERIFY")),
 			},
 		},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -258,4 +259,12 @@ func parsePath(path string) (secret, key string) {
 		key = path[idx+1:]
 	}
 	return
+}
+
+func skipVaultVerify(env string) bool {
+	env = strings.ToLower(env)
+	if env == "" || env == "no" || env == "false" || env == "0" || env == "off" {
+		return false
+	}
+	return true
 }

@@ -1,0 +1,17 @@
+meta:
+  ips:
+    - 1.2.3.4
+
+networks:
+- name: stuff
+  subnets:
+  - static: (( grab meta.ips ))
+- name: stuff2
+  type: vip
+
+jobs:
+- name: bosh
+  instances: 1
+  networks:
+  - name: stuff
+    static_ips: (( static_ips(0) ))

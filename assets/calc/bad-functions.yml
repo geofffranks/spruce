@@ -1,0 +1,14 @@
+---
+meta:
+  numA: 8.333
+  numB: 3.666
+
+properties:
+  homework:
+    max: (( calc "max(meta.numA)" ))
+    min: (( calc "min(meta.numA)" ))
+    mod: (( calc "mod(meta.numA)" ))
+    pow: (( calc "pow(meta.numA)" ))
+    sqrt: (( calc "sqrt(meta.numA, meta.numB)" ))
+    floor: (( calc "floor(meta.numA, meta.numB)" ))
+    ceil: (( calc "ceil(meta.numA, meta.numB)" ))

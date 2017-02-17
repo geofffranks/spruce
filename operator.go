@@ -2,10 +2,11 @@ package spruce
 
 import (
 	"fmt"
-	"github.com/starkandwayne/goutils/ansi"
 	"os"
 	"regexp"
 	"strconv"
+
+	"github.com/starkandwayne/goutils/ansi"
 
 	. "github.com/geofffranks/spruce/log"
 	"github.com/starkandwayne/goutils/tree"
@@ -367,7 +368,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 		for i, arg := range split(src) {
 			switch {
 			case arg == ",":
-				DEBUG("  #%d: literal comma found; treating what we've seen so far as a complete expression")
+				DEBUG("  #%d: literal comma found; treating what we've seen so far as a complete expression", i)
 				pop()
 
 			case envvar.MatchString(arg):

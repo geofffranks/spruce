@@ -154,13 +154,13 @@ func TestMain(t *testing.T) {
 			So(stderr, ShouldEqual, "usage was called")
 			So(rc, ShouldEqual, 1)
 		})
-		Convey("Should output usage if no args to merge", func() {
+		Convey("Should error if no args to merge and no files listed", func() {
 			os.Args = []string{"spruce", "merge"}
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldEqual, "usage was called")
-			So(rc, ShouldEqual, 1)
+			So(stderr, ShouldEqual, "Error reading STDIN: no data found. Did you forget to pipe data to STDIN, or specify yaml files to merge?\n")
+			So(rc, ShouldEqual, 2)
 		})
 		Convey("Should output version", func() {
 			Convey("When '-v' is specified", func() {
@@ -678,6 +678,34 @@ networks:
 `)
 		})
 
+		Convey("Issue #194 Globs with missing sub-items track data flow deps properly", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/static_ips/vips-plus-grab.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `jobs:
+- instances: 1
+  name: bosh
+  networks:
+  - name: stuff
+    static_ips:
+    - 1.2.3.4
+meta:
+  ips:
+  - 1.2.3.4
+networks:
+- name: stuff
+  subnets:
+  - static:
+    - 1.2.3.4
+- name: stuff2
+  type: vip
+
+`)
+		})
+
 		Convey("Empty operator works", func() {
 
 			var baseFile, mergeFile string
@@ -740,6 +768,106 @@ z:
 - bye
 
 `)
+			})
+		})
+
+		Convey("Calc operator works", func() {
+			Convey("Calc comes with built-in functions", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/functions.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `properties:
+  homework:
+    ceil: 9
+    floor: 3
+    max: 8.333
+    min: 3.666
+    mod: 1.001
+    pow: 2374.9685
+    sqrt: 2.8866937
+
+`)
+			})
+
+			Convey("Calc works with dependencies", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/dependencies.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `jobs:
+- instances: 4
+  name: big_ones
+- instances: 1
+  name: small_ones
+- instances: 2
+  name: extra_ones
+
+`)
+			})
+
+			Convey("Calc expects only one argument which is a quoted mathematical expression (as a Literal in Spruce)", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/wrong-syntax.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `2 error(s) detected:
+ - $.jobs.one.instances: calc operator only expects one argument containing the expression
+ - $.jobs.two.instances: calc operator argument is suppose to be a quoted mathematical expression (type Literal)
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Calc operator does not support named variables", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/no-named-variables.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.jobs.one.instances: calc operator does not support named variables in expression: pi, r
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Calc operator checks input for built-in functions", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/bad-functions.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `7 error(s) detected:
+ - $.properties.homework.ceil: ceil function expects one argument of type float64
+ - $.properties.homework.floor: floor function expects one argument of type float64
+ - $.properties.homework.max: max function expects two arguments of type float64
+ - $.properties.homework.min: min function expects two arguments of type float64
+ - $.properties.homework.mod: mod function expects two arguments of type float64
+ - $.properties.homework.pow: pow function expects two arguments of type float64
+ - $.properties.homework.sqrt: sqrt function expects one argument of type float64
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("Calc operator checks referenced types", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/wrong-type.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `4 error(s) detected:
+ - $.properties.homework.list: path meta.list is of type slice, which cannot be used in calculations
+ - $.properties.homework.map: path meta.map is of type map, which cannot be used in calculations
+ - $.properties.homework.nil: path meta.nil references a nil value, which cannot be used in calculations
+ - $.properties.homework.string: path meta.string is of type string, which cannot be used in calculations
+
+
+`)
+				So(stdout, ShouldEqual, "")
 			})
 		})
 
@@ -1267,6 +1395,16 @@ func TestExamples(t *testing.T) {
 				"../../examples/inserting/addon.yml",
 
 				"../../examples/inserting/result.yml",
+			)
+		})
+
+		Convey("Calc", func() {
+			example(
+				"--prune", "meta",
+				"../../examples/calc/meta.yml",
+				"../../examples/calc/jobs.yml",
+
+				"../../examples/calc/result.yml",
 			)
 		})
 	})

@@ -8,5 +8,4 @@ cd ${GOPATH}/src/${MODULE}
 
 godep restore
 
-go list ./... | grep -v vendor | xargs go vet
-go list ./... | grep -v vendor | xargs go test
+make # runs vet, test, and build

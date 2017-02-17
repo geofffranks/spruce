@@ -1,0 +1,7 @@
+jobs:
+- instances: 4
+  name: big_ones
+  resource_pool: 32G_boxes
+- instances: 1
+  name: small_ones
+  resource_pool: 16G_boxes
