@@ -250,7 +250,7 @@ map:
 			So(stderr, ShouldEqual, "")
 		})
 
-		Convey("Should not evaluate spruce logic when --no-eval", func() {
+		Convey("Should not evaluate spruce logic appart from (( prune )) when --no-eval", func() {
 			os.Args = []string{"spruce", "merge", "--skip-eval", "../../assets/no-eval/first.yml", "../../assets/no-eval/second.yml"}
 			stdout = ""
 			stderr = ""
@@ -265,6 +265,32 @@ map:
 - instances: 12
   name: cc_bridge
 properties:
+  consul: not-empty
+  diego: (( grab property ))
+  loggregator: true
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+		Convey("Should execute --prunes  when --no-eval", func() {
+			os.Args = []string{"spruce", "merge", "--skip-eval", "--prune", "jobs", "../../assets/no-eval/first.yml", "../../assets/no-eval/second.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `properties:
+  consul: not-empty
+  diego: (( grab property ))
+  loggregator: true
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+		Convey("Should execute --cherry-picks  when --no-eval", func() {
+			os.Args = []string{"spruce", "merge", "--skip-eval", "--cherry-pick", "properties", "../../assets/no-eval/first.yml", "../../assets/no-eval/second.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `properties:
   consul: not-empty
   diego: (( grab property ))
   loggregator: true
