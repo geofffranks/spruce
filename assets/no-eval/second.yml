@@ -1,9 +1,7 @@
 jobs:
 - name: cc_bridge 
-  instances: 12
 - (( prepend ))
 - name: consul
-  instances: 12
 
 properties:
-  consul: not-empty
+  not_empty: not_empty

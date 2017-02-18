@@ -256,18 +256,15 @@ map:
 			stderr = ""
 			main()
 			So(stdout, ShouldEqual, `jobs:
-- instances: 12
-  name: consul
-- instances: 2
-  name: route
-- instances: 2
-  name: cell
-- instances: 12
-  name: cc_bridge
+- name: consul
+- name: route
+- name: cell
+- name: cc_bridge
 properties:
-  consul: not-empty
-  diego: (( grab property ))
   loggregator: true
+  no_eval: (( grab property ))
+  no_prune: (( prune ))
+  not_empty: not_empty
 
 `)
 			So(stderr, ShouldEqual, "")
@@ -278,9 +275,10 @@ properties:
 			stderr = ""
 			main()
 			So(stdout, ShouldEqual, `properties:
-  consul: not-empty
-  diego: (( grab property ))
   loggregator: true
+  no_eval: (( grab property ))
+  no_prune: (( prune ))
+  not_empty: not_empty
 
 `)
 			So(stderr, ShouldEqual, "")
@@ -291,9 +289,10 @@ properties:
 			stderr = ""
 			main()
 			So(stdout, ShouldEqual, `properties:
-  consul: not-empty
-  diego: (( grab property ))
   loggregator: true
+  no_eval: (( grab property ))
+  no_prune: (( prune ))
+  not_empty: not_empty
 
 `)
 			So(stderr, ShouldEqual, "")

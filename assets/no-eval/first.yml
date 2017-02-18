@@ -1,12 +1,9 @@
-# This is the jobs section
 jobs: 
 - name: route
-  instances: 2
 - (( append ))
 - name: cell
-  instances: 2
 
 properties:
-  diego: (( grab property ))
+  no_eval: (( grab property ))
   loggregator: true
-  pruneme: (( prune ))
+  no_prune: (( prune ))
