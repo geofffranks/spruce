@@ -111,7 +111,7 @@ func main() {
 			return
 		}
 
-		ev := &Evaluator{Tree: root, SkipRunPhase: options.Merge.SkipEval}
+		ev := &Evaluator{Tree: root, PruneOnly: options.Merge.SkipEval}
 		err = ev.Run(options.Merge.Prune, options.Merge.CherryPick)
 		if err != nil {
 			printfStdErr("%s\n", err.Error())
