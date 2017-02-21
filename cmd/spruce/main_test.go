@@ -250,6 +250,53 @@ map:
 			So(stderr, ShouldEqual, "")
 		})
 
+		Convey("Should not evaluate spruce logic when --no-eval", func() {
+			os.Args = []string{"spruce", "merge", "--skip-eval", "../../assets/no-eval/first.yml", "../../assets/no-eval/second.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `jobs:
+- name: consul
+- name: route
+- name: cell
+- name: cc_bridge
+properties:
+  loggregator: true
+  no_eval: (( grab property ))
+  no_prune: (( prune ))
+  not_empty: not_empty
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+		Convey("Should execute --prunes  when --no-eval", func() {
+			os.Args = []string{"spruce", "merge", "--skip-eval", "--prune", "jobs", "../../assets/no-eval/first.yml", "../../assets/no-eval/second.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `properties:
+  loggregator: true
+  no_eval: (( grab property ))
+  no_prune: (( prune ))
+  not_empty: not_empty
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+		Convey("Should execute --cherry-picks  when --no-eval", func() {
+			os.Args = []string{"spruce", "merge", "--skip-eval", "--cherry-pick", "properties", "../../assets/no-eval/first.yml", "../../assets/no-eval/second.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `properties:
+  loggregator: true
+  no_eval: (( grab property ))
+  no_prune: (( prune ))
+  not_empty: not_empty
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
 		Convey("Should handle de-referencing", func() {
 			os.Args = []string{"spruce", "merge", "../../assets/dereference/first.yml", "../../assets/dereference/second.yml"}
 			stdout = ""

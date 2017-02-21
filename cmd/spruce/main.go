@@ -63,6 +63,7 @@ func main() {
 		Concourse bool `goptions:"--concourse, description='Pre/Post-process YAML for Concourse CI (handles {{ }} quoting)'"`
 		Action    goptions.Verbs
 		Merge     struct {
+			SkipEval   bool               `goptions:"--skip-eval, description='Do not evaluate spruce logic after merging docs'"`
 			Prune      []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
 			CherryPick []string           `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
 			Files      goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml. To read STDIN, specify a filename of \\'-\\'.'"`
@@ -110,7 +111,7 @@ func main() {
 			return
 		}
 
-		ev := &Evaluator{Tree: root}
+		ev := &Evaluator{Tree: root, SkipEval: options.Merge.SkipEval}
 		err = ev.Run(options.Merge.Prune, options.Merge.CherryPick)
 		if err != nil {
 			printfStdErr("%s\n", err.Error())
@@ -192,7 +193,6 @@ func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 
 func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
 	m := &Merger{}
-
 	for _, path := range paths {
 		DEBUG("Processing file '%s'", path)
 		var data []byte

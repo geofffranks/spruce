@@ -1,0 +1,7 @@
+jobs:
+- name: cc_bridge 
+- (( prepend ))
+- name: consul
+
+properties:
+  not_empty: not_empty

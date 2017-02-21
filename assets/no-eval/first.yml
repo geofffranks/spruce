@@ -1,0 +1,9 @@
+jobs: 
+- name: route
+- (( append ))
+- name: cell
+
+properties:
+  no_eval: (( grab property ))
+  loggregator: true
+  no_prune: (( prune ))

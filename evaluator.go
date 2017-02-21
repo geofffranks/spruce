@@ -14,10 +14,10 @@ import (
 
 // Evaluator ...
 type Evaluator struct {
-	Tree map[interface{}]interface{}
-	Deps map[string][]tree.Cursor
-
-	Here *tree.Cursor
+	Tree     map[interface{}]interface{}
+	Deps     map[string][]tree.Cursor
+	SkipEval bool
+	Here     *tree.Cursor
 
 	CheckOps []*Opcall
 
@@ -521,6 +521,7 @@ func (ev *Evaluator) CheckForCycles(maxDepth int) error {
 
 // RunOp ...
 func (ev *Evaluator) RunOp(op *Opcall) error {
+
 	resp, err := op.Run(ev)
 	if err != nil {
 		return err
@@ -623,7 +624,9 @@ func (ev *Evaluator) Run(prune []string, picks []string) error {
 		return paramErrs
 	}
 
-	errors.Append(ev.RunPhase(EvalPhase))
+	if !ev.SkipEval {
+		errors.Append(ev.RunPhase(EvalPhase))
+	}
 
 	// this is a big failure...
 	if err := ev.CheckForCycles(4096); err != nil {
