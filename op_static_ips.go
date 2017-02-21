@@ -49,6 +49,14 @@ func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*tree.Cursor)
 		}
 	}
 
+	// top level stuff
+	track("networks")
+	track("networks.*")
+	track("jobs")
+	track("jobs.*")
+	track("instance_groups")
+	track("instance_groups.*")
+
 	// need all the network name decls
 	track("networks.*.name")
 	track("networks.*.subnets")
