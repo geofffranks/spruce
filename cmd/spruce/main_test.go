@@ -250,7 +250,7 @@ map:
 			So(stderr, ShouldEqual, "")
 		})
 
-		Convey("Should not evaluate spruce logic appart from (( prune )) when --no-eval", func() {
+		Convey("Should not evaluate spruce logic when --no-eval", func() {
 			os.Args = []string{"spruce", "merge", "--skip-eval", "../../assets/no-eval/first.yml", "../../assets/no-eval/second.yml"}
 			stdout = ""
 			stderr = ""
