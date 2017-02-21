@@ -72,7 +72,7 @@ func main() {
 			Files goptions.Remainder `goptions:"description='Files to convert to JSON'"`
 		} `goptions:"json"`
 		Diff struct {
-			Files goptions.Remainder `goption:"description='Show the semantic differences between two YAML files'"`
+			Files goptions.Remainder `goptions:"description='Show the semantic differences between two YAML files'"`
 		} `goptions:"diff"`
 	}
 	getopts(&options)
@@ -250,7 +250,7 @@ func dequoteConcourse(input []byte) string {
 	return re.ReplaceAllString(string(input), "$1")
 }
 
-func diffFiles (paths []string) (string, error) {
+func diffFiles(paths []string) (string, error) {
 	if len(paths) != 2 {
 		return "", ansi.Errorf("incorrect number of files given to diffFiles(); please file a bug report")
 	}
