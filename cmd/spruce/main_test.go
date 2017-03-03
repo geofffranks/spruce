@@ -1214,6 +1214,30 @@ releases:
 
 `)
 			})
+
+			Convey("Issue #198 - avoid nil panics when merging arrays with nil elements", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/issue-198/nil-array-elements.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `empty_nil:
+- null
+- more stuff
+explicit_nil:
+- null
+- stuff
+latter_elements_nil:
+- stuff
+- null
+nested_nil:
+- stuff:
+  - null
+  - nested nil above
+  thing: has stuff
+
+`)
+			})
 		})
 	})
 }

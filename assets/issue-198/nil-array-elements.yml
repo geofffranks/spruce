@@ -1,0 +1,18 @@
+---
+explicit_nil:
+- ~
+- stuff
+
+empty_nil:
+- 
+- more stuff
+
+nested_nil:
+- thing: has stuff
+  stuff:
+  - ~
+  - nested nil above
+
+latter_elements_nil:
+- stuff
+- ~
