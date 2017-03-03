@@ -359,7 +359,7 @@ func (m *Merger) mergeArrayByKey(orig []interface{}, n []interface{}, node strin
 }
 
 func shouldInlineMergeArray(obj []interface{}) bool {
-	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
+	if len(obj) >= 1 && obj[0] != nil && reflect.TypeOf(obj[0]).Kind() == reflect.String {
 		re := regexp.MustCompile("^\\Q((\\E\\s*inline\\s*\\Q))\\E$")
 		if re.MatchString(obj[0].(string)) {
 			return true
@@ -473,7 +473,7 @@ func getArrayModifications(obj []interface{}) []ModificationDefinition {
 func shouldKeyMergeArray(obj []interface{}) (bool, string) {
 	key := "name"
 
-	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
+	if len(obj) >= 1 && obj[0] != nil && reflect.TypeOf(obj[0]).Kind() == reflect.String {
 		re := regexp.MustCompile("^\\Q((\\E\\s*merge(?:\\s+on\\s+(.*?))?\\s*\\Q))\\E$")
 
 		if re.MatchString(obj[0].(string)) {
@@ -492,6 +492,9 @@ func canKeyMergeArray(disp string, array []interface{}, node string, key string)
 	// and that they contain the key `key`
 
 	for i, o := range array {
+		if o == nil {
+			return ansi.Errorf("@m{%s.%d}: @R{%s object is nil - cannot merge using keys}", node, i, disp)
+		}
 		if reflect.TypeOf(o).Kind() != reflect.Map {
 			return ansi.Errorf("@m{%s.%d}: @R{%s object is a} @c{%s}@R{, not a} @c{map} @R{- cannot merge using keys}", node, i, disp, reflect.TypeOf(o).Kind().String())
 		}
@@ -505,7 +508,7 @@ func canKeyMergeArray(disp string, array []interface{}, node string, key string)
 }
 
 func shouldReplaceArray(obj []interface{}) bool {
-	if len(obj) >= 1 && reflect.TypeOf(obj[0]).Kind() == reflect.String {
+	if len(obj) >= 1 && obj[0] != nil && reflect.TypeOf(obj[0]).Kind() == reflect.String {
 		re := regexp.MustCompile(`^\Q((\E\s*replace\s*\Q))\E$`)
 
 		if re.MatchString(obj[0].(string)) {
