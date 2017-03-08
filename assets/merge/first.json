@@ -1,0 +1,42 @@
+{
+  "array_append": [
+    "one",
+    "two"
+  ],
+  "array_default": [
+    "first",
+    "second",
+    "third"
+  ],
+  "array_inline": [
+    {
+      "name": "first_elem",
+      "val": "initial"
+    },
+    "second_elem_is_scalar"
+  ],
+  "array_map_default": [
+    {
+      "k1": "key 1",
+      "k2": "key 2",
+      "name": "AAA"
+    },
+    {
+      "k3": "original",
+      "name": "BBB"
+    }
+  ],
+  "array_prepend": [
+    "four",
+    "five"
+  ],
+  "array_replace": [
+    "a",
+    "b",
+    "c"
+  ],
+  "key": "value",
+  "map": {
+    "key": "value"
+  }
+}

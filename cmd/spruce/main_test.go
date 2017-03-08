@@ -114,6 +114,44 @@ func TestMergeAllDocs(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(target, ShouldResemble, expect)
 		})
+		Convey("Succeeds with valid files + json", func() {
+			target := map[interface{}]interface{}{}
+			expect := map[interface{}]interface{}{
+				"key":           "overridden",
+				"array_append":  []interface{}{"one", "two", "three"},
+				"array_prepend": []interface{}{"three", "four", "five"},
+				"array_replace": []interface{}{[]interface{}{1, 2, 3}},
+				"array_inline": []interface{}{
+					map[interface{}]interface{}{"name": "first_elem", "val": "overwritten"},
+					"second_elem was overwritten",
+					"third elem is appended",
+				},
+				"array_default": []interface{}{
+					"FIRST",
+					"SECOND",
+					"third",
+				},
+				"array_map_default": []interface{}{
+					map[interface{}]interface{}{
+						"name": "AAA",
+						"k1":   "key 1",
+						"k2":   "updated",
+					},
+					map[interface{}]interface{}{
+						"name": "BBB",
+						"k2":   "final",
+						"k3":   "original",
+					},
+				},
+				"map": map[interface{}]interface{}{
+					"key":  "value",
+					"key2": "val2",
+				},
+			}
+			err := mergeAllDocs(target, []string{"../../assets/merge/first.json", "../../assets/merge/second.yml"})
+			So(err, ShouldBeNil)
+			So(target, ShouldResemble, expect)
+		})
 	})
 }
 
