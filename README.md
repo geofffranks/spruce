@@ -15,9 +15,9 @@ Questions? Pop in our [slack channel](https://cloudfoundry.slack.com/messages/sp
 
 ## Introducing Spruce
 
-`spruce` is a domain-specific YAML merging tool, for generating [BOSH](http://bosh.io) manifests.
+`spruce` is a general purpose YAML & JSON merging tool.
 
-It was written with the goal of being the most intuitive solution for merging BOSH templates.
+It was originally written with the goal of being the most intuitive solution for merging BOSH templates.
 As such, it pulls in a few semantics that may seem familiar to those used to merging with [the other merging tool](https://github.com/cloudfoundry-incubator/spiff),
 but there are a few key differences.
 
