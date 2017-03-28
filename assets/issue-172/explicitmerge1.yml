@@ -1,0 +1,4 @@
+---
+array-of-maps:
+- (( merge ))
+- name: { subkey1: yes, subkey2: no }

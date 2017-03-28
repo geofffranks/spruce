@@ -29,7 +29,7 @@ var printfStdOut = func(format string, args ...interface{}) {
 }
 
 var printfStdErr = func(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format, args...)
+	PrintfStdErr(format, args...)
 }
 
 var getopts = func(o interface{}) {
