@@ -170,7 +170,7 @@ func (e *Expr) Reduce() (*Expr, error) {
 
 	reduced, short, more := reduce(e)
 	if more && short != nil {
-		return reduced, ansi.Errorf("@R{literal} @c{%v} @R{short-circuits expression (}@c{%s}@R{)}", short, e)
+		return reduced, NewWarningError(eContextAll, "@R{literal} @c{%v} @R{short-circuits expression (}@c{%s}@R{)}", short, e)
 	}
 	return reduced, nil
 }
@@ -439,7 +439,11 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 			TRACE("expr: pushing expression `%v' onto the operand list", e)
 			reduced, err := e.Reduce()
 			if err != nil {
-				fmt.Fprintf(os.Stdout, "warning: %s\n", err)
+				if warning, isWarning := err.(WarningError); isWarning {
+					warning.Warn()
+				} else {
+					fmt.Fprintf(os.Stdout, "warning: %s\n", err)
+				}
 			}
 			args = append(args, reduced)
 		}

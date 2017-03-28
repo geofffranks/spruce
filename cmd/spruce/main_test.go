@@ -74,7 +74,7 @@ func TestMergeAllDocs(t *testing.T) {
 			target := map[interface{}]interface{}{}
 			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/error.yml"})
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "$.array_inline.0: new object is a string, not a map - cannot merge using keys")
+			So(err.Error(), ShouldContainSubstring, "$.array_inline.0: new object is a string, not a map - cannot merge by key")
 		})
 		Convey("Succeeds with valid files + yaml", func() {
 			target := map[interface{}]interface{}{}
@@ -162,7 +162,8 @@ func TestMain(t *testing.T) {
 			stdout = fmt.Sprintf(format, args...)
 		}
 		var stderr string
-		printfStdErr = func(format string, args ...interface{}) {
+		//Edit log stderr function
+		PrintfStdErr = func(format string, args ...interface{}) {
 			stderr = fmt.Sprintf(format, args...)
 		}
 
@@ -1275,6 +1276,62 @@ nested_nil:
   thing: has stuff
 
 `)
+			})
+
+			Convey("Issue #172 - don't panic if target key has map value", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/issue-172/implicitmergemap.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `warning: $.array-of-maps.0: new object's key 'name' cannot have a value which is a hash or sequence - cannot merge by key
+  Falling back to inline merge strategy
+`)
+				So(stdout, ShouldEqual, `array-of-maps:
+- name:
+    subkey1: true
+    subkey2: false
+
+`)
+			})
+			Convey("Issue #172 - don't panic if target key has sequence value", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/issue-172/implicitmergeseq.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `warning: $.array-of-maps.0: new object's key 'name' cannot have a value which is a hash or sequence - cannot merge by key
+  Falling back to inline merge strategy
+`)
+				So(stdout, ShouldEqual, `array-of-maps:
+- name:
+  - subkey1
+  - subkey2
+
+`)
+			})
+
+			Convey("Issue #172 - error instead of panic if merge was specifically requested but target key has map value", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/issue-172/explicitmerge1.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.array-of-maps.0: new object's key 'name' cannot have a value which is a hash or sequence - cannot merge by key
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+			Convey("Issue #172 - error instead of panic if merge on key was specifically requested but target key has map value", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/issue-172/explicitmergeonkey1.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.array-of-maps.0: new object's key 'mergekey' cannot have a value which is a hash or sequence - cannot merge by key
+
+
+`)
+				So(stdout, ShouldEqual, "")
 			})
 		})
 	})
