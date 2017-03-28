@@ -19,6 +19,8 @@ import (
 	"github.com/geofffranks/yaml"
 )
 
+var vaultSecretCache = map[string]map[string]interface{}{}
+
 // The VaultOperator provides a means of injecting credentials and
 // other secrets from a Vault (vaultproject.io) Secure Key Storage
 // instance.
@@ -157,7 +159,19 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		if leftPart == "" || rightPart == "" {
 			return nil, ansi.Errorf("@R{invalid argument} @c{%s}@R{; must be in the form} @m{path/to/secret:key}", key)
 		}
-		secret, err = getVaultSecret(leftPart, rightPart)
+		var fullSecret map[string]interface{}
+		var found bool
+		if fullSecret, found = vaultSecretCache[leftPart]; found {
+			//The work happens in the conditional setup
+		} else {
+			fullSecret, err = getVaultSecret(leftPart)
+			if err != nil {
+				return nil, err
+			}
+			vaultSecretCache[leftPart] = fullSecret
+		}
+
+		secret, err = extractSubkey(fullSecret, leftPart, rightPart)
 		if err != nil {
 			return nil, err
 		}
@@ -175,7 +189,7 @@ func init() {
 
 /****** VAULT INTEGRATION ***********************************/
 
-func getVaultSecret(secret string, subkey string) (string, error) {
+func getVaultSecret(secret string) (map[string]interface{}, error) {
 	vault := os.Getenv("VAULT_ADDR")
 	DEBUG("  accessing the vault at %s (with VAULT_SKIP_VERIFY='%s')", vault, os.Getenv("VAULT_SKIP_VERIFY"))
 
@@ -199,8 +213,8 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		DEBUG("    !! failed to craft API request:\n    !! %s\n", err)
-		return "", ansi.Errorf("@R{failed to retrieve} @c{%s:%s}@R{ from Vault (%s): %s}",
-			secret, subkey, vault, err)
+		return nil, ansi.Errorf("@R{failed to retrieve} @c{%s}@R{ from Vault (%s): %s}",
+			secret, vault, err)
 	}
 	req.Header.Add("X-Vault-Token", os.Getenv("VAULT_TOKEN"))
 
@@ -208,8 +222,8 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	res, err := client.Do(req)
 	if err != nil {
 		DEBUG("    !! failed to issue API request:\n    !! %s\n", err)
-		return "", ansi.Errorf("@R{failed to retrieve} @c{%s:%s} @R{from Vault (%s): %s}",
-			secret, subkey, vault, err)
+		return nil, ansi.Errorf("@R{failed to retrieve} @c{%s} @R{from Vault (%s): %s}",
+			secret, vault, err)
 	}
 	defer res.Body.Close()
 
@@ -217,8 +231,8 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		DEBUG("    !! failed to read JSON:\n    !! %s\n", err)
-		return "", ansi.Errorf("@R{failed to retrieve} @c{%s:%s} @R{from Vault (%s): %s}",
-			secret, subkey, vault, err)
+		return nil, ansi.Errorf("@R{failed to retrieve} @c{%s} @R{from Vault (%s): %s}",
+			secret, vault, err)
 	}
 
 	TRACE("    decoding raw JSON:\n%s\n", string(b))
@@ -229,16 +243,21 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 	err = json.NewDecoder(bytes.NewReader(b)).Decode(&raw)
 	if err != nil {
 		DEBUG("    !! failed to decode JSON:\n    !! %s\n", err)
-		return "", fmt.Errorf("bad JSON response received from Vault: \"%s\"", string(b))
+		return nil, fmt.Errorf("bad JSON response received from Vault: \"%s\"", string(b))
 	}
 	if len(raw.Errors) > 0 {
 		DEBUG("    !! error: %s", raw.Errors[0])
-		return "", ansi.Errorf("@R{failed to retrieve} @c{%s:%s} @R{from Vault (%s): %s}",
-			secret, subkey, vault, raw.Errors[0])
+		return nil, ansi.Errorf("@R{failed to retrieve} @c{%s} @R{from Vault (%s): %s}",
+			secret, vault, raw.Errors[0])
 	}
 
+	DEBUG("  success.")
+	return raw.Data, nil
+}
+
+func extractSubkey(secretMap map[string]interface{}, secret, subkey string) (string, error) {
 	DEBUG("  extracting the [%s] subkey from the secret", subkey)
-	v, ok := raw.Data[subkey]
+	v, ok := secretMap[subkey]
 	if !ok {
 		DEBUG("    !! %s:%s not found!\n", secret, subkey)
 		return "", ansi.Errorf("@R{secret} @c{%s:%s} @R{not found}", secret, subkey)
@@ -247,8 +266,7 @@ func getVaultSecret(secret string, subkey string) (string, error) {
 		DEBUG("    !! %s:%s is not a string!\n", secret, subkey)
 		return "", ansi.Errorf("@R{secret} @c{%s:%s} @R{is not a string}", secret, subkey)
 	}
-
-	DEBUG("  success.")
+	DEBUG(" success.")
 	return v.(string), nil
 }
 
