@@ -162,8 +162,10 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		var fullSecret map[string]interface{}
 		var found bool
 		if fullSecret, found = vaultSecretCache[leftPart]; found {
-			//The work happens in the conditional setup
+			DEBUG("vault: Cache hit for `%s`", leftPart)
 		} else {
+			DEBUG("vault: Cache MISS for `%s`", leftPart)
+			// Secret isn't cached. Grab it from the vault.
 			fullSecret, err = getVaultSecret(leftPart)
 			if err != nil {
 				return nil, err
