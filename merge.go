@@ -282,10 +282,21 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 // the array
 func (m *Merger) mergeArrayDefault(orig []interface{}, n []interface{}, node string) []interface{} {
 	DEBUG("%s: performing index-based array merge", node)
-	if err := canKeyMergeArray("original", orig, node, "name"); err == nil {
-		if err := canKeyMergeArray("new", n, node, "name"); err == nil {
+	var err error
+	if err = canKeyMergeArray("original", orig, node, "name"); err == nil {
+		if err = canKeyMergeArray("new", n, node, "name"); err == nil {
 			return m.mergeArrayByKey(orig, n, node, "name")
 		}
+	}
+
+	//Warn the user about any unintuitive behavior that may have gotten us here.
+	if warning, isWarning := err.(WarningError); isWarning && warning.HasContext(eContextDefaultMerge) {
+		mergeStratStr := "inline"
+		if m.AppendByDefault {
+			mergeStratStr = "append"
+		}
+		warning.Warn()
+		NewWarningError(eContextDefaultMerge, "@Y{Falling back to %s merge strategy}", mergeStratStr).Warn()
 	}
 
 	if m.AppendByDefault {
@@ -493,15 +504,23 @@ func canKeyMergeArray(disp string, array []interface{}, node string, key string)
 
 	for i, o := range array {
 		if o == nil {
-			return ansi.Errorf("@m{%s.%d}: @R{%s object is nil - cannot merge using keys}", node, i, disp)
+			return ansi.Errorf("@m{%s.%d}: @R{%s object is nil - cannot merge by key}", node, i, disp)
 		}
 		if reflect.TypeOf(o).Kind() != reflect.Map {
-			return ansi.Errorf("@m{%s.%d}: @R{%s object is a} @c{%s}@R{, not a} @c{map} @R{- cannot merge using keys}", node, i, disp, reflect.TypeOf(o).Kind().String())
+			return ansi.Errorf("@m{%s.%d}: @R{%s object is a} @c{%s}@R{, not a} @c{map} @R{- cannot merge by key}", node, i, disp, reflect.TypeOf(o).Kind().String())
 		}
 
 		obj := o.(map[interface{}]interface{})
 		if _, ok := obj[key]; !ok {
-			return ansi.Errorf("@m{%s.%d}: @R{%s object does not contain the key} @c{'%s'}@R{ - cannot merge}", node, i, disp, key)
+			return ansi.Errorf("@m{%s.%d}: @R{%s object does not contain the key} @c{'%s'}@R{ - cannot merge by key}", node, i, disp, key)
+		}
+
+		//Verify that the target key has a hashable value (i.e. a value that is not itself a hash or sequence)
+		targetValue := obj[key]
+		_, isMap := targetValue.(map[interface{}]interface{})
+		_, isSlice := targetValue.([]interface{})
+		if isMap || isSlice {
+			return NewWarningError(eContextDefaultMerge, ansi.Sprintf("@m{%s.%d}: @R{%s object's key} @c{'%s'} @R{cannot have a value which is a hash or sequence - cannot merge by key}", node, i, disp, key))
 		}
 	}
 	return nil

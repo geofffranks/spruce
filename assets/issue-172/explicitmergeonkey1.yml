@@ -1,0 +1,3 @@
+array-of-maps:
+- (( merge on mergekey ))
+- mergekey: { subkey1: yes, subkey2: no }

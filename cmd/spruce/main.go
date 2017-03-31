@@ -28,10 +28,6 @@ var printfStdOut = func(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stdout, format, args...)
 }
 
-var printfStdErr = func(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format, args...)
-}
-
 var getopts = func(o interface{}) {
 	err := goptions.Parse(o)
 	if err != nil {
@@ -106,7 +102,7 @@ func main() {
 
 		err := mergeAllDocs(root, options.Merge.Files)
 		if err != nil {
-			printfStdErr("%s\n", err.Error())
+			PrintfStdErr("%s\n", err.Error())
 			exit(2)
 			return
 		}
@@ -114,7 +110,7 @@ func main() {
 		ev := &Evaluator{Tree: root, SkipEval: options.Merge.SkipEval}
 		err = ev.Run(options.Merge.Prune, options.Merge.CherryPick)
 		if err != nil {
-			printfStdErr("%s\n", err.Error())
+			PrintfStdErr("%s\n", err.Error())
 			exit(2)
 			return
 		}
@@ -123,7 +119,7 @@ func main() {
 		TRACE("%#v", ev.Tree)
 		merged, err := yaml.Marshal(ev.Tree)
 		if err != nil {
-			printfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), ev.Tree)
+			PrintfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), ev.Tree)
 			exit(2)
 			return
 
@@ -141,7 +137,7 @@ func main() {
 		if len(options.JSON.Files) > 0 {
 			jsons, err := JSONifyFiles(options.JSON.Files)
 			if err != nil {
-				printfStdErr("%s\n", err)
+				PrintfStdErr("%s\n", err)
 				exit(2)
 				return
 			}
@@ -151,7 +147,7 @@ func main() {
 		} else {
 			output, err := JSONifyIO(os.Stdin)
 			if err != nil {
-				printfStdErr("%s\n", err)
+				PrintfStdErr("%s\n", err)
 				exit(2)
 				return
 			}
@@ -165,7 +161,7 @@ func main() {
 		}
 		output, err := diffFiles(options.Diff.Files)
 		if err != nil {
-			printfStdErr("%s\n", err)
+			PrintfStdErr("%s\n", err)
 			exit(2)
 			return
 		}
