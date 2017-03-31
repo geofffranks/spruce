@@ -295,8 +295,8 @@ func (m *Merger) mergeArrayDefault(orig []interface{}, n []interface{}, node str
 		if m.AppendByDefault {
 			mergeStratStr = "append"
 		}
-		warning.SetWarning(ansi.Sprintf("%s\n  @Y{Falling back to %s merge strategy}", warning.Error(), mergeStratStr))
 		warning.Warn()
+		NewWarningError(eContextDefaultMerge, "@Y{Falling back to %s merge strategy}", mergeStratStr).Warn()
 	}
 
 	if m.AppendByDefault {

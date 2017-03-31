@@ -89,11 +89,6 @@ func (e WarningError) HasContext(context ErrorContext) bool {
 	return e.context == 0 || (context&e.context > 0)
 }
 
-//SetWarning sets the warning message for this WarningError. Ansi library rnabled
-func (e *WarningError) SetWarning(warning string) {
-	e.warning = warning
-}
-
 //Warn prints the configured warning to stderr.
 func (e WarningError) Warn() {
 	if !dontPrintWarning {

@@ -164,7 +164,7 @@ func TestMain(t *testing.T) {
 		var stderr string
 		//Edit log stderr function
 		PrintfStdErr = func(format string, args ...interface{}) {
-			stderr = fmt.Sprintf(format, args...)
+			stderr += fmt.Sprintf(format, args...)
 		}
 
 		rc := 256 // invalid return code to catch any issues
@@ -1284,7 +1284,7 @@ nested_nil:
 				stderr = ""
 				main()
 				So(stderr, ShouldEqual, `warning: $.array-of-maps.0: new object's key 'name' cannot have a value which is a hash or sequence - cannot merge by key
-  Falling back to inline merge strategy
+warning: Falling back to inline merge strategy
 `)
 				So(stdout, ShouldEqual, `array-of-maps:
 - name:
@@ -1299,7 +1299,7 @@ nested_nil:
 				stderr = ""
 				main()
 				So(stderr, ShouldEqual, `warning: $.array-of-maps.0: new object's key 'name' cannot have a value which is a hash or sequence - cannot merge by key
-  Falling back to inline merge strategy
+warning: Falling back to inline merge strategy
 `)
 				So(stdout, ShouldEqual, `array-of-maps:
 - name:
@@ -1437,7 +1437,7 @@ func TestExamples(t *testing.T) {
 	}
 	var stderr string
 	PrintfStdErr = func(format string, args ...interface{}) {
-		stderr = fmt.Sprintf(format, args...)
+		stderr += fmt.Sprintf(format, args...)
 	}
 
 	rc := 256 // invalid return code to catch any issues
