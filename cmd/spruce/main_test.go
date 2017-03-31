@@ -1436,7 +1436,7 @@ func TestExamples(t *testing.T) {
 		stdout = fmt.Sprintf(format, args...)
 	}
 	var stderr string
-	printfStdErr = func(format string, args ...interface{}) {
+	PrintfStdErr = func(format string, args ...interface{}) {
 		stderr = fmt.Sprintf(format, args...)
 	}
 
