@@ -318,7 +318,7 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	for _, az := range azs {
 		if _, ok := pools[az]; !ok {
 			DEBUG("  could not find AZ %s in network AZS: %v\n", az, azs)
-			return nil, ansi.Errorf("@R{could not find AZ} @c{%s} @R{(in network AZS} @c{%v}", az, azs)
+			return nil, ansi.Errorf("@R{could not find AZ} @c{%s} (@R{in network AZS} @c{%v})", az, azs)
 		}
 	}
 
