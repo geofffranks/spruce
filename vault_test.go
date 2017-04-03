@@ -88,6 +88,9 @@ func TestVault(t *testing.T) {
 				Convey(test, func() {
 					ev := &Evaluator{Tree: YAML(input)}
 					err := ev.RunPhase(EvalPhase)
+					if err == nil {
+						fmt.Printf("errors: %+v\nerr:%+v\n", errors, err)
+					}
 					So(err, ShouldNotBeNil)
 					So(strings.Trim(err.Error(), " \t"), ShouldEqual, errors)
 				})
@@ -245,7 +248,7 @@ secret: (( vault $.meta.key ))
 ####################################################  fails on map reference
 ---
 meta:
-  key: secret/hand:shake
+  key: secret/hand2:shake
 secret: (( vault $.meta ))
 
 ---
@@ -300,11 +303,11 @@ secret: (( vault "secret/structure:data" ))
 		RunErrorTests(`
 #####################################################  fails on a bad token
 ---
-secret: (( vault "secret/hand:shake" ))
+secret: (( vault "secret/hand3:shake" ))
 
 ---
 1 error(s) detected:
- - $.secret: failed to retrieve secret/hand:shake from Vault (` + os.Getenv("VAULT_ADDR") + `): missing client token
+ - $.secret: failed to retrieve secret/hand3 from Vault (` + os.Getenv("VAULT_ADDR") + `): missing client token
 
 `)
 
@@ -315,7 +318,7 @@ secret: (( vault "secret/hand:shake" ))
 		RunErrorTests(`
 ################################################  fails on a missing token
 ---
-secret: (( vault "secret/hand:shake" ))
+secret: (( vault "secret/hand4:shake" ))
 
 ---
 1 error(s) detected:
