@@ -332,7 +332,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 		qstring := regexp.MustCompile(`(?s)^"(.*)"$`)
 		integer := regexp.MustCompile(`^[+-]?\d+(\.\d+)?$`)
 		float := regexp.MustCompile(`^[+-]?\d*\.\d+$`)
-		envvar := regexp.MustCompile(`^\$[a-zA-Z_][a-zA-Z0-9_]*$`)
+		envvar := regexp.MustCompile(`^\$[a-zA-Z_][a-zA-Z0-9_.]*$`)
 
 		var final []*Expr
 		var left, op *Expr
