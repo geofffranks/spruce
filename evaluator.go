@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -175,7 +176,7 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 
 		// filter `in`, migrating elements to `out` if they are
 		// dependencies of anything already in `out`.
-		filter := func (out, in *[][]*Opcall) int {
+		filter := func(out, in *[][]*Opcall) int {
 			l := make([][]*Opcall, 0)
 
 			for i, candidate := range *in {
@@ -201,7 +202,7 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 
 		// return a subset of `ops` that is strictly related to
 		// the processing of the top-levels listed in `picks`
-		firsts := func (ops [][]*Opcall, picks []*tree.Cursor) [][]*Opcall {
+		firsts := func(ops [][]*Opcall, picks []*tree.Cursor) [][]*Opcall {
 			final := make([][]*Opcall, 0)
 			for i, op := range ops {
 				// check to see if this op.src is underneath
@@ -221,13 +222,14 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 				}
 			}
 
-			for filter(&final, &ops) > 0 { }
+			for filter(&final, &ops) > 0 {
+			}
 
 			return final
 		}
 
 		picks := make([]*tree.Cursor, len(ev.Only))
-		for i, s := range ev.Only{
+		for i, s := range ev.Only {
 			c, err := tree.ParseCursor(s)
 			if err != nil {
 				panic(err) // FIXME
@@ -616,6 +618,11 @@ func (ev *Evaluator) RunPhase(p OperatorPhase) error {
 func (ev *Evaluator) Run(prune []string, picks []string) error {
 	errors := MultiError{Errors: []error{}}
 	paramErrs := MultiError{Errors: []error{}}
+
+	if os.Getenv("REDACT") != "" {
+		DEBUG("Setting vault operator to redact keys")
+		SkipVault = true
+	}
 
 	ev.Only = picks
 	errors.Append(ev.RunPhase(MergePhase))

@@ -21,6 +21,13 @@ import (
 
 var vaultSecretCache = map[string]map[string]interface{}{}
 
+//VaultRefs maps secret path to paths in YAML structure which call for it
+var VaultRefs = map[string][]string{}
+
+//SkipVault toggles whether calls to the Vault operator actually cause the
+// Vault to be contacted and the keys substituted in.
+var SkipVault bool
+
 // The VaultOperator provides a means of injecting credentials and
 // other secrets from a Vault (vaultproject.io) Secure Key Storage
 // instance.
@@ -99,10 +106,18 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	key := strings.Join(l, "")
 	DEBUG("     [0]: Using vault key '%s'\n", key)
 
+	//Append the location from which this operator was called to the list of
+	// places from which this key was referenced
+	if refs, found := VaultRefs[key]; !found {
+		VaultRefs[key] = []string{ev.Here.String()}
+	} else {
+		VaultRefs[key] = append(refs, ev.Here.String())
+	}
+
 	secret := "REDACTED"
 	var err error
 
-	if os.Getenv("REDACT") == "" {
+	if !SkipVault {
 		/*
 		   user is not okay with a redacted manifest.
 		   try to look up vault connection details from:

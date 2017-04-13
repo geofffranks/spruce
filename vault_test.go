@@ -123,7 +123,7 @@ func TestVault(t *testing.T) {
 	}
 
 	Convey("Disconnected Vault", t, func() {
-		os.Setenv("REDACT", "yes")
+		SkipVault = true
 
 		RunTests(`
 ##################################################  emits REDACTED when asked to
@@ -169,7 +169,7 @@ secret: REDACTED
 		)
 		defer mock.Close()
 
-		os.Setenv("REDACT", "")
+		SkipVault = false
 		os.Setenv("VAULT_ADDR", mock.URL)
 		os.Setenv("VAULT_TOKEN", "sekrit-toekin")
 		RunTests(`
@@ -313,7 +313,7 @@ secret: (( vault "secret/hand3:shake" ))
 
 		oldhome = os.Getenv("HOME")
 		os.Setenv("HOME", "assets/home/unauth")
-		os.Setenv("REDACT", "")
+		SkipVault = false
 		os.Setenv("VAULT_TOKEN", "")
 		RunErrorTests(`
 ################################################  fails on a missing token
