@@ -634,6 +634,94 @@ quux: quux
 			So(stderr, ShouldContainSubstring, "Root of YAML document is not a hash/map:")
 		})
 
+		Convey("vaultinfo lists vault calls in given file", func() {
+			os.Args = []string{"spruce", "vaultinfo", "../../assets/vaultinfo/single.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `secrets:
+- key: secret/bar:beep
+  references:
+  - meta.foo
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+
+		Convey("vaultinfo can handle multiple references to the same key", func() {
+			os.Args = []string{"spruce", "vaultinfo", "../../assets/vaultinfo/duplicate.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `secrets:
+- key: secret/bar:beep
+  references:
+  - meta.foo
+  - meta.otherfoo
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+
+		Convey("vaultinfo can handle there being no vault references", func() {
+			os.Args = []string{"spruce", "vaultinfo", "../../assets/vaultinfo/novault.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `secrets: []
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+
+		Convey("vaultinfo can handle concatenated vault secrets", func() {
+			os.Args = []string{"spruce", "vaultinfo", "../../assets/vaultinfo/concat.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `secrets:
+- key: imaprefix/beep:boop
+  references:
+  - foo.bar
+- key: imaprefix/cup:cake
+  references:
+  - foo.bat
+- key: imaprefix/hello:world
+  references:
+  - foo.wom
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+
+		Convey("vaultinfo can merge multiple files", func() {
+			os.Args = []string{"spruce", "vaultinfo", "../../assets/vaultinfo/merge1.yml", "../../assets/vaultinfo/merge2.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `secrets:
+- key: secret/foo:bar
+  references:
+  - foo
+- key: secret/meep:meep
+  references:
+  - bar
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
+
+		Convey("vaultinfo can handle improper yaml", func() {
+			os.Args = []string{"spruce", "vaultinfo", "../../assets/vaultinfo/improper.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, "")
+			So(stderr, ShouldEqual, `../../assets/vaultinfo/improper.yml: unmarshal []byte to yaml failed: yaml: line 1: did not find expected node content
+
+`)
+		})
+
 		Convey("Adding (dynamic) prune support for list entries (edge case scenario)", func() {
 			os.Args = []string{"spruce", "merge", "../../assets/prune/prune-in-lists/fileA.yml", "../../assets/prune/prune-in-lists/fileB.yml"}
 			stdout = ""

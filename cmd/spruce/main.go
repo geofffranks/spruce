@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 
 	"github.com/mattn/go-isatty"
 	"github.com/starkandwayne/goutils/ansi"
@@ -51,6 +52,13 @@ func envFlag(varname string) bool {
 	return val != "" && strings.ToLower(val) != "false" && val != "0"
 }
 
+type mergeOpts struct {
+	SkipEval   bool               `goptions:"--skip-eval, description='Do not evaluate spruce logic after merging docs'"`
+	Prune      []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
+	CherryPick []string           `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
+	Files      goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml. To read STDIN, specify a filename of \\'-\\'.'"`
+}
+
 func main() {
 	var options struct {
 		Debug     bool `goptions:"-D, --debug, description='Enable debugging'"`
@@ -58,18 +66,16 @@ func main() {
 		Version   bool `goptions:"-v, --version, description='Display version information'"`
 		Concourse bool `goptions:"--concourse, description='Pre/Post-process YAML for Concourse CI (handles {{ }} quoting)'"`
 		Action    goptions.Verbs
-		Merge     struct {
-			SkipEval   bool               `goptions:"--skip-eval, description='Do not evaluate spruce logic after merging docs'"`
-			Prune      []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
-			CherryPick []string           `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
-			Files      goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml. To read STDIN, specify a filename of \\'-\\'.'"`
-		} `goptions:"merge"`
-		JSON struct {
+		Merge     mergeOpts `goptions:"merge"`
+		JSON      struct {
 			Files goptions.Remainder `goptions:"description='Files to convert to JSON'"`
 		} `goptions:"json"`
 		Diff struct {
 			Files goptions.Remainder `goptions:"description='Show the semantic differences between two YAML files'"`
 		} `goptions:"diff"`
+		VaultInfo struct {
+			Files goptions.Remainder `goptions:"description='List vault references in the given files'"`
+		} `goptions:"vaultinfo"`
 	}
 	getopts(&options)
 
@@ -94,21 +100,7 @@ func main() {
 
 	switch options.Action {
 	case "merge":
-		if len(options.Merge.Files) < 1 {
-			options.Merge.Files = append(options.Merge.Files, "-")
-		}
-
-		root := make(map[interface{}]interface{})
-
-		err := mergeAllDocs(root, options.Merge.Files)
-		if err != nil {
-			PrintfStdErr("%s\n", err.Error())
-			exit(2)
-			return
-		}
-
-		ev := &Evaluator{Tree: root, SkipEval: options.Merge.SkipEval}
-		err = ev.Run(options.Merge.Prune, options.Merge.CherryPick)
+		tree, err := cmdMergeEval(options.Merge)
 		if err != nil {
 			PrintfStdErr("%s\n", err.Error())
 			exit(2)
@@ -116,13 +108,12 @@ func main() {
 		}
 
 		TRACE("Converting the following data back to YML:")
-		TRACE("%#v", ev.Tree)
-		merged, err := yaml.Marshal(ev.Tree)
+		TRACE("%#v", tree)
+		merged, err := yaml.Marshal(tree)
 		if err != nil {
-			PrintfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), ev.Tree)
+			PrintfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), tree)
 			exit(2)
 			return
-
 		}
 
 		var output string
@@ -133,6 +124,18 @@ func main() {
 		}
 		printfStdOut("%s\n", output)
 
+	case "vaultinfo":
+		VaultRefs = map[string][]string{}
+		SkipVault = true
+		options.Merge.Files = options.VaultInfo.Files
+		_, err := cmdMergeEval(options.Merge)
+		if err != nil {
+			PrintfStdErr("%s\n", err.Error())
+			exit(2)
+			return
+		}
+
+		printfStdOut("%s\n", formatVaultRefs())
 	case "json":
 		if len(options.JSON.Files) > 0 {
 			jsons, err := JSONifyFiles(options.JSON.Files)
@@ -185,6 +188,57 @@ func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 	}
 
 	return doc, nil
+}
+
+func cmdMergeEval(options mergeOpts) (map[interface{}]interface{}, error) {
+	if len(options.Files) < 1 {
+		options.Files = append(options.Files, "-")
+	}
+
+	root := make(map[interface{}]interface{})
+
+	err := mergeAllDocs(root, options.Files)
+	if err != nil {
+		return nil, err
+	}
+
+	ev := &Evaluator{Tree: root, SkipEval: options.SkipEval}
+	err = ev.Run(options.Prune, options.CherryPick)
+	return ev.Tree, err
+}
+
+type yamlVaultSecret struct {
+	Key        string
+	References []string
+}
+
+type byKey []yamlVaultSecret
+
+type yamlVaultRefs struct {
+	Secrets []yamlVaultSecret
+}
+
+func (refs byKey) Len() int           { return len(refs) }
+func (refs byKey) Swap(i, j int)      { refs[i], refs[j] = refs[j], refs[i] }
+func (refs byKey) Less(i, j int) bool { return refs[i].Key < refs[j].Key }
+
+func formatVaultRefs() string {
+	refs := yamlVaultRefs{}
+	for secret, srcs := range VaultRefs {
+		refs.Secrets = append(refs.Secrets, yamlVaultSecret{secret, srcs})
+	}
+
+	sort.Sort(byKey(refs.Secrets))
+	for _, secret := range refs.Secrets {
+		sort.Strings(secret.References)
+	}
+
+	output, err := yaml.Marshal(refs)
+	if err != nil {
+		panic(fmt.Sprintf("Could not marshal YAML for vault references: %+v", VaultRefs))
+	}
+
+	return string(output)
 }
 
 func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {

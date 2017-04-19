@@ -1,0 +1,2 @@
+meta:
+  foo: (( vault "secret/bar:beep" ))
