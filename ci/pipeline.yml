@@ -20,7 +20,7 @@ meta:
   image:    (( concat "docker:///starkandwayne/concourse-go#" meta.go.version ))
 
   go:
-    version: 1.5
+    version: 1.7
     module:  (( concat "github.com/" meta.github.owner "/" meta.github.repo ))
     cmd_module: (( grab meta.go.module ))
     binary:  (( grab meta.github.repo ))
@@ -48,7 +48,7 @@ meta:
     fail_moji:     ":airplane_arriving:"
     success_moji:  ":airplane_departure:"
     upset_moji:    ":sad_panda:"
-    fail_url: '(( concat "<" meta.url "/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME| Concourse Failure! " meta.slack.upset_moji ">" ))'
+    fail_url: '(( concat "<" meta.url "/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME| Concourse Failure! " meta.slack.upset_moji ">" ))'
 
   url: (( param "What is the URL for the Concourse instance this pipeline is located on?" ))
 
@@ -72,7 +72,7 @@ jobs:
         - task: test
           config:
             platform: linux
-            image: (( grab meta.image ))
+            rootfs_uri: (( grab meta.image ))
             inputs:
               - name: git
                 path: (( concat "gopath/src/" meta.go.module ))
@@ -160,7 +160,7 @@ jobs:
         - name: release
           task: release
           config:
-            image: (( grab meta.image ))
+            rootfs_uri: (( grab meta.image ))
             platform: linux
             inputs:
               - name: version
