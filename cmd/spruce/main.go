@@ -53,10 +53,11 @@ func envFlag(varname string) bool {
 }
 
 type mergeOpts struct {
-	SkipEval   bool               `goptions:"--skip-eval, description='Do not evaluate spruce logic after merging docs'"`
-	Prune      []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
-	CherryPick []string           `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
-	Files      goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml. To read STDIN, specify a filename of \\'-\\'.'"`
+	SkipEval       bool               `goptions:"--skip-eval, description='Do not evaluate spruce logic after merging docs'"`
+	Prune          []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
+	CherryPick     []string           `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
+	FallbackAppend bool               `goptions:"--fallback-append, description='Default merge normally tries to key merge, then inline. This flag says do an append instead of an inline.'"`
+	Files          goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml. To read STDIN, specify a filename of \\'-\\'.'"`
 }
 
 func main() {
@@ -197,7 +198,7 @@ func cmdMergeEval(options mergeOpts) (map[interface{}]interface{}, error) {
 
 	root := make(map[interface{}]interface{})
 
-	err := mergeAllDocs(root, options.Files)
+	err := mergeAllDocs(root, options.Files, options.FallbackAppend)
 	if err != nil {
 		return nil, err
 	}
@@ -241,8 +242,8 @@ func formatVaultRefs() string {
 	return string(output)
 }
 
-func mergeAllDocs(root map[interface{}]interface{}, paths []string) error {
-	m := &Merger{}
+func mergeAllDocs(root map[interface{}]interface{}, paths []string, fallbackAppend bool) error {
+	m := &Merger{AppendByDefault: fallbackAppend}
 	for _, path := range paths {
 		DEBUG("Processing file '%s'", path)
 		var data []byte

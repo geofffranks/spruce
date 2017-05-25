@@ -60,19 +60,19 @@ func TestMergeAllDocs(t *testing.T) {
 	Convey("mergeAllDocs()", t, func() {
 		Convey("Fails with readFile error on bad first doc", func() {
 			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"../../assets/merge/nonexistent.yml", "../../assets/merge/second.yml"})
+			err := mergeAllDocs(target, []string{"../../assets/merge/nonexistent.yml", "../../assets/merge/second.yml"}, false)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "Error reading file ../../assets/merge/nonexistent.yml:")
 		})
 		Convey("Fails with parseYAML error on bad second doc", func() {
 			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/bad.yml"})
+			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/bad.yml"}, false)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "../../assets/merge/bad.yml: Root of YAML document is not a hash/map:")
 		})
 		Convey("Fails with mergeMap error", func() {
 			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/error.yml"})
+			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/error.yml"}, false)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "$.array_inline.0: new object is a string, not a map - cannot merge by key")
 		})
@@ -110,7 +110,7 @@ func TestMergeAllDocs(t *testing.T) {
 					"key2": "val2",
 				},
 			}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/second.yml"})
+			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/second.yml"}, false)
 			So(err, ShouldBeNil)
 			So(target, ShouldResemble, expect)
 		})
@@ -148,7 +148,7 @@ func TestMergeAllDocs(t *testing.T) {
 					"key2": "val2",
 				},
 			}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.json", "../../assets/merge/second.yml"})
+			err := mergeAllDocs(target, []string{"../../assets/merge/first.json", "../../assets/merge/second.yml"}, false)
 			So(err, ShouldBeNil)
 			So(target, ShouldResemble, expect)
 		})
@@ -1269,6 +1269,38 @@ releases:
 
 `)
 			})
+		})
+
+		Convey("FallbackAppend should cause the default behavior after a key merge to go to append", func() {
+			os.Args = []string{"spruce", "merge", "--fallback-append", "../../assets/fallback-append/test1.yml", "../../assets/fallback-append/test2.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `array:
+- thing: 1
+  value: foo
+- thing: 2
+  value: bar
+- thing: 1
+  value: baz
+
+`)
+		})
+
+		Convey("Without FallbackAppend, the default merge behavior after a key merge should still be inline", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/fallback-append/test1.yml", "../../assets/fallback-append/test2.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `array:
+- thing: 1
+  value: baz
+- thing: 2
+  value: bar
+
+`)
 		})
 
 		Convey("non-specific node tags specific test cases", func() {

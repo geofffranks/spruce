@@ -1,0 +1,5 @@
+array:
+- thing: 1
+  value: foo
+- thing: 2
+  value: bar
