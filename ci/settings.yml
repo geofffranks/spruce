@@ -27,8 +27,8 @@ meta:
     channel: "#spruce"
 
   aws:
-    access_key: (( vault "secret/pipelines/spruce/aws:key" ))
-    secret_key: (( vault "secret/pipelines/spruce/aws:secret" ))
+    access_key: (( vault "secret/aws/cfcommunity:access" ))
+    secret_key: (( vault "secret/aws/cfcommunity:secret" ))
     bucket: spruce-release-pipeline
 
   name: spruce-release
