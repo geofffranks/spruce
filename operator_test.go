@@ -94,6 +94,12 @@ func TestOperators(t *testing.T) {
 				So(err.Error(), ShouldContainSubstring, msg)
 			}
 
+			opIgnore := func(code string) {
+				op, err := ParseOpcall(phase, code)
+				So(op, ShouldBeNil)
+				So(err, ShouldBeNil)
+			}
+
 			Convey("handles opcodes with and without arguments", func() {
 				opOk(`(( null ))`, "null")
 				opOk(`(( null 42 ))`, "null", num(42))
@@ -196,6 +202,10 @@ func TestOperators(t *testing.T) {
 
 				opErr(`(( null meta.key || || ))`,
 					`syntax error near: meta.key || ||`)
+			})
+
+			Convey("ignores spiff-like bang-notation", func() {
+				opIgnore(`((!credhub))`)
 			})
 		})
 	})

@@ -450,6 +450,23 @@ top:
 ```
 
 
+### Spiff Compatibility and Credhub
+
+Pivotal wrote a thing called Credhub that uses the same syntax as
+Spruce for template expansion.  BOSH uses Credhub.  So does
+Concourse.  If you want to pass stuff through Spruce to credhub,
+just use the `((!...))` notation wherever you would use Credhub's
+`((...))` notation, like this:
+
+```
+---
+secret:
+  password: ((!credhub))
+```
+
+BOSH will handle removing the `!` for you, so this should be all
+you need!
+
 
 <a name="ex-map-replacement"></a>
 ### Map Replacement
