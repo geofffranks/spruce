@@ -1303,6 +1303,32 @@ releases:
 `)
 		})
 
+		Convey("Defer", func() {
+			Convey("should err if there are no arguments", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/defer/nothing.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.foo: Defer has no arguments - what are you deferring?
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+
+			Convey("should defer a non-quoted string", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/defer/simple-ref.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `foo: (( defer thing ))
+
+`)
+			})
+		})
+
 		Convey("non-specific node tags specific test cases", func() {
 			Convey("non-specific node tags test case - style 1", func() {
 				os.Args = []string{"spruce", "merge", "../../assets/non-specific-node-tags-issue/fileA-1.yml", "../../assets/non-specific-node-tags-issue/fileB.yml"}

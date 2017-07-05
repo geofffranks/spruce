@@ -21,7 +21,7 @@ func (DeferOperator) Setup() error {
 // Phase gives back Param phase in this case, because we don't want any
 // following phases to pick up the operator post-deference
 func (DeferOperator) Phase() OperatorPhase {
-	return ParamPhase
+	return EvalPhase
 }
 
 // Dependencies returns an empty slice - defer produces no deps at all.
