@@ -1,0 +1,1 @@
+foo: (( defer grab this || "that" )) # (( grab this || "that" ))

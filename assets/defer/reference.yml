@@ -1,0 +1,5 @@
+foo: (( defer thing )) # (( thing ))
+thing: (( grab foo ))  # (( thing ))
+
+# There should not be a dependency loop here, because "thing" should not be
+# taken as a dependency referring to the key "thing"

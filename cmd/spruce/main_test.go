@@ -1317,13 +1317,104 @@ releases:
 				So(stdout, ShouldEqual, "")
 			})
 
-			Convey("should defer a non-quoted string", func() {
+			Convey("on a non-quoted string", func() {
 				os.Args = []string{"spruce", "merge", "../../assets/defer/simple-ref.yml"}
 				stdout = ""
 				stderr = ""
 				main()
 				So(stderr, ShouldEqual, "")
-				So(stdout, ShouldEqual, `foo: (( defer thing ))
+				So(stdout, ShouldEqual, `foo: (( thing ))
+
+`)
+			})
+
+			Convey("on a quoted string", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/defer/simple-string.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `foo: (( "thing" ))
+
+`)
+			})
+
+			Convey("on a non-quoted string called nil", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/defer/simple-nil.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `foo: (( nil ))
+
+`)
+			})
+
+			Convey("on an integer", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/defer/simple-int.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `foo: (( 123 ))
+
+`)
+			})
+
+			Convey("on a float", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/defer/simple-float.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `foo: (( 1.23 ))
+
+`)
+			})
+
+			Convey("on an environment variable ", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/defer/simple-envvar.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `foo: (( $TESTVAR ))
+
+`)
+			})
+
+			Convey("on an unquoted string that could reference another key", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/defer/reference.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `foo: (( thing ))
+thing: (( thing ))
+
+`)
+			})
+
+			Convey("on a value with a logical-or", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/defer/or.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `foo: (( grab this || "that" ))
+
+`)
+			})
+
+			Convey("with another operator in the defer", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/defer/grab.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `foo: (( grab thing ))
+grab: beep
+thing: boop
 
 `)
 			})
