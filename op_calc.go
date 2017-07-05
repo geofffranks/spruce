@@ -29,11 +29,11 @@ func (CalcOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (CalcOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor) []*tree.Cursor {
+func (CalcOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor, _ []*tree.Cursor) []*tree.Cursor {
 	DEBUG("Calculating dependencies for (( calc ... ))")
 	deps := []*tree.Cursor{}
 
-	// The dependencies are checks straigth forward on the happy path:
+	// The dependency checks are straightforward on the happy path:
 	// There must be one literal argument containing possible references.
 	if len(args) == 1 {
 		switch args[0].Type {

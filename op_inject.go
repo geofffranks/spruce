@@ -23,7 +23,7 @@ func (InjectOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (InjectOperator) Dependencies(ev *Evaluator, args []*Expr, locs []*tree.Cursor) []*tree.Cursor {
+func (InjectOperator) Dependencies(ev *Evaluator, args []*Expr, locs []*tree.Cursor, auto []*tree.Cursor) []*tree.Cursor {
 	l := []*tree.Cursor{}
 
 	for _, arg := range args {
@@ -40,6 +40,10 @@ func (InjectOperator) Dependencies(ev *Evaluator, args []*Expr, locs []*tree.Cur
 				l = append(l, other)
 			}
 		}
+	}
+
+	for _, dep := range auto {
+		l = append(l, dep)
 	}
 
 	return l

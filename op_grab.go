@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+
 	"github.com/starkandwayne/goutils/ansi"
 	"github.com/starkandwayne/goutils/tree"
 
@@ -22,8 +23,8 @@ func (GrabOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (GrabOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
-	return []*tree.Cursor{}
+func (GrabOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor, auto []*tree.Cursor) []*tree.Cursor {
+	return auto
 }
 
 // Run ...

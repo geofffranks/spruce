@@ -32,7 +32,7 @@ func (StaticIPOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
+func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*tree.Cursor, _ []*tree.Cursor) []*tree.Cursor {
 	l := []*tree.Cursor{}
 
 	track := func(path string) {

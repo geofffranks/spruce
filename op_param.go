@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+
 	"github.com/starkandwayne/goutils/tree"
 )
 
@@ -19,8 +20,8 @@ func (ParamOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (ParamOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
-	return []*tree.Cursor{}
+func (ParamOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor, _ []*tree.Cursor) []*tree.Cursor {
+	return nil
 }
 
 // Run ...

@@ -1541,7 +1541,9 @@ meta:
 				deps := op.Dependencies(ev, []*Expr{
 					str(" "),
 					ref("meta.secondlist"),
-				}, nil)
+				},
+					nil,
+					nil)
 				So(deps, shouldHaveDeps, "meta.secondlist.[0]", "meta.secondlist.[1]")
 			})
 
@@ -1550,7 +1552,9 @@ meta:
 					str(" "),
 					ref("meta.authorities"),
 					ref("meta.secondlist"),
-				}, nil)
+				},
+					nil,
+					nil)
 				So(deps, shouldHaveDeps, "meta.authorities.[0]", "meta.authorities.[1]",
 					"meta.authorities.[2]", "meta.authorities.[3]", "meta.authorities.[4]",
 					"meta.authorities.[5]", "meta.authorities.[6]",
@@ -1561,7 +1565,9 @@ meta:
 				deps := op.Dependencies(ev, []*Expr{
 					str(" "),
 					ref("meta.somestanza.foo"),
-				}, nil)
+				},
+					nil,
+					nil)
 				So(deps, shouldHaveDeps, "meta.somestanza.foo")
 			})
 
@@ -1570,7 +1576,9 @@ meta:
 					str(" "),
 					ref("meta.somestanza.foo"),
 					ref("meta.somestanza.wom"),
-				}, nil)
+				},
+					nil,
+					nil)
 				So(deps, shouldHaveDeps, "meta.somestanza.foo", "meta.somestanza.wom")
 			})
 
@@ -1579,7 +1587,9 @@ meta:
 					str(" "),
 					ref("meta.somestanza.foo"),
 					ref("meta.secondlist"),
-				}, nil)
+				},
+					nil,
+					nil)
 				So(deps, shouldHaveDeps, "meta.somestanza.foo", "meta.secondlist.[0]",
 					"meta.secondlist.[1]")
 			})
@@ -1588,7 +1598,9 @@ meta:
 				deps := op.Dependencies(ev, []*Expr{
 					str(" "),
 					str("literally literal"),
-				}, nil)
+				},
+					nil,
+					nil)
 				So(deps, shouldHaveDeps)
 			})
 
@@ -1597,7 +1609,9 @@ meta:
 					str(" "),
 					str("beep"),
 					ref("meta.somestanza.foo"),
-				}, nil)
+				},
+					nil,
+					nil)
 				So(deps, shouldHaveDeps, "meta.somestanza.foo")
 			})
 		})

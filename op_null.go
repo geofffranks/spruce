@@ -21,8 +21,8 @@ func (NullOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (NullOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
-	return []*tree.Cursor{}
+func (NullOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor, _ []*tree.Cursor) []*tree.Cursor {
+	return nil
 }
 
 // Run ...

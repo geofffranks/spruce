@@ -50,7 +50,7 @@ type Operator interface {
 	Run(ev *Evaluator, args []*Expr) (*Response, error)
 
 	// returns a set of implicit / inherent dependencies used by Run()
-	Dependencies(ev *Evaluator, args []*Expr, locs []*tree.Cursor) []*tree.Cursor
+	Dependencies(ev *Evaluator, args []*Expr, locs []*tree.Cursor, auto []*tree.Cursor) []*tree.Cursor
 
 	// what phase does this operator run during?
 	Phase() OperatorPhase
@@ -499,10 +499,7 @@ func (op *Opcall) Dependencies(ev *Evaluator, locs []*tree.Cursor) []*tree.Curso
 		}
 	}
 
-	for _, c := range op.op.Dependencies(ev, op.args, locs) {
-		l = append(l, c)
-	}
-	return l
+	return op.op.Dependencies(ev, op.args, locs, l)
 }
 
 // Run ...
