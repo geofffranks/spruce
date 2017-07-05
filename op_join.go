@@ -27,7 +27,7 @@ func (JoinOperator) Phase() OperatorPhase {
 // Dependencies returns the nodes that (( join ... )) requires to be resolved
 // before its evaluation. Returns no dependencies on error, because who cares
 // about eval order if Run is going to bomb out anyway.
-func (JoinOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor) []*tree.Cursor {
+func (JoinOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor, auto []*tree.Cursor) []*tree.Cursor {
 	DEBUG("Calculating dependencies for (( join ... ))")
 	deps := []*tree.Cursor{}
 	if len(args) < 2 {
@@ -79,6 +79,12 @@ func (JoinOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor) 
 			return []*tree.Cursor{}
 		}
 	}
+
+	//Append on the auto-generated deps (the operator path args)
+	for _, dep := range auto {
+		deps = append(deps, dep)
+	}
+
 	DEBUG("Dependencies for (( join ... )):")
 	for i, dep := range deps {
 		DEBUG("\t#%d %s", i, dep.String())

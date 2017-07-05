@@ -2,8 +2,9 @@ package spruce
 
 import (
 	"fmt"
-	"github.com/starkandwayne/goutils/ansi"
 	"strings"
+
+	"github.com/starkandwayne/goutils/ansi"
 
 	"github.com/starkandwayne/goutils/tree"
 
@@ -24,8 +25,8 @@ func (ConcatOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (ConcatOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
-	return []*tree.Cursor{}
+func (ConcatOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor, auto []*tree.Cursor) []*tree.Cursor {
+	return auto
 }
 
 // Run ...

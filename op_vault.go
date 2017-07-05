@@ -39,15 +39,16 @@ func (VaultOperator) Setup() error {
 }
 
 // Phase identifies what phase of document management the vault
-// operator should be evaulated in.  Vault lives in the Eval phase
+// operator should be evaluated in.  Vault lives in the Eval phase
 func (VaultOperator) Phase() OperatorPhase {
 	return EvalPhase
 }
 
-// Dependencies collects implicit dependencies that a given
-// `(( vault ... ))` call has.  There are none.
-func (VaultOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
-	return []*tree.Cursor{}
+// Dependencies collects implicit dependencies that a given `(( vault ... ))`
+// call has. There are no dependencies other that those given as args to the
+// command.
+func (VaultOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor, auto []*tree.Cursor) []*tree.Cursor {
+	return auto
 }
 
 // Run executes the `(( vault ... ))` operator call, which entails

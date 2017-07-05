@@ -2,10 +2,11 @@ package spruce
 
 import (
 	"fmt"
-	"github.com/starkandwayne/goutils/ansi"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/starkandwayne/goutils/ansi"
 
 	"github.com/starkandwayne/goutils/tree"
 
@@ -26,8 +27,8 @@ func (FileOperator) Phase() OperatorPhase {
 }
 
 // Dependencies ...
-func (FileOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor) []*tree.Cursor {
-	return []*tree.Cursor{}
+func (FileOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor, auto []*tree.Cursor) []*tree.Cursor {
+	return auto
 }
 
 // Run ...
