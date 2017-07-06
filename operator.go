@@ -400,7 +400,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 				f, err := strconv.ParseFloat(arg, 64)
 				push(&Expr{Type: Literal, Literal: f})
 				if err != nil {
-					return args, err
+					panic("Could not actually parse as an int or a float. Need to fix regexp?")
 				}
 
 			case arg == "||":
