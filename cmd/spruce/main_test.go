@@ -1454,6 +1454,26 @@ warning: Falling back to inline merge strategy
 				So(stdout, ShouldEqual, "")
 			})
 		})
+
+		Convey("Issue #215 - Handle really big ints as operator arguments", func() {
+			Convey("We didn't break normal small ints", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/issue-215/smallint.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, "foo: -> 3 <-\n\n")
+			})
+
+			Convey("We can handle ints bigger than 2^63 - 1", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/issue-215/hugeint.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, "foo: -> 6.239871649276491e+24 <-\n\n")
+			})
+		})
 	})
 }
 
