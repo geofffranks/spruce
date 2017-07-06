@@ -392,11 +392,16 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 			case integer.MatchString(arg):
 				DEBUG("  #%d: parsed as unquoted integer literal '%s'", i, arg)
 				v, err := strconv.ParseInt(arg, 10, 64)
-				if err != nil {
-					DEBUG("  #%d: %s is not parsable as an integer: %s", i, arg, err)
-					return args, err
+				if err == nil {
+					push(&Expr{Type: Literal, Literal: v})
+					break
 				}
-				push(&Expr{Type: Literal, Literal: v})
+				DEBUG("  #%d: %s is not parsable as an integer, falling back to parsing as float: %s", i, arg, err)
+				f, err := strconv.ParseFloat(arg, 64)
+				push(&Expr{Type: Literal, Literal: f})
+				if err != nil {
+					panic("Could not actually parse as an int or a float. Need to fix regexp?")
+				}
 
 			case arg == "||":
 				DEBUG("  #%d: parsed logical-or operator, '||'", i)
