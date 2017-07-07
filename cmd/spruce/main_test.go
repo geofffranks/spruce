@@ -1591,7 +1591,25 @@ warning: Falling back to inline merge strategy
 				So(stdout, ShouldEqual, "foo: -> 6.239871649276491e+24 <-\n\n")
 			})
 		})
+
+		Convey("Issue #153 - Cartesian Product should produce a []interface{}", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/cartesian-product/can-be-joined.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `ips:
+- 1.2.3.4
+- 2.2.3.4
+ips_with_port:
+- 1.2.3.4:80
+- 2.2.3.4:80
+join_ips_with_port: 1.2.3.4:80,2.2.3.4:80
+
+`)
+		})
 	})
+
 }
 
 func TestDebug(t *testing.T) {

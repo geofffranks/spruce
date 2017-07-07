@@ -124,7 +124,11 @@ func (CartesianProductOperator) Run(ev *Evaluator, args []*Expr) (*Response, err
 	default:
 		DEBUG("  called with more than one arguments; combining into a single list of strings")
 
-		lst := vals[0]
+		lst := []interface{}{}
+		//Bootstrap the return list, making a list with interfaces, not strings
+		for _, v := range vals[0] {
+			lst = append(lst, v)
+		}
 		for _, l := range vals[1:] {
 			lst = cartesian(lst, l)
 		}
@@ -136,15 +140,15 @@ func (CartesianProductOperator) Run(ev *Evaluator, args []*Expr) (*Response, err
 	}
 }
 
-func cartesian(a, b []string) []string {
-	if len(a) == 0 {
-		return a
-	}
-	if len(b) == 0 {
-		return b
+// input 'a' and the output are always a list of strings, but we need it to be
+// a list of interfaces in the Go type system in order to be consistent with the
+// way that the rest of spruce handles yaml lists
+func cartesian(a []interface{}, b []string) []interface{} {
+	if len(a) == 0 || len(b) == 0 {
+		return []interface{}{}
 	}
 
-	l := make([]string, len(a)*len(b))
+	l := make([]interface{}, len(a)*len(b))
 	n := 0
 	for _, x := range a {
 		for _, y := range b {
