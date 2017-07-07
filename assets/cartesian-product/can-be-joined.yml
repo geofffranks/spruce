@@ -1,0 +1,10 @@
+---
+ips:
+- 1.2.3.4
+- 2.2.3.4
+
+ips_with_port:
+  (( cartesian-product ips ":80" ))
+
+join_ips_with_port:
+  (( join "," ips_with_port ))
