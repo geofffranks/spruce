@@ -1608,6 +1608,32 @@ join_ips_with_port: 1.2.3.4:80,2.2.3.4:80
 
 `)
 		})
+
+		Convey("Issue #169 - Cartesian Product should produce a []interface{}", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/cartesian-product/can-be-grabbed.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `groups:
+- jobs:
+  - master-isolation-tests
+  - master-integration-tests
+  - master-dependencies-test
+  - master-docker-build
+  name: master
+meta:
+  fast-tests:
+  - isolation
+  master-fast-tests:
+  - master-isolation-tests
+  master-slow-tests:
+  - master-integration-tests
+  slow-tests:
+  - integration
+
+`)
+		})
 	})
 
 }
