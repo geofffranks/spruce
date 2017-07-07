@@ -1,0 +1,17 @@
+meta:
+  fast-tests:
+    - isolation
+  slow-tests:
+    - integration
+  master-fast-tests:
+    (( cartesian-product "master-" meta.fast-tests "-tests" ))
+  master-slow-tests:
+    - (( concat "master-" meta.slow-tests.0 "-tests" ))
+
+groups:
+- name: master
+  jobs: (( grab
+             meta.master-fast-tests
+             meta.master-slow-tests
+             "master-dependencies-test"
+             "master-docker-build" ))
