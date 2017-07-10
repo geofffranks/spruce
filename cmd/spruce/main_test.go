@@ -879,6 +879,180 @@ networks:
 
 `)
 		})
+		Convey("Issue #201 - using `azs` instead of `az` in subnets", func() {
+			Convey("jobs in only one zone can see the IPs of all subnets that mentioned that zone", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/static_ips/multi-azs-one-zone-job.yml"}
+				stdout = ""
+				stderr = ""
+
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `jobs:
+- azs:
+  - z1
+  instances: 2
+  name: static_z1
+  networks:
+  - name: net1
+    static_ips:
+    - 10.0.0.1
+    - 10.1.1.1
+networks:
+- name: net1
+  subnets:
+  - azs:
+    - z1
+    - z2
+    - z3
+    static:
+    - 10.0.0.1 - 10.0.0.15
+  - azs:
+    - z1
+    static:
+    - 10.1.1.1
+  - azs:
+    - z2
+    static:
+    - 10.2.2.2
+
+`)
+			})
+			Convey("jobs in multiple zones can see the IPs of all subnets mentioning those zones", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/static_ips/multi-azs-multi-zone-job.yml"}
+				stdout = ""
+				stderr = ""
+
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `jobs:
+- azs:
+  - z1
+  - z2
+  - z3
+  instances: 2
+  name: static_z1
+  networks:
+  - name: net1
+    static_ips:
+    - 10.1.1.1
+    - 10.2.2.2
+networks:
+- name: net1
+  subnets:
+  - azs:
+    - z1
+    - z2
+    - z3
+    static:
+    - 10.0.0.1 - 10.0.0.15
+  - azs:
+    - z1
+    static:
+    - 10.1.1.1
+  - azs:
+    - z2
+    static:
+    - 10.2.2.2
+
+`)
+			})
+			Convey("a z2-only job cannot see z1-only IPs", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/static_ips/multi-azs-z2-underprovision.yml"}
+				stdout = ""
+				stderr = ""
+
+				main()
+				So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.jobs.static_z1.networks.net1.static_ips: request for static_ip(15) in a pool of only 15 (zero-indexed) static addresses
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+			Convey("jobs with multiple zones see one copy of available IPs, rather than one copy per zone", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/static_ips/multi-azs-multi-underprovision.yml"}
+				stdout = ""
+				stderr = ""
+
+				main()
+				So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.jobs.static_z1.networks.net1.static_ips: request for static_ip(16) in a pool of only 16 (zero-indexed) static addresses
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+			Convey("edge case - same index used for different IPs with multi-az subnets", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/static_ips/multi-azs-same-index-different-ip.yml"}
+				stdout = ""
+				stderr = ""
+
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `jobs:
+- azs:
+  - z1
+  instances: 1
+  name: static_z1
+  networks:
+  - name: net1
+    static_ips:
+    - 10.1.1.1
+- azs:
+  - z2
+  instances: 1
+  name: static_z2
+  networks:
+  - name: net1
+    static_ips:
+    - 10.2.2.2
+networks:
+- name: net1
+  subnets:
+  - azs:
+    - z1
+    - z2
+    - z3
+    static:
+    - 10.0.0.1 - 10.0.0.15
+  - azs:
+    - z1
+    static:
+    - 10.1.1.1
+  - azs:
+    - z2
+    static:
+    - 10.2.2.2
+
+`)
+			})
+			Convey("edge case - dont give out same IP when specified in jobs with different zones", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/static_ips/multi-azs-same-ip-different-zones.yml"}
+				stdout = ""
+				stderr = ""
+
+				main()
+				So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.jobs.static_z2.networks.net1.static_ips: tried to use IP '10.0.0.15', but that address is already allocated to static_z1/0
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+			Convey("edge case - don't give out same IP when using different offsets", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/static_ips/multi-azs-same-ip-different-index.yml"}
+				stdout = ""
+				stderr = ""
+
+				main()
+				So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.jobs.static_z2.networks.net1.static_ips: tried to use IP '10.2.2.2', but that address is already allocated to static_z1/0
+
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+		})
 
 		Convey("Empty operator works", func() {
 
