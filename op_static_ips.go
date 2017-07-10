@@ -66,6 +66,7 @@ func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*tree.Cursor,
 
 	// need all the az decls
 	track("networks.*.subnets.*.az")
+	track("networks.*.subnets.*.azs")
 	track("networks.*.subnets.*.static.*")
 
 	// need all the job instance count decls
@@ -114,7 +115,6 @@ func instances(ev *Evaluator, job *tree.Cursor) (int, error) {
 }
 
 func statics(ev *Evaluator) (map[string][]string, []string, error) {
-	az := "z1" // default AZ to use if none specified
 	addrs := map[string][]string{}
 	azs := []string{}
 
@@ -141,13 +141,39 @@ func statics(ev *Evaluator) (map[string][]string, []string, error) {
 			return addrs, azs, err
 		}
 
-		// look for az definition
+		// list of azs associated with this specific subnet
+		// do not confuse with `azs`, which is a list of
+		// all `azs` for the network.
+		subnet_zones := []string{}
+
+		// look for az definition in the `az` key
 		c, _ = tree.ParseCursor(fmt.Sprintf("%s.az", r.String()))
 		z, err := c.ResolveString(ev.Tree)
 		if err == nil && len(z) > 0 {
-			az = z
+			azs = append(azs, z) // to preserve subnet ordering
+			subnet_zones = append(subnet_zones, z)
 		}
-		azs = append(azs, az) // to preserve subnet ordering
+
+		// look for az definitions in the `azs` key
+		c, _ = tree.ParseCursor(fmt.Sprintf("%s.azs", r.String()))
+		os, err := c.Resolve(ev.Tree)
+		if err == nil {
+			if zs, ok := os.([]interface{}); ok {
+				for _, o := range zs {
+					if z, ok := o.(string); ok && len(z) > 0 {
+						azs = append(azs, z)
+						subnet_zones = append(subnet_zones, z)
+					}
+				}
+			}
+		}
+
+		// add a default zone for azs + subnet zones, if
+		// this network has no zones specified
+		if len(subnet_zones) == 0 {
+			azs = append(azs, "z1")
+			subnet_zones = append(subnet_zones, "z1")
+		}
 
 		c, err = tree.ParseCursor(fmt.Sprintf("%s.static.*", r.String()))
 		if err != nil {
@@ -178,23 +204,29 @@ func statics(ev *Evaluator) (map[string][]string, []string, error) {
 				return nil, azs, ansi.Errorf("@c{%s}@R{: not a valid IP address}", segments[0])
 			}
 
-			addrs[az] = append(addrs[az], start.String())
-			if len(segments) == 1 {
-				continue
-			}
-
-			end := net.ParseIP(segments[1])
-			if end == nil {
-				return nil, azs, ansi.Errorf("@c{%s}@R{: not a valid IP address}", segments[1])
-			}
-
-			if binary.BigEndian.Uint32(start.To4()) > binary.BigEndian.Uint32(end.To4()) {
-				return nil, azs, ansi.Errorf("@R{Static IP pool }@c{[%s - %s]} @R{ends before it starts}", start, end)
-			}
-
-			for !start.Equal(end) {
-				incrementIP(start, len(start)-1)
+			for _, az := range subnet_zones {
 				addrs[az] = append(addrs[az], start.String())
+				if len(segments) == 1 {
+					continue
+				}
+			}
+
+			if len(segments) == 2 {
+				end := net.ParseIP(segments[1])
+				if end == nil {
+					return nil, azs, ansi.Errorf("@c{%s}@R{: not a valid IP address}", segments[1])
+				}
+
+				if binary.BigEndian.Uint32(start.To4()) > binary.BigEndian.Uint32(end.To4()) {
+					return nil, azs, ansi.Errorf("@R{Static IP pool }@c{[%s - %s]} @R{ends before it starts}", start, end)
+				}
+
+				for !start.Equal(end) {
+					incrementIP(start, len(start)-1)
+					for _, az := range subnet_zones {
+						addrs[az] = append(addrs[az], start.String())
+					}
+				}
 			}
 		}
 	}
@@ -203,12 +235,19 @@ func statics(ev *Evaluator) (map[string][]string, []string, error) {
 
 func allIPs(pools map[string][]string, azs []string) []string {
 	var ips []string
+	seen := map[string]bool{}
+
 	for _, az := range azs {
 		pool, ok := pools[az]
 		if !ok {
 			continue
 		}
-		ips = append(ips, pool...)
+		for _, ip := range pool {
+			if !seen[ip] {
+				ips = append(ips, ip)
+				seen[ip] = true
+			}
+		}
 	}
 	return ips
 }
@@ -394,7 +433,7 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 				}
 			}
 			if !found {
-				DEBUG("  specified az %s is not in stance_groups azs %v\n", az, azs)
+				DEBUG("  specified az %s is not in instance_groups azs %v\n", az, azs)
 				return nil, ansi.Errorf("@R{could not find AZ} @c{%s} @R{in instance_groups AZS} @c{%v}", az, azs)
 			}
 

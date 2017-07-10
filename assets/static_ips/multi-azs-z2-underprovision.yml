@@ -1,0 +1,18 @@
+
+jobs:
+- name: static_z1
+  instances: 1
+  azs: [z2]
+  networks:
+  - name: net1
+    static_ips: (( static_ips(15) )) # should fail to grab 10.1.1.1, giving
+                                     # an index offset error - z2 only has 15 IPs
+networks:
+- name: net1
+  subnets:
+  - azs: [ z1, z2, z3 ]
+    static:
+      - 10.0.0.1 - 10.0.0.15
+  - azs: [z1]
+    static:
+      - 10.1.1.1
