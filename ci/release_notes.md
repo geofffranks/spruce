@@ -1,3 +1,32 @@
+# New Features
+
+- Added the `(( defer ))` operator. This allows you to specify
+  an operation in your yaml that you wish to defer until a later sprucing.
+  This can be useful for using spruce to generate more spruce templates,
+  or to handle content that requires `(( ... ))` syntax, like CredHub.
+
+  For example:
+
+  ```
+  still_a_grab_op: (( defer grab myval ))
+  myval: 1
+  ```
+
+  Would yield:
+
+  ```
+  still_a_grab_op: (( grab myval ))
+  myval: 1
+  ```
+
+  when merged a single time. Running it through spruce again would result
+  in the grab being evaluated.
+
+- Not technically a new feature, but newly documented as a feature is the
+  `((! ... ))` syntax. Spruce will ignore this completely, and not attempt
+  to evaluate any operations on it. Unlike defer, the output will be identical
+  to the input (the exclamation point is kept in the output).
+
 # Bug Fixes
 
 - Fixes #201 by supporting `azs` key in subnets
@@ -18,3 +47,14 @@
   This should not affect any existing IP allocations, since previously the
   `azs` field wasn't looked at, and the old behaviors remain the same
   for `az` and no-azs.
+
+- Fixes #153 and #169. The result of the cartesian-product operator
+  now behaves as it should in join/concat/inject and other operators.
+
+- Integers above a 64-bit unsigned quantity are now supported in operations.
+  They are automatically converted to scientific notation, and treated as floats.
+
+# Acknowledgements
+
+Thanks to @thomasmmitchell, @jhunt, and @poblin-orange for their help on all the features
+and fixes in this release!
