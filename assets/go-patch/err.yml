@@ -1,0 +1,3 @@
+- type: replace
+  path: /key_not_there
+  value: 10

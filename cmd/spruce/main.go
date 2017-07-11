@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 
+	"github.com/cppforlife/go-patch/patch"
 	"github.com/mattn/go-isatty"
 	"github.com/starkandwayne/goutils/ansi"
 
@@ -57,6 +58,7 @@ type mergeOpts struct {
 	Prune          []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
 	CherryPick     []string           `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
 	FallbackAppend bool               `goptions:"--fallback-append, description='Default merge normally tries to key merge, then inline. This flag says do an append instead of an inline.'"`
+	EnableGoPatch  bool               `goptions:"--go-patch, description='Enable the use of go-patch when parsing files to be merged'"`
 	Files          goptions.Remainder `goptions:"description='Merges file2.yml through fileN.yml on top of file1.yml. To read STDIN, specify a filename of \\'-\\'.'"`
 }
 
@@ -177,6 +179,23 @@ func main() {
 	}
 }
 
+func isArrayError(err error) bool {
+	_, ok := err.(RootIsArrayError)
+	return ok
+}
+
+func parseGoPatch(data []byte) (patch.Ops, error) {
+	opdefs := []patch.OpDefinition{}
+	err := yaml.Unmarshal(data, &opdefs)
+	if err != nil {
+		return nil, ansi.Errorf("@R{Root of YAML document is not a hash/map. Tried parsing it as go-patch, but got}: %s\n", err)
+	}
+	ops, err := patch.NewOpsFromDefinitions(opdefs)
+	if err != nil {
+		return nil, ansi.Errorf("@R{Unable to parse go-patch definitions: %s\n", err)
+	}
+	return ops, nil
+}
 func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 	y, err := simpleyaml.NewYaml(data)
 	if err != nil {
@@ -185,6 +204,9 @@ func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 
 	doc, err := y.Map()
 	if err != nil {
+		if _, arrayErr := y.Array(); arrayErr == nil {
+			return nil, RootIsArrayError{msg: ansi.Sprintf("@R{Root of YAML document is not a hash/map}: %s\n", err)}
+		}
 		return nil, ansi.Errorf("@R{Root of YAML document is not a hash/map}: %s\n", err.Error())
 	}
 
@@ -198,7 +220,7 @@ func cmdMergeEval(options mergeOpts) (map[interface{}]interface{}, error) {
 
 	root := make(map[interface{}]interface{})
 
-	err := mergeAllDocs(root, options.Files, options.FallbackAppend)
+	err := mergeAllDocs(root, options.Files, options.FallbackAppend, options.EnableGoPatch)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +264,7 @@ func formatVaultRefs() string {
 	return string(output)
 }
 
-func mergeAllDocs(root map[interface{}]interface{}, paths []string, fallbackAppend bool) error {
+func mergeAllDocs(root map[interface{}]interface{}, paths []string, fallbackAppend bool, goPatchEnabled bool) error {
 	m := &Merger{AppendByDefault: fallbackAppend}
 	for _, path := range paths {
 		DEBUG("Processing file '%s'", path)
@@ -277,11 +299,27 @@ func mergeAllDocs(root map[interface{}]interface{}, paths []string, fallbackAppe
 
 		doc, err := parseYAML(data)
 		if err != nil {
-			return ansi.Errorf("@m{%s}: @R{%s}\n", path, err.Error())
+			if isArrayError(err) && goPatchEnabled {
+				DEBUG("Detected root of document as an array. Attempting go-patch parsing")
+				ops, err := parseGoPatch(data)
+				if err != nil {
+					return ansi.Errorf("@m{%s}: @R{%s}\n", path, err.Error())
+				}
+				newObj, err := ops.Apply(root)
+				if err != nil {
+					return ansi.Errorf("@m{%s}: @R{%s}\n", path, err.Error())
+				}
+				if newRoot, ok := newObj.(map[interface{}]interface{}); !ok {
+					return ansi.Errorf("@m{%s}: @R{Unable to convert go-patch output into a hash/map for further merging|\n", path)
+				} else {
+					root = newRoot
+				}
+			} else {
+				return ansi.Errorf("@m{%s}: @R{%s}\n", path, err.Error())
+			}
+		} else {
+			m.Merge(root, doc)
 		}
-
-		m.Merge(root, doc)
-
 		tmpYaml, _ := yaml.Marshal(root) // we don't care about errors for debugging
 		TRACE("Current data after processing '%s':\n%s", path, tmpYaml)
 	}
@@ -333,4 +371,12 @@ func diffFiles(paths []string) (string, error) {
 		return ansi.Sprintf("@G{both files are semantically equivalent; no differences found!}\n"), nil
 	}
 	return d.String("$"), nil
+}
+
+type RootIsArrayError struct {
+	msg string
+}
+
+func (r RootIsArrayError) Error() string {
+	return r.msg
 }
