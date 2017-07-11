@@ -1,0 +1,23 @@
+- type: replace
+  path: /key
+  value: 10
+
+- type: replace
+  path: /new_key?
+  value: 10
+
+- type: replace
+  path: /key2/nested/super_nested
+  value: 10
+
+- type: replace
+  path: /key2/nested?/another_nested/super_nested
+  value: 10
+
+- type: replace
+  path: /array/0
+  value: 10
+
+- type: replace
+  path: /spruce_array_grab?
+  value: (( grab items ))

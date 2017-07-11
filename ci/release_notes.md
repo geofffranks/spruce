@@ -1,5 +1,16 @@
 # New Features
 
+- `spruce` now supports [go-patch](https://github.com/cppforlife/go-patch) files
+  in its `merge` phase via the `--go-patch` flag. This means you can interleave
+  traditional spruce/yaml files with go-patch files. The go-patch files will be
+  merged into the document, and can even be used to insert spruce operators to
+  be evaluated later.
+
+  For example: `spruce merge --go-patch base.yml patch.yml more-spruce.yml` will apply
+  the go-patch file `patch.yml` on top of `base.yml`, and then merge in `more-spruce.yml`
+  via traditional spruce merging logic. Once merging is complete, the other 
+  evaluation phases take place, executing operators, requiring params, etc.
+
 - Added the `(( defer ))` operator. This allows you to specify
   an operation in your yaml that you wish to defer until a later sprucing.
   This can be useful for using spruce to generate more spruce templates,

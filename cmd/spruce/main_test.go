@@ -60,19 +60,19 @@ func TestMergeAllDocs(t *testing.T) {
 	Convey("mergeAllDocs()", t, func() {
 		Convey("Fails with readFile error on bad first doc", func() {
 			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"../../assets/merge/nonexistent.yml", "../../assets/merge/second.yml"}, false)
+			err := mergeAllDocs(target, []string{"../../assets/merge/nonexistent.yml", "../../assets/merge/second.yml"}, false, false)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "Error reading file ../../assets/merge/nonexistent.yml:")
 		})
 		Convey("Fails with parseYAML error on bad second doc", func() {
 			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/bad.yml"}, false)
+			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/bad.yml"}, false, false)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "../../assets/merge/bad.yml: Root of YAML document is not a hash/map:")
 		})
 		Convey("Fails with mergeMap error", func() {
 			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/error.yml"}, false)
+			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/error.yml"}, false, false)
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "$.array_inline.0: new object is a string, not a map - cannot merge by key")
 		})
@@ -110,7 +110,7 @@ func TestMergeAllDocs(t *testing.T) {
 					"key2": "val2",
 				},
 			}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/second.yml"}, false)
+			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/second.yml"}, false, false)
 			So(err, ShouldBeNil)
 			So(target, ShouldResemble, expect)
 		})
@@ -148,7 +148,7 @@ func TestMergeAllDocs(t *testing.T) {
 					"key2": "val2",
 				},
 			}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.json", "../../assets/merge/second.yml"}, false)
+			err := mergeAllDocs(target, []string{"../../assets/merge/first.json", "../../assets/merge/second.yml"}, false, false)
 			So(err, ShouldBeNil)
 			So(target, ShouldResemble, expect)
 		})
@@ -1807,6 +1807,58 @@ meta:
   - integration
 
 `)
+		})
+		Convey("Support go-patch files", func() {
+			Convey("go-patch can modify yaml files in the merge phase, and insert spruce operators as required", func() {
+				os.Args = []string{"spruce", "merge", "--go-patch", "../../assets/go-patch/base.yml", "../../assets/go-patch/patch.yml", "../../assets/go-patch/toMerge.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `array:
+- 10
+- 5
+- 6
+items:
+- add spruce stuff in the beginning of the array
+- name: item7
+- name: item8
+- name: item8
+key: 10
+key2:
+  nested:
+    another_nested:
+      super_nested: 10
+    super_nested: 10
+  other: 3
+more_stuff: is here
+new_key: 10
+spruce_array_grab:
+- add spruce stuff in the beginning of the array
+- name: item7
+- name: item8
+- name: item8
+
+`)
+			})
+			Convey("go-patch throws errors to the front-end when there are go-patch issues", func() {
+				os.Args = []string{"spruce", "merge", "--go-patch", "../../assets/go-patch/base.yml", "../../assets/go-patch/err.yml", "../../assets/go-patch/toMerge.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, `../../assets/go-patch/err.yml: Expected to find a map key 'key_not_there' for path '/key_not_there' (found map keys: 'array', 'items', 'key', 'key2')
+
+`)
+				So(stdout, ShouldEqual, "")
+			})
+			Convey("yaml-parser throws errors when trying to parse gopatch from array-based files", func() {
+				os.Args = []string{"spruce", "merge", "--go-patch", "../../assets/go-patch/base.yml", "../../assets/go-patch/bad.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldContainSubstring, "Root of YAML document is not a hash/map. Tried parsing it as go-patch, but got:")
+				So(stdout, ShouldEqual, "")
+			})
 		})
 	})
 

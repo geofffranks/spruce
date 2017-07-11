@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/geofffranks/spruce",
 	"GoVersion": "go1.6",
-	"GodepVersion": "v74",
+	"GodepVersion": "v79",
 	"Packages": [
 		"./..."
 	],
@@ -10,6 +10,10 @@
 			"ImportPath": "github.com/Knetic/govaluate",
 			"Comment": "2.2.0-7-g36d12fd",
 			"Rev": "36d12fdf60d2eced73454479e9935c9ea8bbe46a"
+		},
+		{
+			"ImportPath": "github.com/cppforlife/go-patch/patch",
+			"Rev": "37a72c69d59809d4d5aa0b2aff033e74b8014390"
 		},
 		{
 			"ImportPath": "github.com/geofffranks/simpleyaml",
@@ -73,6 +77,10 @@
 		{
 			"ImportPath": "golang.org/x/sys/unix",
 			"Rev": "442cd600860ce722f6615730eb008a37a87b13ee"
+		},
+		{
+			"ImportPath": "gopkg.in/yaml.v2",
+			"Rev": "49c95bdc21843256fb6c4e0d370a05f24a0bf213"
 		}
 	]
 }
