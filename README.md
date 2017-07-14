@@ -22,7 +22,7 @@ for site-specific configurations to [DRY][dry-definition] your configs up as muc
 
 ## How do I get started?
 
-`spruce` is now available via Homebrew, just `brew tap starkandwayne/cf; brew install spruce`
+`spruce` is available via Homebrew, just `brew tap starkandwayne/cf; brew install spruce`
 
 Alternatively,  you can download a [prebuilt binaries for 64-bit Linux, or Mac OS X][releases]
 or you can install via `go get` (provided you have installed go):
@@ -75,7 +75,7 @@ some_data: 42
 ```
 
 The data in `second.yml` is overlayed on top of the data in `first.yml`. Check out the
-[merge semantics][merge-semantics] and [array merging][merge-arrays] for more info on how that was done. Or, 
+[merge semantics][merge-semantics] and [array merging][array-merge] for more info on how that was done. Or, 
 check out [this example on play.spruce.cf][play.spruce-example]
 
 ## Documentation
@@ -83,7 +83,7 @@ check out [this example on play.spruce.cf][play.spruce-example]
 - [What are all the spruce operators, and how do they work?][operator-docs]
 - [What are the merge semantics of spruce?][merge-semantics]
 - [How can I manipulate arrays with spruce?][array-merge]
-- [Can I specify defaults for an operation, or use environment variables?][env-var-defaults
+- [Can I specify defaults for an operation, or use environment variables?][env-var-defaults]
 - [Can I use spruce with go-patch files?][go-patch-support]
 - [Can I use spruce with CredHub?][credhub-support]
 - [Can I use spruce with Vault?][vault-support]
@@ -121,13 +121,13 @@ Licensed under [the MIT License][license]
 [releases]:             https://github.com/geofffranks/spruce/releases/
 [play.spruce]:          http://play.spruce.cf
 [play.spruce-example]:  http://play.spruce.cf/#0a9d88de624c1f499a4b12eb8573089a
-[operator-docs]:        https://github.com/geofffranks/spruce/raw/master/doc/operators.md
-[merge-semantics]:      https://github.com/geofffranks/spruce/raw/master/doc/merging.md
-[array-merge]:          https://github.com/geofffranks/spruce/raw/master/doc/array-merging.md
-[env-var-default]:      https://github.com/geofffranks/spruce/raw/master/doc/environment-variables-and-defaults.md
-[go-patch-support]:     https://github.com/geofffranks/spruce/raw/master/doc/merging-go-patch-files.md
-[credhub-support]:      https://github.com/geofffranks/spruce/raw/master/doc/integrating-with-credhub.md
-[vault-support]:        https://github.com/geofffranks/spruce/raw/master/doc/pulling-creds-from-vault.md
-[defer]:                https://github.com/geofffranks/spruce/raw/master/doc/generating-spruce-with-spruce.md
-[cloud-config-support]: https://github.com/geofffranks/spruce/raw/master/doc/integrating-with-cloud-config.md
-[licencse]:             https://github.com/geofffranks/spruce/raw/master/LICENSE
+[operator-docs]:        https://github.com/geofffranks/spruce/blob/master/doc/operators.md
+[merge-semantics]:      https://github.com/geofffranks/spruce/blob/master/doc/merging.md
+[array-merge]:          https://github.com/geofffranks/spruce/blob/master/doc/array-merging.md
+[env-var-defaults]:     https://github.com/geofffranks/spruce/blob/master/doc/environment-variables-and-defaults.md
+[go-patch-support]:     https://github.com/geofffranks/spruce/blob/master/doc/merging-go-patch-files.md
+[credhub-support]:      https://github.com/geofffranks/spruce/blob/master/doc/integrating-with-credhub.md
+[vault-support]:        https://github.com/geofffranks/spruce/blob/master/doc/pulling-creds-from-vault.md
+[defer]:                https://github.com/geofffranks/spruce/blob/master/doc/generating-spruce-with-spruce.md
+[cloud-config-support]: https://github.com/geofffranks/spruce/blob/master/doc/integrating-with-cloud-config.md
+[license]:             https://github.com/geofffranks/spruce/blob/master/LICENSE

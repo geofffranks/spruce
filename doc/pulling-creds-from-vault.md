@@ -10,4 +10,4 @@ published. When the credentials need to be looked up, unset the `REDACT` environ
 variable, and spruce merge again to a temporary file, and ensure that it is cleaned
 up after being used.
 
-[operator-docs]:        https://github.com/geofffranks/spruce/raw/master/doc/operators.md
+[operator-docs]:        https://github.com/geofffranks/spruce/blob/master/doc/operators.md#-vault-

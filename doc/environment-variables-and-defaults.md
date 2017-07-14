@@ -42,4 +42,4 @@ reference parts of the root document in an operator. Their values are currently 
 given to the operator. If you have a use case that needs this, stick in an [issue][issues], and
 we'll see if we can work in support for this.
 
-[issues]: https://github.com/geofffranks/spruce/issues
+[issues]: https://github.com/geofffranks/spruce/issues/new

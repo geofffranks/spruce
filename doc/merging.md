@@ -11,35 +11,46 @@ and multiple phases have been introduced into `spruce` to handle the various tas
 ## Order of Operations
 
 1. **Merge Phase**
+
    The first file is loaded into memory as the root document. Each subsequent file
    specified is merged on top of the root document overwriting, appending, and
    deleting as specified.
 
-   Any **array operators** (see [What about arrays?](#what-about-arrays) are evaluated as
+   Any[array operators](#what-about-arrays) are evaluated as
    each new document is merged on top of the root document. This allows greater control
    over how data in arrays are merged together (append, prepend, insert, merge, replace).
 
    If any `(( prune ))` operators are defined, the object they apply to is added to
    a list of data to prune, but the data is unmodified. No other operators are
     evaluated at this time.
+
 2. **Param Phase**
+
    The root document is scanned for `(( param ))` operators. If any exist at this point,
    it means a property had been defined in a way that required a later file to override it,
    but that did not happen. If any params were found, errors are printed out to the user,
    indicating the missing parameters, and `spruce` exits with the failure.
+
 3. **Eval Phase**
-   Unless the `--skip-eval` flag is specified to `spruce`, the root docuemnt is scanned
+
+   Unless the `--skip-eval` flag is specified to `spruce`, the root document is scanned
    for [operators][operators], to generate a dependency graph and determine the order in
    which operators will be evaluated. Each operator is evaluated on the root document,
    modifying it in some way. All operators remaining in the document are evaluated at this stage.
+
 4. **Pruning**
+
    Any parts of the root document marked for pruning via `(( prune ))` operators, or the
    `--prune` flag are deleted.
+
 5. **Cherry Picking**
+
    If the `--cherry-pick` flag was specified, the relevant datastructures are pulled from
    the root document. The cherry-picked data then replaces the root document to display only
    the requested data.
+
 6. **Output**
+
    Any errors occurring in the Eval Phase or while Pruning/Cherry Picking  are displayed to
    the user, and `spruce` exits with the failure. If no errors are encountered, `spruce`
    formats the root document as YAML, and prints the output to the user.
@@ -61,7 +72,7 @@ are used to tell it how to perform array merges:
 - `(( delete ))` - Deletes data at a specific index, or objects identified by the value
   of a specified key.
 
-When no operators are defined, arrays are merged according to the following logic:
+If no array merge operators are defined, arrays are merged according to the following logic:
 
 1. All elements of the array in the root document, and new document are scanned to see
    if they are objects, and to ensure that each element contains the `name` key. If so,
@@ -74,4 +85,5 @@ When no operators are defined, arrays are merged according to the following logi
 
 The array operators are further defined with examples in the [array merging documentation][array-merge].
 
-[array-merge]: https://github.com/geofffranks/spruce/raw/master/doc/array-merging.md
+[array-merge]: https://github.com/geofffranks/spruce/blob/master/doc/array-merging.md
+[operators]:   https://github.com/geofffranks/spruce/blob/master/doc/operators.md

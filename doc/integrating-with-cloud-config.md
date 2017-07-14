@@ -22,6 +22,15 @@ instance_groups:
   - name: my_network
     static_ips: (( static_ips(0) ))
 
+# clean up the cloud-config related attributes when done merginge,
+# so as not to confuse BOSH
+azs:           (( prune ))
+compilation:   (( prune ))
+disk_types:    (( prune ))
+networks:      (( prune ))
+vm_extensions: (( prune ))
+vm_types:      (( prune ))
+
 EOF
 
 # Downloads a cloud-config.yml that includes a network definition
@@ -29,8 +38,8 @@ EOF
 $ bosh cloud-config > cloud-config.yml
 Acting as user 'admin' on 'Bosh Lite Director'
 
-$ spruce merge --prune networks --prune azs --prune vm_extensions \
-    --prune vm_types --prune disk_types base.yml cloud-config.yml
+# make sure to merge cloud-config first
+$ spruce merge base.yml cloud-config.yml
 instance_groups:
 - name: test_vm
   networks:

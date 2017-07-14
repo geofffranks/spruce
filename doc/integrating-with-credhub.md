@@ -12,7 +12,7 @@ secret:
   password: ((!from_credhub))
 ```
 
-This will be ignored in `spruce, and output `((!from_credhub))` as the value for
+This will be ignored in `spruce`, and output `((!from_credhub))` as the value for
 `secret.password`. When BOSH reads this in, it will handle dropping the `!` for
 you, and all will be well.
 

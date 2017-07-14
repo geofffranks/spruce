@@ -1,19 +1,19 @@
 ## What are all the Spruce operators?
 
-- [calc][#calc]
-- [cartesian-product][#cartesian-product]
-- [concat][#concat]
-- [defer][#defer]
-- [empty][#empty]
-- [file][#file]
-- [grab][#grab]
-- [inject][#inject]
-- [join][#join]
-- [keys][#keys]
-- [param][#param]
-- [prune][#prune]
-- [static_ips][#static_ips]
-- [vault][#vault]
+- [calc](#-calc-)
+- [cartesian-product](#-cartesian-product-)
+- [concat](#-concat-)
+- [defer](#-defer-)
+- [empty](#-empty-)
+- [file](#-file-)
+- [grab](#-grab-)
+- [inject](#-inject-)
+- [join](#-join-)
+- [keys](#-keys-)
+- [param](#-param-)
+- [prune](#-prune-)
+- [static_ips](#-static_ips-)
+- [vault](#-vault-)
 
 Additionally, there are operatiors that are specific to merging arrays. For more detail
 see the [array merging documentation][array-merging]:
@@ -135,12 +135,13 @@ load_ca_from_file: |
   cert-data
   will-go
   in-here
+  -----END CERTIFICATE-----
 load_ca_from_file_ref: |
   -----BEGIN CERTIFICATE-----
   cert-data
   will-go
   in-here
-
+  -----END CERTIFICATE-----
 ```
 
 ## (( grab ))
@@ -167,7 +168,7 @@ probably want to use `(( grab ))` instead, as it is much more intuitive and easy
 to troubleshoot. However, if you want to inject a bunch of data, but override
 parts of the data being injected on a case by case basis, this operator will be helpful.
 
-[Example][example-inject]
+[Example][inject-example]
 
 ## (( join ))
 
@@ -177,7 +178,7 @@ Sure, `(( concat ))` is great, but what if I have a list of strings that I want 
 a single line? Like a users list, authorities, or similar. Do I have to `concat` that
 piece by piece? Nope, you can use `join` to concatenate a list into one entry.
 
-[Example][example-join]
+[Example][join-example]
 
 ## (( keys ))
 
@@ -187,6 +188,8 @@ Do you need to generate a list containing all the keys of part of your datastruc
 Enter `(( keys ))`. Pass it a reference to part of your datastructure that is a hash/map,
 and it will return an array of all of the keys inside it.
 
+[Example][keys-example]
+
 ## (( param ))
 
 Usage: `(( param LITERAL ))`
@@ -195,7 +198,7 @@ Sometimes, you may want to start with a good starting-point
 template, but require other YAML files to provide certain values.
 Parameters to the rescue!
 
-[Example][example-param]
+[Example][param-example]
 
 ## (( prune ))
 
@@ -205,7 +208,7 @@ If you have a need to force the cleanup of data from the final output, but don't
 to rely on the end-user always specifying the necessary `--prune` flags, you can
 make use `(( prune ))`s to clear out the bloated data..
 
-[Example][example-prune]
+[Example][prune-example]
 
 ## (( static_ips ))
 
@@ -218,20 +221,20 @@ indexes. `spruce` will look through the root document, and find the relevant IP 
 static IPs for the network of a VM, and pull in as many as are needed based on the instance
 count. It even supports BOSH AZs fairly well.
 
-[Example][example-static_ips]
+[Example][static_ips-example]
 
-[array-merging]: https://github.com/geofffranks/spruce/raw/master/doc/array-merging.md
-[env-var]:       https://github.com/geofffranks/spruce/raw/master/doc/environment-variables-and-defaults.md
+[array-merging]: https://github.com/geofffranks/spruce/blob/master/doc/array-merging.md
+[env-var]:       https://github.com/geofffranks/spruce/blob/master/doc/environment-variables-and-defaults.md
 
-[calc-example]:      http://play.spruce.cf/#537ceec949163403ff42fc52331d2c26
-[carteisan-example]: http://play.spruce.cf/#a1bb0cde87c2787b0a46603f3263a70d
-[concat-example]:    http://play.spruce.cf/#1420db7abb3e0b39d55e9f6a6dc9c1b4
-[defer-example]:     http://play.spruce.cf/#a152b838a0d5fa604a0fd3025127f56b
-[empty-example]:     http://play.spruce.cf/#e56b31547de342db18d3283f45301620
-[grab]:              http://play.spruce.cf/#31673047fdc3f28674c25c42b06b96c7
-[inject]:            http://play.spruce.cf/#ff8cc8c76b7d54a5d0fcdc2ea0b1d5f8
-[join]:              http://play.spruce.cf/#0d729640d8dc936d89d2a76d490bcb34
-[keys]:              http://play.spruce.cf/#b3da7f17c25b1e81799a6ee63a260be8
-[param]:             http://play.spruce.cf/#b7944defbd5d987c70c25fcbae1756a8
-[prune]:             http://play.spruce.cf/#1359c0418783204fd8a404929065b242
-[static_ips]:        http://play.spruce.cf/#1359c0418783204fd8a404929065b242
+[calc-example]:       http://play.spruce.cf/#537ceec949163403ff42fc52331d2c26
+[cartesian-example]:  http://play.spruce.cf/#a1bb0cde87c2787b0a46603f3263a70d
+[concat-example]:     http://play.spruce.cf/#1420db7abb3e0b39d55e9f6a6dc9c1b4
+[defer-example]:      http://play.spruce.cf/#a152b838a0d5fa604a0fd3025127f56b
+[empty-example]:      http://play.spruce.cf/#e56b31547de342db18d3283f45301620
+[grab-example]:       http://play.spruce.cf/#31673047fdc3f28674c25c42b06b96c7
+[inject-example]:     http://play.spruce.cf/#ff8cc8c76b7d54a5d0fcdc2ea0b1d5f8
+[join-example]:       http://play.spruce.cf/#0d729640d8dc936d89d2a76d490bcb34
+[keys-example]:       http://play.spruce.cf/#b3da7f17c25b1e81799a6ee63a260be8
+[param-example]:      http://play.spruce.cf/#b7944defbd5d987c70c25fcbae1756a8
+[prune-example]:      http://play.spruce.cf/#ce52f99a0c7470aa2a1e8fd4dddbafff
+[static_ips-example]: http://play.spruce.cf/#ce52f99a0c7470aa2a1e8fd4dddbafff
