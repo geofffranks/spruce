@@ -9,9 +9,7 @@
       ^^^[_]^^^                                                   ^^^[_]^^^
 ```
 
-[![Build Status][build-status-icon]][build-status-link]
-
-Questions? Hit us up in `#spruce` on [![Slack][slack-badge]][slack-channel]!
+[![Build Status][build-status-icon]][build-status-link] [![Slack][slack-badge]][slack-channel] ( We'll be in `#spruce`)
 
 ## Introducing Spruce
 
