@@ -10,13 +10,13 @@ and multiple phases have been introduced into `spruce` to handle the various tas
 
 ## Order of Operations
 
-1. **Merge Phase**
+1. Build the Root Document
 
    The first file is loaded into memory as the root document. Each subsequent file
    specified is merged on top of the root document overwriting, appending, and
    deleting as specified.
 
-   Any[array operators](#what-about-arrays) are evaluated as
+   Any [array operators](#what-about-arrays) are evaluated as
    each new document is merged on top of the root document. This allows greater control
    over how data in arrays are merged together (append, prepend, insert, merge, replace).
 
@@ -24,32 +24,41 @@ and multiple phases have been introduced into `spruce` to handle the various tas
    a list of data to prune, but the data is unmodified. No other operators are
     evaluated at this time.
 
-2. **Param Phase**
+2. **Merge Phase**
+
+   In this phase, `(( inject ))` operators are evaluated, to flesh out the root document
+   as it had been intended to be operated on in the later phases.
+
+   Since `(( inject ))` happens after the array operators have been evaluated, it is not possible
+   to use the array operators when attempting to override an array provided via `(( inject ))`.
+   Currently the only supported behavior is that data will be appended to arrays.
+
+3. **Param Phase**
 
    The root document is scanned for `(( param ))` operators. If any exist at this point,
    it means a property had been defined in a way that required a later file to override it,
    but that did not happen. If any params were found, errors are printed out to the user,
    indicating the missing parameters, and `spruce` exits with the failure.
 
-3. **Eval Phase**
+4. **Eval Phase**
 
    Unless the `--skip-eval` flag is specified to `spruce`, the root document is scanned
    for [operators][operators], to generate a dependency graph and determine the order in
    which operators will be evaluated. Each operator is evaluated on the root document,
    modifying it in some way. All operators remaining in the document are evaluated at this stage.
 
-4. **Pruning**
+5. **Pruning**
 
    Any parts of the root document marked for pruning via `(( prune ))` operators, or the
    `--prune` flag are deleted.
 
-5. **Cherry Picking**
+6. **Cherry Picking**
 
    If the `--cherry-pick` flag was specified, the relevant datastructures are pulled from
    the root document. The cherry-picked data then replaces the root document to display only
    the requested data.
 
-6. **Output**
+7. **Output**
 
    Any errors occurring in the Eval Phase or while Pruning/Cherry Picking  are displayed to
    the user, and `spruce` exits with the failure. If no errors are encountered, `spruce`

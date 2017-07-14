@@ -223,8 +223,22 @@ count. It even supports BOSH AZs fairly well.
 
 [Example][static_ips-example]
 
+## (( vault ))
+
+Usage: `(( vault LITERAL|REFERENCE ... ))`
+
+Have sensitive material in your manifests that you don't want stored in the repo that your
+configs are in? What do you mean 'No'? Everybody does. The `(( vault ))` operator lets you
+store that data in [Vault][vault], and `spruce` will retrieve it at merge time. Simply
+specify a vault path in the `secret` backend as the argument, and away it goes. If needed,
+you can pull in references to concatenate with info, resulting in an easy way to dynamically
+look up Vault paths.
+
+[Example][vault-example]
+
 [array-merging]: https://github.com/geofffranks/spruce/blob/master/doc/array-merging.md
 [env-var]:       https://github.com/geofffranks/spruce/blob/master/doc/environment-variables-and-defaults.md
+[vault]:         https://vaultproject.io
 
 [calc-example]:       http://play.spruce.cf/#537ceec949163403ff42fc52331d2c26
 [cartesian-example]:  http://play.spruce.cf/#a1bb0cde87c2787b0a46603f3263a70d
@@ -238,3 +252,4 @@ count. It even supports BOSH AZs fairly well.
 [param-example]:      http://play.spruce.cf/#b7944defbd5d987c70c25fcbae1756a8
 [prune-example]:      http://play.spruce.cf/#ce52f99a0c7470aa2a1e8fd4dddbafff
 [static_ips-example]: http://play.spruce.cf/#ce52f99a0c7470aa2a1e8fd4dddbafff
+[vault-example]:      https://github.com/geofffranks/spruce/blob/master/doc/pulling-creds-from-vault.md
