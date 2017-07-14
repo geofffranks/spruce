@@ -113,8 +113,8 @@ to audit what credentials your configs are retrieving for a system..
 
 Licensed under [the MIT License][license]
 
-[build-status-icon]:    https://img.shields.io/travis/geofffranks/spruce.svg
-[build-status-link]:    https://travis-ci.org/geofffranks/spruce
+[build-status-icon]:    https://ci.starkandwayne.com/api/v1/teams/main/pipelines/spruce-release/jobs/test/badge
+[build-status-link]:    https://ci.starkandwayne.com/teams/main/pipelines/spruce-release
 [slack-channel]:        https://cloudfoundry.slack.com/messages/spruce/
 [slack-badge]:          http://slack.cloudfoundry.org/badge.svg
 [dry-definition]:       https://en.wikipedia.org/wiki/Don%27t_repeat_yourself
