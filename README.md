@@ -91,7 +91,7 @@ check out [this example on play.spruce.cf][play.spruce-example]
 - [How can I use spruce with BOSH's Cloud Config?][cloud-config-support]
 
 
-## What else can Spuce do for you?
+## What else can Spruce do for you?
 
 `spruce` doesn't just stop at merging datastructures together. It also has the following
 helpful subcommands:
