@@ -395,8 +395,9 @@ func getArrayModifications(obj []interface{}) []ModificationDefinition {
 	prependRegEx := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
 	insertByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(\\d+)\\s*\\Q))\\E$")
 	insertByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
-	deleteByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+(\\d+)\\s*\\Q))\\E$")
+	deleteByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+(-?\\d+)\\s*\\Q))\\E$")
 	deleteByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
+	deleteByNameUnquotedRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*(.+)\\s*\\Q))\\E$")
 
 	for _, entry := range obj {
 		e, isString := entry.(string)
@@ -465,6 +466,22 @@ func getArrayModifications(obj []interface{}) []ModificationDefinition {
 				name := strings.TrimSpace(captures[2])
 
 				if key == "" {
+					key = "name"
+				}
+
+				result = append(result, ModificationDefinition{key: key, name: name, delete: true})
+				continue
+			}
+		case deleteByNameUnquotedRegEx.MatchString(e): // check for (( delete "<name>" ))
+			/* #0 is the whole string,
+			 * #1 contains the optional '<key>' string
+			 * #2 is finally the target "<name>" string
+			 */
+			if captures := deleteByNameUnquotedRegEx.FindStringSubmatch(e); len(captures) == 3 {
+				key := strings.TrimSpace(captures[1])
+				name := strings.TrimSpace(captures[2])
+				if name == "" {
+					name = key
 					key = "name"
 				}
 

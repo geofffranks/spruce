@@ -406,12 +406,6 @@ func TestGetArrayModifications(t *testing.T) {
 		So(results[0], shouldBeDefault)
 	})
 
-	Convey("Don't return a delete if index is obviously out of bounds", t, func() {
-		results := getArrayModifications([]interface{}{"(( delete -2 ))", "stuff"})
-		So(results, ShouldHaveLength, 1)
-		So(results[0], shouldBeDefault)
-	})
-
 	Convey("Can specify operators without one at the 0th index", t, func() {
 		results := getArrayModifications([]interface{}{"foo", "(( append ))", "stuff"})
 		So(results, ShouldHaveLength, 2)
@@ -1762,6 +1756,17 @@ func TestMergeArray(t *testing.T) {
 				So(err, ShouldNotBeNil)
 				So(err.Error(), ShouldContainSubstring, "unable to modify the list, because specified index 6 is out of bounds")
 			})
+			Convey("throw an error if delete point is negative", func() {
+				orig := []interface{}{"first", "second", "third", "fourth", "fifth", "sixth"}
+				array := []interface{}{"(( delete -2 ))"}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldBeNil)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "unable to modify the list, because specified index -2 is out of bounds")
+			})
 
 			Convey("Delete '<default>: first'", func() {
 				orig := []interface{}{
@@ -1783,6 +1788,26 @@ func TestMergeArray(t *testing.T) {
 				So(a, ShouldResemble, expect)
 				So(err, ShouldBeNil)
 			})
+			Convey("Delete '<default>: first' (no quotes)", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"name": "first", "release": "v1"},
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete first ))",
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"name": "second", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
 
 			Convey("Delete 'id: second'", func() {
 				orig := []interface{}{
@@ -1792,6 +1817,27 @@ func TestMergeArray(t *testing.T) {
 
 				array := []interface{}{
 					"(( delete id \"second\" ))",
+				}
+
+				expect := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+				}
+
+				m := &Merger{}
+				a := m.mergeArray(orig, array, "node-path")
+				err := m.Error()
+				So(a, ShouldResemble, expect)
+				So(err, ShouldBeNil)
+			})
+
+			Convey("Allow inquoted names in delete", func() {
+				orig := []interface{}{
+					map[interface{}]interface{}{"id": "first", "release": "v1"},
+					map[interface{}]interface{}{"id": "second", "release": "v1"},
+				}
+
+				array := []interface{}{
+					"(( delete id second ))",
 				}
 
 				expect := []interface{}{
