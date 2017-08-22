@@ -624,14 +624,14 @@ func (ev *Evaluator) Run(prune []string, picks []string) error {
 		SkipVault = true
 	}
 
-	ev.Only = picks
-	errors.Append(ev.RunPhase(MergePhase))
-	paramErrs.Append(ev.RunPhase(ParamPhase))
-	if len(paramErrs.Errors) > 0 {
-		return paramErrs
-	}
-
 	if !ev.SkipEval {
+		ev.Only = picks
+		errors.Append(ev.RunPhase(MergePhase))
+		paramErrs.Append(ev.RunPhase(ParamPhase))
+		if len(paramErrs.Errors) > 0 {
+			return paramErrs
+		}
+
 		errors.Append(ev.RunPhase(EvalPhase))
 	}
 

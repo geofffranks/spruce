@@ -3,5 +3,7 @@ jobs:
 - (( prepend ))
 - name: consul
 
+injected_jobs:
+  .: (( inject jobs ))
 properties:
   not_empty: not_empty

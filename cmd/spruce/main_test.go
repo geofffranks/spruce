@@ -294,11 +294,14 @@ map:
 			stdout = ""
 			stderr = ""
 			main()
-			So(stdout, ShouldEqual, `jobs:
+			So(stdout, ShouldEqual, `injected_jobs:
+  .: (( inject jobs ))
+jobs:
 - name: consul
 - name: route
 - name: cell
 - name: cc_bridge
+param: (( param "Fill this in later" ))
 properties:
   loggregator: true
   no_eval: (( grab property ))
@@ -313,7 +316,10 @@ properties:
 			stdout = ""
 			stderr = ""
 			main()
-			So(stdout, ShouldEqual, `properties:
+			So(stdout, ShouldEqual, `injected_jobs:
+  .: (( inject jobs ))
+param: (( param "Fill this in later" ))
+properties:
   loggregator: true
   no_eval: (( grab property ))
   no_prune: (( prune ))
