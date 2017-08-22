@@ -286,7 +286,7 @@ map:
   name: thing2
 
 `)
-			So(stderr, ShouldEqual, "")
+			So(stderr, ShouldEqual, "--concourse is deprecated. Consider using built-in spruce operators when merging Concourse YAML files\n")
 		})
 
 		Convey("Should not evaluate spruce logic when --no-eval", func() {

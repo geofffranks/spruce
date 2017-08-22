@@ -121,6 +121,7 @@ func main() {
 
 		var output string
 		if handleConcourseQuoting {
+			PrintfStdErr(ansi.Sprintf("@Y{--concourse is deprecated. Consider using built-in spruce operators when merging Concourse YAML files}\n"))
 			output = dequoteConcourse(merged)
 		} else {
 			output = string(merged)

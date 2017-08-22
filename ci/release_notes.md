@@ -15,3 +15,10 @@ If you encouter any strange issues, submit a GH issue.
   - (( delete "myObj" ))
   - (( delete myObj ))
   ```
+
+# Deprecation notices
+
+- The `--concourse` flag for `spruce` is now deprecated. It will be removed in a future
+  release. Its purpose was to allow parsing of `{{variable}}` interpolation inside
+  Concourse YAML files. As an alternative, try using built-in `spruce` operators,
+  or the `((!variable))` syntax to make use of CredHub data in Concourse.
