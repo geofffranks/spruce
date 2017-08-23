@@ -77,7 +77,8 @@ func main() {
 			Files goptions.Remainder `goptions:"description='Show the semantic differences between two YAML files'"`
 		} `goptions:"diff"`
 		VaultInfo struct {
-			Files goptions.Remainder `goptions:"description='List vault references in the given files'"`
+			EnableGoPatch bool               `goptions:"--go-patch, description='Enable the use of go-patch when parsing files to be merged'"`
+			Files         goptions.Remainder `goptions:"description='List vault references in the given files'"`
 		} `goptions:"vaultinfo"`
 	}
 	getopts(&options)
@@ -132,6 +133,7 @@ func main() {
 		VaultRefs = map[string][]string{}
 		SkipVault = true
 		options.Merge.Files = options.VaultInfo.Files
+		options.Merge.EnableGoPatch = options.VaultInfo.EnableGoPatch
 		_, err := cmdMergeEval(options.Merge)
 		if err != nil {
 			PrintfStdErr("%s\n", err.Error())

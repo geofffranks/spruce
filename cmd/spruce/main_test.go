@@ -742,6 +742,25 @@ quux: quux
 
 `)
 		})
+		Convey("vaultinfo handles gopatch files", func() {
+			os.Args = []string{"spruce", "vaultinfo", "--go-patch", "../../assets/vaultinfo/merge1.yml", "../../assets/vaultinfo/go-patch.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `secrets:
+- key: secret/beep:boop
+  references:
+  - bar
+- key: secret/blork:blork
+  references:
+  - new_key
+- key: secret/foo:bar
+  references:
+  - foo
+
+`)
+			So(stderr, ShouldEqual, "")
+		})
 
 		Convey("Adding (static) prune support for list entries (edge case scenario)", func() {
 			os.Args = []string{"spruce", "merge", "--prune", "meta.list.1", "../../assets/prune/prune-in-lists/fileA.yml"}
