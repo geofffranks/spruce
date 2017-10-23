@@ -1304,15 +1304,52 @@ jobs:
 
 	Convey("param Operator", t, func() {
 		op := ParamOperator{}
-		ev := &Evaluator{}
+		ev := &Evaluator{
+			Tree: YAML(
+				`key:
+  subkey:
+    value: complex default
+`),
+		}
 
-		Convey("always causes an error", func() {
+		Convey("throws errors for missing arguments", func() {
+			_, err := op.Run(ev, []*Expr{})
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("2-arg form always causes an error", func() {
 			r, err := op.Run(ev, []*Expr{
 				str("this is the error"),
 			})
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldEqual, "this is the error")
 			So(r, ShouldBeNil)
+		})
+
+		Convey("3-arg form handles & returns a string", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("i'd prefer a value"),
+				str("but i don't require one"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "but i don't require one")
+		})
+
+		Convey("3-arg form handles & returns a reference", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("this is the error"),
+				ref("key.subkey"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			v, ok := r.Value.(map[interface{}]interface{})
+			So(ok, ShouldBeTrue)
+			So(v["value"], ShouldEqual, "complex default")
 		})
 	})
 
