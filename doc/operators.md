@@ -223,6 +223,19 @@ count. It even supports BOSH AZs fairly well.
 
 [Example][static_ips-example]
 
+## (( ips ))
+
+Usage: `(( ips IP_OR_CIDR INDEX [COUNT] ))`
+
+Sometimes you need to reference IP addresses that aren't managed by BOSH, so static_ips
+aren't much help. `ips` has you covered. It lets you perform simple addition on IP
+addresses. Pass it an IP and an index, and it will add INDEX to the IP. If you pass a
+CIDR instead of an IP, the calculation starts from the start of the network. I.e. (( ips
+"10.0.0.10/24" 2 )) will yield "10.0.0.2". (( ips "10.0.0.10" 2 )) will yield "10.0.0.12".
+If you also specify COUNT, you get a list of IP's instead.
+A negative index and an IP will count backwards. A negative index and a CIDR will start
+from the end of the given network.
+
 ## (( vault ))
 
 Usage: `(( vault LITERAL|REFERENCE ... ))`
