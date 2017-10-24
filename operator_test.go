@@ -1713,4 +1713,131 @@ meta:
 
 	})
 
+	Convey("ips Operator", t, func() {
+		op := IpsOperator{}
+		ev := &Evaluator{
+			Tree: YAML(
+				`meta:
+  base_network: 1.2.3.4/24
+  base_ip: 1.2.3.4
+  index: 20
+  negative_index: -20
+  count: 2
+`),
+		}
+
+		Convey("can build a single IP based on refs (CIDR)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_network"),
+				ref("meta.index"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "1.2.3.20")
+		})
+
+		Convey("can build a single IP based on refs (IP)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_ip"),
+				ref("meta.index"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "1.2.3.24")
+		})
+
+		Convey("can build a single IP based on literals", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("1.2.3.4/24"),
+				num(20),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "1.2.3.20")
+		})
+
+    Convey("can build a list of IP's based on references (CIDR)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_network"),
+				ref("meta.index"),
+				ref("meta.count"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.([]interface{})[0].(string), ShouldEqual, "1.2.3.20")
+			So(r.Value.([]interface{})[1].(string), ShouldEqual, "1.2.3.21")
+			So(len(r.Value.([]interface{})), ShouldEqual, 2)
+		})
+
+		Convey("can build a list of IP's based on literals", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("1.2.3.4/24"),
+				num(20),
+				num(2),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.([]interface{})[0].(string), ShouldEqual, "1.2.3.20")
+			So(r.Value.([]interface{})[1].(string), ShouldEqual, "1.2.3.21")
+			So(len(r.Value.([]interface{})), ShouldEqual, 2)
+		})
+
+    Convey("can build a list of IP's based on references (IP)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_ip"),
+				ref("meta.index"),
+				ref("meta.count"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.([]interface{})[0].(string), ShouldEqual, "1.2.3.24")
+			So(r.Value.([]interface{})[1].(string), ShouldEqual, "1.2.3.25")
+			So(len(r.Value.([]interface{})), ShouldEqual, 2)
+		})
+
+    Convey("can build a list of IP's using negative index (IP)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_ip"),
+				ref("meta.negative_index"),
+				ref("meta.count"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.([]interface{})[0].(string), ShouldEqual, "1.2.2.240")
+			So(r.Value.([]interface{})[1].(string), ShouldEqual, "1.2.2.241")
+			So(len(r.Value.([]interface{})), ShouldEqual, 2)
+		})
+
+    Convey("can build a list of IP's using negative index (CIDR)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_network"),
+				ref("meta.negative_index"),
+				ref("meta.count"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.([]interface{})[0].(string), ShouldEqual, "1.2.3.236")
+			So(r.Value.([]interface{})[1].(string), ShouldEqual, "1.2.3.237")
+			So(len(r.Value.([]interface{})), ShouldEqual, 2)
+		})
+
+
+	})
+
 }
