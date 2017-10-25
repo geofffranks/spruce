@@ -23,6 +23,11 @@ func yamlstring(f, pad string, x Diffable) string {
 	return fmt.Sprintf(f, indent(pad, strings.TrimSuffix(string(s), "\n")))
 }
 
+func yamlmarshal(x interface{}) string {
+	s, _ := yaml.Marshal(x)
+	return fmt.Sprintf("%s", s)
+}
+
 func sortkeys(m map[string]Diffable) []string {
 	kk := make([]string, 0)
 	for k := range m {
@@ -271,8 +276,8 @@ func Diff(a, b interface{}) (Diffable, error) {
 	switch typeof(a) {
 	case Scalar:
 		return DiffScalar{
-			Old: fmt.Sprintf("%v", a),
-			New: fmt.Sprintf("%v", b),
+			Old: yamlmarshal(a),
+			New: yamlmarshal(b),
 		}, nil
 
 	case Map:

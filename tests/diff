@@ -86,6 +86,26 @@ $.thing changed type
   from map
     to scalar
 
+### diff recognizes singular top-level scalar type changes (string/bool)
+---
+thing: "true"
+---
+thing: true
+---
+$.thing changed value
+  from "true"
+    to true
+
+### diff recognizes singular top-level scalar type changes (string/int)
+---
+thing: "1"
+---
+thing: 1
+---
+$.thing changed value
+  from "1"
+    to 1
+
 ### diff recognizes multiple top-level value changes
 ---
 a: alpha
@@ -304,17 +324,19 @@ ssh:
     -----END RSA PRIVATE KEY-----
 ---
 $.ssh.key changed value
-  from -----BEGIN RSA PRIVATE KEY-----
-       MIIEogIBAAKCAQEAq3yBs6iJKscqU199yFFr75nPLku4ZwEAWQCOW2pKf/3lnXGF
-       U0/4TQOUpQx3ZUsWqrcnAGyV5G5o5B2/9/TPBVYWv7zr5sp2B3we/nOnGuKNU/gj
-       bKawbmGQtruU/nrIzsRK54l9wr4NQdl6JkDDFZ0no0dntYbH+H+Ds9cHDDrpJsZx
-       rJfD556UNc0RWqXLJMQUQcU4SqJLZ1+ix/UtyI9k+CwIF+7vJuGeFmoe0YGDSzDB
-       z1mYxXiJnxSjFaXWp1mx6adXYo8I8NJ/88jQZBJRoYjmOY9Ri5k=
-       -----END RSA PRIVATE KEY-----
-    to -----BEGIN RSA PRIVATE KEY-----
-       OuecpmgVznXvzhOvMbgk5f4hWCyuqe1/ACQyjhsCgYBvT/+wMTCft9hw7MUjsoAn
-       Yv5ClH0sTzP7FTrOp9bCq2040LSegIbUHjSMAv9UGCRm/VoCAJEWCoea9vPujOPt
-       KCVSVhl0W5+v1NjnydSwuBrY8Jl0woXQR/1iFkc8AxPOM25dM8Q0OHhbR76gUgML
-       fcyZxTjgorndWVJUeygzMQKBgEWx2kzvnvzhI1czAJIELqyanWJL7Uy84pzVlP22
-       EFJsS7ZlD7x8RPDQYxdMbqxWDm2OXJfPFGt1lg7QSFMv+2T0vkGZSGxS12LIx+oo
-       -----END RSA PRIVATE KEY-----
+  from |
+         -----BEGIN RSA PRIVATE KEY-----
+         MIIEogIBAAKCAQEAq3yBs6iJKscqU199yFFr75nPLku4ZwEAWQCOW2pKf/3lnXGF
+         U0/4TQOUpQx3ZUsWqrcnAGyV5G5o5B2/9/TPBVYWv7zr5sp2B3we/nOnGuKNU/gj
+         bKawbmGQtruU/nrIzsRK54l9wr4NQdl6JkDDFZ0no0dntYbH+H+Ds9cHDDrpJsZx
+         rJfD556UNc0RWqXLJMQUQcU4SqJLZ1+ix/UtyI9k+CwIF+7vJuGeFmoe0YGDSzDB
+         z1mYxXiJnxSjFaXWp1mx6adXYo8I8NJ/88jQZBJRoYjmOY9Ri5k=
+         -----END RSA PRIVATE KEY-----
+    to |
+         -----BEGIN RSA PRIVATE KEY-----
+         OuecpmgVznXvzhOvMbgk5f4hWCyuqe1/ACQyjhsCgYBvT/+wMTCft9hw7MUjsoAn
+         Yv5ClH0sTzP7FTrOp9bCq2040LSegIbUHjSMAv9UGCRm/VoCAJEWCoea9vPujOPt
+         KCVSVhl0W5+v1NjnydSwuBrY8Jl0woXQR/1iFkc8AxPOM25dM8Q0OHhbR76gUgML
+         fcyZxTjgorndWVJUeygzMQKBgEWx2kzvnvzhI1czAJIELqyanWJL7Uy84pzVlP22
+         EFJsS7ZlD7x8RPDQYxdMbqxWDm2OXJfPFGt1lg7QSFMv+2T0vkGZSGxS12LIx+oo
+         -----END RSA PRIVATE KEY-----
