@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/geofffranks/yaml"
 	"github.com/starkandwayne/goutils/ansi"
 
 	. "github.com/geofffranks/spruce/log"
@@ -186,7 +187,13 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 		if v == "" {
 			return nil, ansi.Errorf("@R{Environment variable} @c{$%s} @R{is not set}", e.Name)
 		}
-		return &Expr{Type: Literal, Literal: v}, nil
+
+		var val interface{}
+		err := yaml.Unmarshal([]byte(v), &val)
+		if err != nil {
+			return &Expr{Type: Literal, Literal: v}, nil
+		}
+		return &Expr{Type: Literal, Literal: val}, nil
 
 	case Reference:
 		if _, err := e.Reference.Resolve(tree); err != nil {
