@@ -514,6 +514,7 @@ meta:
 		os.Setenv("GRAB_ONE", "one")
 		os.Setenv("GRAB_TWO", "two")
 		os.Setenv("GRAB_NOT", "")
+		os.Setenv("GRAB_BOOL", "true")
 
 		Convey("can grab a single environment value", func() {
 			r, err := op.Run(ev, []*Expr{
@@ -535,6 +536,17 @@ meta:
 
 			So(r.Type, ShouldEqual, Replace)
 			So(r.Value.(string), ShouldEqual, "two")
+		})
+
+		Convey("unmarshalls variable contents", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("GRAB_BOOL"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(bool), ShouldEqual, true)
 		})
 
 		Convey("throws errors for unset environment variables", func() {
