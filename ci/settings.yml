@@ -32,7 +32,7 @@ meta:
     bucket: spruce-release-pipeline
 
   name: spruce-release
-  target: sw
+  target: ci.spruce.cf
   url: https://ci.starkandwayne.com
 
 groups:
