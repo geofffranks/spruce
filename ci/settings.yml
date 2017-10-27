@@ -33,7 +33,7 @@ meta:
 
   name: spruce-release
   target: ci.spruce.cf
-  url: https://ci.starkandwayne.com
+  url: https://ci.spruce.cf
 
 groups:
 - name: (( grab meta.pipeline ))
