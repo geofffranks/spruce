@@ -3,6 +3,7 @@ package spruce
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -214,9 +215,15 @@ func getVaultSecret(secret string) (map[string]interface{}, error) {
 	url := fmt.Sprintf("%s/v1/%s", vault, secret)
 	DEBUG("  crafting GET %s", url)
 
+	roots, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve system root certificate authorities: %s", err)
+	}
+
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
+				RootCAs:            roots,
 				InsecureSkipVerify: skipVaultVerify(os.Getenv("VAULT_SKIP_VERIFY")),
 			},
 		},
