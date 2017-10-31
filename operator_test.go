@@ -1825,6 +1825,30 @@ meta:
 			So(len(r.Value.([]interface{})), ShouldEqual, 2)
 		})
 
+    Convey("bails out if index is outside CIDR size", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("192.168.1.16/29"),
+				num(100),
+			})
+
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "Start index 100 exceeds size of subnet 192.168.1.16/29")
+			So(r, ShouldBeNil)
+		})
+
+    Convey("bails out if count would go outside CIDR size", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("192.168.1.16/29"),
+				num(-1),
+				num(3),
+			})
+
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "Start index 7 and count 3 would exceed size of subnet 192.168.1.16/29")
+			So(r, ShouldBeNil)
+		})
+
+
 
 	})
 
