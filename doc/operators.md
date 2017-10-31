@@ -8,6 +8,7 @@
 - [file](#-file-)
 - [grab](#-grab-)
 - [inject](#-inject-)
+- [ips](#-ips-)
 - [join](#-join-)
 - [keys](#-keys-)
 - [param](#-param-)
