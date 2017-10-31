@@ -237,6 +237,8 @@ If you also specify COUNT, you get a list of IP's instead.
 A negative index and an IP will count backwards. A negative index and a CIDR will start
 from the end of the given network.
 
+[Example][ips-example]
+
 ## (( vault ))
 
 Usage: `(( vault LITERAL|REFERENCE ... ))`
@@ -267,3 +269,4 @@ look up Vault paths.
 [prune-example]:      http://play.spruce.cf/#ce52f99a0c7470aa2a1e8fd4dddbafff
 [static_ips-example]: http://play.spruce.cf/#ce52f99a0c7470aa2a1e8fd4dddbafff
 [vault-example]:      https://github.com/geofffranks/spruce/blob/master/doc/pulling-creds-from-vault.md
+[ips-example]:        https://spruce.cf/#568526af82aec5448ddf34740dbd70a3
