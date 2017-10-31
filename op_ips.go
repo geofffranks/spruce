@@ -48,7 +48,7 @@ func (IpsOperator) Dependencies(_ *Evaluator, args []*Expr, locs []*tree.Cursor,
 	return l
 }
 
-func MakeInt(val interface{}) int {
+func makeInt(val interface{}) int {
 	var num int;
 
 	num, ok := val.(int)
@@ -56,6 +56,18 @@ func MakeInt(val interface{}) int {
 	  num = int(val.(int64))
 	}
 	return num
+}
+
+func netSize(ipnet *net.IPNet) int {
+	ones, bits := ipnet.Mask.Size()
+	return 1<<uint(bits-ones)
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
 
 // Run ...
@@ -103,21 +115,25 @@ func (IpsOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	if err != nil {
 		ip = net.ParseIP(vals[0].(string))
 	  if ip == nil {
-  		DEBUG("     [n]: failed to parse IP or CIDR \"%s\": %s", vals[0], err)
-  		return nil, err
+		DEBUG("     [n]: failed to parse IP or CIDR \"%s\": %s", vals[0], err)
+		return nil, err
 		}
 	}
 
-	start := MakeInt(vals[1])
+	start := makeInt(vals[1])
 
 	if ipnet != nil {
 		ip = ip.Mask(ipnet.Mask)
+		netsize := netSize(ipnet)
+
+		if abs(start) > netsize {
+			return nil, fmt.Errorf("Start index %d exceeds size of subnet %s", start, vals[0])
+		}
 		if start < 0 {
-			ones, bits := ipnet.Mask.Size()
-			netsize := 1<<uint(bits-ones)
 			start += netsize
 		}
 	}
+
 
 
 	if len(args) == 2 {
@@ -126,7 +142,12 @@ func (IpsOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			Value: netaddr.IPAdd(ip, start).String(),
 		}, nil
 	} else {
-		count := MakeInt(vals[2])
+		count := makeInt(vals[2])
+		if ipnet != nil {
+			if start + count > netSize(ipnet) {
+			  return nil, fmt.Errorf("Start index %d and count %d would exceed size of subnet %s", start, count, vals[0])
+			}
+		}
 		lst := []interface{}{}
 		for i := start; i < start + count; i++ {
 			lst = append(lst, netaddr.IPAdd(ip, i).String())
