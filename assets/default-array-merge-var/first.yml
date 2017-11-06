@@ -1,0 +1,6 @@
+---
+array:
+- id: first
+  value: 123
+- id: second
+  value: 321

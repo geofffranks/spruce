@@ -1,0 +1,6 @@
+---
+array:
+- id: third
+  value: true
+- id: second
+  value: 987

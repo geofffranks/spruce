@@ -1885,6 +1885,27 @@ spruce_array_grab:
 				So(stdout, ShouldEqual, "")
 			})
 		})
+		Convey("setting DEFAULT_ARRAY_MERGE_KEY", func() {
+
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "id")
+			Convey("changes how arrays of maps are merged by default", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/default-array-merge-var/first.yml", "../../assets/default-array-merge-var/second.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `array:
+- id: first
+  value: 123
+- id: second
+  value: 987
+- id: third
+  value: true
+
+`)
+			})
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "")
+		})
 	})
 
 }
