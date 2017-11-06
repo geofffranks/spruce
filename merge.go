@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -283,9 +284,13 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 func (m *Merger) mergeArrayDefault(orig []interface{}, n []interface{}, node string) []interface{} {
 	DEBUG("%s: performing index-based array merge", node)
 	var err error
-	if err = canKeyMergeArray("original", orig, node, "name"); err == nil {
-		if err = canKeyMergeArray("new", n, node, "name"); err == nil {
-			return m.mergeArrayByKey(orig, n, node, "name")
+	key := "name"
+	if os.Getenv("DEFAULT_ARRAY_MERGE_KEY") != "" {
+		key = os.Getenv("DEFAULT_ARRAY_MERGE_KEY")
+	}
+	if err = canKeyMergeArray("original", orig, node, key); err == nil {
+		if err = canKeyMergeArray("new", n, node, key); err == nil {
+			return m.mergeArrayByKey(orig, n, node, key)
 		}
 	}
 
@@ -500,6 +505,9 @@ func getArrayModifications(obj []interface{}) []ModificationDefinition {
 
 func shouldKeyMergeArray(obj []interface{}) (bool, string) {
 	key := "name"
+	if os.Getenv("DEFAULT_ARRAY_MERGE_KEY") != "" {
+		key = os.Getenv("DEFAULT_ARRAY_MERGE_KEY")
+	}
 
 	if len(obj) >= 1 && obj[0] != nil && reflect.TypeOf(obj[0]).Kind() == reflect.String {
 		re := regexp.MustCompile("^\\Q((\\E\\s*merge(?:\\s+on\\s+(.*?))?\\s*\\Q))\\E$")

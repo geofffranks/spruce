@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -83,6 +84,15 @@ func TestShouldKeyMergeArrayOfHashes(t *testing.T) {
 			yes, key := shouldKeyMergeArray([]interface{}{"(( merge on id ))", "stuff"})
 			So(yes, ShouldBeTrue)
 			So(key, ShouldEqual, "id")
+		})
+		Convey("when DEFAULT_ARRAY_MERGE_KEY is set", func() {
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "id")
+			Convey("shouldKeyMergeArray picks up on it", func() {
+				yes, key := shouldKeyMergeArray([]interface{}{"(( merge ))", "stuff"})
+				So(yes, ShouldBeTrue)
+				So(key, ShouldEqual, "id")
+			})
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "")
 		})
 		Convey("Is whitespace agnostic", func() {
 			Convey("No surrounding whitespace", func() {
@@ -1164,6 +1174,58 @@ func TestMergeArray(t *testing.T) {
 				},
 			})
 			So(err, ShouldBeNil)
+		})
+		Convey("setting DEFAULT_ARRAY_MERGE_KEY", func() {
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "id")
+			Convey("can override key-merge by default", func() {
+				first := []interface{}{
+					map[interface{}]interface{}{
+						"name": "first",
+						"k1":   "v1",
+						"id":   "1",
+					},
+					map[interface{}]interface{}{
+						"name": "second",
+						"done": "yes",
+						"id":   "2",
+					},
+				}
+				second := []interface{}{
+					map[interface{}]interface{}{
+						"name": "second",
+						"2":    "best",
+						"test": "test",
+						"id":   "2",
+					},
+					map[interface{}]interface{}{
+						"name": "first",
+						"k1":   "1",
+						"k2":   "2",
+						"id":   "1",
+					},
+				}
+
+				m := &Merger{}
+				o := m.mergeObj(first, second, "an.inlined.merge")
+				err := m.Error()
+				So(o, ShouldResemble, []interface{}{
+					map[interface{}]interface{}{
+						"name": "first",
+						"k1":   "1",
+						"k2":   "2",
+						"id":   "1",
+					},
+					map[interface{}]interface{}{
+						"name": "second",
+						"2":    "best",
+						"done": "yes",
+						"test": "test",
+						"id":   "2",
+					},
+				})
+				So(err, ShouldBeNil)
+			})
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "")
 		})
 		Convey("without magical merge token replaces entire array", func() {
 			orig := []interface{}{"first", "second"}
