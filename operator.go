@@ -190,7 +190,8 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 
 		var val interface{}
 		err := yaml.Unmarshal([]byte(v), &val)
-		if err != nil {
+		_, isString := val.(string)
+		if isString || err != nil {
 			return &Expr{Type: Literal, Literal: v}, nil
 		}
 		return &Expr{Type: Literal, Literal: val}, nil
