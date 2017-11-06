@@ -515,6 +515,10 @@ meta:
 		os.Setenv("GRAB_TWO", "two")
 		os.Setenv("GRAB_NOT", "")
 		os.Setenv("GRAB_BOOL", "true")
+		os.Setenv("GRAB_MULTILINE", `line1
+
+line3
+line4`)
 
 		Convey("can grab a single environment value", func() {
 			r, err := op.Run(ev, []*Expr{
@@ -547,6 +551,20 @@ meta:
 
 			So(r.Type, ShouldEqual, Replace)
 			So(r.Value.(bool), ShouldEqual, true)
+		})
+
+		Convey("does not unmarshall string-only variables", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("GRAB_MULTILINE"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, `line1
+
+line3
+line4`)
 		})
 
 		Convey("throws errors for unset environment variables", func() {
