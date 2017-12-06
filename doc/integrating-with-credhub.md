@@ -20,4 +20,4 @@ you, and all will be well.
 
 If you have an upstream template that you wish to use with `spruce`, you can
 run a `sed` on them, to replace the `((...))` notation with `((!...))`, and
- they will be ready to use with `spruce.
+ they will be ready to use with `spruce`.
