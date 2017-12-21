@@ -101,16 +101,11 @@ func TestOperators(t *testing.T) {
 			}
 
 			Convey("handles opcodes with and without arguments", func() {
-				opOk(`(( null ))`, "null")
 				opOk(`(( null 42 ))`, "null", num(42))
 				opOk(`(( null 1 2 3 4 ))`, "null", num(1), num(2), num(3), num(4))
 			})
 
 			Convey("ignores optional whitespace", func() {
-				opOk(`((null))`, "null")
-				opOk(`((	null	))`, "null")
-				opOk(`((  	null  	))`, "null")
-
 				args := []*Expr{num(1), num(2), num(3)}
 				opOk(`((null 1 2 3))`, "null", args...)
 				opOk(`((null 1	2	3))`, "null", args...)
@@ -206,6 +201,10 @@ func TestOperators(t *testing.T) {
 
 			Convey("ignores spiff-like bang-notation", func() {
 				opIgnore(`((!credhub))`)
+			})
+
+			Convey("ignores BOSH varnames that aren't null-arity operators", func() {
+				opIgnore(`((var-name))`)
 			})
 		})
 	})

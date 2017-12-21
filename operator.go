@@ -479,6 +479,10 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 		DEBUG("parsing `%s': looks like a (( %s ... )) operator\n arguments:", src, m[1])
 
 		op.op = OperatorFor(m[1])
+		if _, ok := op.op.(NullOperator); ok && len(m[2]) == 0 {
+			DEBUG("skipping `%s': not a real operator -- might be a BOSH variable?", src)
+			continue
+		}
 		if op.op.Phase() != phase {
 			DEBUG("  - skipping (( %s ... )) operation; it belongs to a different phase", m[1])
 			return nil, nil
