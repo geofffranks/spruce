@@ -1,0 +1,1 @@
+* `spruce diff` now returns exit status 1 if there are any differences; and exit status 0 if no differences [thanks @drnic]
