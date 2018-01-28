@@ -34,6 +34,7 @@ meta:
   github:
     uri:          (( concat "git@github.com:" meta.github.owner "/" meta.github.repo ))
     owner:        (( param "Please specify the name of the user / organization that owns the Github repository" ))
+    http_uri:     (( concat "https://github.com/" meta.github.owner "/" meta.github.repo ))
     repo:         (( param "Please specify the name of the Github repository" ))
     branch:       master
     private_key:  (( param "Please generate an SSH Deployment Key for this repo and specify it here" ))
@@ -190,6 +191,7 @@ jobs:
               BRANCH:       (( grab meta.github.branch ))
               CMD_PKG:      (( grab meta.go.cmd_module ))
               STATIC_BINARY: (( grab meta.go.force_static_binary ))
+              GITHUB_REPO:  (( grab meta.github.http_uri ))
         - name: version
           put: version
           params: { bump: final }
@@ -212,6 +214,13 @@ jobs:
             username: (( grab meta.slack.username ))
             icon_url: (( grab meta.slack.icon ))
             text:    '(( concat meta.slack.fail_url " " meta.pipeline ": shipit job failed" ))'
+        on_success:
+          put: notify
+          params:
+            channel:  (( grab meta.slack.channel ))
+            username: (( grab meta.slack.username ))
+            icon_url: (( grab meta.slack.icon ))
+            text_file: gh/notification
 
 resource_types:
   - name: slack-notification
