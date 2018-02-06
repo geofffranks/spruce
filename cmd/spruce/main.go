@@ -164,6 +164,7 @@ func main() {
 		}
 
 	case "diff":
+		ansi.Color(isatty.IsTerminal(os.Stdout.Fd()))
 		if len(options.Diff.Files) != 2 {
 			usage()
 			return
