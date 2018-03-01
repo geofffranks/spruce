@@ -1102,7 +1102,7 @@ func TestMergeArray(t *testing.T) {
 				m.mergeArray(orig, array, "node-path")
 				err := m.Error()
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "node-path.0.val.0: new object is a string, not a map - cannot merge by key")
+				So(err.Error(), ShouldContainSubstring, "node-path.first.val.0: new object is a string, not a map - cannot merge by key")
 			})
 		})
 		Convey("arrays of maps can be merged inline", func() {

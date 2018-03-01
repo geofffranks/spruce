@@ -851,6 +851,29 @@ quux: quux
 `)
 		})
 
+		Convey("Text needed", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/prune/issue-250/fileA.yml", "../../assets/prune/issue-250/fileB.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `list:
+- name: zero
+  params:
+    fail-fast: false
+    preload: true
+- name: one
+  params:
+    fail-fast: false
+    preload: true
+- name: two
+  params:
+    preload: false
+
+`)
+		})
+
 		Convey("Issue #156 Can use concat with static ips", func() {
 			os.Args = []string{"spruce", "merge", "../../assets/static_ips/issue-156/concat.yml"}
 			stdout = ""
