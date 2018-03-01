@@ -1,0 +1,11 @@
+---
+list:
+- name: one
+  params:
+    preload: true
+    fail-fast: false
+
+- name: two
+  params:
+    preload: true
+    fail-fast: false

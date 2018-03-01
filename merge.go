@@ -351,7 +351,7 @@ func (m *Merger) mergeArrayByKey(orig []interface{}, n []interface{}, node strin
 	}
 	for i, o := range orig {
 		obj := o.(map[interface{}]interface{})
-		path := fmt.Sprintf("%s.%d", node, i)
+		path := fmt.Sprintf("%s.%s", node, obj[key])
 		if _, ok := newMap[obj[key]]; ok {
 			merged[i] = m.mergeObj(obj, newMap[obj[key]], path)
 			delete(newMap, obj[key])

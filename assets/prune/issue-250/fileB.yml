@@ -1,0 +1,12 @@
+---
+list:
+- name: two
+  params:
+    preload: false
+    fail-fast: (( prune ))
+
+- (( prepend ))
+- name: zero
+  params:
+    preload: true
+    fail-fast: false
