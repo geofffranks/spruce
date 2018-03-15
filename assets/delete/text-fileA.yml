@@ -1,0 +1,23 @@
+---
+meta:
+  list:
+  - Leonel Messi
+  - Cristiano Ronaldo
+  - Oliver Kahn
+
+stuff:
+  default_groups:
+  - openid
+  - cloud_controller.read
+  - cloud_controller.write
+  - password.write
+  - uaa.user
+  - approvals.me
+  - profile
+  - roles
+  - user_attributes
+  - uaa.offline_token
+  environment_scripts:
+  - scripts/configure-HA-hosts.sh
+  - scripts/forward_logfiles.sh
+  - scripts/patches/cc_clock_wait_for_api_ready.sh

@@ -197,7 +197,7 @@ func TestGetArrayModifications(t *testing.T) {
 				"(( somethingelse ))":   false,
 			} {
 				Convey(fmt.Sprintf("with case %s", input), func() {
-					results := getArrayModifications([]interface{}{input})
+					results := getArrayModifications([]interface{}{input}, false)
 					if shouldMatch {
 						So(results, ShouldHaveLength, 2)
 						So(results[0], shouldBeDefault)
@@ -224,7 +224,7 @@ func TestGetArrayModifications(t *testing.T) {
 				"(( somethingelse ))":    false,
 			} {
 				Convey(fmt.Sprintf("with case %s", input), func() {
-					results := getArrayModifications([]interface{}{input})
+					results := getArrayModifications([]interface{}{input}, false)
 					if shouldMatch {
 						So(results, ShouldHaveLength, 2)
 						So(results[0], shouldBeDefault)
@@ -258,7 +258,7 @@ func TestGetArrayModifications(t *testing.T) {
 						fmt.Sprintf("(( somethingelse %s %d ))", rel, index):   false,
 					} {
 						Convey(fmt.Sprintf("with case %s", input), func() {
-							results := getArrayModifications([]interface{}{input})
+							results := getArrayModifications([]interface{}{input}, false)
 							if shouldMatch {
 								So(results, ShouldHaveLength, 2)
 								So(results[0], shouldBeDefault)
@@ -292,7 +292,7 @@ func TestGetArrayModifications(t *testing.T) {
 						fmt.Sprintf("(( somethingelse %s %s ))", rel, key):   false,
 					} {
 						Convey(fmt.Sprintf("with case %s", input), func() {
-							results := getArrayModifications([]interface{}{input})
+							results := getArrayModifications([]interface{}{input}, false)
 							if shouldMatch {
 								So(results, ShouldHaveLength, 2)
 								So(results[0], shouldBeDefault)
@@ -333,7 +333,7 @@ func TestGetArrayModifications(t *testing.T) {
 					fmt.Sprintf("(( somethingelse %s ))", key):   false,
 				} {
 					Convey(fmt.Sprintf("with case %s", input), func() {
-						results := getArrayModifications([]interface{}{input})
+						results := getArrayModifications([]interface{}{input}, false)
 						if shouldMatch {
 							So(results, ShouldHaveLength, 2)
 							So(results[0], shouldBeDefault)
@@ -351,6 +351,31 @@ func TestGetArrayModifications(t *testing.T) {
 				}
 			}
 
+			for input, shouldMatch := range map[string]bool{
+				`(( delete  "MrSpiff" ))`: true,
+				`(( delete 	 "MrSpiff" ))`: true,
+				`((   delete  "MrSpiff" ))`:  true,
+				`(( delete  "MrSpiff"   ))`:  true,
+				`(( delete  "MrSpiff"    ))`: true,
+				`(( delete  MrSpiff ))`:      true,
+				`(( deletespruce ))`:         false,
+				`(( delete  Mr Spiff ))`:     false,
+				`(( delete  "" "MrSpiff" ))`: false,
+			} {
+				Convey(fmt.Sprintf("with case %s on simple list", input), func() {
+					results := getArrayModifications([]interface{}{input}, true)
+					if shouldMatch {
+						So(results, ShouldHaveLength, 2)
+						So(results[0], shouldBeDefault)
+						So(results[1].key, ShouldBeEmpty)
+						So(results[1].name, ShouldEqual, "MrSpiff")
+					} else {
+						So(results, ShouldHaveLength, 1)
+						So(results[0], shouldBeDefault)
+					}
+				})
+			}
+
 			for _, index := range []int{0, 10, 100} {
 				//index based delete cases go here
 				for input, shouldDelete := range map[string]bool{
@@ -366,7 +391,7 @@ func TestGetArrayModifications(t *testing.T) {
 					fmt.Sprintf(`(( something else %d))`, index):  false,
 				} {
 					Convey(fmt.Sprintf("with case %s", input), func() {
-						results := getArrayModifications([]interface{}{input})
+						results := getArrayModifications([]interface{}{input}, false)
 						if shouldDelete {
 							So(results, ShouldHaveLength, 2)
 							So(results[0], shouldBeDefault)
@@ -383,7 +408,7 @@ func TestGetArrayModifications(t *testing.T) {
 	})
 
 	Convey("Don't return an insert if index is obviously out of bounds", t, func() {
-		results := getArrayModifications([]interface{}{"(( insert before -1 ))", "stuff"})
+		results := getArrayModifications([]interface{}{"(( insert before -1 ))", "stuff"}, false)
 		So(results, ShouldHaveLength, 1) //Just the default merge
 		So(results[0].defaultMerge, ShouldBeTrue)
 	})
@@ -397,7 +422,7 @@ func TestGetArrayModifications(t *testing.T) {
 			"(( insert before id \"consul\" ))",
 			"stuffX1",
 			"stuffX2",
-		})
+		}, false)
 		So(results, ShouldHaveLength, 3)
 		So(results[0], shouldBeDefault)
 		So(results[1].relative, ShouldEqual, "after")
@@ -411,13 +436,13 @@ func TestGetArrayModifications(t *testing.T) {
 	})
 
 	Convey("Only default merge if no operators given", t, func() {
-		results := getArrayModifications([]interface{}{"not a magic token", "stuff"})
+		results := getArrayModifications([]interface{}{"not a magic token", "stuff"}, false)
 		So(results, ShouldHaveLength, 1)
 		So(results[0], shouldBeDefault)
 	})
 
 	Convey("Can specify operators without one at the 0th index", t, func() {
-		results := getArrayModifications([]interface{}{"foo", "(( append ))", "stuff"})
+		results := getArrayModifications([]interface{}{"foo", "(( append ))", "stuff"}, false)
 		So(results, ShouldHaveLength, 2)
 		So(results[0].defaultMerge, ShouldBeTrue)
 		So(results[1], shouldBeAppend)

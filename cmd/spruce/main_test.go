@@ -874,6 +874,50 @@ quux: quux
 `)
 		})
 
+		Convey("The delete operator deletes an entry in a simple list", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/delete/simple-string-fileA.yml", "../../assets/delete/simple-string-fileB.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `meta:
+  list:
+  - one
+  - two
+  - five
+
+`)
+		})
+
+		Convey("The delete operator deletes an entry with whitespaces or special characters in a simple list", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/delete/text-fileA.yml", "../../assets/delete/text-fileB.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `meta:
+  list:
+  - Leonel Messi
+  - Oliver Kahn
+stuff:
+  default_groups:
+  - openid
+  - cloud_controller.read
+  - uaa.user
+  - approvals.me
+  - profile
+  - roles
+  - user_attributes
+  - uaa.offline_token
+  environment_scripts:
+  - scripts/configure-HA-hosts.sh
+  - scripts/forward_logfiles.sh
+
+`)
+		})
+
 		Convey("Issue #156 Can use concat with static ips", func() {
 			os.Args = []string{"spruce", "merge", "../../assets/static_ips/issue-156/concat.yml"}
 			stdout = ""
