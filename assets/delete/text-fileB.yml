@@ -1,0 +1,12 @@
+---
+meta:
+  list:
+  - (( delete "Cristiano Ronaldo" ))
+
+stuff:
+  default_groups:
+  - (( delete password.write ))
+  - (( delete "cloud_controller.write"))
+
+  environment_scripts:
+  - (( delete scripts/patches/cc_clock_wait_for_api_ready.sh ))

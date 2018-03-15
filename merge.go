@@ -29,7 +29,7 @@ type ModificationDefinition struct {
 	name string
 
 	delete       bool
-	defaultMerge bool //True if modification represents the default merge behavior
+	defaultMerge bool // True if modification represents the default merge behavior
 
 	relative string
 	list     []interface{}
@@ -185,7 +185,8 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 
 	}
 
-	modificationDefinitions := getArrayModifications(n)
+	isSimpleList := isSimpleList(orig)
+	modificationDefinitions := getArrayModifications(n, isSimpleList)
 	DEBUG("%s: performing %d modification operations against list", node, len(modificationDefinitions))
 	DEBUG("%+v", modificationDefinitions)
 
@@ -202,12 +203,31 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 			result = m.mergeArrayDefault(orig, modificationDefinitions[0].list, node)
 			continue
 		}
+
 		if modificationDefinitions[i].key == "" && modificationDefinitions[i].name == "" { // Index comes directly from operation definition
 			idx = modificationDefinitions[i].index
 
 			// Replace the -1 marker with the actual 'end' index of the array
 			if idx == -1 {
 				idx = len(result)
+			}
+
+		} else if modificationDefinitions[i].key == "" && modificationDefinitions[i].name != "" {
+			name := modificationDefinitions[i].name
+			delete := modificationDefinitions[i].delete
+			if delete {
+				// Sanity check for delete operation, ensure no orphan entries follow the operator definition
+				if len(modificationDefinitions[i].list) > 0 {
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{item in array directly after} @c{(( delete \"%s\" ))} @r{must be one of the array operators 'append', 'prepend', 'delete', or 'insert'}", node, name))
+					return nil
+				}
+
+				// Look up the index of the specified insertion point (based on solely on its name)
+				idx = getIndexOfSimpleEntry(result, name)
+				if idx < 0 {
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to find specified modification point with} @c{'%s'}", node, name))
+					return nil
+				}
 			}
 
 		} else { // Index look-up based on key and name
@@ -242,7 +262,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 			} else {
 				// Sanity check for delete operation, ensure no orphan entries follow the operator definition
 				if len(modificationDefinitions[i].list) > 0 {
-					m.Errors.Append(ansi.Errorf("@m{%s}: @R{item in array directly after} @c{(( delete %s: \"%s\" ))} @r{must be one of the array operators 'append', 'prepend', 'delete', or 'insert'}", node, key, name))
+					m.Errors.Append(ansi.Errorf("@m{%s}: @R{item in array directly after} @c{(( delete %s \"%s\" ))} @r{must be one of the array operators 'append', 'prepend', 'delete', or 'insert'}", node, key, name))
 					return nil
 				}
 			}
@@ -387,7 +407,7 @@ func shouldInlineMergeArray(obj []interface{}) bool {
 //Returns a list of ModificationDefinition objects with information on which
 // array operations to apply to which entries. The first object in the returned
 // will always represent the default merge behavior.
-func getArrayModifications(obj []interface{}) []ModificationDefinition {
+func getArrayModifications(obj []interface{}, simpleList bool) []ModificationDefinition {
 
 	//Starts with an entry representing the default merge behavior
 	result := []ModificationDefinition{ModificationDefinition{defaultMerge: true}}
@@ -470,7 +490,12 @@ func getArrayModifications(obj []interface{}) []ModificationDefinition {
 				key := strings.TrimSpace(captures[1])
 				name := strings.TrimSpace(captures[2])
 
-				if key == "" {
+				// illegal state for simple lists, if you have a text with whitespaces, we want to enforce people using quotes
+				if simpleList && key != "" {
+					continue
+				}
+
+				if !simpleList && key == "" {
 					key = "name"
 				}
 
@@ -485,9 +510,19 @@ func getArrayModifications(obj []interface{}) []ModificationDefinition {
 			if captures := deleteByNameUnquotedRegEx.FindStringSubmatch(e); len(captures) == 3 {
 				key := strings.TrimSpace(captures[1])
 				name := strings.TrimSpace(captures[2])
+
+				// illegal state for simple lists, if you have a text with whitespaces, we want to enforce people using quotes
+				if simpleList && key != "" && name != "" {
+					continue
+				}
+
 				if name == "" {
 					name = key
-					key = "name"
+					if !simpleList {
+						key = "name"
+					} else {
+						key = ""
+					}
 				}
 
 				result = append(result, ModificationDefinition{key: key, name: name, delete: true})
@@ -501,6 +536,26 @@ func getArrayModifications(obj []interface{}) []ModificationDefinition {
 	}
 
 	return result
+}
+
+func isSimpleList(list []interface{}) bool {
+	DEBUG("Going to validate if this is a simple list: %v", list)
+
+	if len(list) == 0 {
+		return false
+	}
+
+	var hash_count int
+	for _, item := range list {
+		switch item.(type) {
+		case map[interface{}]interface{}:
+			hash_count = hash_count + 1
+		}
+	}
+	if hash_count == 0 {
+		DEBUG("Working on a simple list")
+	}
+	return hash_count == 0
 }
 
 func shouldKeyMergeArray(obj []interface{}) (bool, string) {
@@ -560,6 +615,18 @@ func shouldReplaceArray(obj []interface{}) bool {
 		}
 	}
 	return false
+}
+
+func getIndexOfSimpleEntry(list []interface{}, name string) int {
+	for i, entry := range list {
+		switch entry.(type) {
+		case string:
+			if entry == name {
+				return i
+			}
+		}
+	}
+	return -1
 }
 
 func getIndexOfEntry(list []interface{}, key string, name string) int {
