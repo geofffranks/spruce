@@ -222,6 +222,7 @@ func getVaultSecret(secret string) (map[string]interface{}, error) {
 
 	client := &http.Client{
 		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
 			TLSClientConfig: &tls.Config{
 				RootCAs:            roots,
 				InsecureSkipVerify: skipVaultVerify(os.Getenv("VAULT_SKIP_VERIFY")),
