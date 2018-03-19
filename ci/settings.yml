@@ -4,7 +4,7 @@ meta:
     app:
       name: play.spruce.cf
       domain: spruce.cf
-      source: git@github.com:jhunt/play.spruce.cf.git
+      source: git@github.com:starkandwayne/play.spruce.cf.git
     org: (( vault "secret/pipelines/spruce/cf:org" ))
     space: (( vault "secret/pipelines/spruce/cf:space" ))
     user: (( vault "secret/pipelines/spruce/cf:user" ))
@@ -13,7 +13,7 @@ meta:
     github_token: (( vault "secret/pipelines/spruce/cf:github_token" ))
 
   go:
-    version: 1.7
+    version: 1.9
     cmd_module: (( concat meta.go.module "/cmd/spruce" ))
     force_static_binary: true
   github:
@@ -32,8 +32,8 @@ meta:
     bucket: spruce-release-pipeline
 
   name: spruce-release
-  target: sw
-  url: https://ci.starkandwayne.com
+  target: ci.spruce.cf
+  url: https://ci.spruce.cf
 
 groups:
 - name: (( grab meta.pipeline ))

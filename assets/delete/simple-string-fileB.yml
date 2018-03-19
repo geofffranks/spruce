@@ -1,0 +1,5 @@
+---
+meta:
+  list:
+  - (( delete "three" ))
+  - (( delete four ))

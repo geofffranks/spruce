@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/geofffranks/yaml"
 	"github.com/starkandwayne/goutils/ansi"
 
 	. "github.com/geofffranks/spruce/log"
@@ -186,7 +187,14 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 		if v == "" {
 			return nil, ansi.Errorf("@R{Environment variable} @c{$%s} @R{is not set}", e.Name)
 		}
-		return &Expr{Type: Literal, Literal: v}, nil
+
+		var val interface{}
+		err := yaml.Unmarshal([]byte(v), &val)
+		_, isString := val.(string)
+		if isString || err != nil {
+			return &Expr{Type: Literal, Literal: v}, nil
+		}
+		return &Expr{Type: Literal, Literal: val}, nil
 
 	case Reference:
 		if _, err := e.Reference.Resolve(tree); err != nil {
@@ -471,6 +479,10 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 		DEBUG("parsing `%s': looks like a (( %s ... )) operator\n arguments:", src, m[1])
 
 		op.op = OperatorFor(m[1])
+		if _, ok := op.op.(NullOperator); ok && len(m[2]) == 0 {
+			DEBUG("skipping `%s': not a real operator -- might be a BOSH variable?", src)
+			continue
+		}
 		if op.op.Phase() != phase {
 			DEBUG("  - skipping (( %s ... )) operation; it belongs to a different phase", m[1])
 			return nil, nil

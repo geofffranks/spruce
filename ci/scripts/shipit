@@ -78,9 +78,8 @@ mv ${REPO_ROOT}/ci/release_notes.md          ${RELEASE_ROOT}/notes.md
 mv ${REPO_ROOT}/artifacts                    ${RELEASE_ROOT}/artifacts
 
 cat > ${RELEASE_ROOT}/notification <<EOF
-<!here> New ${RELEASE_NAME} v${VERSION} released!
+<${GITHUB_REPO}/releases/tag/v${VERSION}|${RELEASE_NAME} v${VERSION}> has been released!
 EOF
-
 
 # GIT!
 if [[ -z $(git config --global user.email) ]]; then

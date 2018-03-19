@@ -101,16 +101,11 @@ func TestOperators(t *testing.T) {
 			}
 
 			Convey("handles opcodes with and without arguments", func() {
-				opOk(`(( null ))`, "null")
 				opOk(`(( null 42 ))`, "null", num(42))
 				opOk(`(( null 1 2 3 4 ))`, "null", num(1), num(2), num(3), num(4))
 			})
 
 			Convey("ignores optional whitespace", func() {
-				opOk(`((null))`, "null")
-				opOk(`((	null	))`, "null")
-				opOk(`((  	null  	))`, "null")
-
 				args := []*Expr{num(1), num(2), num(3)}
 				opOk(`((null 1 2 3))`, "null", args...)
 				opOk(`((null 1	2	3))`, "null", args...)
@@ -206,6 +201,10 @@ func TestOperators(t *testing.T) {
 
 			Convey("ignores spiff-like bang-notation", func() {
 				opIgnore(`((!credhub))`)
+			})
+
+			Convey("ignores BOSH varnames that aren't null-arity operators", func() {
+				opIgnore(`((var-name))`)
 			})
 		})
 	})
@@ -514,6 +513,11 @@ meta:
 		os.Setenv("GRAB_ONE", "one")
 		os.Setenv("GRAB_TWO", "two")
 		os.Setenv("GRAB_NOT", "")
+		os.Setenv("GRAB_BOOL", "true")
+		os.Setenv("GRAB_MULTILINE", `line1
+
+line3
+line4`)
 
 		Convey("can grab a single environment value", func() {
 			r, err := op.Run(ev, []*Expr{
@@ -535,6 +539,31 @@ meta:
 
 			So(r.Type, ShouldEqual, Replace)
 			So(r.Value.(string), ShouldEqual, "two")
+		})
+
+		Convey("unmarshalls variable contents", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("GRAB_BOOL"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(bool), ShouldEqual, true)
+		})
+
+		Convey("does not unmarshall string-only variables", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("GRAB_MULTILINE"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, `line1
+
+line3
+line4`)
 		})
 
 		Convey("throws errors for unset environment variables", func() {
@@ -1698,6 +1727,157 @@ meta:
 			So(r, ShouldBeNil)
 			So(err, ShouldNotBeNil)
 		})
+
+	})
+
+	Convey("ips Operator", t, func() {
+		op := IpsOperator{}
+		ev := &Evaluator{
+			Tree: YAML(
+				`meta:
+  base_network: 1.2.3.4/24
+  base_ip: 1.2.3.4
+  index: 20
+  negative_index: -20
+  count: 2
+`),
+		}
+
+		Convey("can build a single IP based on refs (CIDR)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_network"),
+				ref("meta.index"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "1.2.3.20")
+		})
+
+		Convey("can build a single IP based on refs (IP)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_ip"),
+				ref("meta.index"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "1.2.3.24")
+		})
+
+		Convey("can build a single IP based on literals", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("1.2.3.4/24"),
+				num(20),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "1.2.3.20")
+		})
+
+    Convey("can build a list of IP's based on references (CIDR)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_network"),
+				ref("meta.index"),
+				ref("meta.count"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.([]interface{})[0].(string), ShouldEqual, "1.2.3.20")
+			So(r.Value.([]interface{})[1].(string), ShouldEqual, "1.2.3.21")
+			So(len(r.Value.([]interface{})), ShouldEqual, 2)
+		})
+
+		Convey("can build a list of IP's based on literals", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("1.2.3.4/24"),
+				num(20),
+				num(2),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.([]interface{})[0].(string), ShouldEqual, "1.2.3.20")
+			So(r.Value.([]interface{})[1].(string), ShouldEqual, "1.2.3.21")
+			So(len(r.Value.([]interface{})), ShouldEqual, 2)
+		})
+
+    Convey("can build a list of IP's based on references (IP)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_ip"),
+				ref("meta.index"),
+				ref("meta.count"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.([]interface{})[0].(string), ShouldEqual, "1.2.3.24")
+			So(r.Value.([]interface{})[1].(string), ShouldEqual, "1.2.3.25")
+			So(len(r.Value.([]interface{})), ShouldEqual, 2)
+		})
+
+    Convey("can build a list of IP's using negative index (IP)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_ip"),
+				ref("meta.negative_index"),
+				ref("meta.count"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.([]interface{})[0].(string), ShouldEqual, "1.2.2.240")
+			So(r.Value.([]interface{})[1].(string), ShouldEqual, "1.2.2.241")
+			So(len(r.Value.([]interface{})), ShouldEqual, 2)
+		})
+
+    Convey("can build a list of IP's using negative index (CIDR)", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.base_network"),
+				ref("meta.negative_index"),
+				ref("meta.count"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.([]interface{})[0].(string), ShouldEqual, "1.2.3.236")
+			So(r.Value.([]interface{})[1].(string), ShouldEqual, "1.2.3.237")
+			So(len(r.Value.([]interface{})), ShouldEqual, 2)
+		})
+
+    Convey("bails out if index is outside CIDR size", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("192.168.1.16/29"),
+				num(100),
+			})
+
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "Start index 100 exceeds size of subnet 192.168.1.16/29")
+			So(r, ShouldBeNil)
+		})
+
+    Convey("bails out if count would go outside CIDR size", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("192.168.1.16/29"),
+				num(-1),
+				num(3),
+			})
+
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "Start index 7 and count 3 would exceed size of subnet 192.168.1.16/29")
+			So(r, ShouldBeNil)
+		})
+
+
 
 	})
 

@@ -837,6 +837,73 @@ quux: quux
 `)
 		})
 
+		Convey("Text needed", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/prune/issue-250/fileA.yml", "../../assets/prune/issue-250/fileB.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `list:
+- name: zero
+  params:
+    fail-fast: false
+    preload: true
+- name: one
+  params:
+    fail-fast: false
+    preload: true
+- name: two
+  params:
+    preload: false
+
+`)
+		})
+
+		Convey("The delete operator deletes an entry in a simple list", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/delete/simple-string-fileA.yml", "../../assets/delete/simple-string-fileB.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `meta:
+  list:
+  - one
+  - two
+  - five
+
+`)
+		})
+
+		Convey("The delete operator deletes an entry with whitespaces or special characters in a simple list", func() {
+			os.Args = []string{"spruce", "merge", "../../assets/delete/text-fileA.yml", "../../assets/delete/text-fileB.yml"}
+			stdout = ""
+			stderr = ""
+
+			main()
+			So(stderr, ShouldEqual, "")
+			So(stdout, ShouldEqual, `meta:
+  list:
+  - Leonel Messi
+  - Oliver Kahn
+stuff:
+  default_groups:
+  - openid
+  - cloud_controller.read
+  - uaa.user
+  - approvals.me
+  - profile
+  - roles
+  - user_attributes
+  - uaa.offline_token
+  environment_scripts:
+  - scripts/configure-HA-hosts.sh
+  - scripts/forward_logfiles.sh
+
+`)
+		})
+
 		Convey("Issue #156 Can use concat with static ips", func() {
 			os.Args = []string{"spruce", "merge", "../../assets/static_ips/issue-156/concat.yml"}
 			stdout = ""
@@ -1870,6 +1937,27 @@ spruce_array_grab:
 				So(stderr, ShouldContainSubstring, "Root of YAML document is not a hash/map. Tried parsing it as go-patch, but got:")
 				So(stdout, ShouldEqual, "")
 			})
+		})
+		Convey("setting DEFAULT_ARRAY_MERGE_KEY", func() {
+
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "id")
+			Convey("changes how arrays of maps are merged by default", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/default-array-merge-var/first.yml", "../../assets/default-array-merge-var/second.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `array:
+- id: first
+  value: 123
+- id: second
+  value: 987
+- id: third
+  value: true
+
+`)
+			})
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "")
 		})
 	})
 

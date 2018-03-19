@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -83,6 +84,15 @@ func TestShouldKeyMergeArrayOfHashes(t *testing.T) {
 			yes, key := shouldKeyMergeArray([]interface{}{"(( merge on id ))", "stuff"})
 			So(yes, ShouldBeTrue)
 			So(key, ShouldEqual, "id")
+		})
+		Convey("when DEFAULT_ARRAY_MERGE_KEY is set", func() {
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "id")
+			Convey("shouldKeyMergeArray picks up on it", func() {
+				yes, key := shouldKeyMergeArray([]interface{}{"(( merge ))", "stuff"})
+				So(yes, ShouldBeTrue)
+				So(key, ShouldEqual, "id")
+			})
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "")
 		})
 		Convey("Is whitespace agnostic", func() {
 			Convey("No surrounding whitespace", func() {
@@ -187,7 +197,7 @@ func TestGetArrayModifications(t *testing.T) {
 				"(( somethingelse ))":   false,
 			} {
 				Convey(fmt.Sprintf("with case %s", input), func() {
-					results := getArrayModifications([]interface{}{input})
+					results := getArrayModifications([]interface{}{input}, false)
 					if shouldMatch {
 						So(results, ShouldHaveLength, 2)
 						So(results[0], shouldBeDefault)
@@ -214,7 +224,7 @@ func TestGetArrayModifications(t *testing.T) {
 				"(( somethingelse ))":    false,
 			} {
 				Convey(fmt.Sprintf("with case %s", input), func() {
-					results := getArrayModifications([]interface{}{input})
+					results := getArrayModifications([]interface{}{input}, false)
 					if shouldMatch {
 						So(results, ShouldHaveLength, 2)
 						So(results[0], shouldBeDefault)
@@ -248,7 +258,7 @@ func TestGetArrayModifications(t *testing.T) {
 						fmt.Sprintf("(( somethingelse %s %d ))", rel, index):   false,
 					} {
 						Convey(fmt.Sprintf("with case %s", input), func() {
-							results := getArrayModifications([]interface{}{input})
+							results := getArrayModifications([]interface{}{input}, false)
 							if shouldMatch {
 								So(results, ShouldHaveLength, 2)
 								So(results[0], shouldBeDefault)
@@ -282,7 +292,7 @@ func TestGetArrayModifications(t *testing.T) {
 						fmt.Sprintf("(( somethingelse %s %s ))", rel, key):   false,
 					} {
 						Convey(fmt.Sprintf("with case %s", input), func() {
-							results := getArrayModifications([]interface{}{input})
+							results := getArrayModifications([]interface{}{input}, false)
 							if shouldMatch {
 								So(results, ShouldHaveLength, 2)
 								So(results[0], shouldBeDefault)
@@ -323,7 +333,7 @@ func TestGetArrayModifications(t *testing.T) {
 					fmt.Sprintf("(( somethingelse %s ))", key):   false,
 				} {
 					Convey(fmt.Sprintf("with case %s", input), func() {
-						results := getArrayModifications([]interface{}{input})
+						results := getArrayModifications([]interface{}{input}, false)
 						if shouldMatch {
 							So(results, ShouldHaveLength, 2)
 							So(results[0], shouldBeDefault)
@@ -341,6 +351,31 @@ func TestGetArrayModifications(t *testing.T) {
 				}
 			}
 
+			for input, shouldMatch := range map[string]bool{
+				`(( delete  "MrSpiff" ))`: true,
+				`(( delete 	 "MrSpiff" ))`: true,
+				`((   delete  "MrSpiff" ))`:  true,
+				`(( delete  "MrSpiff"   ))`:  true,
+				`(( delete  "MrSpiff"    ))`: true,
+				`(( delete  MrSpiff ))`:      true,
+				`(( deletespruce ))`:         false,
+				`(( delete  Mr Spiff ))`:     false,
+				`(( delete  "" "MrSpiff" ))`: false,
+			} {
+				Convey(fmt.Sprintf("with case %s on simple list", input), func() {
+					results := getArrayModifications([]interface{}{input}, true)
+					if shouldMatch {
+						So(results, ShouldHaveLength, 2)
+						So(results[0], shouldBeDefault)
+						So(results[1].key, ShouldBeEmpty)
+						So(results[1].name, ShouldEqual, "MrSpiff")
+					} else {
+						So(results, ShouldHaveLength, 1)
+						So(results[0], shouldBeDefault)
+					}
+				})
+			}
+
 			for _, index := range []int{0, 10, 100} {
 				//index based delete cases go here
 				for input, shouldDelete := range map[string]bool{
@@ -356,7 +391,7 @@ func TestGetArrayModifications(t *testing.T) {
 					fmt.Sprintf(`(( something else %d))`, index):  false,
 				} {
 					Convey(fmt.Sprintf("with case %s", input), func() {
-						results := getArrayModifications([]interface{}{input})
+						results := getArrayModifications([]interface{}{input}, false)
 						if shouldDelete {
 							So(results, ShouldHaveLength, 2)
 							So(results[0], shouldBeDefault)
@@ -373,7 +408,7 @@ func TestGetArrayModifications(t *testing.T) {
 	})
 
 	Convey("Don't return an insert if index is obviously out of bounds", t, func() {
-		results := getArrayModifications([]interface{}{"(( insert before -1 ))", "stuff"})
+		results := getArrayModifications([]interface{}{"(( insert before -1 ))", "stuff"}, false)
 		So(results, ShouldHaveLength, 1) //Just the default merge
 		So(results[0].defaultMerge, ShouldBeTrue)
 	})
@@ -387,7 +422,7 @@ func TestGetArrayModifications(t *testing.T) {
 			"(( insert before id \"consul\" ))",
 			"stuffX1",
 			"stuffX2",
-		})
+		}, false)
 		So(results, ShouldHaveLength, 3)
 		So(results[0], shouldBeDefault)
 		So(results[1].relative, ShouldEqual, "after")
@@ -401,13 +436,13 @@ func TestGetArrayModifications(t *testing.T) {
 	})
 
 	Convey("Only default merge if no operators given", t, func() {
-		results := getArrayModifications([]interface{}{"not a magic token", "stuff"})
+		results := getArrayModifications([]interface{}{"not a magic token", "stuff"}, false)
 		So(results, ShouldHaveLength, 1)
 		So(results[0], shouldBeDefault)
 	})
 
 	Convey("Can specify operators without one at the 0th index", t, func() {
-		results := getArrayModifications([]interface{}{"foo", "(( append ))", "stuff"})
+		results := getArrayModifications([]interface{}{"foo", "(( append ))", "stuff"}, false)
 		So(results, ShouldHaveLength, 2)
 		So(results[0].defaultMerge, ShouldBeTrue)
 		So(results[1], shouldBeAppend)
@@ -1092,7 +1127,7 @@ func TestMergeArray(t *testing.T) {
 				m.mergeArray(orig, array, "node-path")
 				err := m.Error()
 				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "node-path.0.val.0: new object is a string, not a map - cannot merge by key")
+				So(err.Error(), ShouldContainSubstring, "node-path.first.val.0: new object is a string, not a map - cannot merge by key")
 			})
 		})
 		Convey("arrays of maps can be merged inline", func() {
@@ -1164,6 +1199,58 @@ func TestMergeArray(t *testing.T) {
 				},
 			})
 			So(err, ShouldBeNil)
+		})
+		Convey("setting DEFAULT_ARRAY_MERGE_KEY", func() {
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "id")
+			Convey("can override key-merge by default", func() {
+				first := []interface{}{
+					map[interface{}]interface{}{
+						"name": "first",
+						"k1":   "v1",
+						"id":   "1",
+					},
+					map[interface{}]interface{}{
+						"name": "second",
+						"done": "yes",
+						"id":   "2",
+					},
+				}
+				second := []interface{}{
+					map[interface{}]interface{}{
+						"name": "second",
+						"2":    "best",
+						"test": "test",
+						"id":   "2",
+					},
+					map[interface{}]interface{}{
+						"name": "first",
+						"k1":   "1",
+						"k2":   "2",
+						"id":   "1",
+					},
+				}
+
+				m := &Merger{}
+				o := m.mergeObj(first, second, "an.inlined.merge")
+				err := m.Error()
+				So(o, ShouldResemble, []interface{}{
+					map[interface{}]interface{}{
+						"name": "first",
+						"k1":   "1",
+						"k2":   "2",
+						"id":   "1",
+					},
+					map[interface{}]interface{}{
+						"name": "second",
+						"2":    "best",
+						"done": "yes",
+						"test": "test",
+						"id":   "2",
+					},
+				})
+				So(err, ShouldBeNil)
+			})
+			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "")
 		})
 		Convey("without magical merge token replaces entire array", func() {
 			orig := []interface{}{"first", "second"}
