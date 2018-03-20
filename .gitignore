@@ -7,3 +7,8 @@ artifacts
 .svtoken
 *.swp
 .vscode
+parts/
+prime/
+stage/
+snap/.snapcraft/
+*.snap

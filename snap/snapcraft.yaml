@@ -1,0 +1,27 @@
+name: spruce
+version: git
+summary: A general purpose YAML & JSON merging tool.
+description: |
+  Spruce is a general purpose YAML & JSON merging tool.
+  It is designed to be an intuitive utility for merging YAML/JSON templates
+  together to generate complicated YAML/JSON config files in a
+  repeatable fashion. It can be used to stitch together some generic/top level
+  definitions for the config and pull in overrides for site-specific
+  configurations to DRY your configs up as much as possible.
+
+grade: stable
+confinement: strict
+
+parts:
+  spruce:
+    source: .
+    plugin: go
+    go-importpath: github.com/geofffranks/spruce
+    after: [go]
+  go:
+    source-tag: go1.9.4
+
+apps:
+  spruce:
+    command: spruce
+    plugs: [home]

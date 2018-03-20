@@ -14,3 +14,7 @@ clitests: build
 
 build:
 	go build ./cmd/spruce
+
+.PHONY: snap
+snap:
+	snapcraft
