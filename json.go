@@ -71,7 +71,13 @@ func deinterface(o interface{}) interface{} {
 func deinterfaceMap(o map[interface{}]interface{}) map[string]interface{} {
 	m := map[string]interface{}{}
 	for k, v := range o {
-		m[fmt.Sprintf("%v", k)] = deinterface(v)
+		vs := fmt.Sprintf("%v", k)
+		_, exists := m[vs]
+		if exists {
+			NewWarningError(eContextAll, "@Y{Duplicate key detected: %s}", vs).Warn()
+			continue
+		}
+		m[vs] = deinterface(v)
 	}
 	return m
 }
