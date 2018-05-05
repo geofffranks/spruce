@@ -50,6 +50,11 @@ func envFlag(varname string) bool {
 	return val != "" && strings.ToLower(val) != "false" && val != "0"
 }
 
+type jsonOpts struct {
+	Strict bool               `goptions:"--strict, description='Refuse to convert non-string keys to strings'"`
+	Files  goptions.Remainder `goptions:"description='Files to convert to JSON'"`
+}
+
 type mergeOpts struct {
 	SkipEval       bool               `goptions:"--skip-eval, description='Do not evaluate spruce logic after merging docs'"`
 	Prune          []string           `goptions:"--prune, description='Specify keys to prune from final output (may be specified more than once)'"`
@@ -66,9 +71,7 @@ func main() {
 		Version bool `goptions:"-v, --version, description='Display version information'"`
 		Action  goptions.Verbs
 		Merge   mergeOpts `goptions:"merge"`
-		JSON    struct {
-			Files goptions.Remainder `goptions:"description='Files to convert to JSON'"`
-		} `goptions:"json"`
+		JSON    jsonOpts `goptions:"json"`
 		Diff struct {
 			Files goptions.Remainder `goptions:"description='Show the semantic differences between two YAML files'"`
 		} `goptions:"diff"`
@@ -131,7 +134,7 @@ func main() {
 		printfStdOut("%s\n", formatVaultRefs())
 	case "json":
 		if len(options.JSON.Files) > 0 {
-			jsons, err := JSONifyFiles(options.JSON.Files)
+			jsons, err := JSONifyFiles(options.JSON.Files, options.JSON.Strict)
 			if err != nil {
 				PrintfStdErr("%s\n", err)
 				exit(2)
@@ -141,7 +144,7 @@ func main() {
 				printfStdOut("%s\n", output)
 			}
 		} else {
-			output, err := JSONifyIO(os.Stdin)
+			output, err := JSONifyIO(os.Stdin, options.JSON.Strict)
 			if err != nil {
 				PrintfStdErr("%s\n", err)
 				exit(2)
