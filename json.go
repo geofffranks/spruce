@@ -91,6 +91,7 @@ func addKeyToMap(m map[string]interface{}, k interface{}, v interface{}, strict 
 func deinterfaceMap(o map[interface{}]interface{}, strict bool) (map[string]interface{}, error) {
 	m := map[string]interface{}{}
 	for k, v := range o {
+
 		switch k.(type) {
 		case string:
 			err := addKeyToMap(m, k, v, strict)
@@ -104,6 +105,7 @@ func deinterfaceMap(o map[interface{}]interface{}, strict bool) (map[string]inte
 				addKeyToMap(m, k, v, strict)
 			}
 		}
+
 	}
 	return m, nil
 }
