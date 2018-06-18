@@ -100,11 +100,11 @@ func (CalcOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 func searchForCursors(input string) ([]*tree.Cursor, error) {
 	result := []*tree.Cursor{}
 
-	// Search for sub-strings that contain the path seperator dot character
+	// Search for sub-strings that contain the path separator dot character
 	// https://regex101.com/r/TIEyak/1 (to delete the URL use https://regex101.com/delete/fPbxosYXWzBPYaNdL5YcPpj3)
 	regexp := regexp.MustCompile(`(\w+|-)\.(\w+|-|\.)+`)
 	candidates := regexp.FindAllString(input, -1)
-	DEBUG("    strings found containing the path seperator: %v", strings.Join(candidates, ", "))
+	DEBUG("    strings found containing the path separator: %v", strings.Join(candidates, ", "))
 
 	// If it is a path, it can be parsed (parse errors will be ignored)
 	for _, candidate := range candidates {

@@ -258,7 +258,7 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 	}
 	sort.Strings(sortedKeys)
 
-	// find all nodes in g that are free (no futher dependencies)
+	// find all nodes in g that are free (no further dependencies)
 	freeNodes := func(g [][]*Opcall) []*Opcall {
 		l := []*Opcall{}
 		for _, k := range sortedKeys {

@@ -107,11 +107,11 @@ func (JoinOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		return nil, ansi.Errorf("too few arguments supplied to @c{(( join ... ))}")
 	}
 
-	var seperator string
+	var separator string
 	var list []string
 
 	for i, arg := range args {
-		if i == 0 { // argument #0: seperator
+		if i == 0 { // argument #0: separator
 			sep, err := arg.Resolve(ev.Tree)
 			if err != nil {
 				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
@@ -119,12 +119,12 @@ func (JoinOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			}
 
 			if sep.Type != Literal {
-				DEBUG("     [%d]: unsupported type for join operator seperator argument: '%v'", i, sep)
-				return nil, fmt.Errorf("join operator only accepts literal argument for the seperator")
+				DEBUG("     [%d]: unsupported type for join operator separator argument: '%v'", i, sep)
+				return nil, fmt.Errorf("join operator only accepts literal argument for the separator")
 			}
 
-			DEBUG("     [%d]: list seperator will be: %s", i, sep)
-			seperator = sep.Literal.(string)
+			DEBUG("     [%d]: list separator will be: %s", i, sep)
+			separator = sep.Literal.(string)
 
 		} else { // argument #1..n: list, or literal
 			ref, err := arg.Resolve(ev.Tree)
@@ -181,10 +181,10 @@ func (JoinOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	}
 
 	// finally, join and return
-	DEBUG("  joined list: %s", strings.Join(list, seperator))
+	DEBUG("  joined list: %s", strings.Join(list, separator))
 	return &Response{
 		Type:  Replace,
-		Value: strings.Join(list, seperator),
+		Value: strings.Join(list, separator),
 	}, nil
 }
 
