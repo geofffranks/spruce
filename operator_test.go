@@ -1496,13 +1496,13 @@ meta:
 			So(r, ShouldBeNil)
 		})
 
-		Convey("throws an error when seperator argument is not a literal", func() {
+		Convey("throws an error when separator argument is not a literal", func() {
 			r, err := op.Run(ev, []*Expr{
 				ref("meta.emptylist"),
 				ref("meta.authorities"),
 			})
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "join operator only accepts literal argument for the seperator")
+			So(err.Error(), ShouldContainSubstring, "join operator only accepts literal argument for the separator")
 			So(r, ShouldBeNil)
 		})
 
