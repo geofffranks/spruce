@@ -1,0 +1,87 @@
+---
+name_list:
+- name: item-z
+- name: item-y
+- name: item-x
+- name: item-w
+- name: item-v
+- name: item-u
+- name: item-t
+- name: item-s
+- name: item-r
+- name: item-q
+- name: item-p
+- name: item-o
+- name: item-n
+- name: item-m
+- name: item-l
+- name: item-k
+- name: item-j
+- name: item-i
+- name: item-h
+- name: item-g
+- name: item-f
+- name: item-e
+- name: item-d
+- name: item-c
+- name: item-b
+- name: item-a
+- name: item-9
+- name: item-8
+- name: item-7
+- name: item-6
+- name: item-5
+- name: item-4
+- name: item-3
+- name: item-2
+- name: item-1
+
+key_list:
+- key: item-i
+- key: item-h
+- key: item-g
+- key: item-f
+- key: item-e
+- key: item-d
+- key: item-c
+- key: item-b
+- key: item-a
+- key: item-4
+- key: item-3
+- key: item-2
+- key: item-1
+
+foobar_list:
+- foobar: item-m
+- foobar: item-l
+- foobar: item-k
+- foobar: item-j
+- foobar: item-i
+- foobar: item-h
+- foobar: item-g
+- foobar: item-9
+- foobar: item-8
+- foobar: item-7
+- foobar: item-6
+
+int_list:
+- 1
+- 9
+- 2
+- 8
+- 3
+- 7
+- 4
+- 6
+- 5
+
+float_list:
+- 1.42
+- 9.42
+- 2.42
+- 8.42
+- 3.42
+- 7.42
+- 4.42
+- 6.42
+- 5.42

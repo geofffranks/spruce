@@ -99,19 +99,40 @@ func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]in
 }
 
 func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interface{} {
-	// regular expression to search for prune operator to make its special behavior possible
+	// regular expression to search for prune and sort operator to make their
+	// special behavior possible
 	pruneRx := regexp.MustCompile(`^\s*\Q((\E\s*prune\s*\Q))\E`)
+	sortRx := regexp.MustCompile(`^\s*\Q((\E\s*sort(?:\s+by\s+(.*?))?\s*\Q))\E$`)
 
-	// prune special behavior I/II: if the value is replaced during processing (overwritten), the path will be removed at the end of the processing anyway
-	if origString, ok := orig.(string); ok && pruneRx.MatchString(origString) {
+	// prune/sort operator special behavior I:
+	// operator is defined in the original object and will now be overwritten by
+	// the new value. Therefore, remember that the operator was here at that path
+	//
+	// prune/sort operator special behavior II:
+	// operator is defined in the new object and would therefore overwrite the
+	// original content. In this case, keep the original content as it is and mark
+	// that the operator occurred at this path
+	//
+	// common requirement is that both original and new object values are strings
+	origString, origOk := orig.(string)
+	newString, newOk := n.(string)
+	switch {
+	case origOk && pruneRx.MatchString(origString):
 		DEBUG("%s: a (( prune )) operator is about to be replaced, check if its path needs to be saved", node)
 		addToPruneListIfNecessary(strings.Replace(node, "$.", "", -1))
-	}
 
-	// prune special behavior II/II: if a new prune operator would overwrite something, this will be omitted but the path saved for later pruning
-	if nString, ok := n.(string); ok && pruneRx.MatchString(nString) && orig != nil {
+	case newOk && pruneRx.MatchString(newString) && orig != nil:
 		DEBUG("%s: a (( prune )) operator is about to replace existing content, check if its path needs to be saved", node)
 		addToPruneListIfNecessary(strings.Replace(node, "$.", "", -1))
+		return orig
+
+	case origOk && sortRx.MatchString(origString):
+		DEBUG("%s: a (( sort )) operator is about to be replaced, check if its path needs to be saved", node)
+		addToSortListIfNecessary(origString, strings.Replace(node, "$.", "", -1))
+
+	case newOk && sortRx.MatchString(newString) && orig != nil:
+		DEBUG("%s: a (( sort )) operator is about to replace existing content, check if its path needs to be saved", node)
+		addToSortListIfNecessary(newString, strings.Replace(node, "$.", "", -1))
 		return orig
 	}
 

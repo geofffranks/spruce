@@ -22,7 +22,7 @@ see the [array merging documentation][array-merging]:
 - `(( append ))` - Adds the data to the end of the corresponding array in the root document.
 - `(( prepend ))` - Inserts the data at the beginning of the corresponding array in the root document.
 - `(( insert ))` - Inserts the data before or after a specified index, or object.
-- `(( merge ))` - Merges the data on top of an existing array based on a common key. This 
+- `(( merge ))` - Merges the data on top of an existing array based on a common key. This
   requires each element to be an object, all with the common key used for merging.
 - `(( inline ))` - Merges the data ontop of an existing array, based on the indices of the
   array.
@@ -68,7 +68,7 @@ Usage: `(( concat LITERAL|REFERENCE ... ))`
 
 The `(( concat ))` operator has a role that may shock you. It concatenates values together into
 a string. You can pass it any number of arguments, literal or reference, as long as the reference
-is not an array/map. 
+is not an array/map.
 
 [Example][concat-example]
 
@@ -210,6 +210,26 @@ to rely on the end-user always specifying the necessary `--prune` flags, you can
 make use `(( prune ))`s to clear out the bloated data..
 
 [Example][prune-example]
+
+## (( sort ))
+
+Usage: `(( sort [by KEY] ))`
+
+This operator enables sorting simple lists like lists of strings, or
+numbers as well as lists of maps that follow the known contract of containing an
+identifying entry each, like `name`, `key`, or `id`. As always, `name` is the
+default for named-entry lists if no sort key is specified. The `(( sort ))`
+operator works similar to the `(( prune ))` operator as more of an annotation
+than an actual operator that immediately performs an action: The path at which
+the sort operator is used will be marked for evaluation in the post-processing
+phase. That means the sorting will only take place once after all files are
+merged.
+
+The `(( sort ))` operator will fail in case of:
+- lists that do not contain strings, numbers or maps (for example lists of lists)
+- inhomogeneous types (mixing strings and numbers)
+- named-entry maps that do not have a single identifying entry
+
 
 ## (( static_ips ))
 

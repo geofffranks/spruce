@@ -66,7 +66,7 @@ and multiple phases have been introduced into `spruce` to handle the various tas
 
 ## What about arrays?
 
-Merging arrays together is slightly more complicated than merging arbitray-key-values,
+Merging arrays together is slightly more complicated than merging arbitrary-key-values,
 because order matters. To aid in this, `spruce` has specific **array operators** that
 are used to tell it how to perform array merges:
 
