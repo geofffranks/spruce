@@ -1,0 +1,6 @@
+---
+name_list: (( sort ))
+key_list: (( sort by key ))
+foobar_list: (( sort by foobar ))
+int_list: (( sort ))
+float_list: (( sort ))

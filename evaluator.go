@@ -388,6 +388,50 @@ func (ev *Evaluator) Prune(paths []string) error {
 	return nil
 }
 
+// SortPaths sorts all paths (keys in map) using the provided sort-key (respective value)
+func (ev *Evaluator) SortPaths(pathKeyMap map[string]string) error {
+	DEBUG("sorting %d paths in the final YAML structure", len(pathKeyMap))
+	for path, sortBy := range pathKeyMap {
+		DEBUG("  sorting path %s (sort-key %s)", path, sortBy)
+
+		cursor, err := tree.ParseCursor(path)
+		if err != nil {
+			return err
+		}
+
+		value, err := cursor.Resolve(ev.Tree)
+		if err != nil {
+			return err
+		}
+
+		switch value.(type) {
+		case []interface{}:
+			// no-op, that's what we want ...
+
+		case map[interface{}]interface{}:
+			return tree.TypeMismatchError{
+				Path:   []string{path},
+				Wanted: "a list",
+				Got:    "a map",
+			}
+
+		default:
+			return tree.TypeMismatchError{
+				Path:   []string{path},
+				Wanted: "a list",
+				Got:    "a scalar",
+			}
+		}
+
+		if err := sortList(path, value.([]interface{}), sortBy); err != nil {
+			return err
+		}
+	}
+
+	DEBUG("")
+	return nil
+}
+
 // Cherry-pick ...
 func (ev *Evaluator) CherryPick(paths []string) error {
 	DEBUG("cherry-picking %d paths from the final YAML structure", len(paths))
@@ -644,6 +688,10 @@ func (ev *Evaluator) Run(prune []string, picks []string) error {
 	addToPruneListIfNecessary(prune...)
 	errors.Append(ev.Prune(keysToPrune))
 	keysToPrune = nil
+
+	// post-processing: sorting
+	errors.Append(ev.SortPaths(pathsToSort))
+	pathsToSort = map[string]string{}
 
 	// post-processing: cherry-pick
 	errors.Append(ev.CherryPick(picks))

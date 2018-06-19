@@ -1318,6 +1318,100 @@ z:
 			}
 		})
 
+		Convey("Sort test cases", func() {
+			Convey("sort operator functionality", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/sort/base.yml", "../../assets/sort/op.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `float_list:
+- 1.42
+- 2.42
+- 3.42
+- 4.42
+- 5.42
+- 6.42
+- 7.42
+- 8.42
+- 9.42
+foobar_list:
+- foobar: item-6
+- foobar: item-7
+- foobar: item-8
+- foobar: item-9
+- foobar: item-g
+- foobar: item-h
+- foobar: item-i
+- foobar: item-j
+- foobar: item-k
+- foobar: item-l
+- foobar: item-m
+int_list:
+- 1
+- 2
+- 3
+- 4
+- 5
+- 6
+- 7
+- 8
+- 9
+key_list:
+- key: item-1
+- key: item-2
+- key: item-3
+- key: item-4
+- key: item-a
+- key: item-b
+- key: item-c
+- key: item-d
+- key: item-e
+- key: item-f
+- key: item-g
+- key: item-h
+- key: item-i
+name_list:
+- name: item-1
+- name: item-2
+- name: item-3
+- name: item-4
+- name: item-5
+- name: item-6
+- name: item-7
+- name: item-8
+- name: item-9
+- name: item-a
+- name: item-b
+- name: item-c
+- name: item-d
+- name: item-e
+- name: item-f
+- name: item-g
+- name: item-h
+- name: item-i
+- name: item-j
+- name: item-k
+- name: item-l
+- name: item-m
+- name: item-n
+- name: item-o
+- name: item-p
+- name: item-q
+- name: item-r
+- name: item-s
+- name: item-t
+- name: item-u
+- name: item-v
+- name: item-w
+- name: item-x
+- name: item-y
+- name: item-z
+
+`)
+			})
+		})
+
 		Convey("Cherry picking test cases", func() {
 			Convey("Cherry pick just one root level path", func() {
 				os.Args = []string{"spruce", "merge", "--cherry-pick", "properties", "../../assets/cherry-pick/fileA.yml", "../../assets/cherry-pick/fileB.yml"}
