@@ -168,14 +168,14 @@ func TestGetArrayModifications(t *testing.T) {
 	}
 
 	shouldBeDelete := func(actual interface{}, _ ...interface{}) string {
-		if !actual.(ModificationDefinition).delete {
+		if actual.(ModificationDefinition).listOp != listOpDelete {
 			return "Result doesn't have marker for delete operation"
 		}
 		return ""
 	}
 
 	shouldBeDefault := func(actual interface{}, _ ...interface{}) string {
-		if actual.(ModificationDefinition).defaultMerge {
+		if actual.(ModificationDefinition).listOp == listOpMergeDefault {
 			return ""
 		}
 		return "Expected defaultMerge to be true"
@@ -410,7 +410,7 @@ func TestGetArrayModifications(t *testing.T) {
 	Convey("Don't return an insert if index is obviously out of bounds", t, func() {
 		results := getArrayModifications([]interface{}{"(( insert before -1 ))", "stuff"}, false)
 		So(results, ShouldHaveLength, 1) //Just the default merge
-		So(results[0].defaultMerge, ShouldBeTrue)
+		So(results[0].listOp, ShouldEqual, listOpMergeDefault)
 	})
 
 	Convey("If there are multiple insert token with after/before, different key names, and names (only technical usecase)", t, func() {
@@ -444,7 +444,7 @@ func TestGetArrayModifications(t *testing.T) {
 	Convey("Can specify operators without one at the 0th index", t, func() {
 		results := getArrayModifications([]interface{}{"foo", "(( append ))", "stuff"}, false)
 		So(results, ShouldHaveLength, 2)
-		So(results[0].defaultMerge, ShouldBeTrue)
+		So(results[0].listOp, ShouldEqual, listOpMergeDefault)
 		So(results[1], shouldBeAppend)
 		So(results[0].list, ShouldHaveLength, 1)
 		So(results[1].list, ShouldHaveLength, 1)

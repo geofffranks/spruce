@@ -13,6 +13,17 @@ import (
 	. "github.com/geofffranks/spruce/log"
 )
 
+type listOp int
+
+const (
+	listOpMergeDefault listOp = iota
+	listOpMergeOnKey
+	listOpMergeInline
+	listOpReplace
+	listOpInsert
+	listOpDelete
+)
+
 // Merger ...
 type Merger struct {
 	AppendByDefault bool
@@ -21,18 +32,20 @@ type Merger struct {
 	depth  int
 }
 
-// Array operation helper structure
+// ModificationDefinition encapsulates the details of an array modification:
+// (1) the type of modification, e.g. insert, delete, replace
+// (2) an optional guide to the specific part of the array to be modified,
+//    for example the index at which an insertion should be done
+// (3) an optional list of entries to be added or merged into the array
 type ModificationDefinition struct {
-	index int
+	listOp listOp
 
-	key  string
-	name string
-
-	delete       bool
-	defaultMerge bool // True if modification represents the default merge behavior
-
+	index    int
+	key      string
+	name     string
 	relative string
-	list     []interface{}
+
+	list []interface{}
 }
 
 // Merge ...
@@ -51,6 +64,16 @@ func (m *Merger) Error() error {
 		return m.Errors
 	}
 	return nil
+}
+
+func getDefaultIdentifierKey() string {
+	// Use environment variable override, if set
+	if os.Getenv("DEFAULT_ARRAY_MERGE_KEY") != "" {
+		return os.Getenv("DEFAULT_ARRAY_MERGE_KEY")
+	}
+
+	// the built-in default: name
+	return "name"
 }
 
 func deepCopy(orig interface{}) interface{} {
@@ -181,35 +204,11 @@ func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interfac
 }
 
 func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []interface{} {
-
-	if shouldInlineMergeArray(n) {
-		DEBUG("%s: performing explicit inline array merge", node)
-		return m.mergeArrayInline(orig, n[1:], node)
-
-	} else if shouldReplaceArray(n) {
-		DEBUG("%s: replacing with new data", node)
-		return n[1:]
-
-	} else if should, key := shouldKeyMergeArray(n); should {
-		DEBUG("%s: performing key-based array merge, using key '%s'", node, key)
-
-		if err := canKeyMergeArray("new", n[1:], node, key); err != nil {
-			m.Errors.Append(err)
-			return nil
-		}
-		if err := canKeyMergeArray("original", orig, node, key); err != nil {
-			m.Errors.Append(err)
-			return nil
-		}
-
-		return m.mergeArrayByKey(orig, n[1:], node, key)
-
-	}
-
-	isSimpleList := isSimpleList(orig)
-	modificationDefinitions := getArrayModifications(n, isSimpleList)
+	modificationDefinitions := getArrayModifications(n, isSimpleList(orig))
 	DEBUG("%s: performing %d modification operations against list", node, len(modificationDefinitions))
-	DEBUG("%+v", modificationDefinitions)
+	for idx, modificationDefinition := range modificationDefinitions {
+		DEBUG("  #%d %#v", idx, modificationDefinition)
+	}
 
 	// Create a copy of orig for the (multiple) modifications that are about to happen
 	result := make([]interface{}, len(orig))
@@ -220,12 +219,39 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 	// Process the modifications definitions that were found in the new list
 	for i := range modificationDefinitions {
 		//Special tag for default behavior. Cannot be invoked explicitly by users
-		if modificationDefinitions[i].defaultMerge {
+		if modificationDefinitions[i].listOp == listOpMergeDefault {
 			result = m.mergeArrayDefault(orig, modificationDefinitions[0].list, node)
 			continue
 		}
 
-		if modificationDefinitions[i].key == "" && modificationDefinitions[i].name == "" { // Index comes directly from operation definition
+		if modificationDefinitions[i].listOp == listOpMergeOnKey {
+			key := modificationDefinitions[i].key
+			if key == "" {
+				key = getDefaultIdentifierKey()
+			}
+
+			if err := canKeyMergeArray("new", modificationDefinitions[i].list, node, key); err != nil {
+				m.Errors.Append(err)
+				return nil
+			}
+			if err := canKeyMergeArray("original", orig, node, key); err != nil {
+				m.Errors.Append(err)
+				return nil
+			}
+
+			result = m.mergeArrayByKey(result, modificationDefinitions[i].list, node, key)
+			continue
+
+		} else if modificationDefinitions[i].listOp == listOpMergeInline {
+			result = m.mergeArrayInline(result, modificationDefinitions[i].list, node)
+			continue
+
+		} else if modificationDefinitions[i].listOp == listOpReplace {
+			result = make([]interface{}, len(modificationDefinitions[i].list))
+			copy(result, modificationDefinitions[i].list)
+			continue
+
+		} else if modificationDefinitions[i].key == "" && modificationDefinitions[i].name == "" { // Index comes directly from operation definition
 			idx = modificationDefinitions[i].index
 
 			// Replace the -1 marker with the actual 'end' index of the array
@@ -235,7 +261,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 
 		} else if modificationDefinitions[i].key == "" && modificationDefinitions[i].name != "" {
 			name := modificationDefinitions[i].name
-			delete := modificationDefinitions[i].delete
+			delete := modificationDefinitions[i].listOp == listOpDelete
 			if delete {
 				// Sanity check for delete operation, ensure no orphan entries follow the operator definition
 				if len(modificationDefinitions[i].list) > 0 {
@@ -254,7 +280,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 		} else { // Index look-up based on key and name
 			key := modificationDefinitions[i].key
 			name := modificationDefinitions[i].name
-			delete := modificationDefinitions[i].delete
+			delete := modificationDefinitions[i].listOp == listOpDelete
 
 			// Sanity check original list, list must contain key/id based entries
 			if err := canKeyMergeArray("original", result, node, key); err != nil {
@@ -302,12 +328,12 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 		}
 
 		// Back out if idx is smaller than 0, or greater than the length (for inserts), or greater/equal than the length (for deletes)
-		if (idx < 0) || (modificationDefinitions[i].delete == false && idx > len(result)) || (modificationDefinitions[i].delete == true && idx >= len(result)) {
+		if (idx < 0) || (modificationDefinitions[i].listOp != listOpDelete && idx > len(result)) || (modificationDefinitions[i].listOp == listOpDelete && idx >= len(result)) {
 			m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to modify the list, because specified index} @c{%d} @R{is out of bounds}", node, idx))
 			return nil
 		}
 
-		if modificationDefinitions[i].delete == false {
+		if modificationDefinitions[i].listOp != listOpDelete {
 			DEBUG("%s: inserting %d new elements to existing array at index %d", node, len(modificationDefinitions[i].list), idx)
 			result = insertIntoList(result, idx, modificationDefinitions[i].list)
 		} else {
@@ -325,10 +351,8 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 func (m *Merger) mergeArrayDefault(orig []interface{}, n []interface{}, node string) []interface{} {
 	DEBUG("%s: performing index-based array merge", node)
 	var err error
-	key := "name"
-	if os.Getenv("DEFAULT_ARRAY_MERGE_KEY") != "" {
-		key = os.Getenv("DEFAULT_ARRAY_MERGE_KEY")
-	}
+	key := getDefaultIdentifierKey()
+
 	if err = canKeyMergeArray("original", orig, node, key); err == nil {
 		if err = canKeyMergeArray("new", n, node, key); err == nil {
 			return m.mergeArrayByKey(orig, n, node, key)
@@ -425,18 +449,22 @@ func shouldInlineMergeArray(obj []interface{}) bool {
 	return false
 }
 
-//Returns a list of ModificationDefinition objects with information on which
-// array operations to apply to which entries. The first object in the returned
-// will always represent the default merge behavior.
+// getArrayModifications returns a list of ModificationDefinition objects with
+// information on which array operations to apply to which entries. The first
+// object in the returned will always represent the default merge behavior.
 func getArrayModifications(obj []interface{}, simpleList bool) []ModificationDefinition {
+	// Starts with an entry representing the default merge behavior
+	result := []ModificationDefinition{ModificationDefinition{listOp: listOpMergeDefault}}
 
-	//Starts with an entry representing the default merge behavior
-	result := []ModificationDefinition{ModificationDefinition{defaultMerge: true}}
-	//easy shortcircuit
+	// easy shortcircuit
 	if len(obj) == 0 {
 		return result
 	}
 
+	mergeRegEx := regexp.MustCompile("^\\Q((\\E\\s*merge\\s*\\Q))\\E$")
+	mergeOnKeyRegEx := regexp.MustCompile("^\\Q((\\E\\s*merge\\s+(on)\\s+(.+)\\s*\\Q))\\E$")
+	replaceRegEx := regexp.MustCompile("^\\Q((\\E\\s*replace\\s*\\Q))\\E$")
+	inlineRegEx := regexp.MustCompile("^\\Q((\\E\\s*inline\\s*\\Q))\\E$")
 	appendRegEx := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
 	prependRegEx := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
 	insertByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(\\d+)\\s*\\Q))\\E$")
@@ -451,12 +479,35 @@ func getArrayModifications(obj []interface{}, simpleList bool) []ModificationDef
 		case !isString:
 			//Do absolutely nothing
 
+		case mergeRegEx.MatchString(e): // check for (( merge ))
+			result = append(result, ModificationDefinition{listOp: listOpMergeOnKey})
+			continue
+
+		case mergeOnKeyRegEx.MatchString(e): // check for (( merge on "key" ))
+			/* #0 is the whole string,
+			 * #1 is string 'on'
+			 * #2 is the named-entry identifying key
+			 */
+			if captures := mergeOnKeyRegEx.FindStringSubmatch(e); len(captures) == 3 {
+				key := strings.TrimSpace(captures[2])
+				result = append(result, ModificationDefinition{listOp: listOpMergeOnKey, key: key})
+				continue
+			}
+
+		case inlineRegEx.MatchString(e): // check for (( inline ))
+			result = append(result, ModificationDefinition{listOp: listOpMergeInline})
+			continue
+
+		case replaceRegEx.MatchString(e): // check for (( replace ))
+			result = append(result, ModificationDefinition{listOp: listOpReplace})
+			continue
+
 		case appendRegEx.MatchString(e): // check for (( append ))
-			result = append(result, ModificationDefinition{index: -1})
+			result = append(result, ModificationDefinition{listOp: listOpInsert, index: -1})
 			continue
 
 		case prependRegEx.MatchString(e): // check for (( prepend ))
-			result = append(result, ModificationDefinition{index: 0})
+			result = append(result, ModificationDefinition{listOp: listOpInsert, index: 0})
 			continue
 
 		case insertByIdxRegEx.MatchString(e): // check for (( insert ... <idx> ))
@@ -468,7 +519,7 @@ func getArrayModifications(obj []interface{}, simpleList bool) []ModificationDef
 				relative := strings.TrimSpace(captures[1])
 				position := strings.TrimSpace(captures[2])
 				if idx, err := strconv.Atoi(position); err == nil {
-					result = append(result, ModificationDefinition{index: idx, relative: relative})
+					result = append(result, ModificationDefinition{listOp: listOpInsert, index: idx, relative: relative})
 					continue
 				}
 			}
@@ -485,12 +536,13 @@ func getArrayModifications(obj []interface{}, simpleList bool) []ModificationDef
 				name := strings.TrimSpace(captures[3])
 
 				if key == "" {
-					key = "name"
+					key = getDefaultIdentifierKey()
 				}
 
-				result = append(result, ModificationDefinition{relative: relative, key: key, name: name})
+				result = append(result, ModificationDefinition{listOp: listOpInsert, relative: relative, key: key, name: name})
 				continue
 			}
+
 		case deleteByIdxRegEx.MatchString(e): // check for (( delete <idx> ))
 			/* #0 is the whole string,
 			 * #1 is idx
@@ -498,10 +550,11 @@ func getArrayModifications(obj []interface{}, simpleList bool) []ModificationDef
 			if captures := deleteByIdxRegEx.FindStringSubmatch(e); len(captures) == 2 {
 				position := strings.TrimSpace(captures[1])
 				if idx, err := strconv.Atoi(position); err == nil {
-					result = append(result, ModificationDefinition{index: idx, delete: true})
+					result = append(result, ModificationDefinition{listOp: listOpDelete, index: idx})
 					continue
 				}
 			}
+
 		case deleteByNameRegEx.MatchString(e): // check for (( delete "<name>" ))
 			/* #0 is the whole string,
 			 * #1 contains the optional '<key>' string
@@ -517,12 +570,13 @@ func getArrayModifications(obj []interface{}, simpleList bool) []ModificationDef
 				}
 
 				if !simpleList && key == "" {
-					key = "name"
+					key = getDefaultIdentifierKey()
 				}
 
-				result = append(result, ModificationDefinition{key: key, name: name, delete: true})
+				result = append(result, ModificationDefinition{listOp: listOpDelete, key: key, name: name})
 				continue
 			}
+
 		case deleteByNameUnquotedRegEx.MatchString(e): // check for (( delete "<name>" ))
 			/* #0 is the whole string,
 			 * #1 contains the optional '<key>' string
@@ -540,18 +594,19 @@ func getArrayModifications(obj []interface{}, simpleList bool) []ModificationDef
 				if name == "" {
 					name = key
 					if !simpleList {
-						key = "name"
+						key = getDefaultIdentifierKey()
 					} else {
 						key = ""
 					}
 				}
 
-				result = append(result, ModificationDefinition{key: key, name: name, delete: true})
+				result = append(result, ModificationDefinition{listOp: listOpDelete, key: key, name: name})
 				continue
 			}
 		}
 
 		lastResultIdx := len(result) - 1
+
 		// Add the current entry to the 'current' modification definition record (gathering the list)
 		result[lastResultIdx].list = append(result[lastResultIdx].list, entry)
 	}
@@ -580,10 +635,7 @@ func isSimpleList(list []interface{}) bool {
 }
 
 func shouldKeyMergeArray(obj []interface{}) (bool, string) {
-	key := "name"
-	if os.Getenv("DEFAULT_ARRAY_MERGE_KEY") != "" {
-		key = os.Getenv("DEFAULT_ARRAY_MERGE_KEY")
-	}
+	key := getDefaultIdentifierKey()
 
 	if len(obj) >= 1 && obj[0] != nil && reflect.TypeOf(obj[0]).Kind() == reflect.String {
 		re := regexp.MustCompile("^\\Q((\\E\\s*merge(?:\\s+on\\s+(.*?))?\\s*\\Q))\\E$")

@@ -111,7 +111,7 @@ func sortList(path string, list []interface{}, key string) error {
 		switch kind {
 		case reflect.Map.String():
 			if key == "" {
-				key = "name"
+				key = getDefaultIdentifierKey()
 			}
 
 			if err := canKeyMergeArray("list", list, path, key); err != nil {
