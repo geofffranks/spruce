@@ -1904,6 +1904,7 @@ warning: Falling back to inline merge strategy
 `)
 				So(stdout, ShouldEqual, "")
 			})
+
 			Convey("Issue #172 - error instead of panic if merge on key was specifically requested but target key has map value", func() {
 				os.Args = []string{"spruce", "merge", "../../assets/issue-172/explicitmergeonkey1.yml"}
 				stdout = ""
@@ -1980,6 +1981,73 @@ meta:
 
 `)
 		})
+
+		Convey("Issue #267 - specifying an explicit merge operator must behave in the same way as relying on the default implicit merge operation", func() {
+			Convey("Option 1 - standard use-case: no explicit merge, named-entry list identifier key is the default called 'name'", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/issue-267/option1-fileA.yml", "../../assets/issue-267/option1-fileB.yml"}
+				stdout = ""
+				stderr = ""
+
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `serverFiles:
+  prometheus.yml:
+    scrape_configs:
+    - name: one
+    - name: two
+
+`)
+			})
+
+			Convey("Option 2 - academic version of the option 1: same set-up, but with explicit usage of the merge operator", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/issue-267/option2-fileA.yml", "../../assets/issue-267/option2-fileB.yml"}
+				stdout = ""
+				stderr = ""
+
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `serverFiles:
+  prometheus.yml:
+    scrape_configs:
+    - name: one
+    - name: two
+
+`)
+			})
+
+			Convey("Option 3 - even more academic version of the option 1: same set-up, but with explicit usage of the merge operator and specification of the default identifier key called 'name'", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/issue-267/option3-fileA.yml", "../../assets/issue-267/option3-fileB.yml"}
+				stdout = ""
+				stderr = ""
+
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `serverFiles:
+  prometheus.yml:
+    scrape_configs:
+    - name: one
+    - name: two
+
+`)
+			})
+
+			Convey("Option 4 - actual real world use case, where the identifier key is call 'job_name' and therefore explicit merge on key is required", func() {
+				os.Args = []string{"spruce", "merge", "../../assets/issue-267/option4-fileA.yml", "../../assets/issue-267/option4-fileB.yml"}
+				stdout = ""
+				stderr = ""
+
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `serverFiles:
+  prometheus.yml:
+    scrape_configs:
+    - job_name: one
+    - job_name: two
+
+`)
+			})
+		})
+
 		Convey("Support go-patch files", func() {
 			Convey("go-patch can modify yaml files in the merge phase, and insert spruce operators as required", func() {
 				os.Args = []string{"spruce", "merge", "--go-patch", "../../assets/go-patch/base.yml", "../../assets/go-patch/patch.yml", "../../assets/go-patch/toMerge.yml"}
@@ -2054,7 +2122,6 @@ spruce_array_grab:
 			os.Setenv("DEFAULT_ARRAY_MERGE_KEY", "")
 		})
 	})
-
 }
 
 func TestDebug(t *testing.T) {
