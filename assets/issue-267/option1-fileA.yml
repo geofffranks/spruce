@@ -1,0 +1,6 @@
+---
+serverFiles:
+  prometheus.yml:
+    scrape_configs:
+    - name: zero
+    - name: one

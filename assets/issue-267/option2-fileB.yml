@@ -1,0 +1,7 @@
+---
+serverFiles:
+  prometheus.yml:
+    scrape_configs:
+    - (( merge ))
+    - name: two
+    - (( delete name "zero" ))
