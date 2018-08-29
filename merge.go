@@ -445,16 +445,6 @@ func (m *Merger) mergeArrayByKey(orig []interface{}, n []interface{}, node strin
 	return merged
 }
 
-func shouldInlineMergeArray(obj []interface{}) bool {
-	if len(obj) >= 1 && obj[0] != nil && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("^\\Q((\\E\\s*inline\\s*\\Q))\\E$")
-		if re.MatchString(obj[0].(string)) {
-			return true
-		}
-	}
-	return false
-}
-
 // getArrayModifications returns a list of ModificationDefinition objects with
 // information on which array operations to apply to which entries. The first
 // object in the returned will always represent the default merge behavior.
