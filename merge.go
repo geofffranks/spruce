@@ -675,17 +675,6 @@ func canKeyMergeArray(disp string, array []interface{}, node string, key string)
 	return nil
 }
 
-func shouldReplaceArray(obj []interface{}) bool {
-	if len(obj) >= 1 && obj[0] != nil && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile(`^\Q((\E\s*replace\s*\Q))\E$`)
-
-		if re.MatchString(obj[0].(string)) {
-			return true
-		}
-	}
-	return false
-}
-
 func getIndexOfSimpleEntry(list []interface{}, name string) int {
 	for i, entry := range list {
 		switch entry.(type) {
