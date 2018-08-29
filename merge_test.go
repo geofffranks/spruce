@@ -42,37 +42,6 @@ func TestShouldReplaceArray(t *testing.T) {
 	})
 }
 
-func TestShouldInlineMergeArray(t *testing.T) {
-	Convey("We should inline merge arrays", t, func() {
-		Convey("If the element is a string with the right inline-merge token", func() {
-			So(shouldInlineMergeArray([]interface{}{"(( inline ))", "stuff"}), ShouldBeTrue)
-		})
-		Convey("But not if the element is a string with the wrong token", func() {
-			So(shouldInlineMergeArray([]interface{}{"not a magic token"}), ShouldBeFalse)
-		})
-		Convey("But not if the element is not a string", func() {
-			So(shouldInlineMergeArray([]interface{}{42}), ShouldBeFalse)
-		})
-		Convey("But not if the slice has no elements", func() {
-			So(shouldInlineMergeArray([]interface{}{}), ShouldBeFalse)
-		})
-		Convey("Is whitespace agnostic", func() {
-			Convey("No surrounding whitespace", func() {
-				yes := shouldInlineMergeArray([]interface{}{"((inline))"})
-				So(yes, ShouldBeTrue)
-			})
-			Convey("Surrounding tabs", func() {
-				yes := shouldInlineMergeArray([]interface{}{"((	inline	))"})
-				So(yes, ShouldBeTrue)
-			})
-			Convey("Multiple surrounding whitespaces", func() {
-				yes := shouldInlineMergeArray([]interface{}{"((  inline  ))"})
-				So(yes, ShouldBeTrue)
-			})
-		})
-	})
-}
-
 func TestShouldKeyMergeArrayOfHashes(t *testing.T) {
 	Convey("We should key-based merge arrays of hashes", t, func() {
 		Convey("If the element is a string with the right key-merge token", func() {
@@ -181,7 +150,44 @@ func TestGetArrayModifications(t *testing.T) {
 		return "Expected defaultMerge to be true"
 	}
 
+	shouldBeMergeOnKey := func(actual interface{}, _ ...interface{}) string {
+		switch actual.(ModificationDefinition).listOp {
+		case listOpMergeOnKey:
+			return ""
+
+		default:
+			return "Expected list operation to be 'merge on key'"
+		}
+	}
+
 	Convey("Should recognize string patterns for", t, func() {
+
+		Convey("(( merge ))", func() {
+			//merge test cases go here
+			for input, shouldMatch := range map[string]bool{
+				"(( merge ))": true,
+				"((merge))":   true,
+				"((	merge	))": true,
+				"((  merge  ))":        true,
+				"((     merge))":       true,
+				"(( notmerge ))":       false,
+				"(( mergenot ))":       false,
+				"(( not even merge ))": false,
+				"(( somethingelse ))":  false,
+			} {
+				Convey(fmt.Sprintf("with case %s", input), func() {
+					results := getArrayModifications([]interface{}{input}, false)
+					if shouldMatch {
+						So(results, ShouldHaveLength, 2)
+						So(results[0], shouldBeDefault)
+						So(results[1], shouldBeMergeOnKey)
+					} else {
+						So(results, ShouldHaveLength, 1)
+						So(results[0], shouldBeDefault)
+					}
+				})
+			}
+		})
 
 		Convey("(( append ))", func() {
 			//append test cases go here
