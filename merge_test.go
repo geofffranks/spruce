@@ -11,37 +11,6 @@ import (
 	"github.com/starkandwayne/goutils/tree"
 )
 
-func TestShouldReplaceArray(t *testing.T) {
-	Convey("We should replace arrays", t, func() {
-		Convey("If the element is a string with the right append token", func() {
-			So(shouldReplaceArray([]interface{}{"(( replace ))", "stuff"}), ShouldBeTrue)
-		})
-		Convey("But not if the element is a string with the wrong token", func() {
-			So(shouldReplaceArray([]interface{}{"not a magic token"}), ShouldBeFalse)
-		})
-		Convey("But not if the element is not a string", func() {
-			So(shouldReplaceArray([]interface{}{42}), ShouldBeFalse)
-		})
-		Convey("But not if the slice has no elements", func() {
-			So(shouldReplaceArray([]interface{}{}), ShouldBeFalse)
-		})
-		Convey("Is whitespace agnostic", func() {
-			Convey("No surrounding whitespace", func() {
-				yes := shouldReplaceArray([]interface{}{"((replace))"})
-				So(yes, ShouldBeTrue)
-			})
-			Convey("Surrounding tabs", func() {
-				yes := shouldReplaceArray([]interface{}{"((	replace	))"})
-				So(yes, ShouldBeTrue)
-			})
-			Convey("Multiple surrounding whitespaces", func() {
-				yes := shouldReplaceArray([]interface{}{"((  replace  ))"})
-				So(yes, ShouldBeTrue)
-			})
-		})
-	})
-}
-
 func TestShouldKeyMergeArrayOfHashes(t *testing.T) {
 	Convey("We should key-based merge arrays of hashes", t, func() {
 		Convey("If the element is a string with the right key-merge token", func() {
@@ -160,6 +129,16 @@ func TestGetArrayModifications(t *testing.T) {
 		}
 	}
 
+	shouldBeReplace := func(actual interface{}, _ ...interface{}) string {
+		switch actual.(ModificationDefinition).listOp {
+		case listOpReplace:
+			return ""
+
+		default:
+			return "Expected list operation to be 'replace'"
+		}
+	}
+
 	Convey("Should recognize string patterns for", t, func() {
 
 		Convey("(( merge ))", func() {
@@ -181,6 +160,33 @@ func TestGetArrayModifications(t *testing.T) {
 						So(results, ShouldHaveLength, 2)
 						So(results[0], shouldBeDefault)
 						So(results[1], shouldBeMergeOnKey)
+					} else {
+						So(results, ShouldHaveLength, 1)
+						So(results[0], shouldBeDefault)
+					}
+				})
+			}
+		})
+
+		Convey("(( replace ))", func() {
+			//replace test cases go here
+			for input, shouldMatch := range map[string]bool{
+				"(( replace ))": true,
+				"((replace))":   true,
+				"((	replace	))": true,
+				"((  replace  ))":        true,
+				"((     replace))":       true,
+				"(( notreplace ))":       false,
+				"(( replacenot ))":       false,
+				"(( not even replace ))": false,
+				"(( somethingelse ))":    false,
+			} {
+				Convey(fmt.Sprintf("with case %s", input), func() {
+					results := getArrayModifications([]interface{}{input}, false)
+					if shouldMatch {
+						So(results, ShouldHaveLength, 2)
+						So(results[0], shouldBeDefault)
+						So(results[1], shouldBeReplace)
 					} else {
 						So(results, ShouldHaveLength, 1)
 						So(results[0], shouldBeDefault)
