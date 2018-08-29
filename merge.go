@@ -206,31 +206,32 @@ func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interfac
 func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []interface{} {
 	modificationDefinitions := getArrayModifications(n, isSimpleList(orig))
 	DEBUG("%s: performing %d modification operations against list", node, len(modificationDefinitions))
-	for idx, modificationDefinition := range modificationDefinitions {
-		DEBUG("  #%d %#v", idx, modificationDefinition)
-	}
 
 	// Create a copy of orig for the (multiple) modifications that are about to happen
 	result := make([]interface{}, len(orig))
 	copy(result, orig)
 
-	var idx int
-
 	// Process the modifications definitions that were found in the new list
-	for i := range modificationDefinitions {
-		//Special tag for default behavior. Cannot be invoked explicitly by users
-		if modificationDefinitions[i].listOp == listOpMergeDefault {
+	for i, modificationDefinition := range modificationDefinitions {
+		DEBUG("  #%d %#v", i, modificationDefinition)
+
+		// insert/delete operations will use a list index later in this loop block
+		var idx int
+
+		// Special tag for default behavior. Cannot be invoked explicitly by users
+		if modificationDefinition.listOp == listOpMergeDefault {
 			result = m.mergeArrayDefault(orig, modificationDefinitions[0].list, node)
 			continue
 		}
 
-		if modificationDefinitions[i].listOp == listOpMergeOnKey {
-			key := modificationDefinitions[i].key
+		// Perform a merge on key list modification (merge in new list on original)
+		if modificationDefinition.listOp == listOpMergeOnKey {
+			key := modificationDefinition.key
 			if key == "" {
 				key = getDefaultIdentifierKey()
 			}
 
-			if err := canKeyMergeArray("new", modificationDefinitions[i].list, node, key); err != nil {
+			if err := canKeyMergeArray("new", modificationDefinition.list, node, key); err != nil {
 				m.Errors.Append(err)
 				return nil
 			}
@@ -239,32 +240,38 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 				return nil
 			}
 
-			result = m.mergeArrayByKey(result, modificationDefinitions[i].list, node, key)
+			result = m.mergeArrayByKey(result, modificationDefinition.list, node, key)
 			continue
+		}
 
-		} else if modificationDefinitions[i].listOp == listOpMergeInline {
-			result = m.mergeArrayInline(result, modificationDefinitions[i].list, node)
+		// Perform a merge inline list modification
+		if modificationDefinition.listOp == listOpMergeInline {
+			result = m.mergeArrayInline(result, modificationDefinition.list, node)
 			continue
+		}
 
-		} else if modificationDefinitions[i].listOp == listOpReplace {
-			result = make([]interface{}, len(modificationDefinitions[i].list))
-			copy(result, modificationDefinitions[i].list)
+		// Perform a list replacement modification
+		if modificationDefinition.listOp == listOpReplace {
+			result = make([]interface{}, len(modificationDefinition.list))
+			copy(result, modificationDefinition.list)
 			continue
+		}
 
-		} else if modificationDefinitions[i].key == "" && modificationDefinitions[i].name == "" { // Index comes directly from operation definition
-			idx = modificationDefinitions[i].index
+		// Perform insert, delete, append, prepend operation
+		if modificationDefinition.key == "" && modificationDefinition.name == "" { // Index comes directly from operation definition
+			idx = modificationDefinition.index
 
 			// Replace the -1 marker with the actual 'end' index of the array
 			if idx == -1 {
 				idx = len(result)
 			}
 
-		} else if modificationDefinitions[i].key == "" && modificationDefinitions[i].name != "" {
-			name := modificationDefinitions[i].name
-			delete := modificationDefinitions[i].listOp == listOpDelete
+		} else if modificationDefinition.key == "" && modificationDefinition.name != "" {
+			name := modificationDefinition.name
+			delete := modificationDefinition.listOp == listOpDelete
 			if delete {
 				// Sanity check for delete operation, ensure no orphan entries follow the operator definition
-				if len(modificationDefinitions[i].list) > 0 {
+				if len(modificationDefinition.list) > 0 {
 					m.Errors.Append(ansi.Errorf("@m{%s}: @R{item in array directly after} @c{(( delete \"%s\" ))} @r{must be one of the array operators 'append', 'prepend', 'delete', or 'insert'}", node, name))
 					return nil
 				}
@@ -278,9 +285,9 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 			}
 
 		} else { // Index look-up based on key and name
-			key := modificationDefinitions[i].key
-			name := modificationDefinitions[i].name
-			delete := modificationDefinitions[i].listOp == listOpDelete
+			key := modificationDefinition.key
+			name := modificationDefinition.name
+			delete := modificationDefinition.listOp == listOpDelete
 
 			// Sanity check original list, list must contain key/id based entries
 			if err := canKeyMergeArray("original", result, node, key); err != nil {
@@ -292,13 +299,13 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 			if delete == false {
 
 				// Sanity check new list, list must contain key/id based entries
-				if err := canKeyMergeArray("new", modificationDefinitions[i].list, node, key); err != nil {
+				if err := canKeyMergeArray("new", modificationDefinition.list, node, key); err != nil {
 					m.Errors.Append(err)
 					return nil
 				}
 
 				// Since we have a way to identify indiviual entries based on their key/id, we can sanity check for possible duplicates
-				for _, entry := range modificationDefinitions[i].list {
+				for _, entry := range modificationDefinition.list {
 					obj := entry.(map[interface{}]interface{})
 					entryName := obj[key].(string)
 					if getIndexOfEntry(result, key, entryName) > 0 {
@@ -308,7 +315,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 				}
 			} else {
 				// Sanity check for delete operation, ensure no orphan entries follow the operator definition
-				if len(modificationDefinitions[i].list) > 0 {
+				if len(modificationDefinition.list) > 0 {
 					m.Errors.Append(ansi.Errorf("@m{%s}: @R{item in array directly after} @c{(( delete %s \"%s\" ))} @r{must be one of the array operators 'append', 'prepend', 'delete', or 'insert'}", node, key, name))
 					return nil
 				}
@@ -323,19 +330,19 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 		}
 
 		// If after is specified, add one to the index to actually put the entry where it is expected
-		if modificationDefinitions[i].relative == "after" {
+		if modificationDefinition.relative == "after" {
 			idx++
 		}
 
 		// Back out if idx is smaller than 0, or greater than the length (for inserts), or greater/equal than the length (for deletes)
-		if (idx < 0) || (modificationDefinitions[i].listOp != listOpDelete && idx > len(result)) || (modificationDefinitions[i].listOp == listOpDelete && idx >= len(result)) {
+		if (idx < 0) || (modificationDefinition.listOp != listOpDelete && idx > len(result)) || (modificationDefinition.listOp == listOpDelete && idx >= len(result)) {
 			m.Errors.Append(ansi.Errorf("@m{%s}: @R{unable to modify the list, because specified index} @c{%d} @R{is out of bounds}", node, idx))
 			return nil
 		}
 
-		if modificationDefinitions[i].listOp != listOpDelete {
-			DEBUG("%s: inserting %d new elements to existing array at index %d", node, len(modificationDefinitions[i].list), idx)
-			result = insertIntoList(result, idx, modificationDefinitions[i].list)
+		if modificationDefinition.listOp != listOpDelete {
+			DEBUG("%s: inserting %d new elements to existing array at index %d", node, len(modificationDefinition.list), idx)
+			result = insertIntoList(result, idx, modificationDefinition.list)
 		} else {
 			DEBUG("%s: deleting element at array index %d", node, idx)
 			result = deleteIndexFromList(result, idx)
@@ -343,7 +350,6 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 	}
 
 	return result
-
 }
 
 // The magic which chooses to merge, append, or inline based on the contents of
