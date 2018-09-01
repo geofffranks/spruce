@@ -100,7 +100,7 @@ helpful subcommands:
 semantically. This is more than a simple diff tool, as it examines the functional differences,
 rather than just textual (e.g. key-ordering differences would be ignored)
 
-`spruce json` - Allows you to convert a YAML docuemnt into JSON, for consumption by something
+`spruce json` - Allows you to convert a YAML document into JSON, for consumption by something
 that requires a JSON input. `spruce merge` will handle both YAML + JSON documents, but produce
 only YAML output.
 
