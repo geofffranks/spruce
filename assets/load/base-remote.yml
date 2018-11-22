@@ -1,0 +1,6 @@
+---
+yet:
+  another:
+    yaml:
+      structure:
+        load: (( load "http://localhost:31337/assets/load/list.yml" ))
