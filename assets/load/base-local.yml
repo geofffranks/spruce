@@ -1,0 +1,6 @@
+---
+yet:
+  another:
+    yaml:
+      structure:
+        load: (( load "assets/load/other.yml" ))

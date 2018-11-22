@@ -1,0 +1,11 @@
+---
+map:
+  key: value
+
+simple-list:
+- one
+- two
+
+complex-list:
+- name: one
+- name: two

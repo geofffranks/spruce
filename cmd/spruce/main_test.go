@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"testing"
 
@@ -473,6 +474,7 @@ properties:
 		})
 		Convey("Included yaml file is escaped", func() {
 			os.Setenv("SPRUCE_FILE_BASE_PATH", "../../assets/file_operator")
+			defer os.Unsetenv("SPRUCE_FILE_BASE_PATH")
 			os.Args = []string{"spruce", "merge", "../../assets/file_operator/test.yml"}
 			stdout = ""
 			stderr = ""
@@ -1409,6 +1411,82 @@ name_list:
 - name: item-z
 
 `)
+			})
+		})
+
+		Convey("Given a Spruce merge using the (( load <location> )) operator", func() {
+			Convey("When the location is a local location", func() {
+				Convey("The local data should be loaded and inserted", func() {
+					os.Setenv("SPRUCE_FILE_BASE_PATH", "../../")
+					defer os.Unsetenv("SPRUCE_FILE_BASE_PATH")
+					os.Args = []string{"spruce", "merge", "../../assets/load/base-local.yml"}
+					stdout = ""
+					stderr = ""
+					main()
+					So(stderr, ShouldEqual, "")
+					So(stdout, ShouldEqual, `yet:
+  another:
+    yaml:
+      structure:
+        load:
+          complex-list:
+          - name: one
+          - name: two
+          map:
+            key: value
+          simple-list:
+          - one
+          - two
+
+`)
+				})
+
+				Convey("That an error is returned if no file can be found", func() {
+					os.Args = []string{"spruce", "merge", "../../assets/load/base-local.yml"}
+					stdout = ""
+					stderr = ""
+					main()
+					So(stderr, ShouldEqual, `1 error(s) detected:
+ - $.yet.another.yaml.structure.load: unable to get any content using location assets/load/other.yml: it is not a file or usable URI
+
+
+`)
+					So(stdout, ShouldEqual, "")
+				})
+			})
+
+			Convey("When the location is a remote location", func() {
+				srv := &http.Server{Addr: ":31337"}
+				defer func() {
+					if srv != nil {
+						srv.Shutdown(nil)
+					}
+				}()
+
+				go func() {
+					http.Handle("/assets/",
+						http.StripPrefix("/assets/",
+							http.FileServer(http.Dir("../../assets/"))))
+
+					srv.ListenAndServe()
+				}()
+
+				Convey("The remote data should be loaded and inserted", func() {
+					os.Args = []string{"spruce", "merge", "../../assets/load/base-remote.yml"}
+					stdout = ""
+					stderr = ""
+					main()
+					So(stderr, ShouldEqual, "")
+					So(stdout, ShouldEqual, `yet:
+  another:
+    yaml:
+      structure:
+        load:
+        - one
+        - two
+
+`)
+				})
 			})
 		})
 

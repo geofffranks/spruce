@@ -11,6 +11,7 @@
 - [ips](#-ips-)
 - [join](#-join-)
 - [keys](#-keys-)
+- [load](#-load-)
 - [param](#-param-)
 - [prune](#-prune-)
 - [sort](#-sort-)
@@ -191,6 +192,44 @@ Enter `(( keys ))`. Pass it a reference to part of your datastructure that is a 
 and it will return an array of all of the keys inside it.
 
 [Example][keys-example]
+
+## (( load ))
+
+Usage: `(( load LITERAL ))`
+
+Similar to the `(( file ))` operator, this operator takes the content of another
+file to insert it into the main tree structure. However, `(( load ))` does not
+use the content as-is, but expects to parse valid YAML (or JSON). Like the
+`(( file ))` operator, you do not have to worry about indentation as Spruce will
+cover that for you.
+
+_Note:_ Spruce will **not** evaluate any Spruce operators that might be in
+the file that is loaded, because any path used by `grab` or similar would be
+ambigious in respect to the document root to be used. If you need to load a
+file with Spruce operators in it, you have to run a pre-processing step to
+evaluate the file first with another Spruce run.
+
+**Example:**
+```
+$ cat <<EOF >list.yml
+---
+- one
+- two
+...
+EOF
+
+$ cat <<EOF >config.yml
+---
+list: (( load "list.yml" ))
+...
+EOF
+
+$ spruce merge config.yml
+list:
+- one
+- two
+
+```
 
 ## (( param ))
 
