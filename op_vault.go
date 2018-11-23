@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"strconv"
 
 	"github.com/starkandwayne/goutils/ansi"
 
@@ -33,6 +34,48 @@ var SkipVault bool
 // other secrets from a Vault (vaultproject.io) Secure Key Storage
 // instance.
 type VaultOperator struct{}
+
+// The VaultResponce provides a common parsing method for responces
+// from any Vault API
+type VaultResponce interface {
+	// Parse(b []byte, vault string, secret string) (map[string]interface{}, error)
+	Parse(b []byte) (*VaultCommonResponce, error)
+}
+
+type VaultCommonResponce struct {
+	Data   map[string]interface{}
+	Errors []string
+}
+
+type VaultV1Responce struct {
+	VaultCommonResponce
+}
+
+type VaultV2Responce struct {
+	VaultCommonResponce
+	Data struct {
+		Data map[string]interface{}
+	}
+	Metadata struct {
+		Version int
+	}
+}
+
+func (r VaultV1Responce) Parse(b []byte) (*VaultCommonResponce, error) {
+	err := json.NewDecoder(bytes.NewReader(b)).Decode(&r)
+	if err != nil {
+		return nil, err
+	}
+	return &VaultCommonResponce{Data: r.Data, Errors: r.Errors}, nil
+}
+
+func (r VaultV2Responce) Parse(b []byte) (*VaultCommonResponce, error) {
+	err := json.NewDecoder(bytes.NewReader(b)).Decode(&r)
+	if err != nil {
+		return nil, err
+	}
+	return &VaultCommonResponce{Data: r.Data.Data, Errors: r.Errors}, nil
+}
 
 // Setup ...
 func (VaultOperator) Setup() error {
@@ -131,12 +174,14 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		url := os.Getenv("VAULT_ADDR")
 		token := os.Getenv("VAULT_TOKEN")
 		skip := false
+		version := os.Getenv("VAULT_VERSION")
 
 		if url == "" || token == "" {
 			svtoken := struct {
 				Vault      string `yaml:"vault"`
 				Token      string `yaml:"token"`
 				SkipVerify bool   `yaml:"skip_verify"`
+				Version    string `yaml:"api_version"`
 			}{}
 			b, err := ioutil.ReadFile(os.ExpandEnv("${HOME}/.svtoken"))
 			if err == nil {
@@ -145,12 +190,17 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 					url = svtoken.Vault
 					token = svtoken.Token
 					skip = svtoken.SkipVerify
+					version = svtoken.Version
 				}
 			}
 		}
 
 		if skipVaultVerify(os.Getenv("VAULT_SKIP_VERIFY")) {
 			skip = true
+		}
+
+		if version == "" {
+			version = "1"
 		}
 
 		if token == "" {
@@ -171,8 +221,9 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		} else {
 			os.Unsetenv("VAULT_SKIP_VERIFY")
 		}
+		os.Setenv("VAULT_VERSION", version)
 
-		leftPart, rightPart := parsePath(key)
+		engine, leftPart, rightPart, versionPart := parsePath(key)
 		if leftPart == "" || rightPart == "" {
 			return nil, ansi.Errorf("@R{invalid argument} @c{%s}@R{; must be in the form} @m{path/to/secret:key}", key)
 		}
@@ -183,7 +234,7 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		} else {
 			DEBUG("vault: Cache MISS for `%s`", leftPart)
 			// Secret isn't cached. Grab it from the vault.
-			fullSecret, err = getVaultSecret(leftPart)
+			fullSecret, err = getVaultSecret(engine, leftPart, versionPart)
 			if err != nil {
 				return nil, err
 			}
@@ -208,11 +259,28 @@ func init() {
 
 /****** VAULT INTEGRATION ***********************************/
 
-func getVaultSecret(secret string) (map[string]interface{}, error) {
+func getVaultSecret(engine string, secret string, version int) (map[string]interface{}, error) {
 	vault := os.Getenv("VAULT_ADDR")
-	DEBUG("  accessing the vault at %s (with VAULT_SKIP_VERIFY='%s')", vault, os.Getenv("VAULT_SKIP_VERIFY"))
+	apiVersion, err := getIntEnvVar("VAULT_VERSION")
+	if err != nil {
+		return nil, err
+	}
+	skip := os.Getenv("VAULT_SKIP_VERIFY")
+	DEBUG("  accessing the vault api v%d at %s (with VAULT_SKIP_VERIFY='%s')", apiVersion, vault, skip)
 
-	url := fmt.Sprintf("%s/v1/%s", vault, secret)
+	var url string
+	var raw VaultResponce
+
+	if apiVersion == 1 {
+		url = fmt.Sprintf("%s/v1/%s/%s", vault, engine, secret)
+		raw = VaultV1Responce{}
+	} else if apiVersion == 2 {
+		url = fmt.Sprintf("%s/v1/%s/data/%s?version=%d", vault, engine, secret, version)
+		raw = VaultV2Responce{}
+	} else {
+		return nil, fmt.Errorf("invalid Vault API version: v%d", apiVersion)
+	}
+
 	DEBUG("  crafting GET %s", url)
 
 	roots, err := x509.SystemCertPool()
@@ -262,27 +330,37 @@ func getVaultSecret(secret string) (map[string]interface{}, error) {
 	}
 
 	TRACE("    decoding raw JSON:\n%s\n", string(b))
-	var raw struct {
-		Data   map[string]interface{}
-		Errors []string
-	}
-	err = json.NewDecoder(bytes.NewReader(b)).Decode(&raw)
+	var responce *VaultCommonResponce
+	responce, err  = raw.Parse(b)
+
 	if err != nil {
 		DEBUG("    !! failed to decode JSON:\n    !! %s\n", err)
 		return nil, fmt.Errorf("bad JSON response received from Vault: \"%s\"", string(b))
 	}
-	if len(raw.Errors) > 0 {
-		DEBUG("    !! error: %s", raw.Errors[0])
+
+	if len(responce.Errors) > 0 {
+		DEBUG("    !! error: %s", responce.Errors[0])
 		return nil, ansi.Errorf("@R{failed to retrieve} @c{%s} @R{from Vault (%s): %s}",
-			secret, vault, raw.Errors[0])
+			secret, vault, responce.Errors[0])
 	}
 
+	// return raw.Data, nil
+	// if err != nil {
+	// 	return nil, err
+	// }
+
 	DEBUG("  success.")
-	return raw.Data, nil
+	return responce.Data, nil
 }
 
 func extractSubkey(secretMap map[string]interface{}, secret, subkey string) (string, error) {
+	// apiVersion, err := getIntEnvVar("VAULT_VERSION")
+	// if err != nil {
+	// 	return nil, err
+	// }
 	DEBUG("  extracting the [%s] subkey from the secret", subkey)
+	// if apiVersion == 1
+
 	v, ok := secretMap[subkey]
 	if !ok {
 		DEBUG("    !! %s:%s not found!\n", secret, subkey)
@@ -296,8 +374,13 @@ func extractSubkey(secretMap map[string]interface{}, secret, subkey string) (str
 	return v.(string), nil
 }
 
-func parsePath(path string) (secret, key string) {
+func parsePath(path string) (engine, secret, key string, version int) {
+	if idx := strings.Index(path, "/"); idx >= 0 {
+		engine = path[:idx]
+		path = path[idx+1:]
+	}
 	secret = path
+	version = 0
 	if idx := strings.LastIndex(path, ":"); idx >= 0 {
 		secret = path[:idx]
 		key = path[idx+1:]
@@ -311,4 +394,16 @@ func skipVaultVerify(env string) bool {
 		return false
 	}
 	return true
+}
+
+func getIntEnvVar(key string) (int, error) {
+		s := os.Getenv(key)
+    if s == "" {
+        return 0, fmt.Errorf("environment variable %s is empty", key)
+    }
+    v, err := strconv.Atoi(s)
+    if err != nil {
+        return 0, err
+    }
+    return v, nil
 }
