@@ -13,6 +13,7 @@
 - [keys](#-keys-)
 - [param](#-param-)
 - [prune](#-prune-)
+- [sort](#-sort-)
 - [static_ips](#-static_ips-)
 - [vault](#-vault-)
 
