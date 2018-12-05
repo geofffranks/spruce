@@ -12,7 +12,7 @@ up after being used.
 
 By default `spruce` use [Vault KV v1](https://www.vaultproject.io/api/secret/kv/kv-v1.html).
 To use newer [Vault KV v2](https://www.vaultproject.io/api/secret/kv/kv-v2.html) set environment
-variable `VAULT_VERSION` to `2` (default: `1`). Currently it's not possiable to access both
+variable `VAULT_VERSION` to `2` (default: `1`). Currently it's not possible to access both
 types of KV Engines at the same time.
 
 Here's an example:
