@@ -71,8 +71,8 @@ func main() {
 		Version bool `goptions:"-v, --version, description='Display version information'"`
 		Action  goptions.Verbs
 		Merge   mergeOpts `goptions:"merge"`
-		JSON    jsonOpts `goptions:"json"`
-		Diff struct {
+		JSON    jsonOpts  `goptions:"json"`
+		Diff    struct {
 			Files goptions.Remainder `goptions:"description='Show the semantic differences between two YAML files'"`
 		} `goptions:"diff"`
 		VaultInfo struct {
@@ -174,6 +174,7 @@ func main() {
 		usage()
 		return
 	}
+	exit(0)
 }
 
 func isArrayError(err error) bool {

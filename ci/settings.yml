@@ -13,7 +13,7 @@ meta:
     github_token: (( vault "secret/pipelines/spruce/cf:github_token" ))
 
   go:
-    version: 1.9
+    version: 1.11
     cmd_module: (( concat meta.go.module "/cmd/spruce" ))
     force_static_binary: true
   github:

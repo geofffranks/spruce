@@ -2305,6 +2305,7 @@ func TestExamples(t *testing.T) {
 
 			So(stderr, ShouldEqual, "")
 			So(stdout, ShouldEqual, YAML(expect))
+			So(rc, ShouldEqual, 0)
 		}
 
 		Convey("Basic Example", func() {
