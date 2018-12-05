@@ -271,7 +271,7 @@ secret: (( vault "secret/e:noent" ))
 
 ---
 1 error(s) detected:
- - $.secret: secret e:noent not found
+ - $.secret: secret secret/e:noent not found
 
 ##############################################  fails on non-string argument
 ---
@@ -295,7 +295,7 @@ secret: (( vault "secret/structure:data" ))
 
 ---
 1 error(s) detected:
- - $.secret: secret structure:data is not a string
+ - $.secret: secret secret/structure:data is not a string
 
 `)
 
@@ -337,7 +337,7 @@ secret: (( vault "secret/hand4:shake" ))
 		}{
 			//-----TEST CASES GO HERE-----
 			// { "path to parse", "expected secret", "expected key" }
-			{"just/a/secret", "just" , "a/secret", ""},
+			{"just/a/secret", "just", "a/secret", ""},
 			{"secret/with/colon:", "secret", "with/colon", ""},
 			{":", "", "", ""},
 			{"a:", "", "a", ""},
@@ -345,8 +345,8 @@ secret: (( vault "secret/hand4:shake" ))
 			{"secret/and:key", "secret", "and", "key"},
 			{":justakey", "", "", "justakey"},
 			{"secretwithcolon://127.0.0.1:", "secretwithcolon:", "/127.0.0.1", ""},
-			{"secretwithcolons://127.0.0.1:8500:","secretwithcolons:", "/127.0.0.1:8500", ""},
-			{"secretwithcolons://127.0.0.1:8500:andkey","secretwithcolons:",  "/127.0.0.1:8500", "andkey"},
+			{"secretwithcolons://127.0.0.1:8500:", "secretwithcolons:", "/127.0.0.1:8500", ""},
+			{"secretwithcolons://127.0.0.1:8500:andkey", "secretwithcolons:", "/127.0.0.1:8500", "andkey"},
 		} {
 			Convey(test.path, func() {
 				engine, secret, key, version := parsePath(test.path)
@@ -359,44 +359,44 @@ secret: (( vault "secret/hand4:shake" ))
 	})
 
 	Convey("Connected Vault Api v2", t, func() {
-			mock := httptest.NewServer(
-				http.HandlerFunc(
-					func(w http.ResponseWriter, r *http.Request) {
-						if r.Header.Get("X-Vault-Token") != "sekrit-toekin" {
-							w.WriteHeader(403)
-							fmt.Fprintf(w, `{"errors":["missing client token"]}`)
-							return
-						}
-						switch r.URL.Path {
-						case "/v1/secret/data/hand":
-							w.WriteHeader(200)
-							fmt.Fprintf(w, `{"data":{"data:{"shake":"knock, knock"}}`)
-						case "/v1/secret/data/admin":
-							w.WriteHeader(200)
-							fmt.Fprintf(w, `{"data":{"data:{"username":"admin","password":"x12345"}}`)
-						case "/v1/secret/data/key":
-							w.WriteHeader(200)
-							fmt.Fprintf(w, `{"data":{"data:{"test":"testing"}}`)
-						case "/v1/secret/data/malformed":
-							w.WriteHeader(200)
-							fmt.Fprintf(w, `wait, this isn't JSON`)
-						case "/v1/secret/data/structure":
-							w.WriteHeader(200)
-							fmt.Fprintf(w, `{"data":{"data:{"data":[1,2,3]}}`)
-						default:
-							w.WriteHeader(404)
-							fmt.Fprintf(w, `{"errors":[]}`)
-						}
-					},
-				),
-			)
-			defer mock.Close()
+		mock := httptest.NewServer(
+			http.HandlerFunc(
+				func(w http.ResponseWriter, r *http.Request) {
+					if r.Header.Get("X-Vault-Token") != "sekrit-toekin" {
+						w.WriteHeader(403)
+						fmt.Fprintf(w, `{"errors":["missing client token"]}`)
+						return
+					}
+					switch r.URL.Path {
+					case "/v1/secret/data/hand":
+						w.WriteHeader(200)
+						fmt.Fprintf(w, `{"data":{"data:{"shake":"knock, knock"}}`)
+					case "/v1/secret/data/admin":
+						w.WriteHeader(200)
+						fmt.Fprintf(w, `{"data":{"data:{"username":"admin","password":"x12345"}}`)
+					case "/v1/secret/data/key":
+						w.WriteHeader(200)
+						fmt.Fprintf(w, `{"data":{"data:{"test":"testing"}}`)
+					case "/v1/secret/data/malformed":
+						w.WriteHeader(200)
+						fmt.Fprintf(w, `wait, this isn't JSON`)
+					case "/v1/secret/data/structure":
+						w.WriteHeader(200)
+						fmt.Fprintf(w, `{"data":{"data:{"data":[1,2,3]}}`)
+					default:
+						w.WriteHeader(404)
+						fmt.Fprintf(w, `{"errors":[]}`)
+					}
+				},
+			),
+		)
+		defer mock.Close()
 
-			SkipVault = false
-			os.Setenv("VAULT_ADDR", mock.URL)
-			os.Setenv("VAULT_TOKEN", "sekrit-toekin")
-			os.Setenv("VAULT_VERSION", "2")
-			RunTests(`
+		SkipVault = false
+		os.Setenv("VAULT_ADDR", mock.URL)
+		os.Setenv("VAULT_TOKEN", "sekrit-toekin")
+		os.Setenv("VAULT_VERSION", "2")
+		RunTests(`
 ################################################  emits sensitive credentials
 ---
 meta:
@@ -419,12 +419,12 @@ prefixed: x12345
 key: testing
 `)
 
-			os.Setenv("VAULT_ADDR", mock.URL)
-			oldhome := os.Getenv("HOME")
-			os.Setenv("HOME", "assets/home/auth")
-			os.Setenv("VAULT_TOKEN", "")
-			os.Setenv("VAULT_VERSION", "2")
-			RunTests(`
+		os.Setenv("VAULT_ADDR", mock.URL)
+		oldhome := os.Getenv("HOME")
+		os.Setenv("HOME", "assets/home/auth")
+		os.Setenv("VAULT_TOKEN", "")
+		os.Setenv("VAULT_VERSION", "2")
+		RunTests(`
 ##########################  retrieves token transparently from ~/.vault-token
 ---
 secret: (( vault "secret/hand:shake" ))
@@ -433,14 +433,14 @@ secret: (( vault "secret/hand:shake" ))
 secret: knock, knock
 `)
 
-			os.Setenv("VAULT_ADDR", "garbage")
-			os.Setenv("VAULT_TOKEN", "")
-			os.Setenv("VAULT_VERSION", "2")
-			os.Setenv("HOME", "assets/home/svtoken")
-			ioutil.WriteFile("assets/home/svtoken/.svtoken",
-				[]byte("vault: "+mock.URL+"\n"+
-					"token: sekrit-toekin\n"), 0644)
-			RunTests(`
+		os.Setenv("VAULT_ADDR", "garbage")
+		os.Setenv("VAULT_TOKEN", "")
+		os.Setenv("VAULT_VERSION", "2")
+		os.Setenv("HOME", "assets/home/svtoken")
+		ioutil.WriteFile("assets/home/svtoken/.svtoken",
+			[]byte("vault: "+mock.URL+"\n"+
+				"token: sekrit-toekin\n"), 0644)
+		RunTests(`
 ##############################  retrieves token transparently from ~/.svtoken
 ---
 secret: (( vault "secret/hand:shake" ))
@@ -449,11 +449,11 @@ secret: (( vault "secret/hand:shake" ))
 secret: knock, knock
 `)
 
-			/* RESET TO A VALID, AUTHENTICATED STATE */
-			os.Setenv("VAULT_ADDR", mock.URL)
-			os.Setenv("HOME", "assets/home/auth")
+		/* RESET TO A VALID, AUTHENTICATED STATE */
+		os.Setenv("VAULT_ADDR", mock.URL)
+		os.Setenv("HOME", "assets/home/auth")
 
-			RunErrorTests(`
+		RunErrorTests(`
 #########################################  fails when missing its argument
 ---
 secret: (( vault ))
@@ -497,7 +497,7 @@ secret: (( vault "secret/e:noent" ))
 
 ---
 1 error(s) detected:
- - $.secret: secret e:noent not found
+ - $.secret: secret secret/e:noent not found
 
 ##############################################  fails on non-string argument
 ---
@@ -521,12 +521,12 @@ secret: (( vault "secret/structure:data" ))
 
 ---
 1 error(s) detected:
- - $.secret: secret structure:data is not a string
+ - $.secret: secret secret/structure:data is not a string
 
 `)
 
-			os.Setenv("VAULT_TOKEN", "incorrect")
-			RunErrorTests(`
+		os.Setenv("VAULT_TOKEN", "incorrect")
+		RunErrorTests(`
 #####################################################  fails on a bad token
 ---
 secret: (( vault "hand3:shake" ))
@@ -537,12 +537,12 @@ secret: (( vault "hand3:shake" ))
 
 `)
 
-			oldhome = os.Getenv("HOME")
-			os.Setenv("HOME", "assets/home/unauth")
-			SkipVault = false
-			os.Setenv("VAULT_TOKEN", "")
-			os.Setenv("VAULT_VERSION", "2")
-			RunErrorTests(`
+		oldhome = os.Getenv("HOME")
+		os.Setenv("HOME", "assets/home/unauth")
+		SkipVault = false
+		os.Setenv("VAULT_TOKEN", "")
+		os.Setenv("VAULT_VERSION", "2")
+		RunErrorTests(`
 ################################################  fails on a missing token
 ---
 secret: (( vault "secret/hand4:shake" ))
@@ -552,20 +552,20 @@ secret: (( vault "secret/hand4:shake" ))
  - $.secret: Failed to determine Vault URL / token, and the $REDACT environment variable is not set.
 
 `)
-			os.Setenv("HOME", oldhome)
-		})
+		os.Setenv("HOME", oldhome)
+	})
 
-		Convey("It correctly parses path", t, func() {
-			for _, test := range []struct {
-				path      string //The full path to run through the parse function
-				expEngine string
-				expSecret string //What is expected to be left of the colon
-				expKey    string //What is expected to be right of the colon
-				// expVersion int
-			}{
-				//-----TEST CASES GO HERE-----
-				// { "path to parse", "expected secret", "expected key" }
-			{"just/a/secret", "just" , "a/secret", ""},
+	Convey("It correctly parses path", t, func() {
+		for _, test := range []struct {
+			path      string //The full path to run through the parse function
+			expEngine string
+			expSecret string //What is expected to be left of the colon
+			expKey    string //What is expected to be right of the colon
+			// expVersion int
+		}{
+			//-----TEST CASES GO HERE-----
+			// { "path to parse", "expected secret", "expected key" }
+			{"just/a/secret", "just", "a/secret", ""},
 			{"secret/with/colon:", "secret", "with/colon", ""},
 			{":", "", "", ""},
 			{"a:", "", "a", ""},
@@ -573,16 +573,16 @@ secret: (( vault "secret/hand4:shake" ))
 			{"secret/and:key", "secret", "and", "key"},
 			{":justakey", "", "", "justakey"},
 			{"secretwithcolon://127.0.0.1:", "secretwithcolon:", "/127.0.0.1", ""},
-			{"secretwithcolons://127.0.0.1:8500:","secretwithcolons:", "/127.0.0.1:8500", ""},
-			{"secretwithcolons://127.0.0.1:8500:andkey","secretwithcolons:",  "/127.0.0.1:8500", "andkey"},
-			} {
-				Convey(test.path, func() {
-					engine, secret, key, version := parsePath(test.path)
-					So(engine, ShouldEqual, test.expEngine)
-					So(secret, ShouldEqual, test.expSecret)
-					So(key, ShouldEqual, test.expKey)
-					So(version, ShouldEqual, 0)
-				})
-			}
-		})
+			{"secretwithcolons://127.0.0.1:8500:", "secretwithcolons:", "/127.0.0.1:8500", ""},
+			{"secretwithcolons://127.0.0.1:8500:andkey", "secretwithcolons:", "/127.0.0.1:8500", "andkey"},
+		} {
+			Convey(test.path, func() {
+				engine, secret, key, version := parsePath(test.path)
+				So(engine, ShouldEqual, test.expEngine)
+				So(secret, ShouldEqual, test.expSecret)
+				So(key, ShouldEqual, test.expKey)
+				So(version, ShouldEqual, 0)
+			})
+		}
+	})
 }

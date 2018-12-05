@@ -9,13 +9,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/starkandwayne/goutils/ansi"
 
 	. "github.com/geofffranks/spruce/log"
 	"github.com/starkandwayne/goutils/tree"
+
 	// Use geofffranks forks to persist the fix in https://github.com/go-yaml/yaml/pull/133/commits
 	// Also https://github.com/go-yaml/yaml/pull/195
 	"github.com/geofffranks/yaml"
@@ -37,8 +38,7 @@ type VaultOperator struct{}
 
 // The VaultResponce provides a common parsing method for responces
 // from any Vault API
-type VaultResponce interface {
-	// Parse(b []byte, vault string, secret string) (map[string]interface{}, error)
+type VaultResponse interface {
 	Parse(b []byte) (*VaultCommonResponce, error)
 }
 
@@ -269,7 +269,7 @@ func getVaultSecret(engine string, secret string, version int) (map[string]inter
 	DEBUG("  accessing the vault api v%d at %s (with VAULT_SKIP_VERIFY='%s')", apiVersion, vault, skip)
 
 	var url string
-	var raw VaultResponce
+	var raw VaultResponse
 
 	if apiVersion == 1 {
 		url = fmt.Sprintf("%s/v1/%s/%s", vault, engine, secret)
@@ -331,7 +331,7 @@ func getVaultSecret(engine string, secret string, version int) (map[string]inter
 
 	TRACE("    decoding raw JSON:\n%s\n", string(b))
 	var responce *VaultCommonResponce
-	responce, err  = raw.Parse(b)
+	responce, err = raw.Parse(b)
 
 	if err != nil {
 		DEBUG("    !! failed to decode JSON:\n    !! %s\n", err)
@@ -393,13 +393,13 @@ func skipVaultVerify(env string) bool {
 }
 
 func getIntEnvVar(key string) (int, error) {
-		s := os.Getenv(key)
-    if s == "" {
-        return 0, fmt.Errorf("environment variable %s is empty", key)
-    }
-    v, err := strconv.Atoi(s)
-    if err != nil {
-        return 0, err
-    }
-    return v, nil
+	s := os.Getenv(key)
+	if s == "" {
+		return 0, fmt.Errorf("environment variable %s is empty", key)
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, err
+	}
+	return v, nil
 }
