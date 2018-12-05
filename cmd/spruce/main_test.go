@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	// Use geofffranks forks to persist the fix in https://github.com/go-yaml/yaml/pull/133/commits
 	// Also https://github.com/go-yaml/yaml/pull/195
@@ -1470,6 +1471,7 @@ name_list:
 
 					srv.ListenAndServe()
 				}()
+				time.Sleep(1 * time.Second)
 
 				Convey("The remote data should be loaded and inserted", func() {
 					os.Args = []string{"spruce", "merge", "../../assets/load/base-remote.yml"}
