@@ -241,7 +241,7 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			vaultSecretCache[leftPart] = fullSecret
 		}
 
-		secret, err = extractSubkey(fullSecret, leftPart, rightPart)
+		secret, err = extractSubkey(fullSecret, engine, leftPart, rightPart)
 		if err != nil {
 			return nil, err
 		}
@@ -353,22 +353,18 @@ func getVaultSecret(engine string, secret string, version int) (map[string]inter
 	return responce.Data, nil
 }
 
-func extractSubkey(secretMap map[string]interface{}, secret, subkey string) (string, error) {
-	// apiVersion, err := getIntEnvVar("VAULT_VERSION")
-	// if err != nil {
-	// 	return nil, err
-	// }
+func extractSubkey(secretMap map[string]interface{}, engine, secret, subkey string) (string, error) {
 	DEBUG("  extracting the [%s] subkey from the secret", subkey)
-	// if apiVersion == 1
 
+	secretSubkeyPath := fmt.Sprintf("%s/%s:%s", engine, secret, subkey)
 	v, ok := secretMap[subkey]
 	if !ok {
-		DEBUG("    !! %s:%s not found!\n", secret, subkey)
-		return "", ansi.Errorf("@R{secret} @c{%s:%s} @R{not found}", secret, subkey)
+		DEBUG("    !! %s not found!\n", secretSubkeyPath)
+		return "", ansi.Errorf("@R{secret} @c{%s} @R{not found}", secretSubkeyPath)
 	}
 	if _, ok := v.(string); !ok {
-		DEBUG("    !! %s:%s is not a string!\n", secret, subkey)
-		return "", ansi.Errorf("@R{secret} @c{%s:%s} @R{is not a string}", secret, subkey)
+		DEBUG("    !! %s is not a string!\n", secretSubkeyPath)
+		return "", ansi.Errorf("@R{secret} @c{%s} @R{is not a string}", secretSubkeyPath)
 	}
 	DEBUG(" success.")
 	return v.(string), nil
