@@ -36,23 +36,23 @@ var SkipVault bool
 // instance.
 type VaultOperator struct{}
 
-// The VaultResponce provides a common parsing method for responces
+// The VaultResponse provides a common parsing method for responses
 // from any Vault API
 type VaultResponse interface {
-	Parse(b []byte) (*VaultCommonResponce, error)
+	Parse(b []byte) (*VaultCommonResponse, error)
 }
 
-type VaultCommonResponce struct {
+type VaultCommonResponse struct {
 	Data   map[string]interface{}
 	Errors []string
 }
 
-type VaultV1Responce struct {
-	VaultCommonResponce
+type VaultV1Response struct {
+	VaultCommonResponse
 }
 
-type VaultV2Responce struct {
-	VaultCommonResponce
+type VaultV2Response struct {
+	VaultCommonResponse
 	Data struct {
 		Data map[string]interface{}
 	}
@@ -61,20 +61,20 @@ type VaultV2Responce struct {
 	}
 }
 
-func (r VaultV1Responce) Parse(b []byte) (*VaultCommonResponce, error) {
+func (r VaultV1Response) Parse(b []byte) (*VaultCommonResponse, error) {
 	err := json.NewDecoder(bytes.NewReader(b)).Decode(&r)
 	if err != nil {
 		return nil, err
 	}
-	return &VaultCommonResponce{Data: r.Data, Errors: r.Errors}, nil
+	return &VaultCommonResponse{Data: r.Data, Errors: r.Errors}, nil
 }
 
-func (r VaultV2Responce) Parse(b []byte) (*VaultCommonResponce, error) {
+func (r VaultV2Response) Parse(b []byte) (*VaultCommonResponse, error) {
 	err := json.NewDecoder(bytes.NewReader(b)).Decode(&r)
 	if err != nil {
 		return nil, err
 	}
-	return &VaultCommonResponce{Data: r.Data.Data, Errors: r.Errors}, nil
+	return &VaultCommonResponse{Data: r.Data.Data, Errors: r.Errors}, nil
 }
 
 // Setup ...
@@ -273,10 +273,10 @@ func getVaultSecret(engine string, secret string, version int) (map[string]inter
 
 	if apiVersion == 1 {
 		url = fmt.Sprintf("%s/v1/%s/%s", vault, engine, secret)
-		raw = VaultV1Responce{}
+		raw = VaultV1Response{}
 	} else if apiVersion == 2 {
 		url = fmt.Sprintf("%s/v1/%s/data/%s?version=%d", vault, engine, secret, version)
-		raw = VaultV2Responce{}
+		raw = VaultV2Response{}
 	} else {
 		return nil, fmt.Errorf("invalid Vault API version: v%d", apiVersion)
 	}
@@ -330,18 +330,18 @@ func getVaultSecret(engine string, secret string, version int) (map[string]inter
 	}
 
 	TRACE("    decoding raw JSON:\n%s\n", string(b))
-	var responce *VaultCommonResponce
-	responce, err = raw.Parse(b)
+	var response *VaultCommonResponse
+	response, err = raw.Parse(b)
 
 	if err != nil {
 		DEBUG("    !! failed to decode JSON:\n    !! %s\n", err)
 		return nil, fmt.Errorf("bad JSON response received from Vault: \"%s\"", string(b))
 	}
 
-	if len(responce.Errors) > 0 {
-		DEBUG("    !! error: %s", responce.Errors[0])
+	if len(response.Errors) > 0 {
+		DEBUG("    !! error: %s", response.Errors[0])
 		return nil, ansi.Errorf("@R{failed to retrieve} @c{%s} @R{from Vault (%s): %s}",
-			secret, vault, responce.Errors[0])
+			secret, vault, response.Errors[0])
 	}
 
 	// return raw.Data, nil
@@ -350,7 +350,7 @@ func getVaultSecret(engine string, secret string, version int) (map[string]inter
 	// }
 
 	DEBUG("  success.")
-	return responce.Data, nil
+	return response.Data, nil
 }
 
 func extractSubkey(secretMap map[string]interface{}, engine, secret, subkey string) (string, error) {
