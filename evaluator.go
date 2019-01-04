@@ -107,8 +107,9 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 
 	scan(ev.Tree)
 
-	// construct the data flow graph, where a -> b = b calls/requires a
-	// represent the graph as list of adjancies, that is [a,b] = a -> b
+	// construct the data flow graph, where a -> b means 'b' calls or requires 'a'
+	// represent the graph as list of adjancies, where [a,b] = a -> b
+	// []{ []*Opcall{ grabStaticValue, grabTheThingThatGrabsTheStaticValue}}
 	var g [][]*Opcall
 	for _, a := range all {
 		for _, path := range a.Dependencies(ev, locs) {
@@ -239,7 +240,21 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 		g = firsts(g, picks)
 
 		// repackage `all`, since follow-on logic needs it
-		all = map[string]*Opcall{}
+		newAll := map[string]*Opcall{}
+		// findall ops underneath cherry-picked paths
+		for path, op := range all {
+			for _, pickedPath := range ev.Only {
+				cursor, err := tree.ParseCursor(pickedPath)
+				if err != nil {
+					panic(err) // FIXME
+				}
+				if cursor.Contains(op.canonical) {
+					newAll[path] = op
+				}
+			}
+		}
+		all = newAll
+		// add in any dependencies of things cherry-picked
 		for _, ops := range g {
 			all[ops[0].canonical.String()] = ops[0]
 			all[ops[1].canonical.String()] = ops[1]

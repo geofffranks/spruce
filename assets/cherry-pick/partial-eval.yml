@@ -4,6 +4,7 @@ meta:
 params:
   name: (( grab name ))
   mode: default
+  type: (( grab meta.type ))
 
 env: sandbox
 type: (( grab meta.type ))

@@ -1692,6 +1692,7 @@ releases:
 				So(stdout, ShouldEqual, `params:
   mode: default
   name: sandbox-thing
+  type: thing
 
 `)
 			})
