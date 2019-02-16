@@ -13,7 +13,8 @@
 		},
 		{
 			"ImportPath": "github.com/cppforlife/go-patch/patch",
-			"Rev": "37a72c69d59809d4d5aa0b2aff033e74b8014390"
+			"Comment": "v0.2.0",
+			"Rev": "90228d47281247384683e5fded0f15afa3e5d29a"
 		},
 		{
 			"ImportPath": "github.com/geofffranks/simpleyaml",

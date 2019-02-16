@@ -7,8 +7,8 @@ import (
 )
 
 var (
-	rfc6901Decoder = strings.NewReplacer("~0", "~", "~1", "/")
-	rfc6901Encoder = strings.NewReplacer("~", "~0", "/", "~1")
+	rfc6901Decoder = strings.NewReplacer("~0", "~", "~1", "/", "~7", ":")
+	rfc6901Encoder = strings.NewReplacer("~", "~0", "/", "~1", ":", "~7")
 )
 
 // More or less based on https://tools.ietf.org/html/rfc6901
@@ -44,10 +44,34 @@ func NewPointerFromString(str string) (Pointer, error) {
 	for i, tok := range tokenStrs {
 		isLast := i == len(tokenStrs)-1
 
+		var modifiers []Modifier
+		tokPieces := strings.Split(tok, ":")
+
+		if len(tokPieces) > 1 {
+			tok = tokPieces[0]
+			for _, p := range tokPieces[1:] {
+				switch p {
+				case "prev":
+					modifiers = append(modifiers, PrevModifier{})
+				case "next":
+					modifiers = append(modifiers, NextModifier{})
+				case "before":
+					modifiers = append(modifiers, BeforeModifier{})
+				case "after":
+					modifiers = append(modifiers, AfterModifier{})
+				default:
+					return Pointer{}, fmt.Errorf("Expected to find one of the following modifiers: 'prev', 'next', 'before', or 'after' but found '%s'", tokPieces[1])
+				}
+			}
+		}
+
 		tok = rfc6901Decoder.Replace(tok)
 
 		// parse as after last index
 		if isLast && tok == "-" {
+			if len(modifiers) > 0 {
+				return Pointer{}, fmt.Errorf("Expected not to find any modifiers with after last index token")
+			}
 			tokens = append(tokens, AfterLastIndexToken{})
 			continue
 		}
@@ -55,7 +79,7 @@ func NewPointerFromString(str string) (Pointer, error) {
 		// parse as index
 		idx, err := strconv.Atoi(tok)
 		if err == nil {
-			tokens = append(tokens, IndexToken{idx})
+			tokens = append(tokens, IndexToken{Index: idx, Modifiers: modifiers})
 			continue
 		}
 
@@ -67,13 +91,18 @@ func NewPointerFromString(str string) (Pointer, error) {
 		kv := strings.SplitN(tok, "=", 2)
 		if len(kv) == 2 {
 			token := MatchingIndexToken{
-				Key:      kv[0],
-				Value:    strings.TrimSuffix(kv[1], "?"),
-				Optional: optional,
+				Key:       kv[0],
+				Value:     strings.TrimSuffix(kv[1], "?"),
+				Optional:  optional,
+				Modifiers: modifiers,
 			}
 
 			tokens = append(tokens, token)
 			continue
+		}
+
+		if len(modifiers) > 0 {
+			return Pointer{}, fmt.Errorf("Expected not to find any modifiers with key token")
 		}
 
 		// it's a map key
@@ -116,7 +145,7 @@ func (p Pointer) String() string {
 			strs = append(strs, "")
 
 		case IndexToken:
-			strs = append(strs, fmt.Sprintf("%d", typedToken.Index))
+			strs = append(strs, fmt.Sprintf("%d%s", typedToken.Index, p.modifiersString(typedToken.Modifiers)))
 
 		case AfterLastIndexToken:
 			strs = append(strs, "-")
@@ -132,7 +161,7 @@ func (p Pointer) String() string {
 				}
 			}
 
-			strs = append(strs, fmt.Sprintf("%s=%s", key, val))
+			strs = append(strs, fmt.Sprintf("%s=%s%s", key, val, p.modifiersString(typedToken.Modifiers)))
 
 		case KeyToken:
 			str := rfc6901Encoder.Replace(typedToken.Key)
@@ -152,6 +181,24 @@ func (p Pointer) String() string {
 	}
 
 	return strings.Join(strs, "/")
+}
+
+func (Pointer) modifiersString(modifiers []Modifier) string {
+	var str string
+	for _, modifier := range modifiers {
+		str += ":"
+		switch modifier.(type) {
+		case PrevModifier:
+			str += "prev"
+		case NextModifier:
+			str += "next"
+		case BeforeModifier:
+			str += "before"
+		case AfterModifier:
+			str += "after"
+		}
+	}
+	return str
 }
 
 // UnmarshalFlag satisfies go-flags flag interface

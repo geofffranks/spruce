@@ -2144,7 +2144,7 @@ items:
 - add spruce stuff in the beginning of the array
 - name: item7
 - name: item8
-- name: item8
+- name: item9
 key: 10
 key2:
   nested:
@@ -2158,7 +2158,7 @@ spruce_array_grab:
 - add spruce stuff in the beginning of the array
 - name: item7
 - name: item8
-- name: item8
+- name: item9
 
 `)
 			})
@@ -2179,6 +2179,29 @@ spruce_array_grab:
 				main()
 				So(stderr, ShouldContainSubstring, "Root of YAML document is not a hash/map. Tried parsing it as go-patch, but got:")
 				So(stdout, ShouldEqual, "")
+			})
+			Convey("go-patch handles named arrays with :before syntax (#283)", func() {
+				os.Args = []string{"spruce", "merge", "--go-patch", "../../assets/go-patch/base.yml", "../../assets/go-patch/before.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `array:
+- 4
+- 5
+- 6
+items:
+- name: item7
+- name: 7.5
+- name: item8
+- name: item9
+key: 1
+key2:
+  nested:
+    super_nested: 2
+  other: 3
+
+`)
 			})
 		})
 		Convey("setting DEFAULT_ARRAY_MERGE_KEY", func() {

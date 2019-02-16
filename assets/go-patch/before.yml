@@ -1,0 +1,5 @@
+---
+- path: /items/name=item8:before
+  type: replace
+  value:
+    name: 7.5
