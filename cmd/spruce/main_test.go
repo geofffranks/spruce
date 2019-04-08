@@ -1298,6 +1298,18 @@ z:
 `)
 				So(stdout, ShouldEqual, "")
 			})
+
+			Convey("Calc returns int64s if possible", func() {
+				os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/calc/large-ints.yml"}
+				stdout = ""
+				stderr = ""
+				main()
+				So(stderr, ShouldEqual, "")
+				So(stdout, ShouldEqual, `float: 7.776e+06
+int: 7776000
+
+`)
+			})
 		})
 
 		Convey("YAML output is ordered the same way each time (#184)", func() {

@@ -86,6 +86,13 @@ func (CalcOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			return nil, evaluateError
 		}
 
+		if resultFloat, ok := result.(float64); ok {
+			resultInt := int64(resultFloat)
+			if float64(resultInt) == resultFloat {
+				result = resultInt
+			}
+		}
+
 		DEBUG("  evaluated result: %v", result)
 		return &Response{
 			Type:  Replace,
