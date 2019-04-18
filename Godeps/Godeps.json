@@ -82,6 +82,10 @@
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
 			"Rev": "49c95bdc21843256fb6c4e0d370a05f24a0bf213"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry-community/vaultkv",
+			"Rev": "0ed39daafa01eaa5f526c6bc2581e80896e9674f"
 		}
 	]
 }

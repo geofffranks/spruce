@@ -1,0 +1,17 @@
+#!/bin/bash
+
+vaultVersions=(
+"0.9.6"
+"0.10.4"
+"0.11.6"
+"1.0.3"
+"1.1.1"
+)
+
+if [[ $1 == "latest" ]]; then
+  vaultVersions=("${vaultVersions[${#vaultVersions[@]} - 1]}")
+fi
+
+for version in "${vaultVersions[@]}"; do
+  ginkgo -noisySkippings=false -p -cover -coverprofile "vaultkv${version}.coverprofile" -- -v="$version"
+done
