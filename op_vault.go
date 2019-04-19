@@ -102,6 +102,14 @@ func initializeVaultClient() error {
 		return fmt.Errorf("Could not parse Vault URL `%s': %s", addr, err)
 	}
 
+	if parsedURL.Port() == "" {
+		if parsedURL.Scheme == "http" {
+			parsedURL.Host = parsedURL.Host + ":80"
+		} else {
+			parsedURL.Host = parsedURL.Host + ":443"
+		}
+	}
+
 	client := &vaultkv.Client{
 		AuthToken: token,
 		VaultURL:  parsedURL,
