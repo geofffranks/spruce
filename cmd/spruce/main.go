@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"sort"
 
 	"github.com/cppforlife/go-patch/patch"
+	"github.com/homeport/dyff/pkg/v1/dyff"
+	"github.com/homeport/ytbx/pkg/v1/ytbx"
 	"github.com/mattn/go-isatty"
 	"github.com/starkandwayne/goutils/ansi"
 
@@ -326,33 +330,29 @@ func diffFiles(paths []string) (string, bool, error) {
 		return "", false, ansi.Errorf("incorrect number of files given to diffFiles(); please file a bug report")
 	}
 
-	data, err := ioutil.ReadFile(paths[0])
+	from, to, err := ytbx.LoadFiles(paths[0], paths[1])
 	if err != nil {
-		return "", false, ansi.Errorf("@R{Error reading file} @m{%s}: %s\n", paths[0], err)
-	}
-	a, err := parseYAML(data)
-	if err != nil {
-		return "", false, ansi.Errorf("@m{%s}: @R{%s}\n", paths[0], err)
+		return "", false, err
 	}
 
-	data, err = ioutil.ReadFile(paths[1])
+	report, err := dyff.CompareInputFiles(from, to)
 	if err != nil {
-		return "", false, ansi.Errorf("@R{Error reading file} @m{%s}: %s\n", paths[1], err)
-	}
-	b, err := parseYAML(data)
-	if err != nil {
-		return "", false, ansi.Errorf("@m{%s}: @R{%s}\n", paths[1], err)
+		return "", false, err
 	}
 
-	d, err := Diff(a, b)
-	if err != nil {
-		return "", false, ansi.Errorf("@R{Failed to diff} @m{%s} -> @m{%s}: %s\n", paths[0], paths[1], err)
+	reportWriter := &dyff.HumanReport{
+		Report:            report,
+		DoNotInspectCerts: false,
+		NoTableStyle:      false,
+		ShowBanner:        false,
 	}
 
-	if !d.Changed() {
-		return ansi.Sprintf("@G{both files are semantically equivalent; no differences found!}\n"), false, nil
-	}
-	return d.String("$"), true, nil
+	var buf bytes.Buffer
+	out := bufio.NewWriter(&buf)
+	reportWriter.WriteReport(out)
+	out.Flush()
+
+	return buf.String(), len(report.Diffs) > 0, nil
 }
 
 type RootIsArrayError struct {

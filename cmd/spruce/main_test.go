@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -1472,7 +1473,7 @@ name_list:
 				srv := &http.Server{Addr: ":31337"}
 				defer func() {
 					if srv != nil {
-						srv.Shutdown(nil)
+						srv.Shutdown(context.Background())
 					}
 				}()
 
