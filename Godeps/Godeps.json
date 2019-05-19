@@ -1,15 +1,24 @@
 {
 	"ImportPath": "github.com/geofffranks/spruce",
 	"GoVersion": "go1.11",
-	"GodepVersion": "v79",
+	"GodepVersion": "v80",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/BurntSushi/toml",
+			"Comment": "v0.3.1",
+			"Rev": "3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005"
+		},
+		{
 			"ImportPath": "github.com/Knetic/govaluate",
 			"Comment": "2.2.0-7-g36d12fd",
 			"Rev": "36d12fdf60d2eced73454479e9935c9ea8bbe46a"
+		},
+		{
+			"ImportPath": "github.com/cloudfoundry-community/vaultkv",
+			"Rev": "0ed39daafa01eaa5f526c6bc2581e80896e9674f"
 		},
 		{
 			"ImportPath": "github.com/cppforlife/go-patch/patch",
@@ -25,42 +34,110 @@
 			"Rev": "9f2fe4b6f2957db3a5e43179ecfa1a10fd3bc2f9"
 		},
 		{
+			"ImportPath": "github.com/gopherjs/gopherjs/js",
+			"Rev": "3e4dfb77656c424b6d1196a4d5fed0fcf63677cc"
+		},
+		{
+			"ImportPath": "github.com/homeport/dyff/pkg/v1/dyff",
+			"Comment": "v0.10.1",
+			"Rev": "593c52354a92098a355fc41bea73204b9b1a30e2"
+		},
+		{
+			"ImportPath": "github.com/homeport/gonvenience/pkg/v1/bunt",
+			"Comment": "v1.7.8",
+			"Rev": "42198d93e4f7f27d49fc4fec1958e91d8eea666b"
+		},
+		{
+			"ImportPath": "github.com/homeport/gonvenience/pkg/v1/neat",
+			"Comment": "v1.7.8",
+			"Rev": "42198d93e4f7f27d49fc4fec1958e91d8eea666b"
+		},
+		{
+			"ImportPath": "github.com/homeport/gonvenience/pkg/v1/term",
+			"Comment": "v1.7.8",
+			"Rev": "42198d93e4f7f27d49fc4fec1958e91d8eea666b"
+		},
+		{
+			"ImportPath": "github.com/homeport/gonvenience/pkg/v1/text",
+			"Comment": "v1.7.8",
+			"Rev": "42198d93e4f7f27d49fc4fec1958e91d8eea666b"
+		},
+		{
+			"ImportPath": "github.com/homeport/ytbx/pkg/v1/ytbx",
+			"Comment": "v1.1.0",
+			"Rev": "7a1e32d238b681d4bc46c9b7f92848e1ec0de9ff"
+		},
+		{
 			"ImportPath": "github.com/jtolds/gls",
 			"Rev": "9a4a02dbe491bef4bab3c24fd9f3087d6c4c6690"
 		},
 		{
+			"ImportPath": "github.com/lucasb-eyer/go-colorful",
+			"Comment": "v1.0.2",
+			"Rev": "30298f24079860c4dee452fdef6519b362a4a026"
+		},
+		{
+			"ImportPath": "github.com/mattn/go-ciede2000",
+			"Rev": "782e8c62fec396b2d7e6f4367dd5f3934de99b47"
+		},
+		{
 			"ImportPath": "github.com/mattn/go-isatty",
-			"Rev": "56b76bdf51f7708750eac80fa38b952bb9f32639"
+			"Comment": "v0.0.7-2-gc1975dc",
+			"Rev": "c1975dc15c1d481e8da23f6ed313bb071136b98f"
+		},
+		{
+			"ImportPath": "github.com/mitchellh/go-ps",
+			"Rev": "4fdf99ab29366514c69ccccddab5dc58b8d84062"
+		},
+		{
+			"ImportPath": "github.com/mitchellh/hashstructure",
+			"Comment": "v1.0.0",
+			"Rev": "a38c50148365edc8df43c1580c48fb2b3a1e9cd7"
+		},
+		{
+			"ImportPath": "github.com/pkg/errors",
+			"Comment": "v0.8.1-24-g27936f6",
+			"Rev": "27936f6d90f9c8e1145f11ed52ffffbfdb9e0af7"
+		},
+		{
+			"ImportPath": "github.com/sergi/go-diff/diffmatchpatch",
+			"Comment": "v1.0.0-13-gda64554",
+			"Rev": "da645544ed44df016359bd4c0e3dc60ee3a0da43"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions",
-			"Comment": "1.6.0",
-			"Rev": "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
+			"Comment": "1.10.1",
+			"Rev": "f487f9de1cd36ebab28235b9373028812fb47cbd"
+		},
+		{
+			"ImportPath": "github.com/smartystreets/assertions/internal/go-diff/diffmatchpatch",
+			"Comment": "1.10.1",
+			"Rev": "f487f9de1cd36ebab28235b9373028812fb47cbd"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions/internal/go-render/render",
-			"Comment": "1.6.0",
-			"Rev": "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
+			"Comment": "1.10.1",
+			"Rev": "f487f9de1cd36ebab28235b9373028812fb47cbd"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/assertions/internal/oglematchers",
-			"Comment": "1.6.0",
-			"Rev": "e9a2f6771d97c709b2f7609fdf89ebde8b64c926"
+			"Comment": "1.10.1",
+			"Rev": "f487f9de1cd36ebab28235b9373028812fb47cbd"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/goconvey/convey",
-			"Comment": "1.6.2-6-g5db88ed",
-			"Rev": "5db88ed452e937f2fd557de6f4f1af7f2eabed0b"
+			"Comment": "1.6.3-38-g68dc04a",
+			"Rev": "68dc04aab96ae4326137d6b77330c224063a927e"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/goconvey/convey/gotest",
-			"Comment": "1.6.2-6-g5db88ed",
-			"Rev": "5db88ed452e937f2fd557de6f4f1af7f2eabed0b"
+			"Comment": "1.6.3-38-g68dc04a",
+			"Rev": "68dc04aab96ae4326137d6b77330c224063a927e"
 		},
 		{
 			"ImportPath": "github.com/smartystreets/goconvey/convey/reporting",
-			"Comment": "1.6.2-6-g5db88ed",
-			"Rev": "5db88ed452e937f2fd557de6f4f1af7f2eabed0b"
+			"Comment": "1.6.3-38-g68dc04a",
+			"Rev": "68dc04aab96ae4326137d6b77330c224063a927e"
 		},
 		{
 			"ImportPath": "github.com/starkandwayne/goutils/ansi",
@@ -71,21 +148,42 @@
 			"Rev": "f4d79c537cf0ec896930cedbed7789214f660634"
 		},
 		{
+			"ImportPath": "github.com/texttheater/golang-levenshtein/levenshtein",
+			"Rev": "d188e65d659ef53fcdb0691c12f1bba64928b649"
+		},
+		{
+			"ImportPath": "github.com/virtuald/go-ordered-json",
+			"Rev": "b18e6e673d74b304ff0f935a436dde5707ee1e57"
+		},
+		{
 			"ImportPath": "github.com/voxelbrain/goptions",
 			"Comment": "2.5.10",
 			"Rev": "68583de33d9209ba795a0a334dad27418e4c18f5"
 		},
 		{
+			"ImportPath": "github.com/ziutek/utils/netaddr",
+			"Rev": "58a64d333eb03710a6b0f6951e8c2eb484fa6284"
+		},
+		{
+			"ImportPath": "golang.org/x/crypto/ssh/terminal",
+			"Rev": "22d7a77e9e5f409e934ed268692e56707cd169e5"
+		},
+		{
+			"ImportPath": "golang.org/x/sync/syncmap",
+			"Rev": "112230192c580c3556b8cee6403af37a4fc5f28c"
+		},
+		{
 			"ImportPath": "golang.org/x/sys/unix",
-			"Rev": "442cd600860ce722f6615730eb008a37a87b13ee"
+			"Rev": "61b9204099cb1bebc803c9ffb9b2d3acd9d457d9"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/windows",
+			"Rev": "61b9204099cb1bebc803c9ffb9b2d3acd9d457d9"
 		},
 		{
 			"ImportPath": "gopkg.in/yaml.v2",
-			"Rev": "49c95bdc21843256fb6c4e0d370a05f24a0bf213"
-		},
-		{
-			"ImportPath": "github.com/cloudfoundry-community/vaultkv",
-			"Rev": "0ed39daafa01eaa5f526c6bc2581e80896e9674f"
+			"Comment": "v2.2.2",
+			"Rev": "51d6538a90f86fe93ac480b35f37b2be17fef232"
 		}
 	]
 }

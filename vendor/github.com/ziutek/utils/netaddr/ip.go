@@ -1,6 +1,7 @@
 package netaddr
 
 import (
+	"bytes"
 	"math"
 	"net"
 )
@@ -66,6 +67,31 @@ func IPAdd(ip net.IP, offset int) net.IP {
 	u64ToIP(ip[:net.IPv6len/2], a)
 	u64ToIP(ip[net.IPv6len/2:], b)
 	return ip
+}
+
+// IPSub calculates d that fulfills the condition: IPAdd(a, d) == b.
+// It returns ok == false if d does not fit into int32.
+// BUG: does not handle circular proprty in case of IPv6.
+func IPSub(a, b net.IP) (d int, ok bool) {
+	a = a.To16()
+	b = b.To16()
+	if len(a) != 16 || len(b) != 16 || !bytes.Equal(a[:12], b[:12]) {
+		return 0, false
+	}
+	a32 := uint32(ipToI32(a[12:]))
+	b32 := uint32(ipToI32(b[12:]))
+	if a32 >= b32 {
+		d32 := a32 - b32
+		if d32 >= 2147483648 {
+			return 0, false
+		}
+		return int(d32), true
+	}
+	d32 := b32 - a32
+	if d32 > 2147483648 {
+		return 0, false
+	}
+	return -int(d32), true
 }
 
 // IPMod calculates ip % d
