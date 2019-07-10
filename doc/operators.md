@@ -67,7 +67,7 @@ The expression passed to `(( calc ))` must however be a quoted string.
 Usage: `(( cartesian-product LITERAL|REFERENCE ... ))`
 
 The `(( cartesian-product ))` operator accepts an arbitrary number of arguments, outputting
-a list made up of the product of all its inputs. If the input is aliteral, it is treated as
+a list made up of the product of all its inputs. If the input is a literal, it is treated as
 a one-element set. If it is a reference, it must either be reference a literal type, or an
 array filled with only literal types.
 
