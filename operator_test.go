@@ -9,10 +9,33 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface"
+	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+
 	"github.com/geofffranks/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/starkandwayne/goutils/tree"
 )
+
+type mockedAws struct {
+	ssmiface.SSMAPI
+	secretsmanageriface.SecretsManagerAPI
+
+	MockGetSecretValue func(*secretsmanager.GetSecretValueInput) (*secretsmanager.GetSecretValueOutput, error)
+	MockGetParameter   func(*ssm.GetParameterInput) (*ssm.GetParameterOutput, error)
+}
+
+func (m *mockedAws) GetSecretValue(input *secretsmanager.GetSecretValueInput) (*secretsmanager.GetSecretValueOutput, error) {
+	return m.MockGetSecretValue(input)
+}
+
+func (m *mockedAws) GetParameter(input *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+	return m.MockGetParameter(input)
+}
 
 func TestOperators(t *testing.T) {
 	cursor := func(s string) *tree.Cursor {
@@ -1779,7 +1802,7 @@ meta:
 			So(r.Value.(string), ShouldEqual, "1.2.3.20")
 		})
 
-    Convey("can build a list of IP's based on references (CIDR)", func() {
+		Convey("can build a list of IP's based on references (CIDR)", func() {
 			r, err := op.Run(ev, []*Expr{
 				ref("meta.base_network"),
 				ref("meta.index"),
@@ -1809,7 +1832,7 @@ meta:
 			So(len(r.Value.([]interface{})), ShouldEqual, 2)
 		})
 
-    Convey("can build a list of IP's based on references (IP)", func() {
+		Convey("can build a list of IP's based on references (IP)", func() {
 			r, err := op.Run(ev, []*Expr{
 				ref("meta.base_ip"),
 				ref("meta.index"),
@@ -1824,7 +1847,7 @@ meta:
 			So(len(r.Value.([]interface{})), ShouldEqual, 2)
 		})
 
-    Convey("can build a list of IP's using negative index (IP)", func() {
+		Convey("can build a list of IP's using negative index (IP)", func() {
 			r, err := op.Run(ev, []*Expr{
 				ref("meta.base_ip"),
 				ref("meta.negative_index"),
@@ -1839,7 +1862,7 @@ meta:
 			So(len(r.Value.([]interface{})), ShouldEqual, 2)
 		})
 
-    Convey("can build a list of IP's using negative index (CIDR)", func() {
+		Convey("can build a list of IP's using negative index (CIDR)", func() {
 			r, err := op.Run(ev, []*Expr{
 				ref("meta.base_network"),
 				ref("meta.negative_index"),
@@ -1854,7 +1877,7 @@ meta:
 			So(len(r.Value.([]interface{})), ShouldEqual, 2)
 		})
 
-    Convey("bails out if index is outside CIDR size", func() {
+		Convey("bails out if index is outside CIDR size", func() {
 			r, err := op.Run(ev, []*Expr{
 				str("192.168.1.16/29"),
 				num(100),
@@ -1865,7 +1888,7 @@ meta:
 			So(r, ShouldBeNil)
 		})
 
-    Convey("bails out if count would go outside CIDR size", func() {
+		Convey("bails out if count would go outside CIDR size", func() {
 			r, err := op.Run(ev, []*Expr{
 				str("192.168.1.16/29"),
 				num(-1),
@@ -1876,9 +1899,177 @@ meta:
 			So(err.Error(), ShouldEqual, "Start index 7 and count 3 would exceed size of subnet 192.168.1.16/29")
 			So(r, ShouldBeNil)
 		})
-
-
-
 	})
 
+	Convey("awsparam/awssecret operator", t, func() {
+		op := AwsOperator{variant: "awsparam"}
+		ev := &Evaluator{
+			Tree: YAML(`{ "testval": "test", "testmap": {}, "testarr": [] }`),
+			Here: &tree.Cursor{},
+		}
+		mock := &mockedAws{}
+
+		var ssmKey string
+		var ssmRet string
+		var ssmErr error
+
+		mock.MockGetParameter = func(in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+			ssmKey = aws.StringValue(in.Name)
+			return &ssm.GetParameterOutput{
+				Parameter: &ssm.Parameter{
+					Value: aws.String(ssmRet),
+				},
+			}, ssmErr
+		}
+
+		parameterstoreClient = mock
+		secretsManagerClient = mock
+
+		Convey("in shared logic", func() {
+			Convey("should return error if no key given", func() {
+				_, err := op.Run(ev, []*Expr{})
+				So(err.Error(), ShouldContainSubstring, "awsparam operator requires at least one argument")
+			})
+
+			Convey("should concatenate args", func() {
+				_, err := op.Run(ev, []*Expr{num(1), num(2), num(3)})
+				So(err, ShouldBeNil)
+				So(ssmKey, ShouldEqual, "123")
+			})
+
+			Convey("should resolve references", func() {
+				_, err := op.Run(ev, []*Expr{num(1), num(2), ref("testval")})
+				So(err, ShouldBeNil)
+				So(ssmKey, ShouldEqual, "12test")
+			})
+
+			Convey("should not allow references to maps", func() {
+				_, err := op.Run(ev, []*Expr{num(1), num(2), ref("testmap")})
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "$.testmap is a map; only scalars are supported here")
+			})
+
+			Convey("should not allow references to arrays", func() {
+				_, err := op.Run(ev, []*Expr{num(1), num(2), ref("testarr")})
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "$.testarr is a list; only scalars are supported here")
+			})
+
+			Convey("without key", func() {
+				ssmRet = "testx"
+				r, err := op.Run(ev, []*Expr{str("val1")})
+				So(err, ShouldBeNil)
+				So(r.Type, ShouldEqual, Replace)
+				So(r.Value.(string), ShouldEqual, "testx")
+			})
+
+			Convey("with key", func() {
+				Convey("should parse subkey and extract if provided", func() {
+					ssmRet = `{ "key": "val" }`
+					r, err := op.Run(ev, []*Expr{str("val2?key=key")})
+					So(err, ShouldBeNil)
+					So(r.Type, ShouldEqual, Replace)
+					So(r.Value.(string), ShouldEqual, "val")
+				})
+
+				Convey("should error if document not valid yaml / json", func() {
+					ssmRet = `key: {`
+					_, err := op.Run(ev, []*Expr{str("val3?key=key")})
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "$.val3 error extracting key: yaml: line 1: did not find expected node content")
+				})
+
+				Convey("should error if subkey invalid", func() {
+					ssmRet = `key: {}`
+					_, err := op.Run(ev, []*Expr{str("val4?key=noexist")})
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldEqual, "$.val4 invalid key 'noexist'")
+				})
+			})
+
+			Convey("should not call AWS API if SkipAws true", func() {
+				SkipAws = true
+				count := 0
+				mock.MockGetParameter = func(in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+					count = count + 1
+					return &ssm.GetParameterOutput{
+						Parameter: &ssm.Parameter{
+							Value: aws.String(""),
+						},
+					}, nil
+				}
+				_, err := op.Run(ev, []*Expr{str("skipaws")})
+				So(err, ShouldBeNil)
+				So(count, ShouldEqual, 0)
+				SkipAws = false
+			})
+		})
+
+		Convey("awsparam", func() {
+			Convey("should cache lookups", func() {
+				count := 0
+				mock.MockGetParameter = func(in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+					count = count + 1
+					return &ssm.GetParameterOutput{
+						Parameter: &ssm.Parameter{
+							Value: aws.String(""),
+						},
+					}, nil
+				}
+				_, err := op.Run(ev, []*Expr{str("val5")})
+				So(err, ShouldBeNil)
+				_, err = op.Run(ev, []*Expr{str("val5")})
+				So(err, ShouldBeNil)
+
+				So(count, ShouldEqual, 1)
+			})
+		})
+
+		Convey("awssecret", func() {
+			op = AwsOperator{variant: "awssecret"}
+			Convey("should cache lookups", func() {
+				count := 0
+				mock.MockGetSecretValue = func(in *secretsmanager.GetSecretValueInput) (*secretsmanager.GetSecretValueOutput, error) {
+					count = count + 1
+					return &secretsmanager.GetSecretValueOutput{
+						SecretString: aws.String(""),
+					}, nil
+				}
+				_, err := op.Run(ev, []*Expr{str("val5")})
+				So(err, ShouldBeNil)
+				_, err = op.Run(ev, []*Expr{str("val5")})
+				So(err, ShouldBeNil)
+
+				So(count, ShouldEqual, 1)
+			})
+
+			Convey("should use stage if provided", func() {
+				stage := ""
+				mock.MockGetSecretValue = func(in *secretsmanager.GetSecretValueInput) (*secretsmanager.GetSecretValueOutput, error) {
+					stage = aws.StringValue(in.VersionStage)
+					return &secretsmanager.GetSecretValueOutput{
+						SecretString: aws.String(""),
+					}, nil
+				}
+				_, err := op.Run(ev, []*Expr{str("val6?stage=test")})
+				So(err, ShouldBeNil)
+
+				So(stage, ShouldEqual, "test")
+			})
+
+			Convey("should use version if provided", func() {
+				version := ""
+				mock.MockGetSecretValue = func(in *secretsmanager.GetSecretValueInput) (*secretsmanager.GetSecretValueOutput, error) {
+					version = aws.StringValue(in.VersionId)
+					return &secretsmanager.GetSecretValueOutput{
+						SecretString: aws.String(""),
+					}, nil
+				}
+				_, err := op.Run(ev, []*Expr{str("val7?version=test")})
+				So(err, ShouldBeNil)
+
+				So(version, ShouldEqual, "test")
+			})
+		})
+	})
 }

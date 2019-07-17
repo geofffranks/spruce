@@ -679,8 +679,9 @@ func (ev *Evaluator) Run(prune []string, picks []string) error {
 	paramErrs := MultiError{Errors: []error{}}
 
 	if os.Getenv("REDACT") != "" {
-		DEBUG("Setting vault operator to redact keys")
+		DEBUG("Setting vault & aws operators to redact keys")
 		SkipVault = true
+		SkipAws = true
 	}
 
 	if !ev.SkipEval {

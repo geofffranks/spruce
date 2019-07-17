@@ -17,6 +17,8 @@
 - [sort](#-sort-)
 - [static_ips](#-static_ips-)
 - [vault](#-vault-)
+- [awsparam](#-awsparam-)
+- [awssecret](#-awssecret-)
 
 Additionally, there are operatiors that are specific to merging arrays. For more detail
 see the [array merging documentation][array-merging]:
@@ -324,10 +326,37 @@ look up Vault paths.
 
 [Example][vault-example]
 
-[array-merging]: https://github.com/geofffranks/spruce/blob/master/doc/array-merging.md
-[env-var]:       https://github.com/geofffranks/spruce/blob/master/doc/environment-variables-and-defaults.md
-[vault]:         https://vaultproject.io
-[go-patch]:      https://github.com/cppforlife/go-patch
+## (( awsparam ))
+
+Usage: `(( awsparam LITERAL|REFERENCE ... ))`
+
+The `(( awsparam ))` operator will let you pull a value from [AWS SSM Parameter Store](awsparamstore)
+at merge time. Specify the parameter store path in one or more arguments that will be joined
+to form the whole path and spruce will fetch it for you. Optionally you may pass `?key=...`
+to extract a sub-key where the parameter store value is valid JSON or YAML.
+
+[Example][awsparam-example]
+
+## (( awssecret ))
+
+Usage: `(( awssecret LITERAL|REFERENCE ... ))`
+
+The `(( awssecret ))` operator will let you pull a value from [AWS Secrets Manager](awssecretsmanager)
+at merge time. Specify the secret name or ARN in one or more arguments that will be joined to
+form the whole identifier and spruce will fetch it for you. Optionally you may specify a sub-key
+to extract with `?key=...` where the secret value is valid JSON or YAML and either a stage or
+version with `?stage=...` / `?version=...` respectively to fetch a specific stage or version.
+
+You may combine these additional arguments with `&`; for example `secret/name?key=subkey&stage=AWSPREVIOUS`.
+
+[Example][awssecret-example]
+
+[array-merging]:      https://github.com/geofffranks/spruce/blob/master/doc/array-merging.md
+[env-var]:            https://github.com/geofffranks/spruce/blob/master/doc/environment-variables-and-defaults.md
+[vault]:              https://vaultproject.io
+[go-patch]:           https://github.com/cppforlife/go-patch
+[awsparamstore]:      https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
+[awssecretsmanager]:  https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html
 
 [calc-example]:       http://play.spruce.cf/#537ceec949163403ff42fc52331d2c26
 [cartesian-example]:  http://play.spruce.cf/#a1bb0cde87c2787b0a46603f3263a70d
@@ -343,3 +372,5 @@ look up Vault paths.
 [static_ips-example]: http://play.spruce.cf/#ce52f99a0c7470aa2a1e8fd4dddbafff
 [vault-example]:      https://github.com/geofffranks/spruce/blob/master/doc/pulling-creds-from-vault.md
 [ips-example]:        https://spruce.cf/#568526af82aec5448ddf34740dbd70a3
+[awsparam-example]:   values-from-aws-parameter-store.md
+[awssecret-example]:  values-from-aws-secrets-manager.md
