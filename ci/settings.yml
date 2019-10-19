@@ -47,7 +47,7 @@ jobs:
     public: true
     serial: true
     plan:
-    - aggregate:
+    - in_parallel:
       - get: github
         passed: [shipit]
         trigger: true
