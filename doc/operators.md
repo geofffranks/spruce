@@ -19,6 +19,7 @@
 - [vault](#-vault-)
 - [awsparam](#-awsparam-)
 - [awssecret](#-awssecret-)
+- [base64](#-base64-)
 
 Additionally, there are operatiors that are specific to merging arrays. For more detail
 see the [array merging documentation][array-merging]:
@@ -351,6 +352,17 @@ You may combine these additional arguments with `&`; for example `secret/name?ke
 
 [Example][awssecret-example]
 
+## (( base64 ))
+
+Usage: `(( base64 LITERAL|REFERENCE ... ))`
+
+When working with configs that require lots of base64 encoding, it can be quite
+tedious to manually encode and decode the values when trying to inspect or
+update the existing configuration. The `((base64))` operator allows for merge
+time base64 encoding of string literals specified directly, or by reference.
+
+[Example][base64-example]
+
 [array-merging]:      https://github.com/geofffranks/spruce/blob/master/doc/array-merging.md
 [env-var]:            https://github.com/geofffranks/spruce/blob/master/doc/environment-variables-and-defaults.md
 [vault]:              https://vaultproject.io
@@ -374,3 +386,4 @@ You may combine these additional arguments with `&`; for example `secret/name?ke
 [ips-example]:        https://spruce.cf/#568526af82aec5448ddf34740dbd70a3
 [awsparam-example]:   values-from-aws-parameter-store.md
 [awssecret-example]:  values-from-aws-secrets-manager.md
+[base64-example]:     https://spruce.cf/#0aa8626b70fd5757fd148d7da4ffec37?update/with/new/version/when/released
