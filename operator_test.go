@@ -1901,6 +1901,57 @@ meta:
 		})
 	})
 
+	Convey("Base64 Operator", t, func() {
+		op := Base64Operator{}
+		ev := &Evaluator{
+			Tree: YAML(
+				`meta:
+  sample: "Sample Text To Base64 Encode From Reference"
+`),
+		}
+
+		Convey("can encode a string literal", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("Sample Text To Base64 Encode"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "U2FtcGxlIFRleHQgVG8gQmFzZTY0IEVuY29kZQ==")
+		})
+
+		Convey("can encode from a reference", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.sample"),
+			})
+
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+
+			So(r.Value.(string), ShouldEqual, "U2FtcGxlIFRleHQgVG8gQmFzZTY0IEVuY29kZSBGcm9tIFJlZmVyZW5jZQ==")
+		})
+
+		Convey("can handle non string scalar input", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("one"), num(1),
+			})
+			So(err, ShouldNotBeNil)
+			So(r, ShouldBeNil)
+		})
+
+		Convey("can handle non string scalar input (i.e numbers)", func() {
+			r, err := op.Run(ev, []*Expr{
+				num(1),
+			})
+			So(err, ShouldNotBeNil)
+			So(r, ShouldBeNil)
+		})
+
+	})
+
 	Convey("awsparam/awssecret operator", t, func() {
 		op := AwsOperator{variant: "awsparam"}
 		ev := &Evaluator{
