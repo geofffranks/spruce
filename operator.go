@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/geofffranks/yaml"
 	"github.com/starkandwayne/goutils/ansi"
@@ -191,7 +192,7 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 		var val interface{}
 		err := yaml.Unmarshal([]byte(v), &val)
 		_, isString := val.(string)
-		if isString || err != nil {
+		if envFlag("SPRUCE_NO_PARSE_ENV_VARS_AS_YAML") || isString || err != nil {
 			return &Expr{Type: Literal, Literal: v}, nil
 		}
 		return &Expr{Type: Literal, Literal: val}, nil
@@ -525,4 +526,9 @@ func (op *Opcall) Run(ev *Evaluator) (*Response, error) {
 		return nil, ansi.Errorf("@m{$.%s}: @R{%s}", op.where, err)
 	}
 	return r, nil
+}
+
+func envFlag(varname string) bool {
+	val := os.Getenv(varname)
+	return val != "" && strings.ToLower(val) != "false" && val != "0"
 }

@@ -537,6 +537,7 @@ meta:
 		os.Setenv("GRAB_TWO", "two")
 		os.Setenv("GRAB_NOT", "")
 		os.Setenv("GRAB_BOOL", "true")
+		os.Setenv("GRAB_HASH", `{"a":"b"}`)
 		os.Setenv("GRAB_MULTILINE", `line1
 
 line3
@@ -573,6 +574,28 @@ line4`)
 
 			So(r.Type, ShouldEqual, Replace)
 			So(r.Value.(bool), ShouldEqual, true)
+		})
+
+		Convey("Unmarshals json/yaml datastructures", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("GRAB_HASH"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value, ShouldResemble, map[interface{}]interface{}{"a": "b"})
+		})
+
+		Convey("doesn't unmarshal variables if SPRUCE_NO_PARSE_ENV_VARS_AS_YAML is set", func() {
+			os.Setenv("SPRUCE_NO_PARSE_ENV_VARS_AS_YAML", "true")
+			r, err := op.Run(ev, []*Expr{
+				env("GRAB_HASH"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, `{"a":"b"}`)
+			os.Unsetenv("SPRUCE_NO_PARSE_ENV_VARS_AS_YAML")
 		})
 
 		Convey("does not unmarshall string-only variables", func() {
