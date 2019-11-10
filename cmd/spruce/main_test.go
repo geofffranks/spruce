@@ -18,6 +18,18 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
+func openFiles(paths []string) ([]YamlFile, error) {
+	files := []YamlFile{}
+	for _, file := range paths {
+		f, err := os.Open(file)
+		if err != nil {
+			return files, err
+		}
+		files = append(files, YamlFile{Path: file, Reader: f})
+	}
+	return files, nil
+}
+
 func TestParseYAML(t *testing.T) {
 	Convey("parseYAML()", t, func() {
 		Convey("returns error for invalid yaml data", func() {
@@ -62,25 +74,28 @@ top:
 func TestMergeAllDocs(t *testing.T) {
 	Convey("mergeAllDocs()", t, func() {
 		Convey("Fails with readFile error on bad first doc", func() {
-			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"../../assets/merge/nonexistent.yml", "../../assets/merge/second.yml"}, false, false)
+			files, err := openFiles([]string{"../../assets/merge/second.yml"})
+			files[0].Reader.Close()
+			So(err, ShouldBeNil)
+			_, err = mergeAllDocs(files, mergeOpts{})
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "Error reading file ../../assets/merge/nonexistent.yml:")
+			So(err.Error(), ShouldContainSubstring, "Error reading file ../../assets/merge/second.yml:")
 		})
 		Convey("Fails with parseYAML error on bad second doc", func() {
-			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/bad.yml"}, false, false)
+			files, err := openFiles([]string{"../../assets/merge/first.yml", "../../assets/merge/bad.yml"})
+			So(err, ShouldBeNil)
+			_, err = mergeAllDocs(files, mergeOpts{})
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "../../assets/merge/bad.yml: Root of YAML document is not a hash/map:")
 		})
 		Convey("Fails with mergeMap error", func() {
-			target := map[interface{}]interface{}{}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/error.yml"}, false, false)
+			files, err := openFiles([]string{"../../assets/merge/first.yml", "../../assets/merge/error.yml"})
+			So(err, ShouldBeNil)
+			_, err = mergeAllDocs(files, mergeOpts{})
 			So(err, ShouldNotBeNil)
 			So(err.Error(), ShouldContainSubstring, "$.array_inline.0: new object is a string, not a map - cannot merge by key")
 		})
 		Convey("Succeeds with valid files + yaml", func() {
-			target := map[interface{}]interface{}{}
 			expect := map[interface{}]interface{}{
 				"key":           "overridden",
 				"array_append":  []interface{}{"one", "two", "three"},
@@ -113,12 +128,13 @@ func TestMergeAllDocs(t *testing.T) {
 					"key2": "val2",
 				},
 			}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.yml", "../../assets/merge/second.yml"}, false, false)
+			files, err := openFiles([]string{"../../assets/merge/first.yml", "../../assets/merge/second.yml"})
 			So(err, ShouldBeNil)
-			So(target, ShouldResemble, expect)
+			ev, err := mergeAllDocs(files, mergeOpts{})
+			So(err, ShouldBeNil)
+			So(ev.Tree, ShouldResemble, expect)
 		})
 		Convey("Succeeds with valid files + json", func() {
-			target := map[interface{}]interface{}{}
 			expect := map[interface{}]interface{}{
 				"key":           "overridden",
 				"array_append":  []interface{}{"one", "two", "three"},
@@ -151,9 +167,11 @@ func TestMergeAllDocs(t *testing.T) {
 					"key2": "val2",
 				},
 			}
-			err := mergeAllDocs(target, []string{"../../assets/merge/first.json", "../../assets/merge/second.yml"}, false, false)
+			files, err := openFiles([]string{"../../assets/merge/first.json", "../../assets/merge/second.yml"})
 			So(err, ShouldBeNil)
-			So(target, ShouldResemble, expect)
+			ev, err := mergeAllDocs(files, mergeOpts{})
+			So(err, ShouldBeNil)
+			So(ev.Tree, ShouldResemble, expect)
 		})
 	})
 }
@@ -2298,6 +2316,102 @@ func TestDebug(t *testing.T) {
 			main()
 			So(DebugOn, ShouldBeFalse)
 		})
+	})
+}
+
+func TestFan(t *testing.T) {
+	var stdout string
+	printfStdOut = func(format string, args ...interface{}) {
+		stdout = stdout + fmt.Sprintf(format, args...)
+	}
+	var stderr string
+	//Edit log stderr function
+	PrintfStdErr = func(format string, args ...interface{}) {
+		stderr += fmt.Sprintf(format, args...)
+	}
+
+	rc := 256 // invalid return code to catch any issues
+	exit = func(code int) {
+		rc = code
+	}
+
+	usage = func() {
+		stderr = "usage was called"
+		exit(1)
+	}
+
+	Convey("spruce fan errors when failing to read a file it was given", t, func() {
+		os.Args = []string{"spruce", "fan", "../../assets/fan/nonexistent.yml", "../../assets/fan/multi-doc-1.yml"}
+		stdout = ""
+		stderr = ""
+		main()
+		So(stderr, ShouldContainSubstring, "Error reading file ../../assets/fan/multi-doc-1.yml: open ../../assets/fan/nonexistent.yml:")
+		So(stdout, ShouldEqual, "")
+		So(rc, ShouldEqual, 2)
+	})
+	Convey("spruce fan errors with the correct document index when there's an initial doc-separator", t, func() {
+		os.Args = []string{"spruce", "fan", "../../assets/fan/source.yml", "../../assets/fan/invalid-yaml-with-doc-separator.yml"}
+		stdout = ""
+		stderr = ""
+		main()
+		So(stderr, ShouldContainSubstring, "../../assets/fan/invalid-yaml-with-doc-separator.yml[0]:")
+		So(stdout, ShouldEqual, "")
+		So(rc, ShouldEqual, 2)
+	})
+	Convey("spruce fan errors with the correct doc index when there is no initial doc separator", t, func() {
+		os.Args = []string{"spruce", "fan", "../../assets/fan/source.yml", "../../assets/fan/invalid-yaml.yml"}
+		stdout = ""
+		stderr = ""
+		main()
+		So(stderr, ShouldContainSubstring, "../../assets/fan/invalid-yaml.yml[0]:")
+		So(stdout, ShouldEqual, "")
+		So(rc, ShouldEqual, 2)
+	})
+	Convey("spruce fan errors if no source file is provided", t, func() {
+		os.Args = []string{"spruce", "fan"}
+		stdout = ""
+		stderr = ""
+		main()
+		So(stderr, ShouldContainSubstring, "Missing Input: You must specify at least a source file to spruce fan. If no target files are specified, STDIN is used. However, STDIN cannot be used for both")
+		So(stdout, ShouldEqual, "")
+		So(rc, ShouldEqual, 2)
+	})
+	Convey("spruce fan merges one doc into all the docs of the other files", t, func() {
+		os.Args = []string{"spruce", "fan", "--prune", "meta", "../../assets/fan/source.yml", "../../assets/fan/multi-doc-1.yml", "../../assets/fan/multi-doc-2.yml", "../../assets/fan/multi-doc-3.yml"}
+		stdout = ""
+		stderr = ""
+		main()
+		So(stderr, ShouldEqual, "")
+		So(stdout, ShouldEqual, `---
+doc1: i've-been-grabbed
+
+---
+doc2: i've-been-grabbed
+other: stuff
+
+---
+doc3: i've-been-grabbed
+
+---
+no-grab: here
+
+---
+doc4: i've-been-grabbed
+
+---
+doc5: i've-been-grabbed
+other: stuff
+
+---
+doc6:
+  no-grab: here
+
+---
+doc7:
+  no-grab: here
+
+`)
+		So(rc, ShouldEqual, 0)
 	})
 }
 
