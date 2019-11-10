@@ -1,0 +1,10 @@
+---
+- map:
+    list:
+      - string
+      - 42
+      - map: "of things"
+- 42
+- string
+- ["embedded-list"]
+

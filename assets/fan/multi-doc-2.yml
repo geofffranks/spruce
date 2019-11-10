@@ -1,0 +1,4 @@
+doc4: (( grab meta.to-be-grabbed ))
+---
+doc5: (( grab meta.to-be-grabbed ))
+other: stuff
