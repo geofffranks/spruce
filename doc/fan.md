@@ -36,7 +36,7 @@ Usage:
 spruce merge --prune meta source.yml target-1.yml target-2.yml
 ---
 stuff: is a thing
-```
+---
 second-doc:
   something nested: concatenating is a thing
 ---
