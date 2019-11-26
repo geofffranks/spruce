@@ -62,6 +62,7 @@ type YamlFile struct {
 
 type jsonOpts struct {
 	Strict bool               `goptions:"--strict, description='Refuse to convert non-string keys to strings'"`
+	Help   bool               `goptions:"--help, -h"`
 	Files  goptions.Remainder `goptions:"description='Files to convert to JSON'"`
 }
 
@@ -71,6 +72,7 @@ type mergeOpts struct {
 	CherryPick     []string           `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
 	FallbackAppend bool               `goptions:"--fallback-append, description='Default merge normally tries to key merge, then inline. This flag says do an append instead of an inline.'"`
 	EnableGoPatch  bool               `goptions:"--go-patch, description='Enable the use of go-patch when parsing files to be merged'"`
+	Help           bool               `goptions:"--help, -h"`
 	Files          goptions.Remainder `goptions:"description='List of files to merge. To read STDIN, specify a filename of \\'-\\'.'"`
 }
 
@@ -100,6 +102,11 @@ func main() {
 	if envFlag("TRACE") || options.Trace {
 		TraceOn = true
 		DebugOn = true
+	}
+
+	if options.JSON.Help || options.Merge.Help || options.Fan.Help {
+		usage()
+		return
 	}
 
 	if options.Version {
@@ -243,18 +250,32 @@ func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 	return doc, nil
 }
 
-func cmdMergeEval(options mergeOpts) (map[interface{}]interface{}, error) {
-	files := []YamlFile{}
-	for _, file := range options.Files {
+func loadYamlFile(file string) (YamlFile, error) {
+	var target YamlFile
+	if file == "-" {
+		target = YamlFile{Reader: os.Stdin, Path: "-"}
+	} else {
 		f, err := os.Open(file)
 		if err != nil {
-			return nil, ansi.Errorf("@R{Error reading file} @m{%s}: %s", file, err.Error())
+			return YamlFile{}, ansi.Errorf("@R{Error reading file} @m{%s}: %s", file, err.Error())
 		}
-		defer f.Close()
-		files = append(files, YamlFile{Reader: f, Path: file})
+		target = YamlFile{Path: file, Reader: f}
 	}
-	if len(files) < 1 {
+	return target, nil
+}
+
+func cmdMergeEval(options mergeOpts) (map[interface{}]interface{}, error) {
+	files := []YamlFile{}
+	if len(options.Files) < 1 {
 		files = append(files, YamlFile{Reader: os.Stdin, Path: "-"})
+	}
+
+	for _, file := range options.Files {
+		yamlFile, err := loadYamlFile(file)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, yamlFile)
 	}
 
 	ev, err := mergeAllDocs(files, options)
@@ -278,17 +299,9 @@ func cmdFanEval(options mergeOpts) ([]map[interface{}]interface{}, error) {
 	}
 
 	for _, file := range options.Files {
-		var target YamlFile
-		if file == "-" {
-			target = YamlFile{Reader: os.Stdin, Path: "-"}
-		} else {
-			targetFile, err := os.Open(file)
-			if err != nil {
-				return nil, ansi.Errorf("@R{Error reading file} @m{%s}: %s", file, err.Error())
-			}
-			defer targetFile.Close()
-
-			target = YamlFile{Path: file, Reader: targetFile}
+		target, err := loadYamlFile(file)
+		if err != nil {
+			return nil, err
 		}
 
 		data, err := readFile(&target)
