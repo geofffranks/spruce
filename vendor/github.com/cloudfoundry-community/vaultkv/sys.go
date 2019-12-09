@@ -3,7 +3,7 @@ package vaultkv
 import (
 	"encoding/json"
 	"errors"
-	"net/http"
+	"io/ioutil"
 	"net/url"
 	"strings"
 )
@@ -201,27 +201,25 @@ func (v *Client) ResetUnseal() (err error) {
 func (v *Client) Health(standbyok bool) error {
 	//Don't call doRequest from Health because ParseError calls Health
 	query := url.Values{}
-	boolStr := "false"
-	if standbyok == true {
-		boolStr = "true"
+	if standbyok {
+		query.Add("standbyok", "true")
 	}
-	query.Add("standbyok", boolStr)
-	u := *v.VaultURL
-	u.Path = "/v1/sys/health"
-	u.RawQuery = query.Encode()
-	req, err := http.NewRequest("GET", u.String(), nil)
+
+	resp, err := v.Curl("GET", "/sys/health", query, nil)
 	if err != nil {
 		return err
 	}
 
-	req.Header.Add("X-Vault-Token", v.AuthToken)
-	resp, err := v.Client.Do(req)
+	errorsStruct := apiError{}
+	err = json.NewDecoder(resp.Body).Decode(&errorsStruct)
 	if err != nil {
-		return &ErrTransport{message: err.Error()}
+		return err
+	}
+	_, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
 	}
 
-	errorsStruct := apiError{}
-	json.NewDecoder(resp.Body).Decode(&errorsStruct)
 	errorMessage := strings.Join(errorsStruct.Errors, "\n")
 
 	switch resp.StatusCode {

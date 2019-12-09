@@ -78,12 +78,8 @@ func (k kvv1Mount) Delete(mount, subpath string, opts *KVDeleteOpts) (err error)
 		return &ErrKVUnsupported{"Refusing to destroy KV v1 value from delete call"}
 	}
 
-	versions := []uint{}
-	if opts != nil {
-		versions = opts.Versions
-	}
-
-	return k.Destroy(mount, subpath, versions)
+	//opts should be non-nil here because of the check earlier in the function
+	return k.Destroy(mount, subpath, opts.Versions)
 }
 
 func (k kvv1Mount) Undelete(mount, subpath string, versions []uint) (err error) {

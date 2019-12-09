@@ -349,7 +349,7 @@ secret: (( vault "hand3:shake" ))
 
 ---
 1 error(s) detected:
- - $.secret: missing client token
+ - $.secret: 403 Forbidden: missing client token
 
 `)
 

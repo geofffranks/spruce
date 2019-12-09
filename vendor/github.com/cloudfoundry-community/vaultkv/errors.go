@@ -3,6 +3,7 @@ package vaultkv
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 )
@@ -14,7 +15,7 @@ type ErrBadRequest struct {
 }
 
 func (e *ErrBadRequest) Error() string {
-	return e.message
+	return fmt.Sprintf("400 Bad Request: %s", e.message)
 }
 
 //IsBadRequest returns true if the error is an ErrBadRequest
@@ -31,7 +32,7 @@ type ErrForbidden struct {
 }
 
 func (e *ErrForbidden) Error() string {
-	return e.message
+	return fmt.Sprintf("403 Forbidden: %s", e.message)
 }
 
 //IsForbidden returns true if the error is an ErrForbidden
@@ -49,7 +50,7 @@ type ErrNotFound struct {
 }
 
 func (e *ErrNotFound) Error() string {
-	return e.message
+	return fmt.Sprintf("404 Not Found: %s", e.message)
 }
 
 //IsNotFound returns true if the error is an ErrNotFound
@@ -65,7 +66,7 @@ type ErrStandby struct {
 }
 
 func (e *ErrStandby) Error() string {
-	return e.message
+	return fmt.Sprintf("503 Standby: %s", e.message)
 }
 
 //IsErrStandby returns true if the error is an ErrStandby
@@ -81,7 +82,7 @@ type ErrInternalServer struct {
 }
 
 func (e *ErrInternalServer) Error() string {
-	return e.message
+	return fmt.Sprintf("500 Internal Server Error: %s", e.message)
 }
 
 //IsInternalServer returns true if the error is an ErrInternalServer
@@ -98,7 +99,7 @@ type ErrSealed struct {
 }
 
 func (e *ErrSealed) Error() string {
-	return e.message
+	return fmt.Sprintf("503 Sealed: %s", e.message)
 }
 
 //IsSealed returns true if the error is an ErrSealed
@@ -114,7 +115,7 @@ type ErrUninitialized struct {
 }
 
 func (e *ErrUninitialized) Error() string {
-	return e.message
+	return fmt.Sprintf("503 Uninitialized: %s", e.message)
 }
 
 //IsUninitialized returns true if the error is an ErrUninitialized
@@ -130,7 +131,7 @@ type ErrTransport struct {
 }
 
 func (e *ErrTransport) Error() string {
-	return e.message
+	return fmt.Sprintf("Transport Error: %s", e.message)
 }
 
 //IsTransport returns true if the error is an ErrTransport
@@ -147,6 +148,7 @@ type ErrKVUnsupported struct {
 }
 
 func (e *ErrKVUnsupported) Error() string {
+	return fmt.Sprintf("KV Version Support: %s", e.message)
 	return e.message
 }
 
@@ -187,5 +189,22 @@ func (v *Client) parseError(r *http.Response) (err error) {
 }
 
 func (v *Client) parse503(message string) (err error) {
-	return v.Health(true)
+	err = v.Health(true)
+	if err == nil {
+		return nil
+	}
+
+	switch e := err.(type) {
+	case *ErrStandby:
+		e.message = message
+		err = e
+	case *ErrUninitialized:
+		e.message = message
+		err = e
+	case *ErrSealed:
+		e.message = message
+		err = e
+	}
+
+	return err
 }

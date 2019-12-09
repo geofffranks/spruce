@@ -58,12 +58,14 @@ func (VaultOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor, aut
 func initializeVaultClient() error {
 	addr := os.Getenv("VAULT_ADDR")
 	token := os.Getenv("VAULT_TOKEN")
+	namespace := os.Getenv("VAULT_NAMESPACE")
 	skip := false
 
 	if addr == "" || token == "" {
 		svtoken := struct {
 			Vault      string `yaml:"vault"`
 			Token      string `yaml:"token"`
+			Namespace  string `yaml:"namespace"`
 			SkipVerify bool   `yaml:"skip_verify"`
 		}{}
 		b, err := ioutil.ReadFile(os.ExpandEnv("${HOME}/.svtoken"))
@@ -72,6 +74,7 @@ func initializeVaultClient() error {
 			if err == nil {
 				addr = svtoken.Vault
 				token = svtoken.Token
+				namespace = svtoken.Namespace
 				skip = svtoken.SkipVerify
 			}
 		}
@@ -113,6 +116,7 @@ func initializeVaultClient() error {
 	client := &vaultkv.Client{
 		AuthToken: token,
 		VaultURL:  parsedURL,
+		Namespace: namespace,
 		Client: &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,
@@ -126,9 +130,13 @@ func initializeVaultClient() error {
 					return fmt.Errorf("stopped after 10 redirects")
 				}
 				req.Header.Add("X-Vault-Token", token)
+				req.Header.Add("X-Vault-Namespace", token)
 				return nil
 			},
 		},
+	}
+	if DebugOn {
+		client.Trace = os.Stderr
 	}
 
 	if err != nil {

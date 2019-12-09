@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/geofffranks/spruce",
 	"GoVersion": "go1.11",
-	"GodepVersion": "v79",
+	"GodepVersion": "v80",
 	"Packages": [
 		"./..."
 	],
@@ -193,7 +193,7 @@
 		},
 		{
 			"ImportPath": "github.com/cloudfoundry-community/vaultkv",
-			"Rev": "0ed39daafa01eaa5f526c6bc2581e80896e9674f"
+			"Rev": "95e813767fb32369be419e5ee96b58aedda1d734"
 		},
 		{
 			"ImportPath": "github.com/cppforlife/go-patch/patch",
