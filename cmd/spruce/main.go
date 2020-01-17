@@ -72,6 +72,7 @@ type mergeOpts struct {
 	CherryPick     []string           `goptions:"--cherry-pick, description='The opposite of prune, specify keys to cherry-pick from final output (may be specified more than once)'"`
 	FallbackAppend bool               `goptions:"--fallback-append, description='Default merge normally tries to key merge, then inline. This flag says do an append instead of an inline.'"`
 	EnableGoPatch  bool               `goptions:"--go-patch, description='Enable the use of go-patch when parsing files to be merged'"`
+	MultiDoc       bool               `goptions:"--multi-doc, -m, description='Treat multi-doc yaml as multiple files.'"`
 	Help           bool               `goptions:"--help, -h"`
 	Files          goptions.Remainder `goptions:"description='List of files to merge. To read STDIN, specify a filename of \\'-\\'.'"`
 }
@@ -172,23 +173,13 @@ func main() {
 
 		printfStdOut("%s\n", formatVaultRefs())
 	case "json":
-		if len(options.JSON.Files) > 0 {
-			jsons, err := JSONifyFiles(options.JSON.Files, options.JSON.Strict)
-			if err != nil {
-				PrintfStdErr("%s\n", err)
-				exit(2)
-				return
-			}
-			for _, output := range jsons {
-				printfStdOut("%s\n", output)
-			}
-		} else {
-			output, err := JSONifyIO(os.Stdin, options.JSON.Strict)
-			if err != nil {
-				PrintfStdErr("%s\n", err)
-				exit(2)
-				return
-			}
+		jsons, err := cmdJSONEval(options.JSON)
+		if err != nil {
+			PrintfStdErr("%s\n", err)
+			exit(2)
+			return
+		}
+		for _, output := range jsons {
 			printfStdOut("%s\n", output)
 		}
 
@@ -264,18 +255,62 @@ func loadYamlFile(file string) (YamlFile, error) {
 	return target, nil
 }
 
+func splitLoadYamlFile(file string) ([]YamlFile, error) {
+	docs := []YamlFile{}
+
+	yamlFile, err := loadYamlFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	fileData, err := readFile(&yamlFile)
+	if err != nil {
+		return nil, err
+	}
+
+	rawDocs := bytes.Split(fileData, []byte("\n---\n"))
+	// strip off empty document created if the first three bytes of the file are the doc separator
+	// keeps the indexing correct for when used with error messages
+	if len(rawDocs[0]) == 0 {
+		rawDocs = rawDocs[1:]
+	}
+
+	for i, docBytes := range rawDocs {
+		buf := bytes.NewBuffer(docBytes)
+		doc := YamlFile{Path: fmt.Sprintf("%s[%d]", yamlFile.Path, i), Reader: ioutil.NopCloser(buf)}
+		docs = append(docs, doc)
+	}
+	return docs, nil
+}
+
 func cmdMergeEval(options mergeOpts) (map[interface{}]interface{}, error) {
 	files := []YamlFile{}
+	stdinInfo, err := os.Stdin.Stat()
+	if err != nil {
+		return nil, ansi.Errorf("@R{Error statting STDIN} - Bailing out: %s\n", err.Error())
+	}
+	if stdinInfo.Mode()&os.ModeCharDevice == 0 {
+		options.Files = append(options.Files, "-")
+	}
+
 	if len(options.Files) < 1 {
-		files = append(files, YamlFile{Reader: os.Stdin, Path: "-"})
+		return nil, ansi.Errorf("@R{Error reading STDIN}: no data found. Did you forget to pipe data to STDIN, or specify yaml files to merge?")
 	}
 
 	for _, file := range options.Files {
-		yamlFile, err := loadYamlFile(file)
-		if err != nil {
-			return nil, err
+		if options.MultiDoc {
+			docs, err := splitLoadYamlFile(file)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, docs...)
+		} else {
+			yamlFile, err := loadYamlFile(file)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, yamlFile)
 		}
-		files = append(files, yamlFile)
 	}
 
 	ev, err := mergeAllDocs(files, options)
@@ -287,54 +322,85 @@ func cmdMergeEval(options mergeOpts) (map[interface{}]interface{}, error) {
 }
 
 func cmdFanEval(options mergeOpts) ([]map[interface{}]interface{}, error) {
+	stdinInfo, err := os.Stdin.Stat()
+	if err != nil {
+		return nil, ansi.Errorf("@R{Error statting STDIN} - Bailing out: %s\n", err.Error())
+	}
+	if stdinInfo.Mode()&os.ModeCharDevice == 0 {
+		options.Files = append(options.Files, "-")
+	}
+
 	if len(options.Files) == 0 {
-		return nil, ansi.Errorf("@R{Missing Input:} You must specify at least a source file to spruce fan. If no target files are specified, STDIN is used. However, STDIN cannot be used for both")
+		return nil, ansi.Errorf("@R{Missing Input:} You must specify at least a source document to spruce fan. If no files are specified, STDIN is used. Using STDIN for source and target docs only works with -m.")
 	}
 
 	roots := []map[interface{}]interface{}{}
 	sourcePath := options.Files[0]
 	options.Files = options.Files[1:]
-	if len(options.Files) < 1 {
-		options.Files = append(options.Files, "-")
+
+	docs := []YamlFile{}
+	source := YamlFile{}
+	if options.MultiDoc {
+		sourceDocs, err := splitLoadYamlFile(sourcePath)
+		if err != nil {
+			return nil, err
+		}
+		// only the first yaml document of the source will be treated as actual source, all others
+		// will be treated as target documents
+		source = sourceDocs[0]
+		docs = append(sourceDocs[1:], docs...)
+	} else {
+		source, err = loadYamlFile(sourcePath)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for _, file := range options.Files {
-		target, err := loadYamlFile(file)
+		yamlDocs, err := splitLoadYamlFile(file)
 		if err != nil {
 			return nil, err
 		}
-
-		data, err := readFile(&target)
-		if err != nil {
-			return nil, err
-		}
-
-		docs := bytes.Split(data, []byte("---"))
-		// strip off empty document created if the first three bytes of the file are the doc separator
-		// keeps the indexing correct for when used with error messages
-		if len(docs[0]) == 0 {
-			docs = docs[1:]
-		}
-		for i, docBytes := range docs {
-			sourceFile, err := os.Open(sourcePath)
-			if err != nil {
-				return nil, ansi.Errorf("@R{Error reading file} @m{%s}: %s", file, err.Error())
-			}
-			defer sourceFile.Close()
-
-			source := YamlFile{Path: sourcePath, Reader: sourceFile}
-
-			buf := bytes.NewBuffer(docBytes)
-			doc := YamlFile{Path: fmt.Sprintf("%s[%d]", target.Path, i), Reader: ioutil.NopCloser(buf)}
-
-			ev, err := mergeAllDocs([]YamlFile{source, doc}, options)
-			if err != nil {
-				return nil, err
-			}
-			roots = append(roots, ev.Tree)
-		}
+		docs = append(docs, yamlDocs...)
 	}
+
+	sourceBytes, err := readFile(&source)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(docs) < 1 {
+		return nil, ansi.Errorf("@R{Missing Input:} You must specify at least one target document to spruce fan. If no files are specified, STDIN is used. Using STDIN for source and target docs only works with -m.")
+	}
+
+	for _, doc := range docs {
+		sourceBuffer := bytes.NewBuffer(sourceBytes)
+		source = YamlFile{Path: source.Path, Reader: ioutil.NopCloser(sourceBuffer)}
+		ev, err := mergeAllDocs([]YamlFile{source, doc}, options)
+		if err != nil {
+			return nil, err
+		}
+		roots = append(roots, ev.Tree)
+	}
+
 	return roots, nil
+}
+
+func cmdJSONEval(options jsonOpts) ([]string, error) {
+	stdinInfo, err := os.Stdin.Stat()
+	if err != nil {
+		return nil, ansi.Errorf("@R{Error statting STDIN} - Bailing out: %s\n", err.Error())
+	}
+	if stdinInfo.Mode()&os.ModeCharDevice == 0 {
+		options.Files = append(options.Files, "-")
+	}
+
+	output, err := JSONifyFiles(options.Files, options.Strict)
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
 
 type yamlVaultSecret struct {

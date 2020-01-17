@@ -1,0 +1,5 @@
+---
+meta:
+  to-be-grabbed: i've-been-grabbed
+---
+sdoc: (( grab meta.to-be-grabbed ))
