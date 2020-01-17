@@ -1,0 +1,8 @@
+---
+doc:
+  data:
+    test01: "stuff"
+---
+doc:
+  data:
+    test02: "morestuff"

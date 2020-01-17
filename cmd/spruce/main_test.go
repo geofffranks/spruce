@@ -295,7 +295,19 @@ map:
 `)
 			So(stderr, ShouldEqual, "")
 		})
+		Convey("Should output merged yaml with multi-doc enabled", func() {
+			os.Args = []string{"spruce", "merge", "-m", "../../assets/merge/multi-doc.yml"}
+			stdout = ""
+			stderr = ""
+			main()
+			So(stdout, ShouldEqual, `doc:
+  data:
+    test01: stuff
+    test02: morestuff
 
+`)
+			So(stderr, ShouldEqual, "")
+		})
 		Convey("Should not evaluate spruce logic when --no-eval", func() {
 			os.Args = []string{"spruce", "merge", "--skip-eval", "../../assets/no-eval/first.yml", "../../assets/no-eval/second.yml"}
 			stdout = ""
@@ -2345,7 +2357,7 @@ func TestFan(t *testing.T) {
 		stdout = ""
 		stderr = ""
 		main()
-		So(stderr, ShouldContainSubstring, "Error reading file ../../assets/fan/multi-doc-1.yml: open ../../assets/fan/nonexistent.yml:")
+		So(stderr, ShouldContainSubstring, "Error reading file ../../assets/fan/nonexistent.yml: open ../../assets/fan/nonexistent.yml: no such file or directory")
 		So(stdout, ShouldEqual, "")
 		So(rc, ShouldEqual, 2)
 	})
@@ -2372,7 +2384,7 @@ func TestFan(t *testing.T) {
 		stdout = ""
 		stderr = ""
 		main()
-		So(stderr, ShouldContainSubstring, "Missing Input: You must specify at least a source file to spruce fan. If no target files are specified, STDIN is used. However, STDIN cannot be used for both")
+		So(stderr, ShouldContainSubstring, "You must specify at least a source document to spruce fan. If no files are specified, STDIN is used. Using STDIN for source and target docs only works with -m")
 		So(stdout, ShouldEqual, "")
 		So(rc, ShouldEqual, 2)
 	})
@@ -2383,6 +2395,46 @@ func TestFan(t *testing.T) {
 		main()
 		So(stderr, ShouldEqual, "")
 		So(stdout, ShouldEqual, `---
+doc1: i've-been-grabbed
+
+---
+doc2: i've-been-grabbed
+other: stuff
+
+---
+doc3: i've-been-grabbed
+
+---
+no-grab: here
+
+---
+doc4: i've-been-grabbed
+
+---
+doc5: i've-been-grabbed
+other: stuff
+
+---
+doc6:
+  no-grab: here
+
+---
+doc7:
+  no-grab: here
+
+`)
+		So(rc, ShouldEqual, 0)
+	})
+	Convey("spruce fan merges a multi doc source into all the docs of the other files", t, func() {
+		os.Args = []string{"spruce", "fan", "-m", "--prune", "meta", "../../assets/fan/multi-doc-source.yml", "../../assets/fan/multi-doc-1.yml", "../../assets/fan/multi-doc-2.yml", "../../assets/fan/multi-doc-3.yml"}
+		stdout = ""
+		stderr = ""
+		main()
+		So(stderr, ShouldEqual, "")
+		So(stdout, ShouldEqual, `---
+sdoc: i've-been-grabbed
+
+---
 doc1: i've-been-grabbed
 
 ---
