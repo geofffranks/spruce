@@ -285,16 +285,18 @@ func splitLoadYamlFile(file string) ([]YamlFile, error) {
 
 func cmdMergeEval(options mergeOpts) (map[interface{}]interface{}, error) {
 	files := []YamlFile{}
-	stdinInfo, err := os.Stdin.Stat()
-	if err != nil {
-		return nil, ansi.Errorf("@R{Error statting STDIN} - Bailing out: %s\n", err.Error())
-	}
-	if stdinInfo.Mode()&os.ModeCharDevice == 0 {
-		options.Files = append(options.Files, "-")
-	}
 
 	if len(options.Files) < 1 {
-		return nil, ansi.Errorf("@R{Error reading STDIN}: no data found. Did you forget to pipe data to STDIN, or specify yaml files to merge?")
+		stdinInfo, err := os.Stdin.Stat()
+		if err != nil {
+			return nil, ansi.Errorf("@R{Error statting STDIN} - Bailing out: %s\n", err.Error())
+		}
+
+		if stdinInfo.Mode()&os.ModeCharDevice != 0 {
+			return nil, ansi.Errorf("@R{Error reading STDIN}: no data found. Did you forget to pipe data to STDIN, or specify yaml files to merge?")
+		}
+
+		options.Files = append(options.Files, "-")
 	}
 
 	for _, file := range options.Files {
