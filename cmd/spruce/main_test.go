@@ -42,7 +42,42 @@ asdf: fdsa
 			So(err.Error(), ShouldContainSubstring, "unmarshal []byte to yaml failed:")
 			So(obj, ShouldBeNil)
 		})
-		Convey("returns error if yaml was not a top level map", func() {
+		Convey("returns error if yaml is empty", func() {
+			data := `---
+`
+			obj, err := parseYAML([]byte(data))
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "Root of YAML document is not a hash/map:")
+			So(obj, ShouldBeNil)
+		})
+		Convey("returns error if yaml is a bool", func() {
+			data := `
+true
+`
+			obj, err := parseYAML([]byte(data))
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "Root of YAML document is not a hash/map:")
+			So(obj, ShouldBeNil)
+		})
+		Convey("returns error if yaml is a string", func() {
+			data := `
+"1234"
+`
+			obj, err := parseYAML([]byte(data))
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "Root of YAML document is not a hash/map:")
+			So(obj, ShouldBeNil)
+		})
+		Convey("returns error if yaml is a number", func() {
+			data := `
+1234
+`
+			obj, err := parseYAML([]byte(data))
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "Root of YAML document is not a hash/map:")
+			So(obj, ShouldBeNil)
+		})
+		Convey("returns error if yaml an array", func() {
 			data := `
 - 1
 - 2
