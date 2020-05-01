@@ -42,13 +42,12 @@ asdf: fdsa
 			So(err.Error(), ShouldContainSubstring, "unmarshal []byte to yaml failed:")
 			So(obj, ShouldBeNil)
 		})
-		Convey("returns error if yaml is empty", func() {
+		Convey("does not return error if yaml is empty", func() {
 			data := `---
 `
 			obj, err := parseYAML([]byte(data))
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "Root of YAML document is not a hash/map:")
-			So(obj, ShouldBeNil)
+			So(err, ShouldBeNil)
+			So(obj, ShouldNotBeNil)
 		})
 		Convey("returns error if yaml is a bool", func() {
 			data := `

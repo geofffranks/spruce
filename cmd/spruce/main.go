@@ -224,11 +224,18 @@ func parseGoPatch(data []byte) (patch.Ops, error) {
 	}
 	return ops, nil
 }
+
 func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 	y, err := simpleyaml.NewYaml(data)
 	if err != nil {
 		return nil, err
 	}
+
+	if empty_y, _ :=  simpleyaml.NewYaml([]byte{}); *y == *empty_y {
+		DEBUG("YAML doc is empty, creating empty hash/map")
+		return make(map[interface{}]interface{}), nil
+	}
+
 	doc, err := y.Map()
 
 	if err != nil {
