@@ -24,12 +24,14 @@ for site-specific configurations to [DRY][dry-definition] your configs up as muc
 
 `spruce` is available via Homebrew, just `brew tap starkandwayne/cf; brew install spruce`
 
-Alternatively,  you can download a [prebuilt binaries for 64-bit Linux, or Mac OS X][releases]
-or you can install via `go get` (provided you have installed go):
+Alternatively,  you can download a [prebuilt binaries for 64-bit Linux, or Mac OS X][releases] 
 
-```
-go get github.com/geofffranks/spruce/...
-```
+## How do I compile from source?
+
+1. [Install Go][install-go], e.g. on Ubuntu `sudo snap install --classic go`
+1. Fetch sources via `go get github.com/geofffranks/spruce/...`
+1. Change current directory to the source root `cd ~/go/src/github.com/geofffranks/spruce/`
+1. Compile and execute tests `make all`
 
 ## Is there a playground I can use before installing spruce?
 
@@ -130,4 +132,5 @@ Licensed under [the MIT License][license]
 [vault-support]:        https://github.com/geofffranks/spruce/blob/master/doc/pulling-creds-from-vault.md
 [defer]:                https://github.com/geofffranks/spruce/blob/master/doc/generating-spruce-with-spruce.md
 [cloud-config-support]: https://github.com/geofffranks/spruce/blob/master/doc/integrating-with-cloud-config.md
-[license]:             https://github.com/geofffranks/spruce/blob/master/LICENSE
+[license]:              https://github.com/geofffranks/spruce/blob/master/LICENSE
+[install-go]:           https://golang.org/doc/install
