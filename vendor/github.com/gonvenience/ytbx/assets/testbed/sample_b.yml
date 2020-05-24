@@ -1,0 +1,13 @@
+---
+# structure with maps
+yaml:
+  structure:
+    somekey: bar
+    dot: samevalue
+
+# structure with a list of maps
+list:
+- name: two
+  somekey: bar
+- name: sametwo
+  somekey: samekey

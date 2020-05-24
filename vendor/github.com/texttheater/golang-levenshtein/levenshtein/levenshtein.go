@@ -26,6 +26,12 @@ type EditScript []EditOperation
 
 type MatchFunction func(rune, rune) bool
 
+// IdenticalRunes is the default MatchFunction: it checks whether two runes are
+// identical.
+func IdenticalRunes(a rune, b rune) bool {
+	return a == b
+}
+
 type Options struct {
 	InsCost int
 	DelCost int
@@ -33,15 +39,24 @@ type Options struct {
 	Matches MatchFunction
 }
 
-// DefaultOptions is the default options: insertion cost is 1, deletion cost is
-// 1, substitution cost is 2, and two runes match iff they are the same.
+// DefaultOptions is the default options without substitution: insertion cost
+// is 1, deletion cost is 1, substitution cost is 2 (meaning insert and delete
+// will be used instead), and two runes match iff they are identical.
 var DefaultOptions Options = Options{
 	InsCost: 1,
 	DelCost: 1,
 	SubCost: 2,
-	Matches: func(sourceCharacter rune, targetCharacter rune) bool {
-		return sourceCharacter == targetCharacter
-	},
+	Matches: IdenticalRunes,
+}
+
+// DefaultOptionsWithSub is the default options with substitution: insertion
+// cost is 1, deletion cost is 1, substitution cost is 1, and two runes match
+// iff they are identical.
+var DefaultOptionsWithSub Options = Options{
+	InsCost: 1,
+	DelCost: 1,
+	SubCost: 1,
+	Matches: IdenticalRunes,
 }
 
 func (operation EditOperation) String() string {
@@ -70,13 +85,14 @@ func DistanceForStrings(source []rune, target []rune, op Options) int {
 	matrix := make([][]int, 2)
 
 	// Initialize trivial distances (from/to empty string). That is, fill
-	// the left column and the top row with row/column indices.
+	// the left column and the top row with row/column indices multiplied
+	// by deletion/insertion cost.
 	for i := 0; i < 2; i++ {
 		matrix[i] = make([]int, width)
-		matrix[i][0] = i
+		matrix[i][0] = i * op.DelCost
 	}
 	for j := 1; j < width; j++ {
-		matrix[0][j] = j
+		matrix[0][j] = j * op.InsCost
 	}
 
 	// Fill in the remaining cells: for each prefix pair, choose the
@@ -84,7 +100,7 @@ func DistanceForStrings(source []rune, target []rune, op Options) int {
 	for i := 1; i < height; i++ {
 		cur := matrix[i%2]
 		prev := matrix[(i-1)%2]
-		cur[0] = i
+		cur[0] = i * op.DelCost
 		for j := 1; j < width; j++ {
 			delCost := prev[j] + op.DelCost
 			matchSubCost := prev[j-1]
@@ -145,13 +161,14 @@ func MatrixForStrings(source []rune, target []rune, op Options) [][]int {
 	matrix := make([][]int, height)
 
 	// Initialize trivial distances (from/to empty string). That is, fill
-	// the left column and the top row with row/column indices.
+	// the left column and the top row with row/column indices multiplied
+	// by deletion/insertion cost.
 	for i := 0; i < height; i++ {
 		matrix[i] = make([]int, width)
-		matrix[i][0] = i
+		matrix[i][0] = i * op.DelCost
 	}
 	for j := 1; j < width; j++ {
-		matrix[0][j] = j
+		matrix[0][j] = j * op.InsCost
 	}
 
 	// Fill in the remaining cells: for each prefix pair, choose the

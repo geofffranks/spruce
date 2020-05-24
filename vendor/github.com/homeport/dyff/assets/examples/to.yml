@@ -1,0 +1,49 @@
+---
+yaml:
+  map:
+    before: after
+    stringA: foobar
+    stringY: YAML!
+    intA: 42
+    intY: 147
+    floatA: 3.1415
+    floatY: 24.0
+    boolA: true
+    boolY: true
+    mapA: { key0: A, key1: A }
+    mapY: { key0: Y, key1: Y }
+    listA: [ A, A, A ]
+    listY: [ Yo, Yo, Yo ]
+    type-change-1: 147
+    type-change-2: 12
+    whitespaces: |+
+      Strings can  have whitespaces.
+
+
+  simple-list:
+  - A
+  - B
+  - C
+  - D
+  - E
+
+  named-entry-list-using-name:
+  - name: A
+  - name: B
+  - name: C
+  - name: D
+  - name: E
+
+  named-entry-list-using-key:
+  - key: A
+  - key: B
+  - key: C
+  - key: D
+  - key: E
+
+  named-entry-list-using-id:
+  - id: A
+  - id: B
+  - id: C
+  - id: D
+  - id: E

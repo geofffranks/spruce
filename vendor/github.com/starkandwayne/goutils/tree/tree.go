@@ -67,3 +67,17 @@ func (n Node) flatten(prefix, sep string) []string {
 func (n Node) Paths(sep string) []string {
 	return n.flatten("", sep)
 }
+
+func (n Node) PathSegments() [][]string {
+	if len(n.Sub) == 0 {
+		return [][]string{[]string{n.Name}}
+	}
+	paths := make([][]string, 0)
+	for _, child := range n.Sub {
+		for _, segments := range child.PathSegments() {
+			segments := append([]string{n.Name}, segments...)
+			paths = append(paths, segments)
+		}
+	}
+	return paths
+}

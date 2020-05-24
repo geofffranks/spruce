@@ -72,6 +72,9 @@ func (v *Client) doRequest(
 	if output != nil && resp.StatusCode == 200 {
 		err = json.NewDecoder(resp.Body).Decode(output)
 		if err != nil {
+			if contentType := resp.Header.Get("Content-Type"); contentType != "application/json" {
+				return fmt.Errorf("Could not parse response body as JSON, and returned Content-Type is `%s'. Client may not be reaching Vault", contentType)
+			}
 			return err
 		}
 	}

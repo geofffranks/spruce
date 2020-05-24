@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+
+go fmt github.com/cppforlife/go-patch/...
+
+ginkgo -trace -r patch/

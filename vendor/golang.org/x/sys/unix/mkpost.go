@@ -42,9 +42,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if goos == "aix" {
+		// Replace type of Atim, Mtim and Ctim by Timespec in Stat_t
+		// to avoid having both StTimespec and Timespec.
+		sttimespec := regexp.MustCompile(`_Ctype_struct_st_timespec`)
+		b = sttimespec.ReplaceAll(b, []byte("Timespec"))
+	}
+
 	// Intentionally export __val fields in Fsid and Sigset_t
-	valRegex := regexp.MustCompile(`type (Fsid|Sigset_t) struct {(\s+)X__val(\s+\S+\s+)}`)
-	b = valRegex.ReplaceAll(b, []byte("type $1 struct {${2}Val$3}"))
+	valRegex := regexp.MustCompile(`type (Fsid|Sigset_t) struct {(\s+)X__(bits|val)(\s+\S+\s+)}`)
+	b = valRegex.ReplaceAll(b, []byte("type $1 struct {${2}Val$4}"))
 
 	// Intentionally export __fds_bits field in FdSet
 	fdSetRegex := regexp.MustCompile(`type (FdSet) struct {(\s+)X__fds_bits(\s+\S+\s+)}`)
@@ -68,6 +75,11 @@ func main() {
 	// conversion to string; see golang.org/issue/20753
 	convertUtsnameRegex := regexp.MustCompile(`((Sys|Node|Domain)name|Release|Version|Machine)(\s+)\[(\d+)\]u?int8`)
 	b = convertUtsnameRegex.ReplaceAll(b, []byte("$1$3[$4]byte"))
+
+	// Convert [n]int8 to [n]byte in Statvfs_t members to simplify
+	// conversion to string.
+	convertStatvfsRegex := regexp.MustCompile(`((Fstype|Mnton|Mntfrom)name)(\s+)\[(\d+)\]int8`)
+	b = convertStatvfsRegex.ReplaceAll(b, []byte("$1$3[$4]byte"))
 
 	// Convert [1024]int8 to [1024]byte in Ptmget members
 	convertPtmget := regexp.MustCompile(`([SC]n)(\s+)\[(\d+)\]u?int8`)

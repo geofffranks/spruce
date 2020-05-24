@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 )
 
 //Rekey represents a rekey operation currently in progress in the Vault. This
@@ -133,6 +134,12 @@ func (r *Rekey) Submit(keys ...string) (done bool, err error) {
 				//progress
 				if rekeyRegexp.MatchString(ebr.message) {
 					done = true
+				}
+			} else if iserv, is500 := err.(*ErrInternalServer); is500 {
+				if IsInternalServer(err) {
+					if strings.Contains(err.Error(), "message authentication failed") {
+						err = &ErrBadRequest{message: iserv.message}
+					}
 				}
 			}
 

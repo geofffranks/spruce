@@ -10,8 +10,8 @@ import (
 	"sort"
 
 	"github.com/cppforlife/go-patch/patch"
-	"github.com/homeport/dyff/pkg/v1/dyff"
-	"github.com/homeport/ytbx/pkg/v1/ytbx"
+	"github.com/homeport/dyff/pkg/dyff"
+	"github.com/gonvenience/ytbx"
 	"github.com/mattn/go-isatty"
 	"github.com/starkandwayne/goutils/ansi"
 

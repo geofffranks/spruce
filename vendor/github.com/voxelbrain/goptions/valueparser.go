@@ -117,9 +117,9 @@ func fileValueParser(f *Flag, val string) (reflect.Value, error) {
 		mode = v.(int)
 	}
 	if val == "-" {
-		if mode&os.O_RDONLY == os.O_RDONLY {
+		if mode&1 == os.O_RDONLY {
 			return reflect.ValueOf(os.Stdin), nil
-		} else if mode&os.O_WRONLY == os.O_WRONLY {
+		} else if mode&1 == os.O_WRONLY {
 			return reflect.ValueOf(os.Stdout), nil
 		}
 	} else {

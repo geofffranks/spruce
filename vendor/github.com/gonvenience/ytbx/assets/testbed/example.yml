@@ -1,0 +1,15 @@
+---
+# structure with maps
+yaml:
+  structure:
+    somekey: foobar
+
+# structure with a list of maps
+list:
+- name: one
+  somekey: foobar
+
+# structure with a simple list
+simpleList:
+- one
+- two

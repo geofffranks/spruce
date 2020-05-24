@@ -64,7 +64,7 @@ Prefix only. This can never have a left-hand value.
 
 ## Logical Operators
 
-Unlike others, this library does not currently do short-circuit evaluation. The author isn't opposed to the idea, but hasn't implemented it. All logical operators evaluate both sides in their entirety before deciding what to do.
+For all logical operators, this library will short-circuit the operation if the left-hand side is sufficient to determine what to do. For instance, `true || expensiveOperation()` will not actually call `expensiveOperation()`, since it knows the left-hand side is `true`.
 
 ### Logical AND/OR `&&` `||`
 
@@ -168,3 +168,9 @@ Where `args` is whatever is passed to the function when called. If a non-nil err
 There aren't any builtin functions. The author is opposed to maintaining a standard library of functions to be used.
 
 Every use case of this library is different, and even in simple use cases (such as parameters, see above) different users need different behavior, naming, or even functionality. The author prefers that users make their own decisions about what functions they need, and how they operate.
+
+# Equality
+
+The `==` and `!=` operators involve a moderately complex workflow. They use [`reflect.DeepEqual`](https://golang.org/pkg/reflect/#DeepEqual). This is for complicated reasons, but there are some types in Go that cannot be compared with the native `==` operator. Arrays, in particular, cannot be compared - Go will panic if you try. One might assume this could be handled with the type checking system in `govaluate`, but unfortunately without reflection there is no way to know if a variable is a slice/array. Worse, structs can be incomparable if they _contain incomparable types_.
+
+It's all very complicated. Fortunately, Go includes the `reflect.DeepEqual` function to handle all the edge cases. Currently, `govaluate` uses that for all equality/inequality.
