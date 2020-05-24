@@ -1,0 +1,17 @@
+---
+# structure with maps
+yaml:
+  structure:
+    somekey: foo
+    dot: samevalue
+
+# structure with a list of maps
+list:
+- name: one
+  somekey: foo
+- name: sametwo
+  somekey: samekey
+
+# structure with a simple list
+simpleList:
+- one

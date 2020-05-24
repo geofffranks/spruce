@@ -170,6 +170,12 @@ func (v *Client) Unseal(key string) (out *SealState, err error) {
 		&out,
 	)
 
+	if IsInternalServer(err) {
+		if strings.Contains(err.Error(), "message authentication failed") {
+			err = &ErrBadRequest{message: err.Error()}
+		}
+	}
+
 	return
 }
 

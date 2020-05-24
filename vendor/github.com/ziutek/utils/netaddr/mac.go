@@ -53,3 +53,12 @@ func (m MAC) ColonString() string {
 func (m MAC) PlainString() string {
 	return fmt.Sprintf("%012x", uint64(m))
 }
+
+// CiscoString return string representation of m in form hhhh.hhhh.hhhh,
+// where h is hexadecimal digit: 0-9,a-f
+func (m MAC) CiscoString() string {
+	return fmt.Sprintf(
+		"%02x%02x.%02x%02x.%02x%02x",
+		byte(m>>40), byte(m>>32), byte(m>>24), byte(m>>16), byte(m>>8), byte(m),
+	)
+}

@@ -166,6 +166,9 @@ func (v *Client) parseError(r *http.Response) (err error) {
 	errorsStruct := apiError{}
 	err = json.NewDecoder(r.Body).Decode(&errorsStruct)
 	if err != nil {
+		if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
+			return fmt.Errorf("Could not parse response body as JSON, and returned Content-Type is `%s'. Client may not be reaching Vault", contentType)
+		}
 		return err
 	}
 	errorMessage := strings.Join(errorsStruct.Errors, "\n")

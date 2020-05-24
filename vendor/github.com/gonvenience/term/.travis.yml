@@ -1,0 +1,14 @@
+---
+language: go
+go:
+- 1.12.x
+
+install:
+- curl --silent --location https://goo.gl/g1CpPX | bash -s v1.0.7
+
+script:
+- export GO111MODULE=on
+- go mod download
+- go mod verify
+- ginkgo -r -nodes 4 -randomizeAllSpecs -randomizeSuites -race -trace
+- staticcheck ./...
