@@ -1,11 +1,8 @@
 # github.com/BurntSushi/toml v0.3.1
-## explicit
 github.com/BurntSushi/toml
 # github.com/Knetic/govaluate v3.0.0+incompatible
-## explicit
 github.com/Knetic/govaluate
 # github.com/aws/aws-sdk-go v1.31.4
-## explicit
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/awserr
 github.com/aws/aws-sdk-go/aws/awsutil
@@ -47,105 +44,74 @@ github.com/aws/aws-sdk-go/service/ssm/ssmiface
 github.com/aws/aws-sdk-go/service/sts
 github.com/aws/aws-sdk-go/service/sts/stsiface
 # github.com/cloudfoundry-community/vaultkv v0.0.0-20200311151509-343c0e6fc506
-## explicit
 github.com/cloudfoundry-community/vaultkv
 # github.com/cppforlife/go-patch v0.2.0
-## explicit
 github.com/cppforlife/go-patch/patch
 # github.com/geofffranks/simpleyaml v0.0.0-20161109204137-c9320f076de5
-## explicit
 github.com/geofffranks/simpleyaml
 # github.com/geofffranks/yaml v0.0.0-20161117152608-9f2fe4b6f295
-## explicit
 github.com/geofffranks/yaml
 # github.com/gonvenience/bunt v1.1.1
-## explicit
 github.com/gonvenience/bunt
 # github.com/gonvenience/neat v1.3.0
-## explicit
 github.com/gonvenience/neat
 # github.com/gonvenience/term v1.0.0
-## explicit
 github.com/gonvenience/term
 # github.com/gonvenience/text v1.0.5
-## explicit
 github.com/gonvenience/text
 # github.com/gonvenience/wrap v1.1.0
-## explicit
 github.com/gonvenience/wrap
 # github.com/gonvenience/ytbx v1.2.2
-## explicit
 github.com/gonvenience/ytbx
 # github.com/gopherjs/gopherjs v0.0.0-20200217142428-fce0ec30dd00
-## explicit
 github.com/gopherjs/gopherjs/js
 # github.com/homeport/dyff v1.0.2
-## explicit
 github.com/homeport/dyff/pkg/dyff
 # github.com/jmespath/go-jmespath v0.3.0
 github.com/jmespath/go-jmespath
 # github.com/jtolds/gls v4.20.0+incompatible
-## explicit
 github.com/jtolds/gls
 # github.com/lucasb-eyer/go-colorful v1.0.3
-## explicit
 github.com/lucasb-eyer/go-colorful
 # github.com/mattn/go-ciede2000 v0.0.0-20170301095244-782e8c62fec3
-## explicit
 github.com/mattn/go-ciede2000
 # github.com/mattn/go-isatty v0.0.12
-## explicit
 github.com/mattn/go-isatty
 # github.com/mitchellh/go-ps v1.0.0
-## explicit
 github.com/mitchellh/go-ps
 # github.com/mitchellh/hashstructure v1.0.0
-## explicit
 github.com/mitchellh/hashstructure
 # github.com/sergi/go-diff v1.1.0
-## explicit
 github.com/sergi/go-diff/diffmatchpatch
 # github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3
-## explicit
 github.com/smartystreets/assertions
 github.com/smartystreets/assertions/internal/go-diff/diffmatchpatch
 github.com/smartystreets/assertions/internal/go-render/render
 github.com/smartystreets/assertions/internal/oglematchers
 # github.com/smartystreets/goconvey v1.6.4
-## explicit
 github.com/smartystreets/goconvey/convey
 github.com/smartystreets/goconvey/convey/gotest
 github.com/smartystreets/goconvey/convey/reporting
 # github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be
-## explicit
 github.com/starkandwayne/goutils/ansi
 github.com/starkandwayne/goutils/tree
 # github.com/texttheater/golang-levenshtein v0.0.0-20191208221605-eb6844b05fc6
-## explicit
 github.com/texttheater/golang-levenshtein/levenshtein
 # github.com/virtuald/go-ordered-json v0.0.0-20170621173500-b18e6e673d74
-## explicit
 github.com/virtuald/go-ordered-json
 # github.com/voxelbrain/goptions v0.0.0-20151102231003-26cb8b046923
-## explicit
 github.com/voxelbrain/goptions
 # github.com/ziutek/utils v0.0.0-20190626152656-eb2a3b364d6c
-## explicit
 github.com/ziutek/utils/netaddr
 # golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
-## explicit
 golang.org/x/crypto/ssh/terminal
 # golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
-## explicit
 golang.org/x/sync/syncmap
 # golang.org/x/sys v0.0.0-20200523222454-059865788121
-## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # gopkg.in/yaml.v2 v2.3.0
-## explicit
 gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.0-20200506231410-2ff61e1afc86
-## explicit
 gopkg.in/yaml.v3
