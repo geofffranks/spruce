@@ -20,7 +20,7 @@ meta:
   image:    starkandwayne/concourse-go
 
   go:
-    version: 1.7
+    version: 1.13
     module:  (( concat "github.com/" meta.github.owner "/" meta.github.repo ))
     cmd_module: (( grab meta.go.module ))
     binary:  (( grab meta.github.repo ))
