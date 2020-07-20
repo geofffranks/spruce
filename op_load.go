@@ -38,17 +38,50 @@ func (LoadOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	defer log.DEBUG("done with (( load ... )) operation at $%s\n", ev.Here)
 
 	if len(args) != 1 {
-		return nil, ansi.Errorf("@R{load operator only expects} @r{one} @R{argument containing the location of the file to be loaded}")
+		return nil, fmt.Errorf("load operator requires exactly one literal string or reference argument")
 	}
 
-	// Extract the location information from the operator
 	var location string
-	switch args[0].Type {
+
+	arg := args[0]
+	i := 0
+	v, err := arg.Resolve(ev.Tree)
+	if err != nil {
+		log.DEBUG("  arg[%d]: failed to resolve expression to a concrete value", i)
+		log.DEBUG("     [%d]: error was: %s", i, err)
+		return nil, err
+	}
+
+	switch v.Type {
 	case Literal:
-		location = fmt.Sprintf("%v", args[0].Literal)
+		log.DEBUG("  arg[%d]: using string literal '%v'", i, v.Literal)
+		log.DEBUG("     [%d]: appending '%v' to resultant string", i, v.Literal)
+		location = fmt.Sprintf("%v", v.Literal)
+
+	case Reference:
+		log.DEBUG("  arg[%d]: trying to resolve reference $.%s", i, v.Reference)
+		s, err := v.Reference.Resolve(ev.Tree)
+		if err != nil {
+			log.DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
+			return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
+		}
+
+		switch s.(type) {
+		case map[interface{}]interface{}:
+			log.DEBUG("  arg[%d]: %v is not a string scalar", i, s)
+			return nil, ansi.Errorf("@R{tried to read file} @c{%s}@R{, which is not a string scalar}", v.Reference)
+
+		case []interface{}:
+			log.DEBUG("  arg[%d]: %v is not a string scalar", i, s)
+			return nil, ansi.Errorf("@R{tried to read file} @c{%s}@R{, which is not a string scalar}", v.Reference)
+
+		default:
+			log.DEBUG("     [%d]: appending '%s' to resultant string", i, s)
+			location = fmt.Sprintf("%v", s)
+		}
 
 	default:
-		return nil, ansi.Errorf("@R{load operator only expects} @r{one} @R{literal argument (quoted string)}")
+		return nil, fmt.Errorf("load operator requires exactly one literal string or reference argument")
 	}
 
 	bytes, err := getBytesFromLocation(location)
@@ -79,8 +112,8 @@ func (LoadOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 }
 
 func getBytesFromLocation(location string) ([]byte, error) {
-	// Handle location as a URI if it looks like one
-	if _, err := url.ParseRequestURI(location); err == nil {
+	// Handle location as a URI if it looks like one and has a scheme
+	if locURL, err := url.ParseRequestURI(location); err == nil && locURL.Scheme != "" {
 		response, err := http.Get(location)
 		if err != nil {
 			return nil, err
