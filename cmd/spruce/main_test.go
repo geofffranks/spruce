@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -1494,7 +1495,7 @@ name_list:
 
 		Convey("Given a Spruce merge using the (( load <location> )) operator", func() {
 			Convey("When the location is a local location", func() {
-				Convey("The local data should be loaded and inserted", func() {
+				Convey("The local data (via literal) should be loaded and inserted", func() {
 					os.Setenv("SPRUCE_FILE_BASE_PATH", "../../")
 					defer os.Unsetenv("SPRUCE_FILE_BASE_PATH")
 					os.Args = []string{"spruce", "merge", "../../assets/load/base-local.yml"}
@@ -1515,6 +1516,57 @@ name_list:
           simple-list:
           - one
           - two
+
+`)
+				})
+
+				Convey("Absolute paths are not interpreted as remote locations", func() {
+					file, fileErr := ioutil.TempFile("../../assets/load", "base-local-abs.yml")
+					if fileErr != nil {
+						fmt.Println(fileErr)
+					}
+					defer os.Remove(file.Name())
+
+					path, pathErr := filepath.Abs("../../assets/load/users.yml")
+					if pathErr != nil {
+						fmt.Println(pathErr)
+					}
+
+					content := "params:\n  users: (( load \"" + path + "\" ))"
+
+					if _, err := file.Write([]byte(content)); err != nil {
+						fmt.Println(pathErr)
+					}
+
+					os.Setenv("SPRUCE_FILE_BASE_PATH", "../../")
+					defer os.Unsetenv("SPRUCE_FILE_BASE_PATH")
+					os.Args = []string{"spruce", "merge", "--prune", "meta", file.Name()}
+					stdout = ""
+					stderr = ""
+					main()
+					So(stderr, ShouldEqual, "")
+					So(stdout, ShouldEqual, `params:
+  users:
+  - color: green
+    name: bob
+  - color: red
+    name: fred
+
+`)
+				})
+
+				Convey("The local data (via reference) should be loaded and inserted", func() {
+					os.Args = []string{"spruce", "merge", "--prune", "meta", "../../assets/load/base-local-ref.yml"}
+					stdout = ""
+					stderr = ""
+					main()
+					So(stderr, ShouldEqual, "")
+					So(stdout, ShouldEqual, `params:
+  users:
+  - color: green
+    name: bob
+  - color: red
+    name: fred
 
 `)
 				})
