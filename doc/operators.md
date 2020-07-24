@@ -207,7 +207,7 @@ and it will return an array of all of the keys inside it.
 
 ## (( load ))
 
-Usage: `(( load LITERAL ))`
+Usage: `(( load LITERAL|REFERENCE ))`
 
 Similar to the `(( file ))` operator, this operator takes the content of another
 file to insert it into the main tree structure. However, `(( load ))` does not
