@@ -1,0 +1,5 @@
+meta:
+  path: (( concat $PWD "/../../assets/load/users.yml" ))
+
+params:
+  users: (( load meta.path ))

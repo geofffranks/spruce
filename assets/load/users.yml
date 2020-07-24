@@ -1,0 +1,6 @@
+- name: bob
+  color: green
+
+- name: fred
+  color: red
+
