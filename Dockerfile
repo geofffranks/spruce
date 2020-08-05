@@ -1,4 +1,6 @@
-FROM golang:alpine as build
+FROM golang:1.13-alpine AS go
+
+FROM go AS build
 RUN apk --no-cache add git
 COPY . /go/src/github.com/geofffranks/spruce
 RUN cd /go/src/github.com/geofffranks/spruce && \
