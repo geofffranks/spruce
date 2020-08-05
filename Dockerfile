@@ -10,7 +10,11 @@ RUN cd /go/src/github.com/geofffranks/spruce && \
        -ldflags "-s -w -extldflags '-static' -X main.Version=$( (git describe --tags 2>/dev/null || (git rev-parse HEAD | cut -c-8)) | sed 's/^v//' )" \
        cmd/spruce/main.go
 
+FROM alpine:latest AS certificates
+RUN apk add --no-cache ca-certificates
+
 FROM scratch
 COPY --from=build /usr/bin/spruce /spruce
+COPY --from=certificates /etc/ssl/ /etc/ssl/
 ENV PATH=/
 CMD ["/spruce"]
