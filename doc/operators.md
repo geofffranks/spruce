@@ -14,6 +14,7 @@
 - [load](#-load-)
 - [param](#-param-)
 - [prune](#-prune-)
+- [shuffle](#-shuffle-)
 - [sort](#-sort-)
 - [static_ips](#-static_ips-)
 - [vault](#-vault-)
@@ -265,6 +266,15 @@ actual name, e.g. `10.local: (( prune ))` will **not** work. You have to use the
 go-patch equivalent instruction instead.
 
 [Example][prune-example]
+
+## (( shuffle ))
+
+Usage: `(( shuffle LITERAL | REFERENCE [other [args]] ))`
+
+This operator flattens all of its arguments once, into a single
+list, and then shuffles them randomly.  This is useful for
+switching the order of availability zones for a first
+approximation for AZ load balancing.
 
 ## (( sort ))
 
