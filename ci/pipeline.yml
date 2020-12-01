@@ -17,7 +17,10 @@ meta:
   target:   (( param "Please identify the name of the target Concourse CI" ))
   pipeline: (( grab meta.name ))
 
-  image:    starkandwayne/concourse-go
+  image:
+    name: starkandwayne/concourse-go
+    username: (( param "DockerHub Auth now required to avoid 429s" ))
+    password: (( param "DockerHub Auth now required to avoid 429s" ))
 
   go:
     version: 1.13
@@ -77,8 +80,10 @@ jobs:
             image_resource:
               type: docker-image
               source:
-                repository: (( grab meta.image ))
+                repository: (( grab meta.image.name ))
                 tag: (( grab meta.go.version ))
+                username: (( grab meta.image.username ))
+                password: (( grab meta.image.password ))
             inputs:
               - name: git
                 path: (( concat "gopath/src/" meta.go.module ))
@@ -112,8 +117,10 @@ jobs:
           image_resource:
             type: docker-image
             source:
-              repository: (( grab meta.image ))
+              repository: (( grab meta.image.name ))
               tag: (( grab meta.go.version ))
+              username: (( grab meta.image.username ))
+              password: (( grab meta.image.password ))
           run:
             path: sh
             args:
@@ -218,8 +225,10 @@ jobs:
             image_resource:
               type: docker-image
               source:
-                repository: (( grab meta.image ))
+                repository: (( grab meta.image.name ))
                 tag: (( grab meta.go.version ))
+                username: (( grab meta.image.username ))
+                password: (( grab meta.image.password ))
             platform: linux
             inputs:
               - name: version
@@ -277,6 +286,8 @@ resource_types:
     type: docker-image
     source:
       repository: cfcommunity/slack-notification-resource
+      username: (( grab meta.image.username ))
+      password: (( grab meta.image.password ))
 
 resources:
   - name: git
