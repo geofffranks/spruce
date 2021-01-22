@@ -9,7 +9,7 @@ meta:
     space: (( vault "secret/pipelines/spruce/cf:space" ))
     user: (( vault "secret/pipelines/spruce/cf:user" ))
     password: (( vault "secret/pipelines/spruce/cf:password" ))
-    url: "https://api.cf.us10.hana.ondemand.com"
+    url: "https://api.us-south.cf.cloud.ibm.com"
     github_token: (( vault "secret/pipelines/spruce/cf:github_token" ))
     github_private_key: (( vault "secret/pipelines/spruce/cf:private" ))
 
