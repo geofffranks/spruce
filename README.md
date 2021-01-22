@@ -24,7 +24,7 @@ for site-specific configurations to [DRY][dry-definition] your configs up as muc
 
 `spruce` is available via Homebrew, just `brew tap starkandwayne/cf; brew install spruce`
 
-Alternatively,  you can download a [prebuilt binaries for 64-bit Linux, or Mac OS X][releases] 
+Alternatively, you can download a [prebuilt binaries for 64-bit Linux, or Mac OS X][releases]
 
 ## How do I compile from source?
 
@@ -46,7 +46,7 @@ issue.
 
 ## A Quick Example
 
-```
+```sh
 # Let's build the first yaml file we will merge
 $ cat <<EOF first.yml
 some_data: this will be overwritten later
@@ -79,7 +79,7 @@ some_data: 42
 ```
 
 The data in `second.yml` is overlayed on top of the data in `first.yml`. Check out the
-[merge semantics][merge-semantics] and [array merging][array-merge] for more info on how that was done. Or, 
+[merge semantics][merge-semantics] and [array merging][array-merge] for more info on how that was done. Or,
 check out [this example on play.spruce.cf][play.spruce-example]
 
 ## Documentation
@@ -93,7 +93,6 @@ check out [this example on play.spruce.cf][play.spruce-example]
 - [Can I use spruce with Vault?][vault-support]
 - [How can I generate spruce templates with spruce itself?][defer]
 - [How can I use spruce with BOSH's Cloud Config?][cloud-config-support]
-
 
 ## What else can Spruce do for you?
 
