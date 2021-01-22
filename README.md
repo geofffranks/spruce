@@ -29,10 +29,8 @@ Alternatively, you can download a [prebuilt binaries for 64-bit Linux, or Mac OS
 ## How do I compile from source?
 
 1. [Install Go][install-go], e.g. on Ubuntu `sudo snap install --classic go`
-1. Install [dep](https://github.com/golang/dep)
-1. Fetch sources via `go get github.com/geofffranks/spruce/...`
+1. Fetch sources via `go get github.com/geofffranks/spruce`
 1. Change current directory to the source root `cd ~/go/src/github.com/geofffranks/spruce/`
-1. `dep ensure`
 1. Compile and execute tests `make all`
 
 ## Is there a playground I can use before installing spruce?
