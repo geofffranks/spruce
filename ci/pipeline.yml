@@ -23,7 +23,7 @@ meta:
     password: (( param "DockerHub Auth now required to avoid 429s" ))
 
   go:
-    version: 1.13
+    version: 1.15
     module:  (( concat "github.com/" meta.github.owner "/" meta.github.repo ))
     cmd_module: (( grab meta.go.module ))
     binary:  (( grab meta.github.repo ))
