@@ -17,12 +17,13 @@
 - [shuffle](#-shuffle-)
 - [sort](#-sort-)
 - [static_ips](#-static_ips-)
+- [stringify](#-stringify-)
 - [vault](#-vault-)
 - [awsparam](#-awsparam-)
 - [awssecret](#-awssecret-)
 - [base64](#-base64-)
 
-Additionally, there are operatiors that are specific to merging arrays. For more detail
+Additionally, there are operators that are specific to merging arrays. For more detail
 see the [array merging documentation][array-merging]:
 
 - `(( append ))` - Adds the data to the end of the corresponding array in the root document.
@@ -30,7 +31,7 @@ see the [array merging documentation][array-merging]:
 - `(( insert ))` - Inserts the data before or after a specified index, or object.
 - `(( merge ))` - Merges the data on top of an existing array based on a common key. This
   requires each element to be an object, all with the common key used for merging.
-- `(( inline ))` - Merges the data ontop of an existing array, based on the indices of the
+- `(( inline ))` - Merges the data on top of an existing array, based on the indices of the
   array.
 - `(( replace ))` - Removes the existing array, and replaces it with the new one.
 - `(( delete ))` - Deletes data at a specific index, or objects identified by the value
@@ -58,7 +59,7 @@ for more information on environment variables and the logical-or.
 Usage: `(( calc EXPRESSION ))`
 
 The `(( calc ))` operator allows you to perform mathematical operations inside your YAML.
-You can reference other values in the datastructure, as well as literal numerics. If you
+You can reference other values in the data structure, as well as literal numerics. If you
 have more sophisticated calculations in mind, you can use these built-in functions inside
 your expressions: `max`, `min`, `mod`, `pow`, `sqrt`, `floor`, and `ceil`.
 
@@ -308,6 +309,38 @@ static IPs for the network of a VM, and pull in as many as are needed based on t
 count. It even supports BOSH AZs fairly well.
 
 [Example][static_ips-example]
+
+## (( stringify ))
+
+Usage: `(( stringify REFERENCE ))`
+
+There are use cases, especially with Kubernetes resources like config maps, where one needs to place a piece of a YAML structure as a multiline string. If you happen to have the actual data already in your current file, you can avoid duplicating the content by simply referencing the part of the YAML and the `(( stringify ... ))` operator correctly marshals the data into your tree structure.
+
+**Example:**
+```sh
+$ cat <<EOF >file.yml
+meta:
+  foo:
+    list:
+    - one
+    - two
+    test:
+      enabled: true
+      one: 2
+
+result: (( stringify meta ))
+EOF
+
+$ spruce merge --prune meta file.yml
+result: |
+  foo:
+    list:
+    - one
+    - two
+    test:
+      enabled: true
+      one: 2
+```
 
 ## (( ips ))
 
