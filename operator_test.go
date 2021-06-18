@@ -2123,4 +2123,79 @@ meta:
 			})
 		})
 	})
+
+	Convey("Stringify Operator", t, func() {
+		op := StringifyOperator{}
+		ev := &Evaluator{
+			Tree: YAML(`meta:
+  map:
+    bar: foo
+    foo: bar
+  list:
+  - first
+  - second
+  scalars:
+    bool: true
+    number: 42
+    string: foobar
+`),
+		}
+
+		Convey("cannot use operator with more than one reference", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.map"),
+				ref("list.0"),
+			})
+			So(err, ShouldNotBeNil)
+			So(r, ShouldBeNil)
+		})
+
+		Convey("cannot use operator with a literal", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("literal"),
+			})
+			So(err, ShouldNotBeNil)
+			So(r, ShouldBeNil)
+		})
+
+		Convey("can stringify map", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.map"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, `bar: foo
+foo: bar
+`)
+		})
+
+		Convey("can stringify list", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.list"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, `- first
+- second
+`)
+		})
+
+		Convey("can stringify scalars", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.scalars"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, `bool: true
+number: 42
+string: foobar
+`)
+		})
+	})
 }
