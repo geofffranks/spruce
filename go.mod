@@ -15,6 +15,7 @@ require (
 	github.com/homeport/dyff v1.0.2
 	github.com/mattn/go-isatty v0.0.12
 	github.com/mitchellh/go-ps v1.0.0 // indirect
+	github.com/mitchellh/gox v1.0.1 // indirect
 	github.com/smartystreets/assertions v0.0.0-20190401211740-f487f9de1cd3 // indirect
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be
