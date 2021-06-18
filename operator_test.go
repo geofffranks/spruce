@@ -2150,14 +2150,6 @@ meta:
 			So(r, ShouldBeNil)
 		})
 
-		Convey("cannot use operator with a literal", func() {
-			r, err := op.Run(ev, []*Expr{
-				str("literal"),
-			})
-			So(err, ShouldNotBeNil)
-			So(r, ShouldBeNil)
-		})
-
 		Convey("can stringify map", func() {
 			r, err := op.Run(ev, []*Expr{
 				ref("meta.map"),
@@ -2196,6 +2188,40 @@ foo: bar
 number: 42
 string: foobar
 `)
+		})
+
+		Convey("retain string literal", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("foo"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "foo")
+		})
+
+		Convey("retain null literal", func() {
+			r, err := op.Run(ev, []*Expr{
+				null(),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value, ShouldBeNil)
+		})
+
+		Convey("throws errors for dangling references", func() {
+			_, err := op.Run(ev, []*Expr{
+				ref("key.that.does.not.exist"),
+			})
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("throws errors for missing arguments", func() {
+			_, err := op.Run(ev, []*Expr{})
+			So(err, ShouldNotBeNil)
 		})
 	})
 }
