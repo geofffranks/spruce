@@ -12,6 +12,7 @@
 - [join](#-join-)
 - [keys](#-keys-)
 - [load](#-load-)
+- [negate](#-negate-)
 - [param](#-param-)
 - [prune](#-prune-)
 - [shuffle](#-shuffle-)
@@ -244,6 +245,14 @@ list:
 - two
 
 ```
+
+## (( negate ))
+
+Usage: `(( negate LITERAL|REFERENCE ))`
+
+This operator takes a bool and negates it: this allows you to DRY up your config file if
+you have properties which are inversely related.  As with `(( grab ))`, you can specify
+literal values (but why would you?).
 
 ## (( param ))
 
