@@ -2,6 +2,7 @@ package spruce
 
 import (
 	"fmt"
+
 	"github.com/geofffranks/spruce/log"
 	"github.com/starkandwayne/goutils/tree"
 )
@@ -65,7 +66,7 @@ func (NegateOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 
 	default:
 		log.DEBUG(" unsupported expression type %v, only references are allowed: '%v'", v.Type, arg)
-		return nil, fmt.Errorf("stringify operator only accepts reference arguments")
+		return nil, fmt.Errorf("negate operator only accepts reference arguments")
 	}
 
 	return &Response{
