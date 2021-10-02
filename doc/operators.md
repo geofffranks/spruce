@@ -325,31 +325,7 @@ Usage: `(( stringify REFERENCE ))`
 
 There are use cases, especially with Kubernetes resources like config maps, where one needs to place a piece of a YAML structure as a multiline string. If you happen to have the actual data already in your current file, you can avoid duplicating the content by simply referencing the part of the YAML and the `(( stringify ... ))` operator correctly marshals the data into your tree structure.
 
-**Example:**
-```sh
-$ cat <<EOF >file.yml
-meta:
-  foo:
-    list:
-    - one
-    - two
-    test:
-      enabled: true
-      one: 2
-
-result: (( stringify meta ))
-EOF
-
-$ spruce merge --prune meta file.yml
-result: |
-  foo:
-    list:
-    - one
-    - two
-    test:
-      enabled: true
-      one: 2
-```
+[Example][stringify-example]
 
 ## (( ips ))
 
@@ -434,6 +410,7 @@ time base64 encoding of string literals specified directly, or by reference.
 [param-example]:      http://play.spruce.cf/#b7944defbd5d987c70c25fcbae1756a8
 [prune-example]:      http://play.spruce.cf/#ce52f99a0c7470aa2a1e8fd4dddbafff
 [static_ips-example]: http://play.spruce.cf/#ce52f99a0c7470aa2a1e8fd4dddbafff
+[stringify-example]:  https://play.spruce.cf/#f302027e6a6d6f77c04437d18a420db0
 [vault-example]:      https://github.com/geofffranks/spruce/blob/master/doc/pulling-creds-from-vault.md
 [ips-example]:        https://spruce.cf/#568526af82aec5448ddf34740dbd70a3
 [awsparam-example]:   values-from-aws-parameter-store.md

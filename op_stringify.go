@@ -43,6 +43,10 @@ func (StringifyOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	}
 
 	switch v.Type {
+	case Literal:
+		log.DEBUG(" found literal '%s'", v.Literal)
+		val = v.Literal
+
 	case Reference:
 		log.DEBUG(" trying to resolve reference $.%s", v.Reference)
 		s, err := v.Reference.Resolve(ev.Tree)
