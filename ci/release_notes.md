@@ -7,6 +7,12 @@
 
 - Bumps to golang 1.17.1, and updates dependencies
 
+# Fixes
+
+- Addresses an issue in the `(( static_ip ))` operator that could result in
+  integer overload or wraparound if compiled on an architecture where golang's
+  default size of an `int` was not `int64`.
+
 # Acknowledgements
 
 Thanks @oddbloke for the negate feature, and @isibeni for the stringify improvement!

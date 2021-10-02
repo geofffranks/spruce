@@ -368,7 +368,7 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		}
 	}
 
-	ord := func(n int) string {
+	ord := func(n int64) string {
 		switch {
 		case n%100 >= 11 && n%100 <= 13:
 			return "th"
@@ -398,11 +398,11 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		current := fmt.Sprintf("%s/%d", jobname, i)
 
 		// parse argument, could be in form of <az>:<number>, or just <number>
-		var n int64
+		var offset int64
 		az := UNDEFINED_AZ
 		a, ok := v.Literal.(string)
 		if !ok {
-			n, ok = v.Literal.(int64)
+			offset, ok = v.Literal.(int64)
 			if !ok {
 				DEBUG("  arg[%d]: '%v' is not a number literal\n", i, arg)
 				return nil, fmt.Errorf("static_ips operator arguments must have format <az>:<number> or <number>")
@@ -414,7 +414,7 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 				az = params[0]
 				a = params[1]
 			}
-			n, err = strconv.ParseInt(a, 10, 64)
+			offset, err = strconv.ParseInt(a, 10, 64)
 			if err != nil {
 				DEBUG("  arg[%d]: '%v' is not a number literal\n", i, arg)
 				return nil, fmt.Errorf("static_ips operator arguments must have format <az>:<number> or <number>")
@@ -444,14 +444,13 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			}
 		}
 
-		if n < 0 {
-			DEBUG("  arg[%d]: '%d' is not a positive number\n", i, n)
+		if offset < 0 {
+			DEBUG("  arg[%d]: '%d' is not a positive number\n", i, offset)
 			return nil, fmt.Errorf("static_ips operator only accepts literal non-negative numbers for arguments")
 		}
 
-		offset := int(n)
 		DEBUG("  arg[%d]: asking for the %d%s IP from the static address pool", i, offset, ord(offset))
-		if offset >= len(pool) {
+		if offset >= int64(len(pool)) {
 			DEBUG("     [%d]: pool only has %d addresses; offset %d is out of bounds\n", i, len(pool), offset)
 			return nil, ansi.Errorf("@R{request for} @c{static_ip(%d)} @R{in a pool of only} @c{%d (zero-indexed)} @R{static addresses}", offset, len(pool))
 		}
