@@ -215,12 +215,10 @@ jobs:
     serial: true
     plan:
       - do:
-        - name: inputs
-          in_parallel:
+        - in_parallel:
             - { get: version, passed: [rc], params: {bump: final} }
             - { get: git,     passed: [rc] }
-        - name: release
-          task: release
+        - task: release
           config:
             image_resource:
               type: docker-image
@@ -251,16 +249,13 @@ jobs:
               CMD_PKG:      (( grab meta.go.cmd_module ))
               STATIC_BINARY: (( grab meta.go.force_static_binary ))
               GITHUB_REPO:  (( grab meta.github.http_uri ))
-        - name: version
-          put: version
+        - put: version
           params: { bump: final }
-        - name: git
-          put: git
+        - put: git
           params:
             rebase: true
             repository: pushme/git
-        - name: github
-          put: github
+        - put: github
           params:
             name:   gh/name
             tag:    gh/tag
