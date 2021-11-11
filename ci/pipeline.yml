@@ -288,6 +288,12 @@ resource_types:
       repository: cfcommunity/slack-notification-resource
       username: (( grab meta.image.username ))
       password: (( grab meta.image.password ))
+  - name: latest-github-release
+    type: docker-image
+    source:
+      repository: concourse/github-release-resource
+      username: (( grab meta.image.username ))
+      password: (( grab meta.image.password ))
 
 resources:
   - name: git
@@ -313,7 +319,7 @@ resources:
       url: (( grab meta.slack.webhook ))
 
   - name: github
-    type: github-release
+    type: latest-github-release
     source:
       user:         (( grab meta.github.owner ))
       repository:   (( grab meta.github.repo ))
