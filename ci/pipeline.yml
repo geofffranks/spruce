@@ -18,7 +18,7 @@ meta:
   pipeline: (( grab meta.name ))
 
   image:
-    name: starkandwayne/concourse-go
+    name: golang
     username: (( param "DockerHub Auth now required to avoid 429s" ))
     password: (( param "DockerHub Auth now required to avoid 429s" ))
 

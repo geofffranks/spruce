@@ -2,10 +2,6 @@
 
 set -e
 
-export GOPATH=${PWD}/gopath
-export PATH=${PATH}:${GOPATH}/bin
-cd ${GOPATH}/src/${MODULE}
-
 go mod vendor
 
 make # runs vet, test, and build

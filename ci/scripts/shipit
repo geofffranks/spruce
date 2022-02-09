@@ -48,7 +48,7 @@ if [[ -d ${newgopath} ]]; then
 fi
 echo ">> Using GOPATH ${GOPATH}"
 go mod vendor
-go get github.com/mitchellh/gox
+go install github.com/mitchellh/gox@latest
 popd
 
 if [[ -n ${STATIC_BINARY} && ${STATIC_BINARY} != "false" ]]; then
@@ -56,7 +56,7 @@ if [[ -n ${STATIC_BINARY} && ${STATIC_BINARY} != "false" ]]; then
 fi
 
 pushd $REPO_ROOT
-mkdir artifacts
+mkdir -p artifacts
 gox -osarch="${TARGETS}" --output="artifacts/${BINARY}-{{.OS}}-{{.Arch}}" -ldflags="-X main.Version=${VERSION}" ./...
 go build -o "${BINARY}" -ldflags="-X main.Version=${VERSION}" ${CMD_PKG:-.}
 ./${BINARY} -v
