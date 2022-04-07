@@ -104,8 +104,6 @@ github.com/mattn/go-isatty
 # github.com/mitchellh/go-ps v1.0.0
 ## explicit; go 1.13
 github.com/mitchellh/go-ps
-# github.com/mitchellh/gox v1.0.1
-## explicit
 # github.com/mitchellh/hashstructure v1.0.0
 ## explicit
 github.com/mitchellh/hashstructure
@@ -127,6 +125,8 @@ github.com/smartystreets/goconvey/convey/reporting
 ## explicit
 github.com/starkandwayne/goutils/ansi
 github.com/starkandwayne/goutils/tree
+# github.com/stretchr/testify v1.7.0
+## explicit; go 1.13
 # github.com/texttheater/golang-levenshtein v0.0.0-20191208221605-eb6844b05fc6
 ## explicit
 github.com/texttheater/golang-levenshtein/levenshtein
@@ -156,9 +156,9 @@ golang.org/x/sys/windows
 # golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1
 ## explicit; go 1.11
 golang.org/x/term
-# gopkg.in/yaml.v2 v2.2.8
-## explicit
+# gopkg.in/yaml.v2 v2.4.0
+## explicit; go 1.15
 gopkg.in/yaml.v2
-# gopkg.in/yaml.v3 v3.0.0-20191120175047-4206685974f2
+# gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 ## explicit
 gopkg.in/yaml.v3
