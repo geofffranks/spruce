@@ -86,9 +86,8 @@ jobs:
                 password: (( grab meta.image.password ))
             inputs:
               - name: git
-                path: (( concat "gopath/src/" meta.go.module ))
             run:
-              path: (( concat "./gopath/src/" meta.go.module "/ci/scripts/test" ))
+              path: git/ci/scripts/test
               args: []
             params:
               MODULE: (( grab meta.go.module ))
@@ -231,12 +230,11 @@ jobs:
             inputs:
               - name: version
               - name: git
-                path: (( concat "gopath/src/" meta.go.module ))
             outputs:
               - name: gh
               - name: pushme
             run:
-              path: (( concat "./gopath/src/" meta.go.module "/ci/scripts/shipit" ))
+              path: git/ci/scripts/shipit
               args: []
             params:
               BINARY:       (( grab meta.go.binary ))

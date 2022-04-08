@@ -2,6 +2,7 @@
 
 set -e
 
+pushd git 
 go mod vendor
 
 make # runs vet, test, and build

@@ -25,6 +25,8 @@ if [[ -z ${VERSION} ]]; then
   exit 2
 fi
 
+pushd git
+
 if [[ ! -f ${REPO_ROOT}/ci/release_notes.md ]]; then
   echo >&2 "ci/release_notes.md not found.  Did you forget to write them?"
   exit 1
