@@ -30,7 +30,7 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/mitchellh/go-ps"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 const (
@@ -80,7 +80,7 @@ func GetTerminalSize() (int, int) {
 		return FixedTerminalWidth, FixedTerminalHeight
 	}
 
-	width, height, err := terminal.GetSize(int(os.Stdout.Fd()))
+	width, height, err := term.GetSize(int(os.Stdout.Fd()))
 
 	switch {
 	// Return default fallback value
@@ -126,7 +126,7 @@ func IsTrueColor() bool {
 // IsGardenContainer returns whether the current process is started in the
 // process tree of garden container (https://github.com/cloudfoundry/garden).
 func IsGardenContainer() bool {
-	if process, err := ps.FindProcess(1); err == nil {
+	if process, err := ps.FindProcess(1); err == nil && process != nil {
 		switch process.Executable() {
 		case "garden-init":
 			return true

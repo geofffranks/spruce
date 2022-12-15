@@ -197,3 +197,45 @@ func (c *Client) EnableSecretsMount(path string, config Mount) error {
 func (c *Client) DisableSecretsMount(path string) error {
 	return c.doRequest("DELETE", fmt.Sprintf("/sys/mounts/%s", path), nil, nil)
 }
+
+//TuneMountOptions are parameters to be sent to the Vault when editing the
+// configuration of a mount. Only non-empty values will be sent.
+type TuneMountOptions struct {
+	Description     string
+	DefaultLeaseTTL time.Duration
+	MaxLeaseTTL     time.Duration
+	Options         map[string]interface{}
+}
+
+//TuneSecretsMount updates the configuration of the mount at the given path.
+func (c *Client) TuneSecretsMount(path string, opts TuneMountOptions) error {
+	rawTuneMountOptions := struct {
+		Description     string                 `json:"description,omitempty"`
+		DefaultLeaseTTL int                    `json:"default_lease_ttl,omitempty"`
+		MaxLeaseTTL     int                    `json:"max_lease_ttl,omitempty"`
+		Options         map[string]interface{} `json:"options,omitempty"`
+	}{
+		Description:     opts.Description,
+		DefaultLeaseTTL: int(opts.DefaultLeaseTTL / time.Second),
+		MaxLeaseTTL:     int(opts.MaxLeaseTTL / time.Second),
+		Options:         opts.Options,
+	}
+
+	return c.doRequest("POST",
+		fmt.Sprintf("/sys/mounts/%s/tune", path),
+		rawTuneMountOptions,
+		nil,
+	)
+}
+
+//UpgradeKVToV2 sets the version of the mount (presumably KV mount) to the
+// version 2. Just a shorthand wrapper for TuneSecretsMount with the
+// appropriate opts structure.
+func (c *Client) UpgradeKVToV2(path string) error {
+	return c.TuneSecretsMount(
+		path,
+		TuneMountOptions{
+			Options: KVMountOptions{}.WithVersion(2),
+		},
+	)
+}

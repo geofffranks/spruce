@@ -52,6 +52,17 @@ func (v *Client) NewGenerateRoot() (*GenerateRoot, error) {
 	base64OTP := make([]byte, base64.StdEncoding.EncodedLen(len(ret.otp)))
 	base64.StdEncoding.Encode(base64OTP, ret.otp)
 
+	//In Vault 1.4 and 1.5, attempting to generate a root token against an
+	// uninitialized or sealed vault would cause the vault server to panic.
+	// Not only is this bad ettiquette, but it also causes the client to receive
+	// a confusing transport error...
+	// Generating a root token should be infrequent enough that we can tolerate
+	// the speed hit that an extra round trip causes.
+	healthErr := v.Health(true)
+	if IsUninitialized(healthErr) || IsSealed(healthErr) {
+		return nil, healthErr
+	}
+
 	err = v.doRequest("PUT", "/sys/generate-root/attempt",
 		map[string]string{"otp": string(base64OTP)}, &ret.state)
 	if err != nil && !IsBadRequest(err) {

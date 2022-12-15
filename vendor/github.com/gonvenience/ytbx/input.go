@@ -30,10 +30,12 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
-	toml "github.com/BurntSushi/toml"
+	"github.com/BurntSushi/toml"
 	"github.com/gonvenience/bunt"
+	"github.com/gonvenience/text"
 	"github.com/gonvenience/wrap"
 	ordered "github.com/virtuald/go-ordered-json"
 	yamlv3 "gopkg.in/yaml.v3"
@@ -51,11 +53,14 @@ type DecoderProxy struct {
 	ordered  *ordered.Decoder
 }
 
-// InputFile represents the actual input file (either local, or fetched remotely) that needs to be processed. It can contain multiple documents, where a document is a map or a list of things.
+// InputFile represents the actual input file (local, or fetched remotely) that
+// needs to be processed. It can contain multiple documents, where a document
+// is a map or a list of things.
 type InputFile struct {
 	Location  string
 	Note      string
 	Documents []*yamlv3.Node
+	Names     []string
 }
 
 // NewDecoderProxy creates a new decoder proxy which either works in ordered
@@ -79,7 +84,10 @@ func (d *DecoderProxy) Decode(v interface{}) error {
 	return d.standard.Decode(v)
 }
 
-// HumanReadableLocationInformation create a nicely decorated information about the provided input location. It will output the absolut path of the file (rather than the possibly relative location), or it will show the URL in the usual look-and-feel of URIs.
+// HumanReadableLocationInformation create a nicely decorated information about
+// the provided input location. It will output the absolute path of the file
+// rather than the possibly relative location, or it will show the URL in the
+// usual look-and-feel of URIs.
 func HumanReadableLocationInformation(inputFile InputFile) string {
 	var buf bytes.Buffer
 
@@ -88,21 +96,12 @@ func HumanReadableLocationInformation(inputFile InputFile) string {
 
 	// Add additional note if it is set
 	if inputFile.Note != "" {
-		buf.WriteString(", ")
-		buf.WriteString(bunt.Sprintf("Orange{%s}", inputFile.Note))
+		bunt.Fprintf(&buf, ", Orange{%s}", inputFile.Note)
 	}
 
 	// Add an information about how many documents are in the provided input file
 	if documents := len(inputFile.Documents); documents > 1 {
-		var str string
-		if documents == 1 {
-			str = "document"
-		} else {
-			str = "documents"
-		}
-
-		buf.WriteString(", ")
-		buf.WriteString(bunt.Sprintf("Aquamarine{*%s*}", str))
+		bunt.Fprintf(&buf, ", Aquamarine{*%s*}", text.Plural(documents, "document"))
 	}
 
 	return buf.String()
@@ -110,23 +109,19 @@ func HumanReadableLocationInformation(inputFile InputFile) string {
 
 // HumanReadableLocation returns a human readable location with proper coloring
 func HumanReadableLocation(location string) string {
-	var buf bytes.Buffer
-
 	if IsStdin(location) {
-		buf.WriteString(bunt.Style("<STDIN>", bunt.Italic()))
-
-	} else if _, err := os.Stat(location); err == nil {
-		if abs, err := filepath.Abs(location); err == nil {
-			buf.WriteString(bunt.Style(abs, bunt.Bold()))
-		} else {
-			buf.WriteString(bunt.Style(location, bunt.Bold()))
-		}
-
-	} else if _, err := url.ParseRequestURI(location); err == nil {
-		buf.WriteString(bunt.Sprintf("CornflowerBlue{~%s~}", location))
+		return bunt.Sprint("_*stdin*_")
 	}
 
-	return buf.String()
+	if _, err := os.Stat(location); err == nil {
+		return bunt.Sprintf("*%s*", location)
+	}
+
+	if _, err := url.ParseRequestURI(location); err == nil {
+		return bunt.Sprintf("CornflowerBlue{~%s~}", location)
+	}
+
+	return location
 }
 
 // LoadFiles concurrently loads two files from the provided locations
@@ -165,6 +160,10 @@ func LoadFiles(locationA string, locationB string) (InputFile, InputFile, error)
 // LoadFile processes the provided input location to load it as one of the
 // supported document formats, or plain text if nothing else works.
 func LoadFile(location string) (InputFile, error) {
+	if info, err := os.Stat(location); err == nil && info.IsDir() {
+		return LoadDirectory(location)
+	}
+
 	var (
 		documents []*yamlv3.Node
 		data      []byte
@@ -172,17 +171,51 @@ func LoadFile(location string) (InputFile, error) {
 	)
 
 	if data, err = getBytesFromLocation(location); err != nil {
-		return InputFile{}, wrap.Errorf(err, "unable to load data from %s", location)
+		return InputFile{}, wrap.Errorf(err, "unable to load data from %s", HumanReadableLocation(location))
 	}
 
 	if documents, err = LoadDocuments(data); err != nil {
-		return InputFile{}, wrap.Errorf(err, "unable to parse data from %s", location)
+		return InputFile{}, wrap.Errorf(err, "unable to parse data from %s", HumanReadableLocation(location))
 	}
 
 	return InputFile{
 		Location:  location,
 		Documents: documents,
 	}, nil
+}
+
+// LoadDirectory reads the provided location as a directory and processes all
+// files in the directory as documents
+func LoadDirectory(location string) (InputFile, error) {
+	files, err := ioutil.ReadDir(location)
+	if err != nil {
+		return InputFile{}, wrap.Errorf(err, "failed to read files in directory %s", location)
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return strings.Compare(files[i].Name(), files[j].Name()) < 0
+	})
+
+	var result = InputFile{
+		Location: location,
+	}
+
+	for _, file := range files {
+		bytes, err := getBytesFromLocation(filepath.Join(location, file.Name()))
+		if err != nil {
+			return InputFile{}, err
+		}
+
+		docs, err := LoadDocuments(bytes)
+		if err != nil {
+			return InputFile{}, err
+		}
+
+		result.Documents = append(result.Documents, docs...)
+		result.Names = append(result.Names, file.Name())
+	}
+
+	return result, nil
 }
 
 // LoadDocuments reads the provided input data slice as a YAML, JSON, or TOML
@@ -283,7 +316,7 @@ func LoadTOMLDocuments(input []byte) ([]*yamlv3.Node, error) {
 }
 
 func getBytesFromLocation(location string) ([]byte, error) {
-	// Handle special location "-" which referes to STDIN stream
+	// Handle special location "-" which refers to STDIN stream
 	if IsStdin(location) {
 		return ioutil.ReadAll(os.Stdin)
 	}

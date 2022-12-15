@@ -21,6 +21,10 @@
 package bunt
 
 import (
+	"fmt"
+	"strings"
+	"sync"
+
 	"github.com/gonvenience/term"
 )
 
@@ -34,32 +38,101 @@ const (
 )
 
 // ColorSetting defines the coloring setting to be used
-var ColorSetting = AUTO
+var ColorSetting SwitchState = SwitchState{value: AUTO}
 
 // TrueColorSetting defines the true color usage setting to be used
-var TrueColorSetting = AUTO
+var TrueColorSetting SwitchState = SwitchState{value: AUTO}
 
-// SwitchState is the type to cover different preferences/settings like:
-// on, off, or auto
-type SwitchState int
+type state int
 
 // Supported setting states
 const (
-	OFF  = SwitchState(-1)
-	AUTO = SwitchState(0)
-	ON   = SwitchState(+1)
+	AUTO = state(iota)
+	ON
+	OFF
 )
+
+// SwitchState is the type to cover different preferences/settings like: on, off, or auto
+type SwitchState struct {
+	sync.Mutex
+	value state
+}
+
+func (s state) String() string {
+	switch s {
+	case ON:
+		return "on"
+
+	case OFF:
+		return "off"
+
+	case AUTO:
+		return "auto"
+	}
+
+	panic("unsupported state")
+}
+
+func (s *SwitchState) String() string {
+	return s.value.String()
+}
+
+// Set updates the switch state based on the provided setting, or fails with an
+// error in case the setting cannot be parsed
+func (s *SwitchState) Set(setting string) error {
+	s.Lock()
+	defer s.Unlock()
+
+	switch strings.ToLower(setting) {
+	case "auto":
+		s.value = AUTO
+
+	case "off", "no", "false":
+		s.value = OFF
+
+	case "on", "yes", "true":
+		s.value = ON
+
+	default:
+		return fmt.Errorf("invalid state '%s' used, supported modes are: auto, on, or off", setting)
+	}
+
+	return nil
+}
+
+// Type returns the type name of switch state, which is an empty string for now
+func (s *SwitchState) Type() string {
+	return ""
+}
 
 // UseColors return whether colors are used or not based on the configured color
 // setting or terminal capabilities
 func UseColors() bool {
-	return (ColorSetting == ON) ||
-		(ColorSetting == AUTO && term.IsTerminal() && !term.IsDumbTerminal())
+	ColorSetting.Lock()
+	defer ColorSetting.Unlock()
+
+	return (ColorSetting.value == ON) ||
+		(ColorSetting.value == AUTO && term.IsTerminal() && !term.IsDumbTerminal())
 }
 
 // UseTrueColor returns whether true color colors should be used or not based on
 // the configured true color usage setting or terminal capabilities
 func UseTrueColor() bool {
-	return (TrueColorSetting == ON) ||
-		(TrueColorSetting == AUTO && term.IsTrueColor())
+	TrueColorSetting.Lock()
+	defer TrueColorSetting.Unlock()
+
+	return (TrueColorSetting.value == ON) ||
+		(TrueColorSetting.value == AUTO && term.IsTrueColor())
+}
+
+// SetColorSettings is a convenience function to set both color settings at the
+// same time using the internal locks
+func SetColorSettings(color state, trueColor state) {
+	ColorSetting.Lock()
+	defer ColorSetting.Unlock()
+	ColorSetting.value = color
+
+	TrueColorSetting.Lock()
+	defer TrueColorSetting.Unlock()
+	TrueColorSetting.value = trueColor
 }

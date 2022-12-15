@@ -10,8 +10,8 @@ import (
 	"sort"
 
 	"github.com/cppforlife/go-patch/patch"
-	"github.com/homeport/dyff/pkg/dyff"
 	"github.com/gonvenience/ytbx"
+	"github.com/homeport/dyff/pkg/dyff"
 	"github.com/mattn/go-isatty"
 	"github.com/starkandwayne/goutils/ansi"
 
@@ -231,7 +231,7 @@ func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 		return nil, err
 	}
 
-	if empty_y, _ :=  simpleyaml.NewYaml([]byte{}); *y == *empty_y {
+	if empty_y, _ := simpleyaml.NewYaml([]byte{}); *y == *empty_y {
 		DEBUG("YAML doc is empty, creating empty hash/map")
 		return make(map[interface{}]interface{}), nil
 	}
@@ -542,7 +542,7 @@ func diffFiles(paths []string) (string, bool, error) {
 		Report:            report,
 		DoNotInspectCerts: false,
 		NoTableStyle:      false,
-		ShowBanner:        false,
+		OmitHeader:        true,
 	}
 
 	var buf bytes.Buffer

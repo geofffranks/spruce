@@ -77,8 +77,9 @@ func maxDepth(node *yamlv3.Node) (max int) {
 	rootPath, _ := ParseGoPatchStylePathString("/")
 	traverseTree(
 		rootPath,
+		nil,
 		node,
-		func(p Path, _ *yamlv3.Node) {
+		func(p Path, _ *yamlv3.Node, _ *yamlv3.Node) {
 			if depth := len(p.PathElements); depth > max {
 				max = depth
 			}

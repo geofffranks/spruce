@@ -8,7 +8,7 @@ If you want to do anything with this library, then you'll need to make a
 Client object. The Client object will need, at the very least, its `VaultURI`
 member populated. AuthToken should be set to your bearer token for Vault. If
 you need a bearer token created from some other auth method, you can call one
-of the AuthX functions (currently, we support Github, LDAP, and Userpass). An
+of the AuthX functions (currently, we support Github, LDAP, Okta, and Userpass). An
 http client can be optionally provided (if not, then `http.DefaultClient`
 will be used). If you would like to see information about the requests and
 responses, then you can optionally provide an io.Writer for trace logs to be

@@ -24,7 +24,7 @@ import (
 	"fmt"
 
 	"github.com/gonvenience/bunt"
-	colorful "github.com/lucasb-eyer/go-colorful"
+	"github.com/lucasb-eyer/go-colorful"
 )
 
 var (
@@ -38,24 +38,36 @@ func color(hex string) colorful.Color {
 	return color
 }
 
+func render(format string, a ...interface{}) string {
+	if len(a) == 0 {
+		return format
+	}
+
+	return fmt.Sprintf(format, a...)
+}
+
 func green(format string, a ...interface{}) string {
-	return colored(additionGreen, format, a...)
+	return colored(additionGreen, render(format, a...))
 }
 
 func red(format string, a ...interface{}) string {
-	return colored(removalRed, format, a...)
+	return colored(removalRed, render(format, a...))
 }
 
 func yellow(format string, a ...interface{}) string {
-	return colored(modificationYellow, format, a...)
+	return colored(modificationYellow, render(format, a...))
 }
 
 func lightgreen(format string, a ...interface{}) string {
-	return colored(bunt.LightGreen, format, a...)
+	return colored(bunt.LightGreen, render(format, a...))
 }
 
 func lightred(format string, a ...interface{}) string {
-	return colored(bunt.LightSalmon, format, a...)
+	return colored(bunt.LightSalmon, render(format, a...))
+}
+
+func dimgray(format string, a ...interface{}) string {
+	return colored(bunt.DimGray, render(format, a...))
 }
 
 func bold(format string, a ...interface{}) string {
@@ -68,7 +80,7 @@ func bold(format string, a ...interface{}) string {
 
 func italic(format string, a ...interface{}) string {
 	return bunt.Style(
-		fmt.Sprintf(format, a...),
+		render(format, a...),
 		bunt.EachLine(),
 		bunt.Italic(),
 	)
@@ -76,7 +88,7 @@ func italic(format string, a ...interface{}) string {
 
 func colored(color colorful.Color, format string, a ...interface{}) string {
 	return bunt.Style(
-		fmt.Sprintf(format, a...),
+		render(format, a...),
 		bunt.EachLine(),
 		bunt.Foreground(color),
 	)

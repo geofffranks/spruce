@@ -70,7 +70,7 @@ func RandomStringWithPrefix(prefix string, length int) string {
 
 // FixedLength expands or trims the given text to the provided length
 func FixedLength(text string, length int, ellipsisOverride ...string) string {
-	var ellipsis = " [...]"
+	var ellipsis = " […]"
 	if len(ellipsisOverride) > 0 {
 		ellipsis = ellipsisOverride[0]
 	}

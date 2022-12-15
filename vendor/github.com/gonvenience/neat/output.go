@@ -23,12 +23,14 @@ package neat
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"strings"
 
-	"github.com/gonvenience/bunt"
 	colorful "github.com/lucasb-eyer/go-colorful"
 	yamlv2 "gopkg.in/yaml.v2"
 	yamlv3 "gopkg.in/yaml.v3"
+
+	"github.com/gonvenience/bunt"
 )
 
 // DefaultColorSchema is a prepared usable color schema for the neat output
@@ -79,7 +81,20 @@ func NewOutputProcessor(useIndentLines bool, boldKeys bool, colorSchema *map[str
 	}
 }
 
+// Deprecated: Use colorizef instead
 func (p *OutputProcessor) colorize(text string, colorName string) string {
+	if p.colorSchema != nil {
+		if value, ok := (*p.colorSchema)[colorName]; ok {
+			return bunt.Style(text, bunt.Foreground(value))
+		}
+	}
+
+	return text
+}
+
+func (p *OutputProcessor) colorizef(colorName string, format string, a ...interface{}) string {
+	var text = fmt.Sprintf(format, a...)
+
 	if p.colorSchema != nil {
 		if value, ok := (*p.colorSchema)[colorName]; ok {
 			return bunt.Style(text, bunt.Foreground(value))
@@ -108,6 +123,9 @@ func (p *OutputProcessor) determineColorByType(obj interface{}) string {
 
 		case "!!bool":
 			color = "boolColor"
+
+		case "!!null":
+			color = "nullColor"
 		}
 
 	case bool:

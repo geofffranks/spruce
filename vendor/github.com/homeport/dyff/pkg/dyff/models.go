@@ -40,14 +40,14 @@ const (
 // Detail encapsulate the actual details of a change, mainly the kind of
 // difference and the values
 type Detail struct {
-	Kind rune
 	From *yamlv3.Node
 	To   *yamlv3.Node
+	Kind rune
 }
 
 // Diff encapsulates everything noteworthy about a difference
 type Diff struct {
-	Path    ytbx.Path
+	Path    *ytbx.Path
 	Details []Detail
 }
 

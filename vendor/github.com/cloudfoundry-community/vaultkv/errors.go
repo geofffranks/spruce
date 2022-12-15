@@ -66,13 +66,51 @@ type ErrStandby struct {
 }
 
 func (e *ErrStandby) Error() string {
-	return fmt.Sprintf("503 Standby: %s", e.message)
+	return fmt.Sprintf("429 Standby: %s", e.message)
 }
 
 //IsErrStandby returns true if the error is an ErrStandby
 func IsErrStandby(err error) bool {
 	_, is := err.(*ErrStandby)
 	return is
+}
+
+//ErrDRSecondary is only returned from Health() if standbyok is set to false
+//and the node you're querying is a secondary disaster recovery node.
+type ErrDRSecondary struct {
+	message string
+}
+
+func (e *ErrDRSecondary) Error() string {
+	return fmt.Sprintf("472 DRSecondary: %s", e.message)
+}
+
+//IsErrDRSecondary returns true if the error is an ErrDRSecondary
+func IsErrDRSecondary(err error) bool {
+	_, is := err.(*ErrDRSecondary)
+	return is
+}
+
+//ErrPerfStandby is only returned from Health() if standbyok is set to false
+//and the node you're querying is a performance standby node.
+type ErrPerfStandby struct {
+	message string
+}
+
+func (e *ErrPerfStandby) Error() string {
+	return fmt.Sprintf("473 PerfStandby %s", e.message)
+}
+
+//IsErrPerfStandby returns true if the error is an ErrPerfStandby
+func IsErrPerfStandby(err error) bool {
+	_, is := err.(*ErrPerfStandby)
+	return is
+}
+
+//IsAnyStandbyErr returns true if the error is that the node is a standby or a
+//performance standby
+func IsAnyStandbyErr(err error) bool {
+	return IsErrStandby(err) || IsErrPerfStandby(err)
 }
 
 //ErrInternalServer represents 500 status codes that are returned from the API.
@@ -148,8 +186,7 @@ type ErrKVUnsupported struct {
 }
 
 func (e *ErrKVUnsupported) Error() string {
-	return fmt.Sprintf("KV Version Support: %s", e.message)
-	return e.message
+	return fmt.Sprintf("Operation unsupported by KV version: %s", e.message)
 }
 
 //IsErrKVUnsupported returns true if the error is an ErrKVUnsupported

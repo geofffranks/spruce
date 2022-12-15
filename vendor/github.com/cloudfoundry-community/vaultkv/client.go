@@ -118,7 +118,7 @@ func (v *Client) Curl(method string, path string, urlQuery url.Values, body io.R
 	}
 	req.Header.Set("X-Vault-Token", token)
 
-	if v.Namespace != "" {
+	if v.Namespace != "" && !pathNamespaceBlacklisted(path) {
 		req.Header.Set("X-Vault-Namespace", strings.Trim(v.Namespace, "/")+"/")
 	}
 
@@ -148,4 +148,20 @@ func (v *Client) Curl(method string, path string, urlQuery url.Values, body io.R
 	}
 
 	return resp, nil
+}
+
+var namespaceBlacklisted []string = []string{
+	"sys/health",
+	"sys/seal-status",
+}
+
+func pathNamespaceBlacklisted(path string) bool {
+	path = strings.Trim(path, "/")
+	for _, blacklisted := range namespaceBlacklisted {
+		if path == blacklisted {
+			return true
+		}
+	}
+
+	return false
 }

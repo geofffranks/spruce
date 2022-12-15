@@ -326,6 +326,55 @@ var colorByNameMap = map[string]colorful.Color{
 	"Black":                Black,
 }
 
+var colorPalette8bit map[uint8]colorful.Color = func() map[uint8]colorful.Color {
+	var rgb = func(r, g, b uint8) colorful.Color {
+		return colorful.Color{
+			R: float64(r) / 255.0,
+			G: float64(g) / 255.0,
+			B: float64(b) / 255.0,
+		}
+	}
+
+	palette := make(map[uint8]colorful.Color, 256)
+
+	// Standard colors
+	palette[0] = rgb(0, 0, 0)       // Black
+	palette[1] = rgb(170, 0, 0)     // Red
+	palette[2] = rgb(0, 170, 0)     // Green
+	palette[3] = rgb(229, 229, 16)  // Yellow
+	palette[4] = rgb(0, 0, 170)     // Blue
+	palette[5] = rgb(170, 0, 170)   // Magenta
+	palette[6] = rgb(0, 170, 170)   // Cyan
+	palette[7] = rgb(229, 229, 229) // White
+
+	// High-intensity colors
+	palette[8] = rgb(85, 85, 85)     // Bright Black (Gray)
+	palette[9] = rgb(255, 85, 85)    // Bright Red
+	palette[10] = rgb(85, 255, 85)   // Bright Green
+	palette[11] = rgb(255, 255, 85)  // Bright Yellow
+	palette[12] = rgb(85, 85, 255)   // Bright Blue
+	palette[13] = rgb(255, 85, 255)  // Bright Magenta
+	palette[14] = rgb(85, 255, 255)  // Bright Cyan
+	palette[15] = rgb(255, 255, 255) // Bright White
+
+	// 216 prepared colors
+	for b := 0; b <= 5; b++ {
+		for g := 0; g <= 5; g++ {
+			for r := 0; r <= 5; r++ {
+				palette[uint8(16+36*r+6*g+b)] = rgb(uint8(r*51), uint8(g*51), uint8(b*51))
+			}
+		}
+	}
+
+	// 24 grayscale shades
+	for i := 232; i < 256; i++ {
+		value := uint8(float32(i-232) * (255.0 / 23.0))
+		palette[uint8(i)] = rgb(value, value, value)
+	}
+
+	return palette
+}()
+
 func hexColor(scol string) colorful.Color {
 	c, _ := colorful.Hex(scol)
 	return c

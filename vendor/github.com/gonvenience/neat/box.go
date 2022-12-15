@@ -27,9 +27,10 @@ import (
 	"io"
 	"strings"
 
+	colorful "github.com/lucasb-eyer/go-colorful"
+
 	"github.com/gonvenience/bunt"
 	"github.com/gonvenience/term"
-	colorful "github.com/lucasb-eyer/go-colorful"
 )
 
 // BoxStyle represents a styling option for a content box

@@ -27,7 +27,7 @@ type EmptyTableError struct {
 }
 
 func (e *EmptyTableError) Error() string {
-	return fmt.Sprint("unable to render table, the input table is empty")
+	return "unable to render table, the input table is empty"
 }
 
 // ImbalancedTableError is used to describe that not all rows have the same number of columns
@@ -35,7 +35,7 @@ type ImbalancedTableError struct {
 }
 
 func (e *ImbalancedTableError) Error() string {
-	return fmt.Sprint("unable to render table, some rows have more or less columns than other rows")
+	return "unable to render table, some rows have more or less columns than other rows"
 }
 
 // RowLengthExceedsDesiredWidthError is used to describe that the table cannot be rendered, because at least one row exceeds the desired width
@@ -43,7 +43,7 @@ type RowLengthExceedsDesiredWidthError struct {
 }
 
 func (e *RowLengthExceedsDesiredWidthError) Error() string {
-	return fmt.Sprint("unable to render table, because at least one row exceeds the desired width")
+	return "unable to render table, because at least one row exceeds the desired width"
 }
 
 // ColumnIndexIsOutOfBoundsError is used to describe that a provided column index is out of bounds

@@ -199,16 +199,17 @@ func (v *Client) ResetUnseal() (err error) {
 
 //Health gives information about the current state of the Vault. If standbyok
 //is set to true, no error will be returned in the case that the targeted vault
-//is a standby node. If the targeted node is a standby and standbyok is false,
-//then ErrStandby will be returned. If the Vault is not yet initialized,
-//ErrUninitialized will be returned. If the Vault is initialized but sealed,
-//then ErrSealed will be returned. If none of these are the case, no error is
-//returned.
+//is a standby node or a performance standby node. If the targeted node is a
+//standby and standbyok is false, then ErrStandby will be returned. If the
+//Vault is not yet initialized, ErrUninitialized will be returned. If the Vault
+//is initialized but sealed, then ErrSealed will be returned. If none of these
+//are the case, no error is returned.
 func (v *Client) Health(standbyok bool) error {
 	//Don't call doRequest from Health because ParseError calls Health
 	query := url.Values{}
 	if standbyok {
 		query.Add("standbyok", "true")
+		query.Add("perfstandbyok", "true")
 	}
 
 	resp, err := v.Curl("GET", "/sys/health", query, nil)
@@ -233,6 +234,10 @@ func (v *Client) Health(standbyok bool) error {
 		err = nil
 	case 429:
 		err = &ErrStandby{message: errorMessage}
+	case 472:
+		err = &ErrDRSecondary{message: errorMessage}
+	case 473:
+		err = &ErrPerfStandby{message: errorMessage}
 	case 501:
 		err = &ErrUninitialized{message: errorMessage}
 	case 503:
