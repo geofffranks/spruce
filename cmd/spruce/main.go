@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 
@@ -284,7 +283,7 @@ func splitLoadYamlFile(file string) ([]YamlFile, error) {
 
 	for i, docBytes := range rawDocs {
 		buf := bytes.NewBuffer(docBytes)
-		doc := YamlFile{Path: fmt.Sprintf("%s[%d]", yamlFile.Path, i), Reader: ioutil.NopCloser(buf)}
+		doc := YamlFile{Path: fmt.Sprintf("%s[%d]", yamlFile.Path, i), Reader: io.NopCloser(buf)}
 		docs = append(docs, doc)
 	}
 	return docs, nil
@@ -384,7 +383,7 @@ func cmdFanEval(options mergeOpts) ([]map[interface{}]interface{}, error) {
 
 	for _, doc := range docs {
 		sourceBuffer := bytes.NewBuffer(sourceBytes)
-		source = YamlFile{Path: source.Path, Reader: ioutil.NopCloser(sourceBuffer)}
+		source = YamlFile{Path: source.Path, Reader: io.NopCloser(sourceBuffer)}
 		ev, err := mergeAllDocs([]YamlFile{source, doc}, options)
 		if err != nil {
 			return nil, err
@@ -457,13 +456,13 @@ func readFile(file *YamlFile) ([]byte, error) {
 			return nil, ansi.Errorf("@R{Error statting STDIN} - Bailing out: %s\n", err.Error())
 		}
 		if stat.Mode()&os.ModeCharDevice == 0 {
-			data, err = ioutil.ReadAll(os.Stdin)
+			data, err = io.ReadAll(os.Stdin)
 			if err != nil {
 				return nil, ansi.Errorf("@R{Error reading file} @m{%s}: %s\n", file.Path, err.Error())
 			}
 		}
 	} else {
-		data, err = ioutil.ReadAll(file.Reader)
+		data, err = io.ReadAll(file.Reader)
 		if err != nil {
 			return nil, ansi.Errorf("@R{Error reading file} @m{%s}: %s\n", file.Path, err.Error())
 		}

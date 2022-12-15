@@ -2,7 +2,6 @@ package spruce
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -371,7 +370,7 @@ meta:
 
 			So(r.Type, ShouldEqual, Replace)
 
-			content, err := ioutil.ReadFile("assets/file_operator/sample.txt")
+			content, err := os.ReadFile("assets/file_operator/sample.txt")
 			So(r.Value.(string), ShouldEqual, string(content))
 		})
 
@@ -398,7 +397,7 @@ meta:
 
 				So(r.Type, ShouldEqual, Replace)
 
-				content, err := ioutil.ReadFile("/etc/hosts")
+				content, err := os.ReadFile("/etc/hosts")
 				So(r.Value.(string), ShouldEqual, string(content))
 			})
 		}

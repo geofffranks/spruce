@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/starkandwayne/goutils/ansi"
@@ -39,7 +38,7 @@ func jsonifyData(data []byte, strict bool) (string, error) {
 }
 
 func JSONifyIO(in io.Reader, strict bool) (string, error) {
-	data, err := ioutil.ReadAll(in)
+	data, err := io.ReadAll(in)
 	if err != nil {
 		return "", ansi.Errorf("@R{Error reading input}: %s", err)
 	}
@@ -58,14 +57,14 @@ func JSONifyFiles(paths []string, strict bool) ([]string, error) {
 				return nil, ansi.Errorf("@R{Error statting STDIN} - Bailing out: %s\n", err.Error())
 			}
 			if stat.Mode()&os.ModeCharDevice == 0 {
-				data, err = ioutil.ReadAll(os.Stdin)
+				data, err = io.ReadAll(os.Stdin)
 				if err != nil {
 					return nil, ansi.Errorf("@R{Error reading STDIN}: %s\n", err.Error())
 				}
 			}
 		} else {
 			DEBUG("Processing file '%s'", path)
-			data, err = ioutil.ReadFile(path)
+			data, err = os.ReadFile(path)
 			if err != nil {
 				return nil, ansi.Errorf("@R{Error reading file} @m{%s}: %s", path, err)
 			}

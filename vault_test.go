@@ -3,7 +3,6 @@ package spruce
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -261,7 +260,7 @@ secret: knock, knock
 		os.Setenv("VAULT_ADDR", "garbage")
 		os.Setenv("VAULT_TOKEN", "")
 		os.Setenv("HOME", "assets/home/svtoken")
-		ioutil.WriteFile("assets/home/svtoken/.svtoken",
+		os.WriteFile("assets/home/svtoken/.svtoken",
 			[]byte("vault: "+mock.URL+"\n"+
 				"token: sekrit-toekin\n"), 0644)
 		RunTests(`

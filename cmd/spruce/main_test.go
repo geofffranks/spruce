@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -1521,7 +1520,7 @@ name_list:
 				})
 
 				Convey("Absolute paths are not interpreted as remote locations", func() {
-					file, fileErr := ioutil.TempFile("../../assets/load", "base-local-abs.yml")
+					file, fileErr := os.CreateTemp("../../assets/load", "base-local-abs.yml")
 					if fileErr != nil {
 						fmt.Println(fileErr)
 					}
@@ -2569,7 +2568,7 @@ func TestExamples(t *testing.T) {
 	}
 
 	YAML := func(path string) string {
-		s, err := ioutil.ReadFile(path)
+		s, err := os.ReadFile(path)
 		So(err, ShouldBeNil)
 
 		y, err := simpleyaml.NewYaml([]byte(s))
