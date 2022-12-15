@@ -50,16 +50,16 @@ func (s String) String() string {
 				prepend = append(prepend, 0)
 			}
 
-			buffer.WriteString(renderSGR(coloredRune.Settings, prepend...))
+			_, _ = buffer.WriteString(renderSGR(coloredRune.Settings, prepend...))
 			current = coloredRune.Settings
 		}
 
-		buffer.WriteByte(byte(coloredRune.Symbol))
+		_, _ = buffer.WriteRune(coloredRune.Symbol)
 	}
 
 	// Make sure to finish with a reset escape sequence
 	if current != 0 {
-		buffer.WriteString(renderSGR(0))
+		_, _ = buffer.WriteString(renderSGR(0))
 	}
 
 	return buffer.String()

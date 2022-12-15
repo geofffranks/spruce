@@ -34,16 +34,13 @@ func Grab(node *yamlv3.Node, pathString string) (*yamlv3.Node, error) {
 		return nil, err
 	}
 
-	if node.Kind == yamlv3.DocumentNode {
-		if len(node.Content) != 1 {
-			panic("unsure of implementation detail document node with multiple nodes")
-		}
+	switch node.Kind {
+	case yamlv3.DocumentNode:
+		return grabByPath(node.Content[0], path)
 
-		entry := node.Content[0]
-		return grabByPath(entry, path)
+	default:
+		return grabByPath(node, path)
 	}
-
-	return grabByPath(node, path)
 }
 
 func grabByPath(node *yamlv3.Node, path Path) (*yamlv3.Node, error) {
@@ -71,7 +68,7 @@ func grabByPath(node *yamlv3.Node, path Path) (*yamlv3.Node, error) {
 			pointer = entry
 
 		// Complex List, where each list entry is a Key/Value map and the entry is
-		// identified by name using an indentifier (e.g. name, key, or id)
+		// identified by name using an identifier (e.g. name, key, or id)
 		case element.isComplexListElement():
 			if pointer.Kind != yamlv3.SequenceNode {
 				return nil,

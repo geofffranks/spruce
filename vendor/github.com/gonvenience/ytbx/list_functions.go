@@ -63,16 +63,25 @@ func getEntryFromNamedList(sequenceNode *yamlv3.Node, identifier string, name st
 }
 
 func getEntryByIdentifierAndName(sequenceNode *yamlv3.Node, identifier string, name string) (*yamlv3.Node, error) {
-	for _, mappingNode := range sequenceNode.Content {
+	idx, err := getIndexByIdentifierAndName(sequenceNode, identifier, name)
+	if err != nil {
+		return nil, err
+	}
+
+	return sequenceNode.Content[idx], nil
+}
+
+func getIndexByIdentifierAndName(sequenceNode *yamlv3.Node, identifier string, name string) (int, error) {
+	for idx, mappingNode := range sequenceNode.Content {
 		for i := 0; i < len(mappingNode.Content); i += 2 {
 			k, v := mappingNode.Content[i], mappingNode.Content[i+1]
 			if k.Value == identifier && v.Value == name {
-				return mappingNode, nil
+				return idx, nil
 			}
 		}
 	}
 
-	return nil,
+	return -1,
 		fmt.Errorf("there is no entry %s=%v in the list",
 			identifier,
 			name,

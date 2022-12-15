@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 )
 
 //KV provides an abstraction to the Vault tree which makes dealing with
@@ -22,7 +23,7 @@ type KV struct {
 
 type kvMount interface {
 	Get(mount, subpath string, output interface{}, opts *KVGetOpts) (meta KVVersion, err error)
-	Set(mount, subpath string, values map[string]string, opts *KVSetOpts) (meta KVVersion, err error)
+	Set(mount, subpath string, values interface{}, opts *KVSetOpts) (meta KVVersion, err error)
 	List(mount, subpath string) (paths []string, err error)
 	Delete(mount, subpath string, opts *KVDeleteOpts) (err error)
 	Undelete(mount, subpath string, versions []uint) (err error)
@@ -64,7 +65,7 @@ func (k kvv1Mount) List(mount, subpath string) (paths []string, err error) {
 	return k.client.List(path)
 }
 
-func (k kvv1Mount) Set(mount, subpath string, values map[string]string, opts *KVSetOpts) (meta KVVersion, err error) {
+func (k kvv1Mount) Set(mount, subpath string, values interface{}, opts *KVSetOpts) (meta KVVersion, err error) {
 	path := v1ConstructPath(mount, subpath)
 	err = k.client.Set(path, values)
 	if err == nil {
@@ -141,6 +142,7 @@ func (k kvv2Mount) Get(mount, subpath string, output interface{}, opts *KVGetOpt
 		meta.Deleted = m.DeletedAt != nil
 		meta.Destroyed = m.Destroyed
 		meta.Version = m.Version
+		meta.CreatedAt = m.CreatedAt
 	}
 	return
 }
@@ -149,11 +151,12 @@ func (k kvv2Mount) List(mount, subpath string) (paths []string, err error) {
 	return k.client.V2List(mount, subpath)
 }
 
-func (k kvv2Mount) Set(mount, subpath string, values map[string]string, opts *KVSetOpts) (meta KVVersion, err error) {
+func (k kvv2Mount) Set(mount, subpath string, values interface{}, opts *KVSetOpts) (meta KVVersion, err error) {
 	var m V2Version
 	m, err = k.client.V2Set(mount, subpath, values, nil)
 	if err == nil {
 		meta.Version = m.Version
+		meta.CreatedAt = m.CreatedAt
 	}
 	return
 }
@@ -190,6 +193,7 @@ func (k kvv2Mount) Versions(mount, subpath string) (ret []KVVersion, err error) 
 		ret[i].Deleted = meta.Versions[i].DeletedAt != nil
 		ret[i].Destroyed = meta.Versions[i].Destroyed
 		ret[i].Version = meta.Versions[i].Version
+		ret[i].CreatedAt = meta.Versions[i].CreatedAt
 	}
 	return
 }
@@ -270,9 +274,16 @@ type KVGetOpts struct {
 
 //KVVersion contains information about a version of a secret.
 type KVVersion struct {
+	//If KV version is 1, CreatedAt.IsZero() will be true
+	CreatedAt time.Time
 	Version   uint
 	Deleted   bool
 	Destroyed bool
+}
+
+//Alive returns if the KVVersion is not deleted or destroyed.
+func (k KVVersion) Alive() bool {
+	return !(k.Deleted || k.Destroyed)
 }
 
 //Get retrieves the value at the given path in the tree. This follows the
@@ -308,7 +319,7 @@ type KVSetOpts struct{}
 
 //Set puts the values given at the path given. If KV v1, the previous value, if
 //any, is overwritten.  If KV v2, a new version is created.
-func (k *KV) Set(path string, values map[string]string, opts *KVSetOpts) (meta KVVersion, err error) {
+func (k *KV) Set(path string, values interface{}, opts *KVSetOpts) (meta KVVersion, err error) {
 	mountPath, mount, err := k.mountForPath(path)
 	if err != nil {
 		return

@@ -22,11 +22,13 @@ package neat
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
-	"github.com/gonvenience/bunt"
 	yamlv2 "gopkg.in/yaml.v2"
 	yamlv3 "gopkg.in/yaml.v3"
+
+	"github.com/gonvenience/bunt"
 )
 
 // ToYAMLString marshals the provided object into YAML with text decorations
@@ -50,39 +52,35 @@ func (p *OutputProcessor) ToYAML(obj interface{}) (string, error) {
 func (p *OutputProcessor) neatYAML(prefix string, skipIndentOnFirstLine bool, obj interface{}) error {
 	switch t := obj.(type) {
 	case yamlv2.MapSlice:
-		if err := p.neatYAMLofMapSlice(prefix, skipIndentOnFirstLine, t); err != nil {
-			return err
-		}
+		return p.neatYAMLofMapSlice(prefix, skipIndentOnFirstLine, t)
 
 	case []interface{}:
-		if err := p.neatYAMLofSlice(prefix, skipIndentOnFirstLine, t); err != nil {
-			return err
-		}
+		return p.neatYAMLofSlice(prefix, skipIndentOnFirstLine, t)
 
 	case []yamlv2.MapSlice:
-		if err := p.neatYAMLofSlice(prefix, skipIndentOnFirstLine, p.simplify(t)); err != nil {
-			return err
-		}
+		return p.neatYAMLofSlice(prefix, skipIndentOnFirstLine, p.simplify(t))
 
 	case yamlv3.Node:
 		return p.neatYAMLofNode(prefix, skipIndentOnFirstLine, &t)
 
-	case *yamlv3.Node:
-		return p.neatYAMLofNode(prefix, skipIndentOnFirstLine, t)
-
 	default:
-		if err := p.neatYAMLofScalar(prefix, skipIndentOnFirstLine, obj); err != nil {
-			return err
+		switch reflect.TypeOf(obj).Kind() {
+		case reflect.Ptr:
+			return p.neatYAML(prefix, skipIndentOnFirstLine, reflect.ValueOf(obj).Elem().Interface())
+
+		case reflect.Struct:
+			return p.neatYAMLOfStruct(prefix, skipIndentOnFirstLine, t)
+
+		default:
+			return p.neatYAMLofScalar(prefix, skipIndentOnFirstLine, t)
 		}
 	}
-
-	return nil
 }
 
 func (p *OutputProcessor) neatYAMLofMapSlice(prefix string, skipIndentOnFirstLine bool, mapslice yamlv2.MapSlice) error {
 	for i, mapitem := range mapslice {
 		if !skipIndentOnFirstLine || i > 0 {
-			p.out.WriteString(prefix)
+			_, _ = p.out.WriteString(prefix)
 		}
 
 		keyString := fmt.Sprintf("%v:", mapitem.Key)
@@ -90,17 +88,17 @@ func (p *OutputProcessor) neatYAMLofMapSlice(prefix string, skipIndentOnFirstLin
 			keyString = bunt.Style(keyString, bunt.Bold())
 		}
 
-		p.out.WriteString(p.colorize(keyString, "keyColor"))
+		_, _ = p.out.WriteString(p.colorize(keyString, "keyColor"))
 
 		switch mapitem.Value.(type) {
 		case yamlv2.MapSlice:
 			if len(mapitem.Value.(yamlv2.MapSlice)) == 0 {
-				p.out.WriteString(" ")
-				p.out.WriteString(p.colorize("{}", "emptyStructures"))
-				p.out.WriteString("\n")
+				_, _ = p.out.WriteString(" ")
+				_, _ = p.out.WriteString(p.colorize("{}", "emptyStructures"))
+				_, _ = p.out.WriteString("\n")
 
 			} else {
-				p.out.WriteString("\n")
+				_, _ = p.out.WriteString("\n")
 				if err := p.neatYAMLofMapSlice(prefix+p.prefixAdd(), false, mapitem.Value.(yamlv2.MapSlice)); err != nil {
 					return err
 				}
@@ -108,18 +106,18 @@ func (p *OutputProcessor) neatYAMLofMapSlice(prefix string, skipIndentOnFirstLin
 
 		case []interface{}:
 			if len(mapitem.Value.([]interface{})) == 0 {
-				p.out.WriteString(" ")
-				p.out.WriteString(p.colorize("[]", "emptyStructures"))
-				p.out.WriteString("\n")
+				_, _ = p.out.WriteString(" ")
+				_, _ = p.out.WriteString(p.colorize("[]", "emptyStructures"))
+				_, _ = p.out.WriteString("\n")
 			} else {
-				p.out.WriteString("\n")
+				_, _ = p.out.WriteString("\n")
 				if err := p.neatYAMLofSlice(prefix, false, mapitem.Value.([]interface{})); err != nil {
 					return err
 				}
 			}
 
 		default:
-			p.out.WriteString(" ")
+			_, _ = p.out.WriteString(" ")
 			if err := p.neatYAMLofScalar(prefix, false, mapitem.Value); err != nil {
 				return err
 			}
@@ -131,9 +129,9 @@ func (p *OutputProcessor) neatYAMLofMapSlice(prefix string, skipIndentOnFirstLin
 
 func (p *OutputProcessor) neatYAMLofSlice(prefix string, skipIndentOnFirstLine bool, list []interface{}) error {
 	for _, entry := range list {
-		p.out.WriteString(prefix)
-		p.out.WriteString(p.colorize("-", "dashColor"))
-		p.out.WriteString(" ")
+		_, _ = p.out.WriteString(prefix)
+		_, _ = p.out.WriteString(p.colorize("-", "dashColor"))
+		_, _ = p.out.WriteString(" ")
 		if err := p.neatYAML(prefix+p.prefixAdd(), true, entry); err != nil {
 			return err
 		}
@@ -145,8 +143,8 @@ func (p *OutputProcessor) neatYAMLofSlice(prefix string, skipIndentOnFirstLine b
 func (p *OutputProcessor) neatYAMLofScalar(prefix string, skipIndentOnFirstLine bool, obj interface{}) error {
 	// Process nil values immediately and return afterwards
 	if obj == nil {
-		p.out.WriteString(p.colorize("null", "nullColor"))
-		p.out.WriteString("\n")
+		_, _ = p.out.WriteString(p.colorize("null", "nullColor"))
+		_, _ = p.out.WriteString("\n")
 		return nil
 	}
 
@@ -162,11 +160,11 @@ func (p *OutputProcessor) neatYAMLofScalar(prefix string, skipIndentOnFirstLine 
 	// Cast byte slice to string, remove trailing newlines, split into lines
 	for i, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
 		if i > 0 {
-			p.out.WriteString(prefix)
+			_, _ = p.out.WriteString(prefix)
 		}
 
-		p.out.WriteString(p.colorize(line, color))
-		p.out.WriteString("\n")
+		_, _ = p.out.WriteString(p.colorize(line, color))
+		_, _ = p.out.WriteString("\n")
 	}
 
 	return nil
@@ -285,19 +283,22 @@ func (p *OutputProcessor) neatYAMLofNode(prefix string, skipIndentOnFirstLine bo
 		lines := strings.Split(node.Value, "\n")
 		switch len(lines) {
 		case 1:
-			fmt.Fprint(p.out, p.colorize(node.Value, colorName))
+			if strings.ContainsAny(node.Value, " *&:,") {
+				fmt.Fprint(p.out, p.colorizef(colorName, `"%s"`, node.Value))
+			} else {
+				fmt.Fprint(p.out, p.colorizef(colorName, node.Value))
+			}
 
 		default:
 			colorName = "multiLineTextColor"
 			fmt.Fprint(p.out, p.colorize("|", colorName), "\n")
 			for i, line := range lines {
-				if i == len(lines)-1 {
-					continue
-				}
+				fmt.Fprint(p.out,
+					prefix,
+					p.colorize(line, colorName),
+				)
 
-				fmt.Fprint(p.out, prefix, p.colorize(line, colorName))
-
-				if i < len(lines)-2 {
+				if i != len(lines)-1 {
 					fmt.Fprint(p.out, "\n")
 				}
 			}
@@ -320,6 +321,25 @@ func (p *OutputProcessor) neatYAMLofNode(prefix string, skipIndentOnFirstLine bo
 	}
 
 	return nil
+}
+
+func (p *OutputProcessor) neatYAMLOfStruct(prefix string, skipIndentOnFirstLine bool, obj interface{}) error {
+	// There might be better ways to do it. With generic struct objects, the
+	// only option is to do a roundtrip marshal and unmarshal to get the
+	// object into a universal Go YAML library version 3 node object and
+	// to render the node instead.
+
+	data, err := yamlv3.Marshal(obj)
+	if err != nil {
+		return err
+	}
+
+	var tmp yamlv3.Node
+	if err := yamlv3.Unmarshal(data, &tmp); err != nil {
+		return err
+	}
+
+	return p.neatYAML(prefix, skipIndentOnFirstLine, tmp)
 }
 
 func (p *OutputProcessor) createAnchorDefinition(node *yamlv3.Node) string {

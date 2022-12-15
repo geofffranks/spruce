@@ -128,22 +128,10 @@ func Foreground(color colorful.Color) StyleOption {
 				}
 
 				r, g, b := color.RGB255()
-
-				if blendColors && ((*s)[i].Settings>>8&0xFFFFFF) != 0 {
-					currentColor := colorful.Color{
-						R: float64(((*s)[i].Settings >> 8) & 0xFF),
-						G: float64(((*s)[i].Settings >> 16) & 0xFF),
-						B: float64(((*s)[i].Settings >> 24) & 0xFF),
+				if blendColors {
+					if fgColor := ((*s)[i].Settings >> 8 & 0xFFFFFF); fgColor != 0 {
+						r, g, b = blend(r, g, b, fgColor)
 					}
-
-					targetColor := colorful.Color{
-						R: float64(r),
-						G: float64(g),
-						B: float64(b),
-					}
-
-					// reset RGB values with blended color values
-					r, g, b = targetColor.BlendLab(currentColor, 0.5).RGB255()
 				}
 
 				// reset currently set foreground color
@@ -158,11 +146,50 @@ func Foreground(color colorful.Color) StyleOption {
 	}
 }
 
+// ForegroundFunc uses the provided function to set an individual foreground
+// color for each part of the text, which can be based on the position (x, y)
+// or the content (rune) in the text.
+func ForegroundFunc(f func(int, int, rune) *colorful.Color) StyleOption {
+	return StyleOption{
+		postProcess: func(s *String, flags map[string]struct{}) {
+			_, blendColors := flags["blendColors"]
+
+			var x, y int
+			for i, c := range *s {
+				if c.Symbol == '\n' {
+					x = 0
+					y++
+					continue
+				}
+
+				if color := f(x, y, c.Symbol); color != nil {
+					r, g, b := color.RGB255()
+					if blendColors {
+						if fgColor := ((*s)[i].Settings >> 8 & 0xFFFFFF); fgColor != 0 {
+							r, g, b = blend(r, g, b, fgColor)
+						}
+					}
+
+					(*s)[i].Settings &= 0xFFFFFFFF000000FF
+					(*s)[i].Settings |= 1
+					(*s)[i].Settings |= uint64(r) << 8
+					(*s)[i].Settings |= uint64(g) << 16
+					(*s)[i].Settings |= uint64(b) << 24
+				}
+
+				x++
+			}
+		},
+	}
+}
+
 // EnableTextAnnotations enables post-processing to evaluate text annotations
 func EnableTextAnnotations() StyleOption {
 	return StyleOption{
 		postProcess: func(s *String, flags map[string]struct{}) {
-			processTextAnnotations(s)
+			if err := processTextAnnotations(s); err != nil {
+				panic(err)
+			}
 		},
 	}
 }
@@ -204,4 +231,20 @@ func Style(text string, styleOptions ...StyleOption) string {
 	}
 
 	return result.String()
+}
+
+func blend(r, g, b uint8, currentColor uint64) (uint8, uint8, uint8) {
+	color1 := colorful.Color{
+		R: float64(r),
+		G: float64(g),
+		B: float64(b),
+	}
+
+	color2 := colorful.Color{
+		R: float64((currentColor >> 0) & 0xFF),
+		G: float64((currentColor >> 8) & 0xFF),
+		B: float64((currentColor >> 16) & 0xFF),
+	}
+
+	return color2.BlendLab(color1, 0.5).RGB255()
 }

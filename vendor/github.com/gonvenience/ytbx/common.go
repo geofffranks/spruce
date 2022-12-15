@@ -31,7 +31,6 @@ const (
 	typeMap         = "map"
 	typeSimpleList  = "list"
 	typeComplexList = "complex-list"
-	typeString      = "string"
 )
 
 // GetType returns the type of the input value with a YAML specific view

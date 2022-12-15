@@ -23,11 +23,14 @@ package neat
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
-	"github.com/gonvenience/bunt"
 	yamlv2 "gopkg.in/yaml.v2"
 	yamlv3 "gopkg.in/yaml.v3"
+
+	"github.com/gonvenience/bunt"
 )
 
 // ToJSONString marshals the provided object into JSON with text decorations
@@ -40,14 +43,7 @@ func ToJSONString(obj interface{}) (string, error) {
 // ToJSON processes the provided input object and tries to neatly output it as
 // human readable JSON honoring the preferences provided to the output processor
 func (p *OutputProcessor) ToJSON(obj interface{}) (string, error) {
-	var out string
-	var err error
-
-	if out, err = p.neatJSON("", obj); err != nil {
-		return "", err
-	}
-
-	return out, nil
+	return p.neatJSON("", obj)
 }
 
 // ToCompactJSON processed the provided input object and tries to create a as
@@ -55,6 +51,9 @@ func (p *OutputProcessor) ToJSON(obj interface{}) (string, error) {
 func (p *OutputProcessor) ToCompactJSON(obj interface{}) (string, error) {
 	switch tobj := obj.(type) {
 	case *yamlv3.Node:
+		return p.ToCompactJSON(*tobj)
+
+	case yamlv3.Node:
 		switch tobj.Kind {
 		case yamlv3.DocumentNode:
 			return p.ToCompactJSON(tobj.Content[0])
@@ -93,12 +92,17 @@ func (p *OutputProcessor) ToCompactJSON(obj interface{}) (string, error) {
 			return fmt.Sprintf("[%s]", strings.Join(tmp, ", ")), nil
 
 		case yamlv3.ScalarNode:
-			switch tobj.Tag {
-			case "!!str":
-				return fmt.Sprintf("\"%s\"", tobj.Value), nil
+			obj, err := cast(tobj)
+			if err != nil {
+				return "", err
 			}
 
-			return tobj.Value, nil
+			bytes, err := json.Marshal(obj)
+			if err != nil {
+				return "", err
+			}
+
+			return string(bytes), nil
 		}
 
 	case []interface{}:
@@ -151,6 +155,9 @@ func (p *OutputProcessor) neatJSON(prefix string, obj interface{}) (string, erro
 	var err error
 
 	switch t := obj.(type) {
+	case yamlv3.Node:
+		err = p.neatJSONofNode(prefix, &t)
+
 	case *yamlv3.Node:
 		err = p.neatJSONofNode(prefix, t)
 
@@ -173,6 +180,35 @@ func (p *OutputProcessor) neatJSON(prefix string, obj interface{}) (string, erro
 }
 
 func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error {
+	var (
+		optionalLineBreak = func() string {
+			switch node.Style {
+			case yamlv3.FlowStyle:
+				return ""
+			}
+
+			return "\n"
+		}
+
+		optionalIndentPrefix = func() string {
+			switch node.Style {
+			case yamlv3.FlowStyle:
+				return ""
+			}
+
+			return prefix + p.prefixAdd()
+		}
+
+		optionalPrefixBeforeEnd = func() string {
+			switch node.Style {
+			case yamlv3.FlowStyle:
+				return ""
+			}
+
+			return prefix
+		}
+	)
+
 	switch node.Kind {
 	case yamlv3.DocumentNode:
 		return p.neatJSONofNode(prefix, node.Content[0])
@@ -183,13 +219,12 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 			return nil
 		}
 
-		bunt.Fprint(p.out, "*{*\n")
+		bunt.Fprint(p.out, "*{*", optionalLineBreak())
 		for i := 0; i < len(node.Content); i += 2 {
 			k, v := followAlias(node.Content[i]), followAlias(node.Content[i+1])
 
 			fmt.Fprint(p.out,
-				prefix,
-				p.prefixAdd(),
+				optionalIndentPrefix(),
 				p.colorize(`"`+k.Value+`"`, "keyColor"), ": ",
 			)
 
@@ -204,9 +239,9 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 				fmt.Fprint(p.out, ",")
 			}
 
-			fmt.Fprint(p.out, "\n")
+			fmt.Fprint(p.out, optionalLineBreak())
 		}
-		bunt.Fprint(p.out, prefix, "*}*")
+		bunt.Fprint(p.out, optionalPrefixBeforeEnd(), "*}*")
 
 	case yamlv3.SequenceNode:
 		if len(node.Content) == 0 {
@@ -214,12 +249,12 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 			return nil
 		}
 
-		bunt.Fprint(p.out, "*[*\n")
+		bunt.Fprint(p.out, "*[*", optionalLineBreak())
 		for i := range node.Content {
 			entry := followAlias(node.Content[i])
 
 			if p.isScalar(entry) {
-				p.neatJSON(prefix+p.prefixAdd(), entry)
+				p.neatJSON(optionalIndentPrefix(), entry)
 
 			} else {
 				fmt.Fprint(p.out, prefix, p.prefixAdd())
@@ -230,35 +265,27 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 				fmt.Fprint(p.out, ",")
 			}
 
-			fmt.Fprint(p.out, "\n")
+			fmt.Fprint(p.out, optionalLineBreak())
 		}
-		bunt.Fprint(p.out, prefix, "*]*")
+		bunt.Fprint(p.out, optionalPrefixBeforeEnd(), "*]*")
 
 	case yamlv3.ScalarNode:
-		if node.Tag == "!!null" {
-			fmt.Fprint(p.out, p.colorize("null", "nullColor"))
-			return nil
+		obj, err := cast(*node)
+		if err != nil {
+			return err
 		}
 
-		color := p.determineColorByType(node)
-		quotes := func() string {
-			if node.Tag == "!!str" {
-				return p.colorize(`"`, color)
-			}
-
-			return ""
+		bytes, err := json.Marshal(obj)
+		if err != nil {
+			return err
 		}
 
-		fmt.Fprint(p.out, prefix, quotes())
-		parts := strings.Split(node.Value, "\n")
-		for idx, part := range parts {
-			fmt.Fprint(p.out, p.colorize(part, color))
-
-			if idx < len(parts)-1 {
-				fmt.Fprint(p.out, p.colorize("\\n", "emptyStructures"))
-			}
-		}
-		fmt.Fprint(p.out, quotes())
+		fmt.Fprint(p.out,
+			prefix,
+			p.colorize(
+				string(bytes),
+				p.determineColorByType(node),
+			))
 	}
 
 	return nil
@@ -266,73 +293,77 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 
 func (p *OutputProcessor) neatJSONofYAMLMapSlice(prefix string, mapslice yamlv2.MapSlice) error {
 	if len(mapslice) == 0 {
-		p.out.WriteString(p.colorize("{}", "emptyStructures"))
+		_, _ = p.out.WriteString(p.colorize("{}", "emptyStructures"))
 		return nil
 	}
 
-	p.out.WriteString(bunt.Style("{", bunt.Bold()))
-	p.out.WriteString("\n")
+	_, _ = p.out.WriteString(bunt.Style("{", bunt.Bold()))
+	_, _ = p.out.WriteString("\n")
 
 	for idx, mapitem := range mapslice {
 		keyString := fmt.Sprintf("\"%v\": ", mapitem.Key)
 
-		p.out.WriteString(prefix + p.prefixAdd())
-		p.out.WriteString(p.colorize(keyString, "keyColor"))
+		_, _ = p.out.WriteString(prefix + p.prefixAdd())
+		_, _ = p.out.WriteString(p.colorize(keyString, "keyColor"))
 
 		if p.isScalar(mapitem.Value) {
-			p.neatJSONofScalar("", mapitem.Value)
+			if err := p.neatJSONofScalar("", mapitem.Value); err != nil {
+				return err
+			}
 
 		} else {
 			p.neatJSON(prefix+p.prefixAdd(), mapitem.Value)
 		}
 
 		if idx < len(mapslice)-1 {
-			p.out.WriteString(",")
+			_, _ = p.out.WriteString(",")
 		}
 
-		p.out.WriteString("\n")
+		_, _ = p.out.WriteString("\n")
 	}
 
-	p.out.WriteString(prefix)
-	p.out.WriteString(bunt.Style("}", bunt.Bold()))
+	_, _ = p.out.WriteString(prefix)
+	_, _ = p.out.WriteString(bunt.Style("}", bunt.Bold()))
 
 	return nil
 }
 
 func (p *OutputProcessor) neatJSONofSlice(prefix string, list []interface{}) error {
 	if len(list) == 0 {
-		p.out.WriteString(p.colorize("[]", "emptyStructures"))
+		_, _ = p.out.WriteString(p.colorize("[]", "emptyStructures"))
 		return nil
 	}
 
-	p.out.WriteString(bunt.Style("[", bunt.Bold()))
-	p.out.WriteString("\n")
+	_, _ = p.out.WriteString(bunt.Style("[", bunt.Bold()))
+	_, _ = p.out.WriteString("\n")
 
 	for idx, value := range list {
 		if p.isScalar(value) {
-			p.neatJSONofScalar(prefix+p.prefixAdd(), value)
+			if err := p.neatJSONofScalar(prefix+p.prefixAdd(), value); err != nil {
+				return err
+			}
 
 		} else {
-			p.out.WriteString(prefix + p.prefixAdd())
+			_, _ = p.out.WriteString(prefix + p.prefixAdd())
 			p.neatJSON(prefix+p.prefixAdd(), value)
 		}
 
 		if idx < len(list)-1 {
-			p.out.WriteString(",")
+			_, _ = p.out.WriteString(",")
 		}
 
-		p.out.WriteString("\n")
+		_, _ = p.out.WriteString("\n")
 	}
 
-	p.out.WriteString(prefix)
-	p.out.WriteString(bunt.Style("]", bunt.Bold()))
+	_, _ = p.out.WriteString(prefix)
+	_, _ = p.out.WriteString(bunt.Style("]", bunt.Bold()))
 
 	return nil
 }
 
 func (p *OutputProcessor) neatJSONofScalar(prefix string, obj interface{}) error {
 	if obj == nil {
-		p.out.WriteString(p.colorize("null", "nullColor"))
+		_, _ = p.out.WriteString(p.colorize("null", "nullColor"))
 		return nil
 	}
 
@@ -343,15 +374,64 @@ func (p *OutputProcessor) neatJSONofScalar(prefix string, obj interface{}) error
 
 	color := p.determineColorByType(obj)
 
-	p.out.WriteString(prefix)
+	_, _ = p.out.WriteString(prefix)
 	parts := strings.Split(string(data), "\\n")
 	for idx, part := range parts {
-		p.out.WriteString(p.colorize(part, color))
+		_, _ = p.out.WriteString(p.colorize(part, color))
 
 		if idx < len(parts)-1 {
-			p.out.WriteString(p.colorize("\\n", "emptyStructures"))
+			_, _ = p.out.WriteString(p.colorize("\\n", "emptyStructures"))
 		}
 	}
 
 	return nil
+}
+
+func cast(node yamlv3.Node) (interface{}, error) {
+	if node.Kind != yamlv3.ScalarNode {
+		return nil, fmt.Errorf("invalid node kind to cast, must be a scalar node")
+	}
+
+	switch node.Tag {
+	case "!!str":
+		return node.Value, nil
+
+	case "!!timestamp":
+		return parseTime(node.Value)
+
+	case "!!int":
+		return strconv.Atoi(node.Value)
+
+	case "!!float":
+		return strconv.ParseFloat(node.Value, 64)
+
+	case "!!bool":
+		return strconv.ParseBool(node.Value)
+
+	case "!!null":
+		return nil, nil
+
+	default:
+		return nil, fmt.Errorf("unknown tag %s", node.Tag)
+	}
+}
+
+func parseTime(value string) (time.Time, error) {
+	// YAML Spec regarding timestamp: https://yaml.org/type/timestamp.html
+	var layouts = [...]string{
+		time.RFC3339,
+		"2006-01-02T15:04:05.999999999Z",
+		"2006-01-02t15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999999 07:00",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02",
+	}
+
+	for _, layout := range layouts {
+		if result, err := time.Parse(layout, value); err == nil {
+			return result, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("value %q cannot be parsed as a timestamp", value)
 }

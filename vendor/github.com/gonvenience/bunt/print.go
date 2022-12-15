@@ -28,9 +28,11 @@ import (
 func evaluateInputs(in ...interface{}) []interface{} {
 	result := make([]interface{}, len(in))
 	for i, x := range in {
-		switch str := x.(type) {
+		switch obj := x.(type) {
 		case string:
-			result[i] = evaluateString(str)
+			result[i] = evaluateString(obj)
+		default:
+			result[i] = obj
 		}
 	}
 
