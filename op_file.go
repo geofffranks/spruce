@@ -2,7 +2,6 @@ package spruce
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -90,7 +89,7 @@ func (FileOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		fname = filepath.Join(fbasepath, fname)
 	}
 
-	contents, err := ioutil.ReadFile(fname)
+	contents, err := os.ReadFile(fname)
 	if err != nil {
 		DEBUG("  File %s cannot be read: %s", fname, err)
 		return nil, ansi.Errorf("@R{tried to read file} @c{%s}@R{: could not be read - %s}", fname, err)

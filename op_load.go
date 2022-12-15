@@ -2,7 +2,7 @@ package spruce
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -120,7 +120,7 @@ func getBytesFromLocation(location string) ([]byte, error) {
 		}
 		defer response.Body.Close()
 
-		data, err := ioutil.ReadAll(response.Body)
+		data, err := io.ReadAll(response.Body)
 		if response.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("failed to retrieve data from location %s: %s", location, string(data))
 		}
@@ -135,7 +135,7 @@ func getBytesFromLocation(location string) ([]byte, error) {
 
 	// Handle location as local file if there is a file at that location
 	if _, err := os.Stat(location); err == nil {
-		return ioutil.ReadFile(location)
+		return os.ReadFile(location)
 	}
 
 	// In any other case, bail out ...

@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,10 +24,10 @@ var kv *vaultkv.KV = nil
 
 var vaultSecretCache = map[string]map[string]interface{}{}
 
-//VaultRefs maps secret path to paths in YAML structure which call for it
+// VaultRefs maps secret path to paths in YAML structure which call for it
 var VaultRefs = map[string][]string{}
 
-//SkipVault toggles whether calls to the Vault operator actually cause the
+// SkipVault toggles whether calls to the Vault operator actually cause the
 // Vault to be contacted and the keys substituted in.
 var SkipVault bool
 
@@ -68,7 +67,7 @@ func initializeVaultClient() error {
 			Namespace  string `yaml:"namespace"`
 			SkipVerify bool   `yaml:"skip_verify"`
 		}{}
-		b, err := ioutil.ReadFile(os.ExpandEnv("${HOME}/.svtoken"))
+		b, err := os.ReadFile(os.ExpandEnv("${HOME}/.svtoken"))
 		if err == nil {
 			err = yaml.Unmarshal(b, &svtoken)
 			if err == nil {
@@ -85,7 +84,7 @@ func initializeVaultClient() error {
 	}
 
 	if token == "" {
-		b, err := ioutil.ReadFile(fmt.Sprintf("%s/.vault-token", os.Getenv("HOME")))
+		b, err := os.ReadFile(fmt.Sprintf("%s/.vault-token", os.Getenv("HOME")))
 		if err == nil {
 			token = strings.TrimSuffix(string(b), "\n")
 		}
