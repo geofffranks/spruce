@@ -238,7 +238,7 @@ jobs:
               args: []
             params:
               BINARY:       (( grab meta.go.binary ))
-              REPO_ROOT:    (( concat "gopath/src/" meta.go.module ))
+              REPO_ROOT:    git
               VERSION_FROM: version/number
               RELEASE_NAME: (( grab meta.release ))
               RELEASE_ROOT: gh

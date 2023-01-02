@@ -39,16 +39,6 @@ TARGETS=${TARGETS:-linux/amd64 darwin/amd64 windows/amd64 linux/arm64 darwin/arm
 ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd )
 
 pushd $REPO_ROOT
-newgopath=${ROOT%%/gopath/*}/gopath
-if [[ -d ${newgopath} ]]; then
-	if [[ -z ${GOPATH} ]]; then
-		GOPATH="${newgopath}"
-	else
-		GOPATH="${newgopath}:${GOPATH}"
-	fi
-	PATH="${PATH}:${newgopath}/bin"
-fi
-echo ">> Using GOPATH ${GOPATH}"
 go mod vendor
 go install github.com/mitchellh/gox@latest
 popd
