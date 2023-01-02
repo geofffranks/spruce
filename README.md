@@ -9,7 +9,7 @@
       ^^^[_]^^^                                                   ^^^[_]^^^
 ```
 
-[![Build Status][build-status-icon]][build-status-link] [![Slack][slack-badge]][slack-channel] ( We'll be in `#spruce`)
+[![Slack][slack-badge]][slack-channel] ( We'll be in `#spruce`)
 
 ## Introducing Spruce
 
@@ -32,15 +32,6 @@ Alternatively, you can download a [prebuilt binaries for 64-bit Linux, or Mac OS
 1. Fetch sources via `go get github.com/geofffranks/spruce`
 1. Change current directory to the source root `cd ~/go/src/github.com/geofffranks/spruce/`
 1. Compile and execute tests `make all`
-
-## Is there a playground I can use before installing spruce?
-
-Yes! [play.spruce.cf][play.spruce] is around for testing out data merging +
-transformation in a cleanroom environment. It has a number of spruce
-versions available to it, and can be used to reproduce/troubleshoot bugs that
-you're seeing in production. Once you've reproduced an issue, or solution to a
-problem, you can save it, and share with a colleague, or reference in a GitHub
-issue.
 
 ## A Quick Example
 
@@ -114,14 +105,11 @@ to audit what credentials your configs are retrieving for a system..
 
 Licensed under [the MIT License][license]
 
-[build-status-icon]:    https://ci.spruce.cf/api/v1/teams/main/pipelines/spruce-release/jobs/test/badge
-[build-status-link]:    https://ci.spruce.cf/teams/main/pipelines/spruce-release
+
 [slack-channel]:        https://cloudfoundry.slack.com/messages/spruce/
 [slack-badge]:          http://slack.cloudfoundry.org/badge.svg
 [dry-definition]:       https://en.wikipedia.org/wiki/Don%27t_repeat_yourself
 [releases]:             https://github.com/geofffranks/spruce/releases/
-[play.spruce]:          http://play.spruce.cf
-[play.spruce-example]:  http://play.spruce.cf/#0a9d88de624c1f499a4b12eb8573089a
 [operator-docs]:        https://github.com/geofffranks/spruce/blob/master/doc/operators.md
 [merge-semantics]:      https://github.com/geofffranks/spruce/blob/master/doc/merging.md
 [array-merge]:          https://github.com/geofffranks/spruce/blob/master/doc/array-merging.md
