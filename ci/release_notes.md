@@ -1,3 +1,3 @@
-# Bump to Golang 1.17
+# Bump to Golang 1.18
 
-Thanks @c00w for the help bumping to 1.17!
+Thanks @HeavyWombat for the help bumping to 1.18!
