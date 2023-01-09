@@ -1,0 +1,50 @@
+# on:
+#   release:
+#     types: [created]
+
+on: 
+  push:
+    branches: [test-gha]
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: stable
+          check-latest: true
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go list ./... | grep -v vendor | xargs go test
+
+      - name: Vet
+        run: go list ./... | grep -v vendor | xargs go vet
+
+  release-linux-amd64:
+    name: release linux/amd64
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+        - goos: linux
+        - goos: windows
+        - goos: darwin
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: wangyoucao577/go-release-action@v1.34
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        goos: ${{ matrix.goos }}
+        goarch: amd64
+        binary_name: spruce-${{ matrix.goos }}-amd64
+        build_flags:  '-ldflags="-X main.Version=${{ github.event.release.tag_name }}"'
+    - name: validate binary version
+      run: ./spruce-${{ matrix.goos }}-amd64 -v
