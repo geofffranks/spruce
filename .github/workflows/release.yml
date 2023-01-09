@@ -20,7 +20,6 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         goos: ${{ matrix.goos }}
         goarch: amd64
-        binary_name: spruce-${{ matrix.goos }}-amd64
         ld_flags:  "-X main.Version=${{ github.event.release.tag_name }}"
         compress_assets: OFF
         release_tag: v1.30.0
