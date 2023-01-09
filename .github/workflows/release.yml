@@ -26,7 +26,7 @@ jobs:
         CGO_ENABLED: 0
         GOOS: ${{ matrix.goos }}
         GOARCH: amd64
-      run: 'go build -v -o spruce-${{ matrix.goos }}-amd64 -ldflags="-X main.Version=${{ github.event.release.tag_name }}" ./cmd/spruce'
+      run: 'go build -v -o spruce -ldflags="-X main.Version=${{ github.event.release.tag_name }}" ./cmd/spruce'
 
     - uses: PeerXu/upload-asset@v1
       with:
@@ -34,7 +34,7 @@ jobs:
         suffix: ""
         os: ${{ matrix.goos }}
         arch: amd64
-        with_tag: true
+        with_tag: 
         with_sha1: true
 
       env:
