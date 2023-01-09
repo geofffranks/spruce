@@ -1,6 +1,6 @@
-on: [push]
-  # release:
-  #   types: [created, published]
+on:
+  release:
+    types: [created, published]
 
 jobs:
   build-release-artifacts:
