@@ -15,13 +15,23 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: wangyoucao577/go-release-action@v1.34
+    - name: Set up Go
+      uses: actions/setup-go@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        goos: ${{ matrix.goos }}
-        goarch: amd64
-        ld_flags:  "-X main.Version=${{ github.event.release.tag_name }}"
-        compress_assets: OFF
-        release_tag: v1.30.0
+        go-version: stable
+        check-latest: true
+
+    - name: Build
+      run: 'go build -v ./... -o spruce-${{ matrix.goos }}-amd64 -ldflags="-X main.Version=${{ github.event.release.tag_name }}"'
+
     - name: validate binary version
-      run: ./spruce-${{ github.event.release.tag_name }}-${{ matrix.goos }}-amd64 -v
+      run: ./spruce-${{ matrix.goos }}-amd64 -v
+    - uses: PeerXu/upload-asset@v1
+      with:
+        file: ./spruce-${{ matrix.goos }}-amd64
+        os: ${{ matrix.goos }}
+        arch: amd64
+        with_tag: true
+        with_sha1: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
