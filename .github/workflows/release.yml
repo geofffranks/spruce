@@ -3,8 +3,8 @@ on:
     types: [created, published]
 
 jobs:
-  release-linux-amd64:
-    name: release linux/amd64
+  build-release-artifacts:
+    name: build-release-artifacts
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -21,6 +21,6 @@ jobs:
         goos: ${{ matrix.goos }}
         goarch: amd64
         binary_name: spruce-${{ matrix.goos }}-amd64
-        build_flags:  '-ldflags="-X main.Version=${{ github.event.release.tag_name }}"'
+        ld_flags:  "-X main.Version=${{ github.event.release.tag_name }}"
     - name: validate binary version
       run: ./spruce-${{ matrix.goos }}-amd64 -v
