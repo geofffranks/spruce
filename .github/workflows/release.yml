@@ -30,7 +30,7 @@ jobs:
 
     - uses: PeerXu/upload-asset@v1
       with:
-        file: ./spruce-${{ matrix.goos }}-amd64
+        file: ./spruce
         suffix: ""
         os: ${{ matrix.goos }}
         arch: amd64
