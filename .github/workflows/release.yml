@@ -22,7 +22,7 @@ jobs:
         check-latest: true
 
     - name: Build
-      run: 'go build -v ./... -o spruce-${{ matrix.goos }}-amd64 -ldflags="-X main.Version=${{ github.event.release.tag_name }}"'
+      run: 'go build -v -o spruce-${{ matrix.goos }}-amd64 -ldflags="-X main.Version=${{ github.event.release.tag_name }}" ./...'
 
     - name: validate binary version
       run: ./spruce-${{ matrix.goos }}-amd64 -v
