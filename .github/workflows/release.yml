@@ -1,32 +1,8 @@
-# on:
-#   release:
-#     types: [created]
-
-on: 
-  push:
-    branches: [test-gha]
-
+on:
+  release:
+    types: [created]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: stable
-          check-latest: true
-
-      - name: Build
-        run: go build -v ./...
-
-      - name: Test
-        run: go list ./... | grep -v vendor | xargs go test
-
-      - name: Vet
-        run: go list ./... | grep -v vendor | xargs go vet
-
   release-linux-amd64:
     name: release linux/amd64
     runs-on: ubuntu-latest
