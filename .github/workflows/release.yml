@@ -24,4 +24,4 @@ jobs:
         compress_assets: OFF
         release_tag: v1.30.0
     - name: validate binary version
-      run: ./spruce-${{ matrix.goos }}-amd64 -v
+      run: ./spruce-*-${{ matrix.goos }}-amd64 -v
