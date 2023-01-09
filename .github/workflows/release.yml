@@ -22,5 +22,6 @@ jobs:
         goarch: amd64
         binary_name: spruce-${{ matrix.goos }}-amd64
         ld_flags:  "-X main.Version=${{ github.event.release.tag_name }}"
+        compress_assets: OFF
     - name: validate binary version
       run: ./spruce-${{ matrix.goos }}-amd64 -v
