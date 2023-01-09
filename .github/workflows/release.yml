@@ -34,7 +34,7 @@ jobs:
         suffix: ""
         os: ${{ matrix.goos }}
         arch: amd64
-        with_tag: 
+        with_tag: false
         with_sha1: true
 
       env:
