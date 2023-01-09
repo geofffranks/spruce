@@ -22,7 +22,7 @@ jobs:
         check-latest: true
 
     - name: Build
-      with:
+      env:
         CGO_ENABLED: 0
         GOOS: ${{ matrix.goos }}
         GOARCH: amd64
