@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/geofffranks/yaml"
-	fmt "github.com/starkandwayne/goutils/ansi"
+	fmt "github.com/cloudfoundry-community/goutils/ansi"
 )
 
 func pad1(pad, s string) string {

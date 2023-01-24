@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	. "github.com/geofffranks/spruce/log"
-	"github.com/starkandwayne/goutils/ansi"
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/ansi"
+	"github.com/cloudfoundry-community/goutils/tree"
 )
 
 const UNDEFINED_AZ = "__UNDEFINED_AZ__"

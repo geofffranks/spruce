@@ -11,10 +11,10 @@ import (
 	"strings"
 
 	"github.com/cloudfoundry-community/vaultkv"
-	"github.com/starkandwayne/goutils/ansi"
+	"github.com/cloudfoundry-community/goutils/ansi"
 
 	. "github.com/geofffranks/spruce/log"
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/tree"
 
 	// Use geofffranks forks to persist the fix in https://github.com/go-yaml/yaml/pull/133/commits
 	// Also https://github.com/go-yaml/yaml/pull/195

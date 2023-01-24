@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/starkandwayne/goutils/ansi"
+	"github.com/cloudfoundry-community/goutils/ansi"
 
 	"github.com/geofffranks/simpleyaml"
 	. "github.com/geofffranks/spruce/log"

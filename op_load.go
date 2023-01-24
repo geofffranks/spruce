@@ -10,8 +10,8 @@ import (
 
 	"github.com/geofffranks/simpleyaml"
 	"github.com/geofffranks/spruce/log"
-	"github.com/starkandwayne/goutils/ansi"
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/ansi"
+	"github.com/cloudfoundry-community/goutils/tree"
 )
 
 // LoadOperator is invoked with (( load <location> ))

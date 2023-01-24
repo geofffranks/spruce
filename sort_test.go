@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/tree"
 )
 
 func TestSort(t *testing.T) {

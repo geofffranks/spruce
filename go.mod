@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.40.54
+	github.com/cloudfoundry-community/goutils v0.0.0-20190115202530-896b8a6904be
 	github.com/cloudfoundry-community/vaultkv v0.0.0-20200311151509-343c0e6fc506
 	github.com/cppforlife/go-patch v0.2.0
 	github.com/geofffranks/simpleyaml v0.0.0-20161109204137-c9320f076de5
@@ -13,7 +14,6 @@ require (
 	github.com/homeport/dyff v1.0.2
 	github.com/mattn/go-isatty v0.0.12
 	github.com/smartystreets/goconvey v1.6.4
-	github.com/cloudfoundry-community/goutils v0.0.0-20190115202530-896b8a6904be
 	github.com/voxelbrain/goptions v0.0.0-20151102231003-26cb8b046923
 	github.com/ziutek/utils v0.0.0-20190626152656-eb2a3b364d6c
 )
@@ -34,6 +34,7 @@ require (
 	github.com/mitchellh/hashstructure v1.0.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/smartystreets/assertions v1.2.1 // indirect
+	github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be // indirect
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/texttheater/golang-levenshtein v0.0.0-20191208221605-eb6844b05fc6 // indirect
 	github.com/virtuald/go-ordered-json v0.0.0-20170621173500-b18e6e673d74 // indirect

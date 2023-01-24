@@ -7,10 +7,10 @@ import (
 	"strconv"
 
 	"github.com/geofffranks/yaml"
-	"github.com/starkandwayne/goutils/ansi"
+	"github.com/cloudfoundry-community/goutils/ansi"
 
 	. "github.com/geofffranks/spruce/log"
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/tree"
 )
 
 // Action ...

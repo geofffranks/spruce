@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	. "github.com/geofffranks/spruce/log"
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/tree"
 )
 
 var pathsToSort = map[string]string{}

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/starkandwayne/goutils/ansi"
+	"github.com/cloudfoundry-community/goutils/ansi"
 
 	. "github.com/geofffranks/spruce/log"
 )

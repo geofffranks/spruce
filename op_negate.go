@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/geofffranks/spruce/log"
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/tree"
 )
 
 // NegateOperator ...

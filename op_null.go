@@ -1,8 +1,8 @@
 package spruce
 
 import (
-	"github.com/starkandwayne/goutils/ansi"
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/ansi"
+	"github.com/cloudfoundry-community/goutils/tree"
 )
 
 // NullOperator ...

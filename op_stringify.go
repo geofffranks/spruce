@@ -3,8 +3,8 @@ package spruce
 import (
 	"github.com/geofffranks/spruce/log"
 	"github.com/geofffranks/yaml"
-	fmt "github.com/starkandwayne/goutils/ansi"
-	"github.com/starkandwayne/goutils/tree"
+	fmt "github.com/cloudfoundry-community/goutils/ansi"
+	"github.com/cloudfoundry-community/goutils/tree"
 )
 
 // StringifyOperator ...

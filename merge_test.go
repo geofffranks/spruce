@@ -8,7 +8,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/geofffranks/simpleyaml"
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/tree"
 )
 
 func TestShouldKeyMergeArrayOfHashes(t *testing.T) {

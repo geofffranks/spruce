@@ -3,9 +3,9 @@ package spruce
 import (
 	"fmt"
 
-	"github.com/starkandwayne/goutils/ansi"
+	"github.com/cloudfoundry-community/goutils/ansi"
 
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/tree"
 
 	. "github.com/geofffranks/spruce/log"
 )

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/tree"
 )
 
 // EmptyOperator allows the user to emplace an empty array, hash, or string into

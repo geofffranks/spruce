@@ -13,7 +13,7 @@ import (
 	"github.com/homeport/dyff/pkg/dyff"
 	"github.com/gonvenience/ytbx"
 	"github.com/mattn/go-isatty"
-	"github.com/starkandwayne/goutils/ansi"
+	"github.com/cloudfoundry-community/goutils/ansi"
 
 	. "github.com/geofffranks/spruce"
 	. "github.com/geofffranks/spruce/log"

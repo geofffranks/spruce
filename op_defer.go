@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/tree"
 
 	. "github.com/geofffranks/spruce/log"
 )

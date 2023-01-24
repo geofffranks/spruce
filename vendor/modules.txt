@@ -50,6 +50,10 @@ github.com/aws/aws-sdk-go/service/sso
 github.com/aws/aws-sdk-go/service/sso/ssoiface
 github.com/aws/aws-sdk-go/service/sts
 github.com/aws/aws-sdk-go/service/sts/stsiface
+# github.com/cloudfoundry-community/goutils v0.0.0-20190115202530-896b8a6904be
+## explicit
+github.com/cloudfoundry-community/goutils/ansi
+github.com/cloudfoundry-community/goutils/tree
 # github.com/cloudfoundry-community/vaultkv v0.0.0-20200311151509-343c0e6fc506
 ## explicit
 github.com/cloudfoundry-community/vaultkv
@@ -124,7 +128,6 @@ github.com/smartystreets/goconvey/convey/reporting
 # github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be
 ## explicit
 github.com/starkandwayne/goutils/ansi
-github.com/starkandwayne/goutils/tree
 # github.com/stretchr/testify v1.7.0
 ## explicit; go 1.13
 # github.com/texttheater/golang-levenshtein v0.0.0-20191208221605-eb6844b05fc6

@@ -18,7 +18,7 @@ import (
 
 	"github.com/geofffranks/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/starkandwayne/goutils/tree"
+	"github.com/cloudfoundry-community/goutils/tree"
 )
 
 type mockedAws struct {
