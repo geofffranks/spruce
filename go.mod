@@ -13,7 +13,7 @@ require (
 	github.com/homeport/dyff v1.0.2
 	github.com/mattn/go-isatty v0.0.12
 	github.com/smartystreets/goconvey v1.6.4
-	github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be
+	github.com/cloudfoundry-community/goutils v0.0.0-20190115202530-896b8a6904be
 	github.com/voxelbrain/goptions v0.0.0-20151102231003-26cb8b046923
 	github.com/ziutek/utils v0.0.0-20190626152656-eb2a3b364d6c
 )
