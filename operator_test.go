@@ -1963,6 +1963,40 @@ meta:
 
 	})
 
+	Convey("Base64Decode Operator", t, func() {
+		op := Base64DecodeOperator{}
+		ev := &Evaluator{
+			Tree: YAML(
+				`meta:
+  sample: "U2FtcGxlIFRleHQgVG8gQmFzZTY0IEVuY29kZSBGcm9tIFJlZmVyZW5jZQ=="
+`),
+		}
+
+		Convey("can decode from a string literal", func() {
+			r, err := op.Run(ev, []*Expr{
+				str("U2FtcGxlIFRleHQgVG8gQmFzZTY0IEVuY29kZQ=="),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "Sample Text To Base64 Encode")
+		})
+
+		Convey("can decode from a reference", func() {
+			r, err := op.Run(ev, []*Expr{
+				ref("meta.sample"),
+			})
+
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+
+			So(r.Value.(string), ShouldEqual, "Sample Text To Base64 Encode From Reference")
+		})
+	})
+
 	Convey("awsparam/awssecret operator", t, func() {
 		op := AwsOperator{variant: "awsparam"}
 		ev := &Evaluator{
