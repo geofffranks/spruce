@@ -23,6 +23,7 @@
 - [awsparam](#-awsparam-)
 - [awssecret](#-awssecret-)
 - [base64](#-base64-)
+- [base64-decode](#-base64-decode-)
 
 Additionally, there are operators that are specific to merging arrays. For more detail
 see the [array merging documentation][array-merging]:
@@ -390,6 +391,22 @@ update the existing configuration. The `((base64))` operator allows for merge
 time base64 encoding of string literals specified directly, or by reference.
 
 [Example][base64-example]
+
+## (( base64-decode ))
+
+Usage: `(( base64-decode LITERAL|REFERENCE ... ))`
+
+The `(( base64-decode ))` operator allows for merge-time decoding of base64-encoded string literals specified
+directly, or by reference.
+
+Example:
+```yaml
+encoded_string_1: Zm9v
+decoded_string_1: (( base64-decode encoded_string_1 ))
+decoded_string_2: (( base64-decode "YmFy" ))
+decoded_properties_file_contents: (( concat "fookey=" decoded_string_1 "\nbarkey=" decoded_string_2 "\n" ))
+encoded_properties_file_contents: (( base64 decoded_properties_file_contents ))
+```
 
 [array-merging]:      https://github.com/geofffranks/spruce/blob/master/doc/array-merging.md
 [env-var]:            https://github.com/geofffranks/spruce/blob/master/doc/environment-variables-and-defaults.md
