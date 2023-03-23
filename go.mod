@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.40.54
-	github.com/cloudfoundry-community/vaultkv v0.5.0
+	github.com/cloudfoundry-community/vaultkv v0.6.0
 	github.com/cppforlife/go-patch v0.2.0
 	github.com/geofffranks/simpleyaml v0.0.0-20161109204137-c9320f076de5
 	github.com/geofffranks/yaml v0.0.0-20161117152608-9f2fe4b6f295
@@ -37,10 +37,9 @@ require (
 	github.com/stretchr/testify v1.8.1 // indirect
 	github.com/texttheater/golang-levenshtein v1.0.1 // indirect
 	github.com/virtuald/go-ordered-json v0.0.0-20170621173500-b18e6e673d74 // indirect
-	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/term v0.3.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

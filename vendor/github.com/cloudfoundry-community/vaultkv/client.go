@@ -92,7 +92,7 @@ func (v *Client) Curl(method string, path string, urlQuery url.Values, body io.R
 	u := *v.VaultURL
 	pathPrefix := strings.Trim(u.Path, "/")
 	if pathPrefix != "" {
-		pathPrefix = u.Path + "/"
+		pathPrefix = pathPrefix + "/"
 	}
 	u.Path = fmt.Sprintf("/%sv1/%s", pathPrefix, strings.Trim(path, "/"))
 	if u.Port() == "" {
