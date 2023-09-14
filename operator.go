@@ -197,6 +197,7 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 		return &Expr{Type: Literal, Literal: val}, nil
 
 	case Reference:
+		e.Reference.Nodes = ResolveEnv(e.Reference.Nodes)
 		if _, err := e.Reference.Resolve(tree); err != nil {
 			return nil, ansi.Errorf("@R{Unable to resolve `}@c{%s}@R{`: %s}", e.Reference, err)
 		}
@@ -209,6 +210,18 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 		return e.Right.Resolve(tree)
 	}
 	return nil, ansi.Errorf("@R{unknown expression operand type (}@c{%d}@R{)}", e.Type)
+}
+
+func ResolveEnv(nodes []string) []string {
+    var resolved []string
+    for _, node := range nodes {
+        if len(node) > 0 && node[0] == '$' {
+            resolved = append(resolved, os.Getenv(node[1:]))
+        } else {
+            resolved = append(resolved, node)
+        }
+    }
+    return resolved
 }
 
 // Evaluate ...
