@@ -35,7 +35,7 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
       run: 'go build -v -o spruce-${{ matrix.goos }}-${{ matrix.goarch }} -ldflags="-X main.Version=${{ github.event.release.tag_name }}" ./cmd/spruce'
 
-    - uses: geofffranks/upload-asset@v1
+    - uses: geofffranks/upload-asset@v2
       with:
         file: ./spruce-${{ matrix.goos }}-${{ matrix.goarch }}
         with_sha1: true
