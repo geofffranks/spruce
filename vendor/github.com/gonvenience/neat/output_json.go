@@ -229,10 +229,14 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 			)
 
 			if p.isScalar(v) {
-				p.neatJSON("", v)
+				if _, err := p.neatJSON("", v); err != nil {
+					return err
+				}
 
 			} else {
-				p.neatJSON(prefix+p.prefixAdd(), v)
+				if _, err := p.neatJSON(prefix+p.prefixAdd(), v); err != nil {
+					return err
+				}
 			}
 
 			if i < len(node.Content)-2 {
@@ -254,11 +258,15 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 			entry := followAlias(node.Content[i])
 
 			if p.isScalar(entry) {
-				p.neatJSON(optionalIndentPrefix(), entry)
+				if _, err := p.neatJSON(optionalIndentPrefix(), entry); err != nil {
+					return err
+				}
 
 			} else {
 				fmt.Fprint(p.out, prefix, p.prefixAdd())
-				p.neatJSON(prefix+p.prefixAdd(), entry)
+				if _, err := p.neatJSON(prefix+p.prefixAdd(), entry); err != nil {
+					return err
+				}
 			}
 
 			if i < len(node.Content)-1 {
@@ -312,7 +320,9 @@ func (p *OutputProcessor) neatJSONofYAMLMapSlice(prefix string, mapslice yamlv2.
 			}
 
 		} else {
-			p.neatJSON(prefix+p.prefixAdd(), mapitem.Value)
+			if _, err := p.neatJSON(prefix+p.prefixAdd(), mapitem.Value); err != nil {
+				return err
+			}
 		}
 
 		if idx < len(mapslice)-1 {
@@ -345,7 +355,9 @@ func (p *OutputProcessor) neatJSONofSlice(prefix string, list []interface{}) err
 
 		} else {
 			_, _ = p.out.WriteString(prefix + p.prefixAdd())
-			p.neatJSON(prefix+p.prefixAdd(), value)
+			if _, err := p.neatJSON(prefix+p.prefixAdd(), value); err != nil {
+				return err
+			}
 		}
 
 		if idx < len(list)-1 {

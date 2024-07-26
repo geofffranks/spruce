@@ -82,6 +82,8 @@ func (e *wrappedErrors) Errors() []error {
 }
 
 // Error creates an error with additional context
+//
+// Deprecated: Use fmt.Errorf() instead using the `%w` format specifier.
 func Error(err error, context string) error {
 	switch {
 	case err == nil:
@@ -93,6 +95,8 @@ func Error(err error, context string) error {
 }
 
 // Errorf creates an error with additional formatted context
+//
+// Deprecated: Use fmt.Errorf() instead using the `%w` format specifier.
 func Errorf(err error, format string, a ...interface{}) error {
 	return Error(err, fmt.Sprintf(format, a...))
 }

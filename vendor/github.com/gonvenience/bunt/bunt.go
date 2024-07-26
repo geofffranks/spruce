@@ -22,10 +22,13 @@ package bunt
 
 import (
 	"fmt"
+	"os"
+	"runtime"
 	"strings"
 	"sync"
 
 	"github.com/gonvenience/term"
+	"github.com/mattn/go-isatty"
 )
 
 // Internal bit mask to mark feature states, e.g. foreground coloring
@@ -106,13 +109,27 @@ func (s *SwitchState) Type() string {
 }
 
 // UseColors return whether colors are used or not based on the configured color
-// setting or terminal capabilities
+// setting, operating system, and terminal capabilities
 func UseColors() bool {
 	ColorSetting.Lock()
 	defer ColorSetting.Unlock()
 
-	return (ColorSetting.value == ON) ||
-		(ColorSetting.value == AUTO && term.IsTerminal() && !term.IsDumbTerminal())
+	// Configured overrides take precedence
+	switch ColorSetting.value {
+	case ON:
+		return true
+
+	case OFF:
+		return false
+	}
+
+	// Windows in non Cygwin environments is (currently) not supported
+	if runtime.GOOS == "windows" && !isatty.IsCygwinTerminal(os.Stdout.Fd()) {
+		return false
+	}
+
+	// In case StdOut is not a dumb terminal, assume colors can be used
+	return term.IsTerminal() && !term.IsDumbTerminal()
 }
 
 // UseTrueColor returns whether true color colors should be used or not based on

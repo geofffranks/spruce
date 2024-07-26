@@ -60,21 +60,20 @@ func SprintError(err error) string {
 		)
 
 	default:
-		if parts := strings.SplitN(err.Error(), ":", 2); len(parts) == 2 {
-			message, cause := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-			return ContentBox(
-				fmt.Sprintf("Error: %s", message),
-				cause,
-				HeadlineColor(bunt.OrangeRed),
-				ContentColor(bunt.Red),
-			)
-		}
+		return unpack(err.Error())
+	}
+}
 
+func unpack(content string) string {
+	if parts := strings.SplitN(content, ":", 2); len(parts) == 2 {
+		message, cause := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
 		return ContentBox(
-			"Error",
-			err.Error(),
+			fmt.Sprintf("Error: %s", message),
+			unpack(cause),
 			HeadlineColor(bunt.OrangeRed),
 			ContentColor(bunt.Red),
 		)
 	}
+
+	return content
 }

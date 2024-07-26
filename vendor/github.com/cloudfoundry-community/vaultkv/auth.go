@@ -33,6 +33,7 @@ type AuthOutput struct {
 
 type authOutputRaw struct {
 	Renewable     bool `json:"renewable"`
+	Data map[string]interface{} `json:"data"`
 	LeaseDuration int  `json:"lease_duration"`
 	Auth          struct {
 		ClientToken   string                 `json:"client_token"`
