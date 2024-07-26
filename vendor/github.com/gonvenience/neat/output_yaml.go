@@ -274,16 +274,15 @@ func (p *OutputProcessor) neatYAMLofNode(prefix string, skipIndentOnFirstLine bo
 
 		case "!!bool":
 			colorName = "boolColor"
-		}
 
-		if node.Value == "nil" {
+		case "!!null":
 			colorName = "nullColor"
 		}
 
 		lines := strings.Split(node.Value, "\n")
 		switch len(lines) {
 		case 1:
-			if strings.ContainsAny(node.Value, " *&:,") {
+			if needsQuotes(node) {
 				fmt.Fprint(p.out, p.colorizef(colorName, `"%s"`, node.Value))
 			} else {
 				fmt.Fprint(p.out, p.colorizef(colorName, node.Value))
@@ -348,4 +347,26 @@ func (p *OutputProcessor) createAnchorDefinition(node *yamlv3.Node) string {
 	}
 
 	return ""
+}
+
+func needsQuotes(node *yamlv3.Node) bool {
+	// skip all non string nodes
+	if node.Tag != "!!str" {
+		return false
+	}
+
+	// check if string matches one of the known reserved keywords
+	for _, chk := range []string{"true", "false", "null"} {
+		if node.Value == chk {
+			return true
+		}
+	}
+
+	// check if strings starts with a dash
+	if strings.HasPrefix(node.Value, "-") {
+		return true
+	}
+
+	// check if string contains special characters
+	return strings.ContainsAny(node.Value, " *&:,")
 }

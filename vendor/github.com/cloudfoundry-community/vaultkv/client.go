@@ -1,4 +1,4 @@
-//Package vaultkv provides a client with functions that make API calls that a user of
+// Package vaultkv provides a client with functions that make API calls that a user of
 // Vault may commonly want.
 package vaultkv
 
@@ -139,6 +139,7 @@ func (v *Client) Curl(method string, path string, urlQuery url.Values, body io.R
 
 	resp, err := client.Do(req)
 	if err != nil {
+		fmt.Println("transport err", err.Error())
 		return nil, &ErrTransport{message: err.Error()}
 	}
 
