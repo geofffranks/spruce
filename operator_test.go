@@ -443,16 +443,16 @@ meta:
 		})
 
 		Convey("can grab a single value using an environment variable in the reference", func() {
-            os.Setenv("SUB_KEY", "subkey")
-            r, err := op.Run(ev, []*Expr{
-                ref("key.$SUB_KEY.value"),
-            })
-            So(err, ShouldBeNil)
-            So(r, ShouldNotBeNil)
+			os.Setenv("SUB_KEY", "subkey")
+			r, err := op.Run(ev, []*Expr{
+				ref("key.$SUB_KEY.value"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
 
-            So(r.Type, ShouldEqual, Replace)
-            So(r.Value.(string), ShouldEqual, "found it")
-        })
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "found it")
+		})
 
 		Convey("can grab a single list value", func() {
 			r, err := op.Run(ev, []*Expr{
@@ -2018,8 +2018,8 @@ meta:
 			}, ssmErr
 		}
 
-		parameterstoreClient = mock
-		secretsManagerClient = mock
+		parameterstoreClient = mock.SSMAPI
+		secretsManagerClient = mock.SecretsManagerAPI
 
 		Convey("in shared logic", func() {
 			Convey("should return error if no key given", func() {
