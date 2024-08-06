@@ -4,13 +4,13 @@ go 1.22
 
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
-	github.com/aws/aws-sdk-go v1.55.3
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/cloudfoundry-community/vaultkv v0.7.0
 	github.com/cppforlife/go-patch v0.2.0
 	github.com/geofffranks/simpleyaml v0.0.0-20161109204137-c9320f076de5
 	github.com/geofffranks/yaml v0.0.0-20161117152608-9f2fe4b6f295
 	github.com/gonvenience/ytbx v1.4.4
-	github.com/homeport/dyff v1.8.1
+	github.com/homeport/dyff v1.9.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be
@@ -26,7 +26,7 @@ require (
 	github.com/gonvenience/text v1.0.7 // indirect
 	github.com/gonvenience/wrap v1.2.0 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
-	github.com/hashicorp/cap v0.6.0 // indirect
+	github.com/hashicorp/cap v0.7.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-secure-stdlib/base62 v0.1.2 // indirect
@@ -41,8 +41,8 @@ require (
 	github.com/smarty/assertions v1.16.0 // indirect
 	github.com/texttheater/golang-levenshtein v1.0.1 // indirect
 	github.com/virtuald/go-ordered-json v0.0.0-20170621173500-b18e6e673d74 // indirect
-	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/sys v0.23.0 // indirect
 	golang.org/x/term v0.22.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

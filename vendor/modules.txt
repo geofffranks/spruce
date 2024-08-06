@@ -5,7 +5,7 @@ github.com/BurntSushi/toml/internal
 # github.com/Knetic/govaluate v3.0.0+incompatible
 ## explicit
 github.com/Knetic/govaluate
-# github.com/aws/aws-sdk-go v1.55.3
+# github.com/aws/aws-sdk-go v1.55.5
 ## explicit; go 1.19
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/auth/bearer
@@ -86,7 +86,7 @@ github.com/gonvenience/ytbx
 # github.com/gopherjs/gopherjs v1.17.2
 ## explicit; go 1.17
 github.com/gopherjs/gopherjs/js
-# github.com/hashicorp/cap v0.6.0
+# github.com/hashicorp/cap v0.7.0
 ## explicit; go 1.21
 github.com/hashicorp/cap/util
 # github.com/hashicorp/errwrap v1.1.0
@@ -101,7 +101,7 @@ github.com/hashicorp/go-secure-stdlib/base62
 # github.com/hashicorp/go-uuid v1.0.3
 ## explicit
 github.com/hashicorp/go-uuid
-# github.com/homeport/dyff v1.8.1
+# github.com/homeport/dyff v1.9.0
 ## explicit; go 1.20
 github.com/homeport/dyff/pkg/dyff
 # github.com/jmespath/go-jmespath v0.4.0
@@ -155,10 +155,10 @@ github.com/voxelbrain/goptions
 # github.com/ziutek/utils v0.0.0-20190626152656-eb2a3b364d6c
 ## explicit
 github.com/ziutek/utils/netaddr
-# golang.org/x/sync v0.7.0
+# golang.org/x/sync v0.8.0
 ## explicit; go 1.18
 golang.org/x/sync/syncmap
-# golang.org/x/sys v0.22.0
+# golang.org/x/sys v0.23.0
 ## explicit; go 1.18
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
