@@ -3663,6 +3663,148 @@ line4`)
 		})
 	})
 
+	Convey("RawEnv Operator", t, func() {
+		op := RawEnvOperator{}
+		ev := &Evaluator{}
+		os.Setenv("RAW_ENV_TEST", "hello world")
+		os.Setenv("RAW_ENV_SCI", "25e25")
+		os.Setenv("RAW_ENV_BOOL", "true")
+		os.Setenv("RAW_ENV_NUM", "42")
+		os.Setenv("RAW_ENV_FLOAT", "3.14159")
+		os.Setenv("RAW_ENV_MULTILINE", `line1
+
+line3
+line4`)
+		os.Setenv("RAW_ENV_UNSET", "")
+		os.Setenv("RAW_ENV_YAML_LIST", "[1, 2, 3]")
+		os.Setenv("RAW_ENV_YAML_MAP", "{key: value}")
+
+		Convey("can retrieve an environment variable as raw string", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("RAW_ENV_TEST"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "hello world")
+		})
+
+		Convey("preserves scientific notation as string without converting to float", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("RAW_ENV_SCI"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "25e25")
+		})
+
+		Convey("preserves boolean-like strings without converting to bool", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("RAW_ENV_BOOL"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "true")
+		})
+
+		Convey("preserves numeric strings without converting to number", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("RAW_ENV_NUM"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "42")
+		})
+
+		Convey("preserves float strings without converting to number", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("RAW_ENV_FLOAT"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "3.14159")
+		})
+
+		Convey("preserves YAML list syntax as string without parsing", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("RAW_ENV_YAML_LIST"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "[1, 2, 3]")
+		})
+
+		Convey("preserves YAML map syntax as string without parsing", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("RAW_ENV_YAML_MAP"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "{key: value}")
+		})
+
+		Convey("preserves multiline strings", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("RAW_ENV_MULTILINE"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, `line1
+
+line3
+line4`)
+		})
+
+		Convey("throws errors for unset environment variables", func() {
+			_, err := op.Run(ev, []*Expr{
+				env("RAW_ENV_UNSET"),
+			})
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("throws errors for missing arguments", func() {
+			_, err := op.Run(ev, []*Expr{})
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("throws errors when more than one argument provided", func() {
+			_, err := op.Run(ev, []*Expr{
+				env("RAW_ENV_TEST"),
+				env("RAW_ENV_NUM"),
+			})
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("throws errors when argument is not an environment variable", func() {
+			_, err := op.Run(ev, []*Expr{
+				str("not an env var"),
+			})
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("throws errors when argument is a reference", func() {
+			_, err := op.Run(ev, []*Expr{
+				ref("some.reference"),
+			})
+			So(err, ShouldNotBeNil)
+		})
+	})
+
 	Convey("Concat Operator", t, func() {
 		op := ConcatOperator{}
 		ev := &Evaluator{
