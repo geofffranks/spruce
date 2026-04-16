@@ -1,0 +1,88 @@
+name: Go Toolchain Auto-Bump
+
+on:
+  schedule:
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve latest stable Go version
+        id: gover
+        run: |
+          LATEST=$(curl -fsSL 'https://go.dev/dl/?mode=json' | jq -r '.[0].version' | sed 's/^go//')
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          CURRENT=$(grep -E '^toolchain go' go.mod | awk '{print $2}' | sed 's/^go//' || true)
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "Latest: $LATEST  Current: $CURRENT"
+
+      - name: Exit if already current
+        if: steps.gover.outputs.latest == steps.gover.outputs.current
+        run: |
+          echo "Already on latest. Nothing to do."
+          exit 0
+
+      - name: Exit if branch already exists
+        id: branchcheck
+        if: steps.gover.outputs.latest != steps.gover.outputs.current
+        run: |
+          BRANCH="auto/bump-go-toolchain-${{ steps.gover.outputs.latest }}"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "Branch $BRANCH already exists; previous run still pending."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Go (latest stable)
+        if: steps.branchcheck.outputs.skip == 'false'
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          check-latest: true
+
+      - name: Update go.mod toolchain directive
+        if: steps.branchcheck.outputs.skip == 'false'
+        run: |
+          go mod edit -toolchain=go${{ steps.gover.outputs.latest }}
+          go mod tidy
+
+      - name: Create branch, commit, push
+        if: steps.branchcheck.outputs.skip == 'false'
+        env:
+          BRANCH: ${{ steps.branchcheck.outputs.branch }}
+          VERSION: ${{ steps.gover.outputs.latest }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add go.mod go.sum
+          git commit -m "chore: bump Go toolchain to go$VERSION"
+          git push origin "$BRANCH"
+
+      - name: Open PR and enable auto-merge
+        if: steps.branchcheck.outputs.skip == 'false'
+        env:
+          BRANCH: ${{ steps.branchcheck.outputs.branch }}
+          VERSION: ${{ steps.gover.outputs.latest }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL=$(gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore: bump Go toolchain to go$VERSION" \
+            --body "Automated bump of the \`toolchain\` directive in \`go.mod\` to go$VERSION. CI will verify." \
+            --label go-update \
+            --label dependencies)
+          gh pr merge --auto --rebase "$PR_URL"
