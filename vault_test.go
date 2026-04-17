@@ -245,7 +245,7 @@ key: testing
 `)
 
 		os.Setenv("VAULT_ADDR", mock.URL)
-		oldhome := os.Getenv("HOME")
+		var oldhome string
 		os.Setenv("HOME", "assets/home/auth")
 		os.Setenv("VAULT_TOKEN", "")
 		RunTests(`
@@ -292,7 +292,7 @@ secret: (( vault $.meta.key ))
 
 ---
 1 error(s) detected:
- - $.secret: Unable to resolve ` + "`" + `meta.key` + "`" + `: ` + "`" + `$.meta.key` + "`" + ` could not be found in the datastructure
+ - $.secret: unable to resolve ` + "`" + `meta.key` + "`" + `: ` + "`" + `$.meta.key` + "`" + ` could not be found in the datastructure
 
 ####################################################  fails on map reference
 ---
@@ -363,7 +363,7 @@ secret: (( vault "secret/hand4:shake" ))
 
 ---
 1 error(s) detected:
- - $.secret: Error during Vault client initialization: Failed to determine Vault URL / token, and the $REDACT environment variable is not set.
+ - $.secret: error during Vault client initialization: failed to determine Vault URL / token, and the $REDACT environment variable is not set
 
 `)
 		os.Setenv("HOME", oldhome)

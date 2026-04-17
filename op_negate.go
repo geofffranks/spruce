@@ -47,7 +47,7 @@ func (NegateOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		s, err := v.Reference.Resolve(ev.Tree)
 		if err != nil {
 			log.DEBUG(" resolution failed\n error: %s", err)
-			return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
+			return nil, fmt.Errorf("unable to resolve `%s`: %s", v.Reference, err)
 		}
 		log.DEBUG("  resolved to a value")
 		switch s2 := s.(type) {

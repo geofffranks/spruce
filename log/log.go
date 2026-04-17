@@ -1,3 +1,4 @@
+// Package log provides debug and trace logging for spruce.
 package log
 
 import (

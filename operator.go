@@ -1,3 +1,5 @@
+// Package spruce provides a YAML merging tool with support for operators,
+// references, and various merge strategies.
 package spruce
 
 import (
@@ -199,7 +201,7 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 	case Reference:
 		e.Reference.Nodes = ResolveEnv(e.Reference.Nodes)
 		if _, err := e.Reference.Resolve(tree); err != nil {
-			return nil, ansi.Errorf("@R{Unable to resolve `}@c{%s}@R{`: %s}", e.Reference, err)
+			return nil, ansi.Errorf("@R{unable to resolve `}@c{%s}@R{`: %s}", e.Reference, err)
 		}
 		return e, nil
 
@@ -290,7 +292,7 @@ type Opcall struct {
 // ParseOpcall ...
 func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 	split := func(src string) []string {
-		list := make([]string, 0, 0)
+		list := make([]string, 0)
 
 		buf := ""
 		escaped := false
@@ -519,9 +521,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 func (op *Opcall) Dependencies(ev *Evaluator, locs []*tree.Cursor) []*tree.Cursor {
 	l := []*tree.Cursor{}
 	for _, arg := range op.args {
-		for _, c := range arg.Dependencies(ev, locs) {
-			l = append(l, c)
-		}
+		l = append(l, arg.Dependencies(ev, locs)...)
 	}
 
 	return op.op.Dependencies(ev, op.args, locs, l)
