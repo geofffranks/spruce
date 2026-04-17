@@ -29,16 +29,11 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gonvenience/bunt"
 )
 
 const chars = "abcdefghijklmnopqrstuvwxyz"
-
-func init() {
-	rand.Seed(time.Now().UTC().UnixNano())
-}
 
 // RandomString creates a string with random content and a given length
 func RandomString(length int) string {

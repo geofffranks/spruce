@@ -25,7 +25,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -36,9 +35,8 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/gonvenience/bunt"
 	"github.com/gonvenience/text"
-	"github.com/gonvenience/wrap"
 	ordered "github.com/virtuald/go-ordered-json"
-	yamlv3 "gopkg.in/yaml.v3"
+	yamlv3 "go.yaml.in/yaml/v3"
 )
 
 // PreserveKeyOrderInJSON specifies whether a special library is used to decode
@@ -171,11 +169,11 @@ func LoadFile(location string) (InputFile, error) {
 	)
 
 	if data, err = getBytesFromLocation(location); err != nil {
-		return InputFile{}, wrap.Errorf(err, "unable to load data from %s", HumanReadableLocation(location))
+		return InputFile{}, fmt.Errorf("unable to load data from %s: %w", HumanReadableLocation(location), err)
 	}
 
 	if documents, err = LoadDocuments(data); err != nil {
-		return InputFile{}, wrap.Errorf(err, "unable to parse data from %s", HumanReadableLocation(location))
+		return InputFile{}, fmt.Errorf("unable to parse data from %s: %w", HumanReadableLocation(location), err)
 	}
 
 	return InputFile{
@@ -187,9 +185,9 @@ func LoadFile(location string) (InputFile, error) {
 // LoadDirectory reads the provided location as a directory and processes all
 // files in the directory as documents
 func LoadDirectory(location string) (InputFile, error) {
-	files, err := ioutil.ReadDir(location)
+	files, err := os.ReadDir(location)
 	if err != nil {
-		return InputFile{}, wrap.Errorf(err, "failed to read files in directory %s", location)
+		return InputFile{}, fmt.Errorf("failed to read files in directory %s: %w", location, err)
 	}
 
 	sort.Slice(files, func(i, j int) bool {
@@ -208,7 +206,7 @@ func LoadDirectory(location string) (InputFile, error) {
 
 		docs, err := LoadDocuments(bytes)
 		if err != nil {
-			return InputFile{}, err
+			return InputFile{}, fmt.Errorf("failed to read %s: %w", filepath.Join(location, file.Name()), err)
 		}
 
 		result.Documents = append(result.Documents, docs...)
@@ -223,6 +221,19 @@ func LoadDirectory(location string) (InputFile, error) {
 // depending on the input will either use `LoadTOMLDocuments`,
 // `LoadJSONDocuments`, or `LoadYAMLDocuments`.
 func LoadDocuments(input []byte) ([]*yamlv3.Node, error) {
+	// Special case to quickly rule out empty documents
+	// Ref: https://yaml.org/spec/1.2.2/#72-empty-nodes
+	// Ref: https://yaml.org/spec/1.2.2/#912-document-markers
+	// Ref: https://yaml.org/spec/1.2.2/#1032-tag-resolution
+	// > Empty nodes are interpreted as null values
+	if isEmpty(input) {
+		return []*yamlv3.Node{{
+			Kind: yamlv3.DocumentNode,
+			Content: []*yamlv3.Node{
+				{Kind: yamlv3.ScalarNode, Tag: "!!null"},
+			}}}, nil
+	}
+
 	// There is no easy check whether the input data is TOML format, this is
 	// why there is currently no other option than simply trying to parse it.
 	if toml, err := LoadTOMLDocuments(input); err == nil {
@@ -318,12 +329,12 @@ func LoadTOMLDocuments(input []byte) ([]*yamlv3.Node, error) {
 func getBytesFromLocation(location string) ([]byte, error) {
 	// Handle special location "-" which refers to STDIN stream
 	if IsStdin(location) {
-		return ioutil.ReadAll(os.Stdin)
+		return io.ReadAll(os.Stdin)
 	}
 
 	// Handle location as local file if there is a file at that location
 	if _, err := os.Stat(location); err == nil {
-		return ioutil.ReadFile(location)
+		return os.ReadFile(location)
 	}
 
 	// Handle location as a URI if it looks like one
@@ -334,7 +345,7 @@ func getBytesFromLocation(location string) ([]byte, error) {
 		}
 		defer response.Body.Close()
 
-		data, err := ioutil.ReadAll(response.Body)
+		data, err := io.ReadAll(response.Body)
 		if response.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("failed to retrieve data from location %s: %s", location, string(data))
 		}
@@ -351,4 +362,9 @@ func getBytesFromLocation(location string) ([]byte, error) {
 // than a file.
 func IsStdin(location string) bool {
 	return strings.TrimSpace(location) == "-"
+}
+
+func isEmpty(input []byte) bool {
+	var foo = strings.TrimSpace(string(input))
+	return foo == "" || foo == "---"
 }

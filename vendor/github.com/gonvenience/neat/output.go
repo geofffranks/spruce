@@ -26,29 +26,66 @@ import (
 	"fmt"
 	"strings"
 
-	colorful "github.com/lucasb-eyer/go-colorful"
-	yamlv2 "gopkg.in/yaml.v2"
-	yamlv3 "gopkg.in/yaml.v3"
+	yamlv2 "go.yaml.in/yaml/v2"
+	yamlv3 "go.yaml.in/yaml/v3"
+
+	"github.com/lucasb-eyer/go-colorful"
 
 	"github.com/gonvenience/bunt"
+)
+
+// frequently used output constants
+const (
+	colorAnchor        = "anchorColor"
+	colorBinary        = "binaryColor"
+	colorBool          = "boolColor"
+	colorComment       = "commentColor"
+	colorDash          = "dashColor"
+	colorFloat         = "floatColor"
+	colorIndentLine    = "indentLineColor"
+	colorInt           = "intColor"
+	colorKey           = "keyColor"
+	colorMultiLineText = "multiLineTextColor"
+	colorNull          = "nullColor"
+	colorScalarDefault = "scalarDefaultColor"
+)
+
+const (
+	documentStart   = "documentStart"
+	emptyStructures = "emptyStructures"
+)
+
+const (
+	emptyList   = "[]"
+	emptyObject = "{}"
+)
+
+const (
+	nodeTagBinary = "!!binary"
+	nodeTagBool   = "!!bool"
+	nodeTagFloat  = "!!float"
+	nodeTagInt    = "!!int"
+	nodeTagNull   = "!!null"
+	nodeTagString = "!!str"
+	nodeTagTime   = "!!timestamp"
 )
 
 // DefaultColorSchema is a prepared usable color schema for the neat output
 // processor which is loosly based upon the colors used by Atom
 var DefaultColorSchema = map[string]colorful.Color{
-	"documentStart":      bunt.LightSlateGray,
-	"keyColor":           bunt.IndianRed,
-	"indentLineColor":    {R: 0.14, G: 0.14, B: 0.14},
-	"scalarDefaultColor": bunt.PaleGreen,
-	"boolColor":          bunt.Moccasin,
-	"floatColor":         bunt.Orange,
-	"intColor":           bunt.MediumPurple,
-	"multiLineTextColor": bunt.Aquamarine,
-	"nullColor":          bunt.DarkOrange,
-	"binaryColor":        bunt.Aqua,
-	"emptyStructures":    bunt.PaleGoldenrod,
-	"commentColor":       bunt.DimGray,
-	"anchorColor":        bunt.CornflowerBlue,
+	documentStart:      bunt.LightSlateGray,
+	colorKey:           bunt.IndianRed,
+	colorIndentLine:    {R: 0.14, G: 0.14, B: 0.14},
+	colorScalarDefault: bunt.PaleGreen,
+	colorBool:          bunt.Moccasin,
+	colorFloat:         bunt.Orange,
+	colorInt:           bunt.MediumPurple,
+	colorMultiLineText: bunt.Aquamarine,
+	colorNull:          bunt.DarkOrange,
+	colorBinary:        bunt.Aqua,
+	emptyStructures:    bunt.PaleGoldenrod,
+	colorComment:       bunt.DimGray,
+	colorAnchor:        bunt.CornflowerBlue,
 }
 
 // OutputProcessor provides the functionality to output neat YAML strings using
@@ -81,8 +118,8 @@ func NewOutputProcessor(useIndentLines bool, boldKeys bool, colorSchema *map[str
 	}
 }
 
-// Deprecated: Use colorizef instead
-func (p *OutputProcessor) colorize(text string, colorName string) string {
+// colorize returns the given string with the color applied via bunt.
+func (p *OutputProcessor) colorize(colorName string, text string) string {
 	if p.colorSchema != nil {
 		if value, ok := (*p.colorSchema)[colorName]; ok {
 			return bunt.Style(text, bunt.Foreground(value))
@@ -92,54 +129,54 @@ func (p *OutputProcessor) colorize(text string, colorName string) string {
 	return text
 }
 
+// colorizef formats a string using the provided color name and format string (created via fmt.Sprintf)
+// and returns the formatted string with the color applied via bunt.
+//
+// If additional arguments are not provided, the function skips the fmt.Sprintf call.
 func (p *OutputProcessor) colorizef(colorName string, format string, a ...interface{}) string {
-	var text = fmt.Sprintf(format, a...)
-
-	if p.colorSchema != nil {
-		if value, ok := (*p.colorSchema)[colorName]; ok {
-			return bunt.Style(text, bunt.Foreground(value))
-		}
+	if len(a) > 0 {
+		return p.colorize(colorName, fmt.Sprintf(format, a...))
 	}
 
-	return text
+	return p.colorize(colorName, format)
 }
 
 func (p *OutputProcessor) determineColorByType(obj interface{}) string {
-	color := "scalarDefaultColor"
+	color := colorScalarDefault
 
 	switch t := obj.(type) {
 	case *yamlv3.Node:
 		switch t.Tag {
-		case "!!str":
+		case nodeTagString:
 			if len(strings.Split(strings.TrimSpace(t.Value), "\n")) > 1 {
-				color = "multiLineTextColor"
+				color = colorMultiLineText
 			}
 
-		case "!!int":
-			color = "intColor"
+		case nodeTagInt:
+			color = colorInt
 
-		case "!!float":
-			color = "floatColor"
+		case nodeTagFloat:
+			color = colorFloat
 
-		case "!!bool":
-			color = "boolColor"
+		case nodeTagBool:
+			color = colorBool
 
-		case "!!null":
-			color = "nullColor"
+		case nodeTagNull:
+			color = colorNull
 		}
 
 	case bool:
-		color = "boolColor"
+		color = colorBool
 
 	case float32, float64:
-		color = "floatColor"
+		color = colorFloat
 
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr:
-		color = "intColor"
+		color = colorInt
 
 	case string:
 		if len(strings.Split(strings.TrimSpace(t), "\n")) > 1 {
-			color = "multiLineTextColor"
+			color = colorMultiLineText
 		}
 	}
 
@@ -147,9 +184,9 @@ func (p *OutputProcessor) determineColorByType(obj interface{}) string {
 }
 
 func (p *OutputProcessor) isScalar(obj interface{}) bool {
-	switch tobj := obj.(type) {
+	switch tObj := obj.(type) {
 	case *yamlv3.Node:
-		return tobj.Kind == yamlv3.ScalarNode
+		return tObj.Kind == yamlv3.ScalarNode
 
 	case yamlv2.MapSlice, []interface{}, []yamlv2.MapSlice:
 		return false
@@ -170,10 +207,10 @@ func (p *OutputProcessor) simplify(list []yamlv2.MapSlice) []interface{} {
 
 func (p *OutputProcessor) prefixAdd() string {
 	if p.useIndentLines {
-		return p.colorize("│ ", "indentLineColor")
+		return p.colorize(colorIndentLine, "│ ")
 	}
 
-	return p.colorize("  ", "indentLineColor")
+	return p.colorize(colorIndentLine, "  ")
 }
 
 func followAlias(node *yamlv3.Node) *yamlv3.Node {

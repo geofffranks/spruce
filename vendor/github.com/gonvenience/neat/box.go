@@ -27,7 +27,7 @@ import (
 	"io"
 	"strings"
 
-	colorful "github.com/lucasb-eyer/go-colorful"
+	"github.com/lucasb-eyer/go-colorful"
 
 	"github.com/gonvenience/bunt"
 	"github.com/gonvenience/term"

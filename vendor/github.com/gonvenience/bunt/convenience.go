@@ -25,7 +25,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	colorful "github.com/lucasb-eyer/go-colorful"
+	"github.com/lucasb-eyer/go-colorful"
 )
 
 // StyleOption defines style option for colored strings

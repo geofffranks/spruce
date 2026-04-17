@@ -21,7 +21,7 @@
 package ytbx
 
 import (
-	yamlv3 "gopkg.in/yaml.v3"
+	yamlv3 "go.yaml.in/yaml/v3"
 )
 
 // Delete removes the section identified by the path from the YAML structure
