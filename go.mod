@@ -12,9 +12,6 @@ require (
 	github.com/gonvenience/ytbx v1.4.9
 	github.com/homeport/dyff v1.11.3
 	github.com/mattn/go-isatty v0.0.21
-	github.com/maxbrunsfeld/counterfeiter/v6 v6.12.2
-	github.com/onsi/ginkgo/v2 v2.28.1
-	github.com/onsi/gomega v1.39.1
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be
 	github.com/voxelbrain/goptions v0.0.0-20180630082107-58cddc247ea2
@@ -57,8 +54,10 @@ require (
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mattn/go-ciede2000 v0.0.0-20170301095244-782e8c62fec3 // indirect
+	github.com/maxbrunsfeld/counterfeiter/v6 v6.12.2 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
+	github.com/onsi/ginkgo/v2 v2.28.1 // indirect
 	github.com/openai/openai-go/v3 v3.28.0 // indirect
 	github.com/securego/gosec/v2 v2.25.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
@@ -95,6 +94,8 @@ require (
 )
 
 tool (
+	github.com/maxbrunsfeld/counterfeiter/v6
+	github.com/onsi/ginkgo/v2/ginkgo
 	github.com/securego/gosec/v2/cmd/gosec
 	honnef.co/go/tools/cmd/staticcheck
 )
