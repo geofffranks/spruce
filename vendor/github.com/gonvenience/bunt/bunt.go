@@ -40,6 +40,12 @@ const (
 	underlineMask = 0x10
 )
 
+// fgClearMask is used to clear foreground color settings
+var fgClearMask = ^fgRGBMask(255, 255, 255)
+
+// fgClearMask is used to clear foreground color settings
+var bgClearMask = ^bgRGBMask(255, 255, 255)
+
 // ColorSetting defines the coloring setting to be used
 var ColorSetting SwitchState = SwitchState{value: AUTO}
 

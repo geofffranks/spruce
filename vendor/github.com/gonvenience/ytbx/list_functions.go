@@ -23,7 +23,7 @@ package ytbx
 import (
 	"fmt"
 
-	yamlv3 "gopkg.in/yaml.v3"
+	yamlv3 "go.yaml.in/yaml/v3"
 )
 
 // GetIdentifierFromNamedList returns the identifier key used in the provided

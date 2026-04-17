@@ -26,7 +26,7 @@ import (
 	"math/rand"
 	"strings"
 
-	colorful "github.com/lucasb-eyer/go-colorful"
+	"github.com/lucasb-eyer/go-colorful"
 )
 
 // The named colors are based upon https://en.wikipedia.org/wiki/Web_colors

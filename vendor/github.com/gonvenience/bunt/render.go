@@ -28,7 +28,7 @@ import (
 	"strconv"
 	"strings"
 
-	ciede2000 "github.com/mattn/go-ciede2000"
+	"github.com/mattn/go-ciede2000"
 )
 
 func (s String) String() string {

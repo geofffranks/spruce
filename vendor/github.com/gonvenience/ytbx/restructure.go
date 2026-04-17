@@ -23,7 +23,7 @@ package ytbx
 import (
 	"sort"
 
-	yamlv3 "gopkg.in/yaml.v3"
+	yamlv3 "go.yaml.in/yaml/v3"
 )
 
 // DisableRemainingKeySort disables that during restructuring of map keys, all

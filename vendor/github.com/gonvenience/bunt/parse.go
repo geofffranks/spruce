@@ -31,6 +31,11 @@ import (
 	"strings"
 )
 
+const (
+	bel = '\a' // bel (Bell)
+	st  = '\\' // st (String Terminator)
+)
+
 var (
 	escapeSeqRegExp = regexp.MustCompile(`\x1b\[(\d+(;\d+)*)m`)
 	boldMarker      = regexp.MustCompile(`\*([^*]+?)\*`)
@@ -93,15 +98,17 @@ func ParseStream(in io.Reader, opts ...ParseOption) (*String, error) {
 		panic("failed to parse ANSI sequence")
 	}
 
-	var skipUntil = func(end rune) {
+	var skipUntil = func(ends ...rune) {
 		for {
 			r, _, err := input.ReadRune()
 			if err == io.EOF {
 				panic("reached end of file before reaching end identifier")
 			}
 
-			if r == end {
-				return
+			for _, end := range ends {
+				if r == end {
+					return
+				}
 			}
 		}
 	}
@@ -133,9 +140,29 @@ func ParseStream(in io.Reader, opts ...ParseOption) (*String, error) {
 			var seq = readSGR()
 			switch seq.suffix {
 			case 'm': // colors
-				settings, err = parseSelectGraphicRenditionEscapeSequence(seq.values)
+				parsed, err := parseSelectGraphicRenditionEscapeSequence(seq.values)
 				if err != nil {
 					panic(err)
+				}
+
+				// to avoid overlapping, clear the foreground color from current
+				// settings if the new SGR sequence also defines foreground color
+				if fgMask&parsed != 0 {
+					settings &= fgClearMask
+				}
+
+				// to avoid overlapping, clear the background color from current
+				// settings if the new SGR sequence also defines background color
+				if bgMask&parsed != 0 {
+					settings &= bgClearMask
+				}
+
+				switch parsed {
+				case 0: // reset, clear current settings
+					settings = 0
+
+				default: // anything else, add it to current settings
+					settings |= parsed
 				}
 
 			case 'D': // move cursor left n lines
@@ -169,7 +196,7 @@ func ParseStream(in io.Reader, opts ...ParseOption) (*String, error) {
 			}
 
 		case ']':
-			skipUntil('\a')
+			skipUntil(bel, st)
 		}
 	}
 

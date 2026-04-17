@@ -23,12 +23,28 @@ package neat
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
+	"time"
 
-	yamlv2 "gopkg.in/yaml.v2"
-	yamlv3 "gopkg.in/yaml.v3"
+	yamlv2 "go.yaml.in/yaml/v2"
+	yamlv3 "go.yaml.in/yaml/v3"
 
 	"github.com/gonvenience/bunt"
+)
+
+var (
+	numberRegEx = regexp.MustCompile(`^(-|\+)?[0-9.e+]+$`)
+
+	// YAML Spec regarding timestamp: https://yaml.org/type/timestamp.html
+	yamlTimeLayouts = [...]string{
+		time.RFC3339,
+		"2006-01-02T15:04:05.999999999Z",
+		"2006-01-02t15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999999 07:00",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02",
+	}
 )
 
 // ToYAMLString marshals the provided object into YAML with text decorations
@@ -39,7 +55,7 @@ func ToYAMLString(obj interface{}) (string, error) {
 }
 
 // ToYAML processes the provided input object and tries to neatly output it as
-// human readable YAML honoring the preferences provided to the output processor
+// human-readable YAML honoring the preferences provided to the output processor
 func (p *OutputProcessor) ToYAML(obj interface{}) (string, error) {
 	if err := p.neatYAML("", false, obj); err != nil {
 		return "", err
@@ -88,13 +104,13 @@ func (p *OutputProcessor) neatYAMLofMapSlice(prefix string, skipIndentOnFirstLin
 			keyString = bunt.Style(keyString, bunt.Bold())
 		}
 
-		_, _ = p.out.WriteString(p.colorize(keyString, "keyColor"))
+		_, _ = p.out.WriteString(p.colorize(colorKey, keyString))
 
 		switch mapitem.Value.(type) {
 		case yamlv2.MapSlice:
 			if len(mapitem.Value.(yamlv2.MapSlice)) == 0 {
 				_, _ = p.out.WriteString(" ")
-				_, _ = p.out.WriteString(p.colorize("{}", "emptyStructures"))
+				_, _ = p.out.WriteString(p.colorize(emptyStructures, emptyObject))
 				_, _ = p.out.WriteString("\n")
 
 			} else {
@@ -107,7 +123,7 @@ func (p *OutputProcessor) neatYAMLofMapSlice(prefix string, skipIndentOnFirstLin
 		case []interface{}:
 			if len(mapitem.Value.([]interface{})) == 0 {
 				_, _ = p.out.WriteString(" ")
-				_, _ = p.out.WriteString(p.colorize("[]", "emptyStructures"))
+				_, _ = p.out.WriteString(p.colorize(emptyStructures, emptyList))
 				_, _ = p.out.WriteString("\n")
 			} else {
 				_, _ = p.out.WriteString("\n")
@@ -130,7 +146,7 @@ func (p *OutputProcessor) neatYAMLofMapSlice(prefix string, skipIndentOnFirstLin
 func (p *OutputProcessor) neatYAMLofSlice(prefix string, skipIndentOnFirstLine bool, list []interface{}) error {
 	for _, entry := range list {
 		_, _ = p.out.WriteString(prefix)
-		_, _ = p.out.WriteString(p.colorize("-", "dashColor"))
+		_, _ = p.out.WriteString(p.colorize(colorDash, "-"))
 		_, _ = p.out.WriteString(" ")
 		if err := p.neatYAML(prefix+p.prefixAdd(), true, entry); err != nil {
 			return err
@@ -143,7 +159,7 @@ func (p *OutputProcessor) neatYAMLofSlice(prefix string, skipIndentOnFirstLine b
 func (p *OutputProcessor) neatYAMLofScalar(prefix string, skipIndentOnFirstLine bool, obj interface{}) error {
 	// Process nil values immediately and return afterwards
 	if obj == nil {
-		_, _ = p.out.WriteString(p.colorize("null", "nullColor"))
+		_, _ = p.out.WriteString(p.colorize(colorNull, "null"))
 		_, _ = p.out.WriteString("\n")
 		return nil
 	}
@@ -163,7 +179,7 @@ func (p *OutputProcessor) neatYAMLofScalar(prefix string, skipIndentOnFirstLine 
 			_, _ = p.out.WriteString(prefix)
 		}
 
-		_, _ = p.out.WriteString(p.colorize(line, color))
+		_, _ = p.out.WriteString(p.colorize(color, line))
 		_, _ = p.out.WriteString("\n")
 	}
 
@@ -171,14 +187,14 @@ func (p *OutputProcessor) neatYAMLofScalar(prefix string, skipIndentOnFirstLine 
 }
 
 func (p *OutputProcessor) neatYAMLofNode(prefix string, skipIndentOnFirstLine bool, node *yamlv3.Node) error {
-	keyStyles := []bunt.StyleOption{}
+	var keyStyles []bunt.StyleOption
 	if p.boldKeys {
 		keyStyles = append(keyStyles, bunt.Bold())
 	}
 
 	switch node.Kind {
 	case yamlv3.DocumentNode:
-		bunt.Fprint(p.out, p.colorize("---", "documentStart"), "\n")
+		bunt.Fprint(p.out, p.colorize(documentStart, "---"), "\n")
 		for _, content := range node.Content {
 			if err := p.neatYAML(prefix, false, content); err != nil {
 				return err
@@ -186,7 +202,7 @@ func (p *OutputProcessor) neatYAMLofNode(prefix string, skipIndentOnFirstLine bo
 		}
 
 		if len(node.FootComment) > 0 {
-			fmt.Fprint(p.out, p.colorize(node.FootComment, "commentColor"), "\n")
+			fmt.Fprint(p.out, p.colorize(colorComment, node.FootComment), "\n")
 		}
 
 	case yamlv3.SequenceNode:
@@ -199,7 +215,7 @@ func (p *OutputProcessor) neatYAMLofNode(prefix string, skipIndentOnFirstLine bo
 				fmt.Fprint(p.out, prefix)
 			}
 
-			fmt.Fprint(p.out, p.colorize("-", "dashColor"), " ")
+			fmt.Fprint(p.out, p.colorize(colorDash, "-"), " ")
 
 			if err := p.neatYAMLofNode(prefix+p.prefixAdd(), true, entry); err != nil {
 				return err
@@ -214,17 +230,17 @@ func (p *OutputProcessor) neatYAMLofNode(prefix string, skipIndentOnFirstLine bo
 
 			key := node.Content[i]
 			if len(key.HeadComment) > 0 {
-				fmt.Fprint(p.out, p.colorize(key.HeadComment, "commentColor"), "\n")
+				fmt.Fprint(p.out, p.colorize(colorComment, key.HeadComment), "\n")
 			}
 			fmt.Fprint(p.out,
-				bunt.Style(p.colorize(fmt.Sprintf("%s:", key.Value), "keyColor"), keyStyles...),
+				bunt.Style(p.colorizef(colorKey, "%s:", key.Value), keyStyles...),
 			)
 
 			value := node.Content[i+1]
 			switch value.Kind {
 			case yamlv3.MappingNode:
 				if len(value.Content) == 0 {
-					fmt.Fprint(p.out, p.createAnchorDefinition(value), " ", p.colorize("{}", "emptyStructures"), "\n")
+					fmt.Fprint(p.out, p.createAnchorDefinition(value), " ", p.colorize(emptyStructures, emptyObject), "\n")
 				} else {
 					fmt.Fprint(p.out, p.createAnchorDefinition(value), "\n")
 					if err := p.neatYAMLofNode(prefix+p.prefixAdd(), false, value); err != nil {
@@ -234,7 +250,7 @@ func (p *OutputProcessor) neatYAMLofNode(prefix string, skipIndentOnFirstLine bo
 
 			case yamlv3.SequenceNode:
 				if len(value.Content) == 0 {
-					fmt.Fprint(p.out, p.createAnchorDefinition(value), " ", p.colorize("[]", "emptyStructures"), "\n")
+					fmt.Fprint(p.out, p.createAnchorDefinition(value), " ", p.colorize(emptyStructures, emptyList), "\n")
 				} else {
 					fmt.Fprint(p.out, p.createAnchorDefinition(value), "\n")
 					if err := p.neatYAMLofNode(prefix, false, value); err != nil {
@@ -249,52 +265,52 @@ func (p *OutputProcessor) neatYAMLofNode(prefix string, skipIndentOnFirstLine bo
 				}
 
 			case yamlv3.AliasNode:
-				fmt.Fprintf(p.out, " %s\n", p.colorize("*"+value.Value, "anchorColor"))
+				fmt.Fprintf(p.out, " %s\n", p.colorizef(colorAnchor, "*%s", value.Value))
 			}
 
 			if len(key.FootComment) > 0 {
-				fmt.Fprint(p.out, p.colorize(key.FootComment, "commentColor"), "\n")
+				fmt.Fprint(p.out, p.colorize(colorComment, key.FootComment), "\n")
 			}
 		}
 
 	case yamlv3.ScalarNode:
-		var colorName = "scalarDefaultColor"
+		var colorName = colorScalarDefault
 		switch node.Tag {
-		case "!!binary":
-			colorName = "binaryColor"
+		case nodeTagBinary:
+			colorName = colorBinary
 
-		case "!!str":
-			colorName = "scalarDefaultColor"
+		case nodeTagString: // default colorName
+			colorName = colorScalarDefault
 
-		case "!!float":
-			colorName = "floatColor"
+		case nodeTagFloat:
+			colorName = colorFloat
 
-		case "!!int":
-			colorName = "intColor"
+		case nodeTagInt:
+			colorName = colorInt
 
-		case "!!bool":
-			colorName = "boolColor"
+		case nodeTagBool:
+			colorName = colorBool
 
-		case "!!null":
-			colorName = "nullColor"
+		case nodeTagNull:
+			colorName = colorNull
 		}
 
 		lines := strings.Split(node.Value, "\n")
 		switch len(lines) {
 		case 1:
 			if needsQuotes(node) {
-				fmt.Fprint(p.out, p.colorizef(colorName, `"%s"`, node.Value))
+				fmt.Fprint(p.out, p.colorizef(colorName, "%q", node.Value))
 			} else {
-				fmt.Fprint(p.out, p.colorizef(colorName, node.Value))
+				fmt.Fprint(p.out, p.colorize(colorName, node.Value))
 			}
 
 		default:
-			colorName = "multiLineTextColor"
-			fmt.Fprint(p.out, p.colorize("|", colorName), "\n")
+			colorName = colorMultiLineText
+			fmt.Fprint(p.out, p.colorize(colorName, "|"), "\n")
 			for i, line := range lines {
 				fmt.Fprint(p.out,
 					prefix,
-					p.colorize(line, colorName),
+					p.colorize(colorName, line),
 				)
 
 				if i != len(lines)-1 {
@@ -304,13 +320,13 @@ func (p *OutputProcessor) neatYAMLofNode(prefix string, skipIndentOnFirstLine bo
 		}
 
 		if len(node.LineComment) > 0 {
-			fmt.Fprint(p.out, " ", p.colorize(node.LineComment, "commentColor"))
+			fmt.Fprint(p.out, " ", p.colorize(colorComment, node.LineComment))
 		}
 
 		fmt.Fprint(p.out, "\n")
 
 		if len(node.FootComment) > 0 {
-			fmt.Fprint(p.out, p.colorize(node.FootComment, "commentColor"), "\n")
+			fmt.Fprint(p.out, p.colorize(colorComment, node.FootComment), "\n")
 		}
 
 	case yamlv3.AliasNode:
@@ -343,7 +359,7 @@ func (p *OutputProcessor) neatYAMLOfStruct(prefix string, skipIndentOnFirstLine 
 
 func (p *OutputProcessor) createAnchorDefinition(node *yamlv3.Node) string {
 	if len(node.Anchor) != 0 {
-		return fmt.Sprint(" ", p.colorize("&"+node.Anchor, "anchorColor"))
+		return fmt.Sprint(" ", p.colorizef(colorAnchor, "&%s", node.Anchor))
 	}
 
 	return ""
@@ -351,12 +367,12 @@ func (p *OutputProcessor) createAnchorDefinition(node *yamlv3.Node) string {
 
 func needsQuotes(node *yamlv3.Node) bool {
 	// skip all non string nodes
-	if node.Tag != "!!str" {
+	if node.Tag != nodeTagString {
 		return false
 	}
 
 	// check if string matches one of the known reserved keywords
-	for _, chk := range []string{"true", "false", "null"} {
+	for _, chk := range []string{"true", "false", "null", ".nan", ".inf", "-.inf", "+.inf"} {
 		if node.Value == chk {
 			return true
 		}
@@ -364,6 +380,11 @@ func needsQuotes(node *yamlv3.Node) bool {
 
 	// check if strings starts with a dash
 	if strings.HasPrefix(node.Value, "-") {
+		return true
+	}
+
+	// check if string looks like a number
+	if numberRegEx.MatchString(node.Value) {
 		return true
 	}
 
