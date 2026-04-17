@@ -47,7 +47,7 @@ jobs:
 
       - name: Set up Go (latest stable)
         if: steps.branchcheck.outputs.skip == 'false'
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: stable
           check-latest: true
