@@ -4,88 +4,105 @@ import (
 	"bufio"
 	"regexp"
 	"strings"
-	"testing"
 
 	// Use geofffranks forks to persist the fix in https://github.com/go-yaml/yaml/pull/133/commits
 	// Also https://github.com/go-yaml/yaml/pull/195
 	"github.com/geofffranks/simpleyaml"
 	"github.com/geofffranks/yaml"
-	. "github.com/smartystreets/goconvey/convey"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-func TestEvaluator(t *testing.T) {
-	SilenceWarnings(true)
-	YAML := func(s string) map[interface{}]interface{} {
-		y, err := simpleyaml.NewYaml([]byte(s))
-		So(err, ShouldBeNil)
+// evalYAML parses a YAML string into a map, failing the current spec on error.
+func evalYAML(s string) map[interface{}]interface{} {
+	y, err := simpleyaml.NewYaml([]byte(s))
+	Expect(err).NotTo(HaveOccurred())
 
-		data, err := y.Map()
-		So(err, ShouldBeNil)
+	data, err := y.Map()
+	Expect(err).NotTo(HaveOccurred())
 
-		return data
-	}
-	ToYAML := func(tree map[interface{}]interface{}) string {
-		y, err := yaml.Marshal(tree)
-		So(err, ShouldBeNil)
-		return string(y)
-	}
-	ReYAML := func(s string) string {
-		return ToYAML(YAML(s))
-	}
-	RunPhaseTests := func(phase OperatorPhase, src string) {
-		var test, input, dataflow, output string
-		var current *string
-		testPat := regexp.MustCompile(`^##+\s+(.*)\s*$`)
+	return data
+}
 
-		convey := func() {
-			if test != "" {
-				Convey(test, func() {
-					ev := &Evaluator{Tree: YAML(input)}
+// evalToYAML marshals a map to a YAML string, failing the current spec on error.
+func evalToYAML(tree map[interface{}]interface{}) string {
+	y, err := yaml.Marshal(tree)
+	Expect(err).NotTo(HaveOccurred())
+	return string(y)
+}
 
-					ops, err := ev.DataFlow(phase)
-					So(err, ShouldBeNil)
+// evalReYAML round-trips a YAML string through parse+marshal for canonical comparison.
+func evalReYAML(s string) string {
+	return evalToYAML(evalYAML(s))
+}
 
-					// map data flow ops into 'dataflow:' YAML list
-					var flow []map[string]string
-					for _, op := range ops {
-						flow = append(flow, map[string]string{op.where.String(): op.src})
-					}
-					So(ToYAML(map[interface{}]interface{}{"dataflow": flow}),
-						ShouldEqual, ReYAML(dataflow))
+// runPhaseTests parses a DSL test document (## header / --- sections) and registers
+// one It() spec per test case. It must be called during Describe/Context setup.
+// Each test section has three --- delimited parts: input, dataflow, output.
+func runPhaseTests(phase OperatorPhase, src string) {
+	var test, input, dataflow, output string
+	var current *string
+	testPat := regexp.MustCompile(`^##+\s+(.*)\s*$`)
 
-					err = ev.RunPhase(phase)
-					So(err, ShouldBeNil)
-					So(ToYAML(ev.Tree), ShouldEqual, ReYAML(output))
-				})
-			}
-		}
+	register := func() {
+		if test != "" {
+			capturedTest := test
+			capturedInput := input
+			capturedDataflow := dataflow
+			capturedOutput := output
+			It(capturedTest, func() {
+				ev := &Evaluator{Tree: evalYAML(capturedInput)}
 
-		s := bufio.NewScanner(strings.NewReader(src))
-		for s.Scan() {
-			if testPat.MatchString(s.Text()) {
-				m := testPat.FindStringSubmatch(s.Text())
-				convey()
-				test, input, dataflow, output = m[1], "", "", ""
-				continue
-			}
+				ops, err := ev.DataFlow(phase)
+				Expect(err).NotTo(HaveOccurred())
 
-			if s.Text() == "---" {
-				if input == "" {
-					current = &input
-				} else if dataflow == "" {
-					current = &dataflow
-				} else {
-					current = &output
+				// map data flow ops into 'dataflow:' YAML list
+				var flow []map[string]string
+				for _, op := range ops {
+					flow = append(flow, map[string]string{op.where.String(): op.src})
 				}
-				continue
-			}
+				Expect(evalToYAML(map[interface{}]interface{}{"dataflow": flow})).
+					To(Equal(evalReYAML(capturedDataflow)))
 
-			if current != nil {
-				*current = *current + s.Text() + "\n"
-			}
+				err = ev.RunPhase(phase)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(evalToYAML(ev.Tree)).To(Equal(evalReYAML(capturedOutput)))
+			})
 		}
-		convey()
 	}
+
+	s := bufio.NewScanner(strings.NewReader(src))
+	for s.Scan() {
+		if testPat.MatchString(s.Text()) {
+			m := testPat.FindStringSubmatch(s.Text())
+			register()
+			test, input, dataflow, output = m[1], "", "", ""
+			continue
+		}
+
+		if s.Text() == "---" {
+			if input == "" {
+				current = &input
+			} else if dataflow == "" {
+				current = &dataflow
+			} else {
+				current = &output
+			}
+			continue
+		}
+
+		if current != nil {
+			*current = *current + s.Text() + "\n"
+		}
+	}
+	register()
+}
+
+var _ = Describe("Evaluator", func() {
+	BeforeEach(func() {
+		SilenceWarnings(true)
+	})
 
 	/*
 	   ##     ## ######## ########   ######   ########
@@ -97,8 +114,8 @@ func TestEvaluator(t *testing.T) {
 	   ##     ## ######## ##     ##  ######   ########
 	*/
 
-	Convey("Merge Phase", t, func() {
-		RunPhaseTests(MergePhase, `
+	Describe("Merge Phase", func() {
+		runPhaseTests(MergePhase, `
 ##################################################   can handle simplest case
 ---
 templates:
@@ -472,10 +489,10 @@ foo:
 `)
 	})
 
-	Convey("Merge Phase Error Detection", t, func() {
-		Convey("detects direct (a -> b -> a) cycles in data flow graph", func() {
+	Describe("Merge Phase Error Detection", func() {
+		It("detects direct (a -> b -> a) cycles in data flow graph", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 meta:
   bar:
     <<<: (( inject meta.foo ))
@@ -485,7 +502,7 @@ meta:
 			}
 
 			_, err := ev.DataFlow(MergePhase)
-			So(err, ShouldNotBeNil)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 
@@ -499,8 +516,8 @@ meta:
 	   ########    ###    ##     ## ########
 	*/
 
-	Convey("Eval Phase", t, func() {
-		RunPhaseTests(EvalPhase, `
+	Describe("Eval Phase", func() {
+		runPhaseTests(EvalPhase, `
 #############################################################   handles simple expressions
 ---
 foo: (( concat "foo" ":" "bar" ))
@@ -1623,10 +1640,10 @@ combined: |
 `)
 	})
 
-	Convey("Eval Phase Error Detection", t, func() {
-		Convey("detects direct (a -> b -> a) cycles in data flow graph", func() {
+	Describe("Eval Phase Error Detection", func() {
+		It("detects direct (a -> b -> a) cycles in data flow graph", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 meta:
   bar: (( grab meta.foo ))
   foo: (( grab meta.bar ))
@@ -1634,12 +1651,12 @@ meta:
 			}
 
 			_, err := ev.DataFlow(EvalPhase)
-			So(err, ShouldNotBeNil)
+			Expect(err).To(HaveOccurred())
 		})
 
-		Convey("detects indirect (a -> b -> c -> a) cycles in data flow graph", func() {
+		It("detects indirect (a -> b -> c -> a) cycles in data flow graph", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 meta:
   foo: (( grab meta.bar ))
   bar: (( grab meta.baz ))
@@ -1648,12 +1665,12 @@ meta:
 			}
 
 			_, err := ev.DataFlow(EvalPhase)
-			So(err, ShouldNotBeNil)
+			Expect(err).To(HaveOccurred())
 		})
 
-		Convey("detects indirect cycles created through operand data flow", func() {
+		It("detects indirect cycles created through operand data flow", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 meta:
   foo: (( grab meta.bar ))
   bar: (( grab meta.baz ))
@@ -1662,12 +1679,12 @@ meta:
 			}
 
 			_, err := ev.DataFlow(EvalPhase)
-			So(err, ShouldNotBeNil)
+			Expect(err).To(HaveOccurred())
 		})
 
-		Convey("detects allocation conflicts of static IP addresses", func() {
+		It("detects allocation conflicts of static IP addresses", func() {
 			ev := &Evaluator{
-				Tree: YAML(
+				Tree: evalYAML(
 					`jobs:
 - name: api_z1
   instances: 1
@@ -1688,12 +1705,12 @@ networks:
 			}
 
 			err := ev.RunPhase(EvalPhase)
-			So(err, ShouldNotBeNil)
+			Expect(err).To(HaveOccurred())
 		})
 
-		Convey("detects unsatisfied (( param )) inside of a (( grab ... )) call", func() {
+		It("detects unsatisfied (( param )) inside of a (( grab ... )) call", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 meta:
   key: (( param "you must specify this" ))
 value: (( grab meta.key ))
@@ -1701,17 +1718,17 @@ value: (( grab meta.key ))
 			}
 
 			err := ev.RunPhase(ParamPhase)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "1 error(s) detected")
-			So(err.Error(), ShouldContainSubstring, "you must specify this")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("1 error(s) detected"))
+			Expect(err.Error()).To(ContainSubstring("you must specify this"))
 
 			err = ev.RunPhase(EvalPhase)
-			So(err, ShouldBeNil)
+			Expect(err).NotTo(HaveOccurred())
 		})
 
-		Convey("detects unsatisfied (( param )) inside of a (( concat ... )) call", func() {
+		It("detects unsatisfied (( param )) inside of a (( concat ... )) call", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 ---
 meta:
   key: (( param "you must specify this" ))
@@ -1720,17 +1737,17 @@ value: (( concat "key=" meta.key ))
 			}
 
 			err := ev.RunPhase(ParamPhase)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "1 error(s) detected")
-			So(err.Error(), ShouldContainSubstring, "you must specify this")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("1 error(s) detected"))
+			Expect(err.Error()).To(ContainSubstring("you must specify this"))
 
 			err = ev.RunPhase(EvalPhase)
-			So(err, ShouldBeNil)
+			Expect(err).NotTo(HaveOccurred())
 		})
 
-		Convey("handles non-list (direct) args to (( cartesian-product ... ))", func() {
+		It("handles non-list (direct) args to (( cartesian-product ... ))", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 meta:
   list: [a,b,c]
 all: (( cartesian-product meta meta.list ))
@@ -1738,13 +1755,13 @@ all: (( cartesian-product meta meta.list ))
 			}
 
 			err := ev.RunPhase(EvalPhase)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "cartesian-product operator only accepts arrays and string values")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("cartesian-product operator only accepts arrays and string values"))
 		})
 
-		Convey("treats list-of-lists args to (( cartesian-product ... )) as an error", func() {
+		It("treats list-of-lists args to (( cartesian-product ... )) as an error", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 meta:
   list:
     - [a,b,c]
@@ -1755,13 +1772,13 @@ all: (( cartesian-product meta.list meta.list ))
 			}
 
 			err := ev.RunPhase(EvalPhase)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "cartesian-product operator can only operate on lists of scalar values")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("cartesian-product operator can only operate on lists of scalar values"))
 		})
 
-		Convey("treats list-of-maps args to (( cartesian-product ... )) as an error", func() {
+		It("treats list-of-maps args to (( cartesian-product ... )) as an error", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 meta:
   list:
     - name: a
@@ -1772,37 +1789,37 @@ all: (( cartesian-product meta.list meta.list ))
 			}
 
 			err := ev.RunPhase(EvalPhase)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "cartesian-product operator can only operate on lists of scalar values")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("cartesian-product operator can only operate on lists of scalar values"))
 		})
 
-		Convey("(( cartesian-product ... )) requires an argument", func() {
+		It("(( cartesian-product ... )) requires an argument", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 all: (( cartesian-product ))
 `),
 			}
 
 			err := ev.RunPhase(EvalPhase)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "no arguments specified to (( cartesian-product ... ))")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("no arguments specified to (( cartesian-product ... ))"))
 		})
 
-		Convey("(( keys ... )) requires an argument", func() {
+		It("(( keys ... )) requires an argument", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 keys: (( keys ))
 `),
 			}
 
 			err := ev.RunPhase(EvalPhase)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "no arguments specified to (( keys ... ))")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("no arguments specified to (( keys ... ))"))
 		})
 
-		Convey("treats attempt to call (( keys ... )) on a literal as an error", func() {
+		It("treats attempt to call (( keys ... )) on a literal as an error", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 meta:
   test: is this a map?
 keys: (( keys meta.test ))
@@ -1810,13 +1827,13 @@ keys: (( keys meta.test ))
 			}
 
 			err := ev.RunPhase(EvalPhase)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "$.keys: meta.test is not a map")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("$.keys: meta.test is not a map"))
 		})
 
-		Convey("treats attempt to call (( keys ... )) on a list as an error", func() {
+		It("treats attempt to call (( keys ... )) on a list as an error", func() {
 			ev := &Evaluator{
-				Tree: YAML(`
+				Tree: evalYAML(`
 meta:
   test:
     - but wait
@@ -1827,8 +1844,88 @@ keys: (( keys meta.test ))
 			}
 
 			err := ev.RunPhase(EvalPhase)
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "$.keys: meta.test is not a map")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("$.keys: meta.test is not a map"))
 		})
 	})
-}
+})
+
+var _ = Describe("Evaluator.Prune", func() {
+	It("removes specified keys from the tree", func() {
+		ev := &Evaluator{
+			Tree: evalYAML(`
+key: value
+remove_me: gone
+nested:
+  keep: yes
+  prune: no
+`),
+		}
+		err := ev.Prune([]string{"remove_me", "nested.prune"})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(evalToYAML(ev.Tree)).To(Equal(evalReYAML(`
+key: value
+nested:
+  keep: yes
+`)))
+	})
+
+	It("succeeds with no prune paths", func() {
+		ev := &Evaluator{Tree: evalYAML("key: value\n")}
+		err := ev.Prune(nil)
+		Expect(err).NotTo(HaveOccurred())
+	})
+})
+
+var _ = Describe("Evaluator.CheckForCycles", func() {
+	It("detects cyclic data structures", func() {
+		inner := map[interface{}]interface{}{}
+		outer := map[interface{}]interface{}{"inner": inner}
+		inner["self"] = outer
+
+		ev := &Evaluator{Tree: outer}
+		err := ev.CheckForCycles(10)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("max recursion depth"))
+	})
+
+	It("succeeds on normal data", func() {
+		ev := &Evaluator{Tree: evalYAML("a:\n  b: c\n")}
+		err := ev.CheckForCycles(4096)
+		Expect(err).NotTo(HaveOccurred())
+	})
+})
+
+var _ = Describe("Evaluator.Run", func() {
+	It("evaluates a complete document with grab operators", func() {
+		ev := &Evaluator{
+			Tree: evalYAML(`
+meta:
+  foo: bar
+result: (( grab meta.foo ))
+`),
+		}
+		err := ev.Run(nil, nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(evalToYAML(ev.Tree)).To(Equal(evalReYAML(`
+meta:
+  foo: bar
+result: bar
+`)))
+	})
+
+	It("evaluates and prunes", func() {
+		ev := &Evaluator{
+			Tree: evalYAML(`
+meta:
+  foo: bar
+result: (( grab meta.foo ))
+`),
+		}
+		err := ev.Run([]string{"meta"}, nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(evalToYAML(ev.Tree)).To(Equal(evalReYAML(`
+result: bar
+`)))
+	})
+})
