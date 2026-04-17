@@ -3,6 +3,7 @@
 package spruce
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"regexp"
@@ -109,12 +110,13 @@ const (
 
 // Expr ...
 type Expr struct {
-	Type      ExprType
-	Reference *tree.Cursor
-	Literal   interface{}
-	Name      string
-	Left      *Expr
-	Right     *Expr
+	Type           ExprType
+	Reference      *tree.Cursor
+	BracketedNodes []bool
+	Literal        interface{}
+	Name           string
+	Left           *Expr
+	Right          *Expr
 }
 
 func (e *Expr) String() string {
@@ -199,7 +201,20 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 		return &Expr{Type: Literal, Literal: val}, nil
 
 	case Reference:
+		// Clear bracket flags for $VAR nodes before ResolveEnv consumes the "$" sentinel,
+		// so (( grab map[$VAR] )) treats the env-var value as a literal key rather than
+		// as a YAML path to re-resolve against the tree.
+		for i, node := range e.Reference.Nodes {
+			if i < len(e.BracketedNodes) && len(node) > 0 && node[0] == '$' {
+				e.BracketedNodes[i] = false
+			}
+		}
 		e.Reference.Nodes = ResolveEnv(e.Reference.Nodes)
+		nodes, err := ResolveDynamicRefs(e.Reference.Nodes, e.BracketedNodes, tree)
+		if err != nil {
+			return nil, ansi.Errorf("@R{%s}", err)
+		}
+		e.Reference.Nodes = nodes
 		if _, err := e.Reference.Resolve(tree); err != nil {
 			return nil, ansi.Errorf("@R{unable to resolve `}@c{%s}@R{`: %s}", e.Reference, err)
 		}
@@ -224,6 +239,106 @@ func ResolveEnv(nodes []string) []string {
 		}
 	}
 	return resolved
+}
+
+// bracketsOf re-parses a path string to recover which nodes were specified in
+// bracket notation. tree.ParseCursor normalizes both notations into identical
+// Nodes, discarding this distinction, so we must re-derive it from the source.
+func bracketsOf(path string) []bool {
+	var result []bool
+	inBracket := false
+	var buf bytes.Buffer
+
+	push := func(isBracketed bool) {
+		if buf.Len() == 0 {
+			return
+		}
+		// Mirror ParseCursor: skip leading "$" sentinel
+		if len(result) == 0 && buf.String() == "$" {
+			buf.Reset()
+			return
+		}
+		result = append(result, isBracketed)
+		buf.Reset()
+	}
+
+	for _, c := range path {
+		switch c {
+		case '.':
+			if inBracket {
+				buf.WriteRune(c)
+			} else {
+				push(false)
+			}
+		case '[':
+			push(false)
+			inBracket = true
+		case ']':
+			push(true)
+			inBracket = false
+		default:
+			buf.WriteRune(c)
+		}
+	}
+	push(false)
+	return result
+}
+
+// ResolveDynamicRefs resolves nodes that were specified in bracket notation as YAML
+// path references against the tree, enabling (( grab map[key_ref] )) syntax.
+// Mutates bracketed: clears flags for nodes that were substituted, to keep
+// subsequent calls idempotent (e.g. when Dependencies and Run both invoke Resolve).
+func ResolveDynamicRefs(nodes []string, bracketed []bool, t map[interface{}]interface{}) ([]string, error) {
+	hasDynamic := false
+	for _, b := range bracketed {
+		if b {
+			hasDynamic = true
+			break
+		}
+	}
+	if !hasDynamic {
+		return nodes, nil
+	}
+
+	resolved := make([]string, len(nodes))
+	copy(resolved, nodes)
+	for i, node := range nodes {
+		if i >= len(bracketed) || !bracketed[i] {
+			continue
+		}
+		if len(node) == 0 || node[0] == '$' {
+			continue // $VAR nodes were already substituted by ResolveEnv; skip any remnants
+		}
+		if _, err := strconv.ParseUint(node, 10, 64); err == nil {
+			continue // numeric nodes are array indices, not YAML references
+		}
+		c, err := tree.ParseCursor(node)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bracketed key reference %q: %s", node, err)
+		}
+		val, err := c.Resolve(t)
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve bracketed key reference %q: %s", node, err)
+		}
+		switch v := val.(type) {
+		case string:
+			resolved[i] = v
+		case int:
+			resolved[i] = strconv.Itoa(v)
+		case int64:
+			resolved[i] = strconv.FormatInt(v, 10)
+		case float64:
+			resolved[i] = strconv.FormatFloat(v, 'f', -1, 64)
+		case bool:
+			resolved[i] = strconv.FormatBool(v)
+		default:
+			return nil, fmt.Errorf("bracketed key reference %q resolved to %T; expected a scalar (string, int, float, or bool)", node, val)
+		}
+		// Clear the flag so re-resolving the same Expr (e.g. in JoinOperator.Dependencies
+		// followed by Run) treats the already-substituted node as a literal key.
+		bracketed[i] = false
+	}
+	return resolved, nil
 }
 
 // Evaluate ...
@@ -267,6 +382,20 @@ func (e *Expr) Dependencies(ev *Evaluator, locs []*tree.Cursor) []*tree.Cursor {
 	switch e.Type {
 	case Reference:
 		canonicalize(e.Reference)
+		for i, node := range e.Reference.Nodes {
+			if i >= len(e.BracketedNodes) || !e.BracketedNodes[i] {
+				continue
+			}
+			if len(node) == 0 || node[0] == '$' {
+				continue
+			}
+			if _, err := strconv.ParseUint(node, 10, 64); err == nil {
+				continue
+			}
+			if c, err := tree.ParseCursor(node); err == nil {
+				canonicalize(c)
+			}
+		}
 
 	case LogicalOr:
 		for _, c := range e.Left.Dependencies(ev, locs) {
@@ -454,7 +583,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 					return args, err
 				}
 				DEBUG("  #%d: parsed as a reference to $.%s", i, c)
-				push(&Expr{Type: Reference, Reference: c})
+				push(&Expr{Type: Reference, Reference: c, BracketedNodes: bracketsOf(arg)})
 			}
 		}
 		pop()
