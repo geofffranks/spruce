@@ -92,6 +92,6 @@ func (e WarningError) HasContext(context ErrorContext) bool {
 //Warn prints the configured warning to stderr.
 func (e WarningError) Warn() {
 	if !dontPrintWarning {
-		log.PrintfStdErr(ansi.Sprintf("@Y{warning:} %s\n", e.warning))
+		log.PrintfStdErr("%s", ansi.Sprintf("@Y{warning:} %s\n", e.warning))
 	}
 }

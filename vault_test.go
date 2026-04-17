@@ -155,7 +155,7 @@ secret: REDACTED
 						switch r.URL.Path {
 						case "/v1/sys/internal/ui/mounts":
 							w.WriteHeader(200)
-							fmt.Fprintf(w, mountsResp)
+							fmt.Fprintf(w, "%s", mountsResp)
 						case "/v1/secret/hand":
 							w.WriteHeader(200)
 							fmt.Fprintf(w, `{"data":{"shake":"knock, knock"}}`)
@@ -191,7 +191,7 @@ secret: REDACTED
 						switch r.URL.Path {
 						case "/v1/sys/internal/ui/mounts":
 							w.WriteHeader(200)
-							fmt.Fprintf(w, mountsResp)
+							fmt.Fprintf(w, "%s", mountsResp)
 						case "/v1/secret/data/hand":
 							w.WriteHeader(200)
 							fmt.Fprintf(w, `{"data":{"data:{"shake":"knock, knock"}}`)
