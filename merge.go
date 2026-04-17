@@ -76,17 +76,17 @@ func getDefaultIdentifierKey() string {
 }
 
 func deepCopy(orig interface{}) interface{} {
-	switch orig.(type) {
+	switch orig := orig.(type) {
 	case map[interface{}]interface{}:
 		x := map[interface{}]interface{}{}
-		for k, v := range orig.(map[interface{}]interface{}) {
+		for k, v := range orig {
 			x[k] = deepCopy(v)
 		}
 		return x
 
 	case []interface{}:
-		x := make([]interface{}, len(orig.([]interface{})))
-		for i, v := range orig.([]interface{}) {
+		x := make([]interface{}, len(orig))
+		for i, v := range orig {
 			x[i] = deepCopy(v)
 		}
 		return x

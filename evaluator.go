@@ -27,15 +27,15 @@ type Evaluator struct {
 
 func nameOfObj(o interface{}, def string) string {
 	for _, field := range tree.NameFields {
-		switch o.(type) {
+		switch o := o.(type) {
 		case map[string]interface{}:
-			if value, ok := o.(map[string]interface{})[field]; ok {
+			if value, ok := o[field]; ok {
 				if s, ok := value.(string); ok {
 					return s
 				}
 			}
 		case map[interface{}]interface{}:
-			if value, ok := o.(map[interface{}]interface{})[field]; ok {
+			if value, ok := o[field]; ok {
 				if s, ok := value.(string); ok {
 					return s
 				}
@@ -80,16 +80,16 @@ func (ev *Evaluator) DataFlow(phase OperatorPhase) ([]*Opcall, error) {
 	}
 
 	scan = func(o interface{}) {
-		switch o.(type) {
+		switch o := o.(type) {
 		case map[interface{}]interface{}:
-			for k, v := range o.(map[interface{}]interface{}) {
+			for k, v := range o {
 				ev.Here.Push(fmt.Sprintf("%v", k))
 				check(v)
 				ev.Here.Pop()
 			}
 
 		case []interface{}:
-			for i, v := range o.([]interface{}) {
+			for i, v := range o {
 				name := nameOfObj(v, fmt.Sprintf("%d", i))
 				op, _ := ParseOpcall(phase, name)
 				if op == nil {
@@ -366,29 +366,25 @@ func (ev *Evaluator) Prune(paths []string) error {
 			continue
 		}
 
-		switch o.(type) {
+		switch o := o.(type) {
 		case map[interface{}]interface{}:
-			if _, ok := o.(map[interface{}]interface{}); ok {
-				DEBUG("  pruning %s", path)
-				delete(o.(map[interface{}]interface{}), key)
-			}
+			DEBUG("  pruning %s", path)
+			delete(o, key)
 
 		case []interface{}:
-			if list, ok := o.([]interface{}); ok {
-				if idx, err := strconv.Atoi(key); err == nil {
-					parent.Pop()
-					if s, err := parent.Resolve(ev.Tree); err == nil {
-						if reflect.TypeOf(s).Kind() == reflect.Map {
-							parentName := fmt.Sprintf("%s", c.Component(-2))
-							DEBUG("  pruning index %d of array '%s'", idx, parentName)
+			if idx, err := strconv.Atoi(key); err == nil {
+				parent.Pop()
+				if s, err := parent.Resolve(ev.Tree); err == nil {
+					if reflect.TypeOf(s).Kind() == reflect.Map {
+						parentName := fmt.Sprintf("%s", c.Component(-2))
+						DEBUG("  pruning index %d of array '%s'", idx, parentName)
 
-							length := len(list) - 1
-							replacement := make([]interface{}, length)
-							copy(replacement, append(list[:idx], list[idx+1:]...))
+						length := len(o) - 1
+						replacement := make([]interface{}, length)
+						copy(replacement, append(o[:idx], o[idx+1:]...))
 
-							delete(s.(map[interface{}]interface{}), parentName)
-							s.(map[interface{}]interface{})[parentName] = replacement
-						}
+						delete(s.(map[interface{}]interface{}), parentName)
+						s.(map[interface{}]interface{})[parentName] = replacement
 					}
 				}
 			}
@@ -549,16 +545,16 @@ func (ev *Evaluator) CheckForCycles(maxDepth int) error {
 			return ansi.Errorf("@*{Hit max recursion depth. You seem to have a self-referencing dataset}")
 		}
 
-		switch o.(type) {
+		switch o := o.(type) {
 		case []interface{}:
-			for _, v := range o.([]interface{}) {
+			for _, v := range o {
 				if err := check(v, depth-1); err != nil {
 					return err
 				}
 			}
 
 		case map[interface{}]interface{}:
-			for _, v := range o.(map[interface{}]interface{}) {
+			for _, v := range o {
 				if err := check(v, depth-1); err != nil {
 					return err
 				}
@@ -598,17 +594,17 @@ func (ev *Evaluator) RunOp(op *Opcall) error {
 			DEBUG("  error: %s\n  continuing\n", err)
 			return err
 		}
-		switch o.(type) {
+		switch o := o.(type) {
 		case []interface{}:
 			i, err := strconv.ParseUint(key, 10, 0)
 			if err != nil {
 				DEBUG("  error: %s\n  continuing\n", err)
 				return err
 			}
-			o.([]interface{})[i] = resp.Value
+			o[i] = resp.Value
 
 		case map[interface{}]interface{}:
-			o.(map[interface{}]interface{})[key] = resp.Value
+			o[key] = resp.Value
 
 		default:
 			err := tree.TypeMismatchError{

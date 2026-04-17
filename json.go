@@ -89,11 +89,11 @@ func JSONifyFiles(paths []string, strict bool) ([]string, error) {
 }
 
 func deinterface(o interface{}, strict bool) (interface{}, error) {
-	switch o.(type) {
+	switch o := o.(type) {
 	case map[interface{}]interface{}:
-		return deinterfaceMap(o.(map[interface{}]interface{}), strict)
+		return deinterfaceMap(o, strict)
 	case []interface{}:
-		return deinterfaceList(o.([]interface{}), strict)
+		return deinterfaceList(o, strict)
 	default:
 		return o, nil
 	}

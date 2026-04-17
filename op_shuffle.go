@@ -54,9 +54,9 @@ func (ShuffleOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 				return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
 			}
 
-			switch s.(type) {
+			switch s := s.(type) {
 			case []interface{}:
-				for _, thing := range s.([]interface{}) {
+				for _, thing := range s {
 					vals = append(vals, thing)
 				}
 
@@ -65,7 +65,7 @@ func (ShuffleOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 				return nil, fmt.Errorf("shuffle only accepts arrays and string values")
 
 			default:
-				vals = append(vals, s.(interface{}))
+				vals = append(vals, s)
 			}
 
 		default:

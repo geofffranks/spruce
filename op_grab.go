@@ -79,10 +79,10 @@ func (GrabOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		DEBUG("  called with more than one arguments; flattening top-level lists into a single list")
 		flat := []interface{}{}
 		for i, lst := range vals {
-			switch lst.(type) {
+			switch lst := lst.(type) {
 			case []interface{}:
 				DEBUG("    [%d]: $.%s is a list; flattening it out", i, args[i].Reference)
-				flat = append(flat, lst.([]interface{})...)
+				flat = append(flat, lst...)
 			default:
 				DEBUG("    [%d]: $.%s is not a list; appending it as-is", i, args[i].Reference)
 				flat = append(flat, lst)
