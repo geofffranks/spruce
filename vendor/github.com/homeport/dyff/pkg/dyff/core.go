@@ -21,15 +21,19 @@
 package dyff
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/gonvenience/bunt"
+	"github.com/gonvenience/idem"
 	"github.com/gonvenience/text"
 	"github.com/gonvenience/ytbx"
-	"github.com/mitchellh/hashstructure"
-	yamlv3 "gopkg.in/yaml.v3"
+
+	"github.com/mitchellh/hashstructure/v2"
+	yamlv3 "go.yaml.in/yaml/v3"
 )
 
 // CompareOption sets a specific compare setting for the object comparison
@@ -40,6 +44,8 @@ type compareSettings struct {
 	IgnoreOrderChanges                       bool
 	IgnoreWhitespaceChanges                  bool
 	KubernetesEntityDetection                bool
+	DetectRenames                            bool
+	FormatStrings                            bool
 	AdditionalIdentifiers                    []string
 }
 
@@ -83,6 +89,19 @@ func IgnoreWhitespaceChanges(value bool) CompareOption {
 func KubernetesEntityDetection(value bool) CompareOption {
 	return func(settings *compareSettings) {
 		settings.KubernetesEntityDetection = value
+	}
+}
+
+// DetectRenames enabled detection of renames so that it correlates two entries based on their identifier field
+func DetectRenames(value bool) CompareOption {
+	return func(settings *compareSettings) {
+		settings.DetectRenames = value
+	}
+}
+
+func FormatStrings(value bool) CompareOption {
+	return func(settings *compareSettings) {
+		settings.FormatStrings = value
 	}
 }
 
@@ -136,11 +155,12 @@ func CompareInputFiles(from ytbx.InputFile, to ytbx.InputFile, compareOptions ..
 			from.Documents, from.Names = fromDocs, fromNames
 			to.Documents, to.Names = toDocs, toNames
 
-			// Compare the document nodes, in case of an error it will fall back to the default
-			// implementation and continue to compare the files without any special semantics
-			if result, err := cmpr.documentNodes(from, to); err == nil {
-				return Report{from, to, result}, nil
+			// Compare the document nodes
+			result, err := cmpr.documentNodes(from, to)
+			if err != nil {
+				return Report{}, fmt.Errorf("comparing Kubernetes resources: %w", err)
 			}
+			return Report{from, to, result}, nil
 		}
 	}
 
@@ -283,8 +303,8 @@ func (compare *compare) documentNodes(from, to ytbx.InputFile) ([]Diff, error) {
 		return nil, err
 	}
 
-	removals := []*yamlv3.Node{}
-	additions := []*yamlv3.Node{}
+	var removals []doc
+	var additions []doc
 
 	for _, name := range fromNames {
 		var fromItem = fromLookUpMap[name]
@@ -295,16 +315,14 @@ func (compare *compare) documentNodes(from, to ytbx.InputFile) ([]Diff, error) {
 				followAlias(fromItem.node),
 				followAlias(toItem.node),
 			)
-
 			if err != nil {
 				return nil, err
 			}
 
 			result = append(result, diffs...)
-
 		} else {
 			// `from` contain the `key`, but `to` does not -> removal
-			removals = append(removals, fromItem.node)
+			removals = append(removals, fromItem)
 		}
 	}
 
@@ -312,53 +330,96 @@ func (compare *compare) documentNodes(from, to ytbx.InputFile) ([]Diff, error) {
 		var toItem = toLookUpMap[name]
 		if _, ok := fromLookUpMap[name]; !ok {
 			// `to` contains a `key` that `from` does not have -> addition
-			additions = append(additions, toItem.node)
+			additions = append(additions, toItem)
 		}
 	}
 
-	diff := Diff{Details: []Detail{}}
+	candidateName := func(mappingNode *yamlv3.Node) string {
+		name, _ := k8sItem.Name(mappingNode)
+		return name
+	}
 
-	if len(removals) > 0 {
-		diff.Details = append(diff.Details,
-			Detail{
+	changes := idem.NewDocumentChanges(
+		mapItemsToSlice(removals, func(d doc) *idem.RenameCandidate {
+			return idem.NewRenameCandidate(
+				candidateName(d.node),
+				&ytbx.Path{Root: &from, DocumentIdx: d.idx},
+				d.node,
+			)
+		}),
+		mapItemsToSlice(additions, func(d doc) *idem.RenameCandidate {
+			return idem.NewRenameCandidate(
+				candidateName(d.node),
+				&ytbx.Path{Root: &to, DocumentIdx: d.idx},
+				d.node,
+			)
+		}),
+	)
+
+	if compare.settings.DetectRenames {
+		if err := idem.DetectRenames(changes, nil); err != nil {
+			return nil, err
+		}
+	}
+
+	// Push rename detection results
+	for _, modified := range changes.ModifiedPairs() {
+		diffs, err := compare.objects(
+			*modified.To.Path,
+			followAlias(modified.From.Doc),
+			followAlias(modified.To.Doc),
+		)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, diffs...)
+
+		// Exclude from order change calculation
+		fromNames, _ = reject(fromNames, modified.From.Name())
+		toNames, _ = reject(toNames, modified.To.Name())
+	}
+
+	for _, removal := range changes.DeletedList {
+		result = append(result, Diff{
+			Path: removal.Path,
+			Details: []Detail{{
 				Kind: REMOVAL,
 				From: &yamlv3.Node{
 					Kind:    yamlv3.DocumentNode,
-					Content: removals,
+					Content: []*yamlv3.Node{removal.Doc},
 				},
 				To: nil,
-			},
-		)
+			}},
+		})
 	}
 
-	if len(additions) > 0 {
-		diff.Details = append(diff.Details,
-			Detail{
+	for _, addition := range changes.AddedList {
+		result = append(result, Diff{
+			Path: addition.Path,
+			Details: []Detail{{
 				Kind: ADDITION,
 				From: nil,
 				To: &yamlv3.Node{
 					Kind:    yamlv3.DocumentNode,
-					Content: additions,
+					Content: []*yamlv3.Node{addition.Doc},
 				},
-			},
-		)
+			}},
+		})
 	}
 
 	if !compare.settings.IgnoreOrderChanges && len(fromNames) == len(toNames) {
 		for i := range fromNames {
 			if fromNames[i] != toNames[i] {
-				diff.Details = append(diff.Details, Detail{
-					Kind: ORDERCHANGE,
-					From: AsSequenceNode(fromNames...),
-					To:   AsSequenceNode(toNames...),
+				result = append(result, Diff{
+					Details: []Detail{{
+						Kind: ORDERCHANGE,
+						From: AsSequenceNode(fromNames...),
+						To:   AsSequenceNode(toNames...),
+					}},
 				})
 				break
 			}
 		}
-	}
-
-	if len(diff.Details) > 0 {
-		result = append([]Diff{diff}, result...)
 	}
 
 	return result, nil
@@ -462,11 +523,8 @@ func (compare *compare) sequenceNodes(path ytbx.Path, from *yamlv3.Node, to *yam
 }
 
 func (compare *compare) simpleLists(path ytbx.Path, from *yamlv3.Node, to *yamlv3.Node) ([]Diff, error) {
-	removals := make([]*yamlv3.Node, 0)
-	additions := make([]*yamlv3.Node, 0)
-
-	fromLength := len(from.Content)
-	toLength := len(to.Content)
+	var removals, additions []*yamlv3.Node
+	var fromLength, toLength = len(from.Content), len(to.Content)
 
 	// Special case if both lists only contain one entry, then directly compare
 	// the two entries with each other
@@ -478,12 +536,25 @@ func (compare *compare) simpleLists(path ytbx.Path, from *yamlv3.Node, to *yamlv
 		)
 	}
 
-	fromLookup := compare.createLookUpMap(from)
-	toLookup := compare.createLookUpMap(to)
+	var createLookUpMap = func(sequenceNode *yamlv3.Node) map[uint64][]int {
+		var result = make(map[uint64][]int, len(sequenceNode.Content))
+		for idx, entry := range sequenceNode.Content {
+			var hash = compare.calcNodeHash(entry)
+			if _, ok := result[hash]; !ok {
+				result[hash] = []int{}
+			}
+
+			result[hash] = append(result[hash], idx)
+		}
+
+		return result
+	}
+
+	fromLookup := createLookUpMap(from)
+	toLookup := createLookUpMap(to)
 
 	// Fill two lists with the hashes of the entries of each list
-	fromCommon := make([]*yamlv3.Node, 0, fromLength)
-	toCommon := make([]*yamlv3.Node, 0, toLength)
+	var fromCommon, toCommon []*yamlv3.Node
 
 	for idxPos, fromValue := range from.Content {
 		hash := compare.calcNodeHash(fromValue)
@@ -540,10 +611,8 @@ func (compare *compare) simpleLists(path ytbx.Path, from *yamlv3.Node, to *yamlv
 }
 
 func (compare *compare) namedEntryLists(path ytbx.Path, identifier listItemIdentifier, from *yamlv3.Node, to *yamlv3.Node) ([]Diff, error) {
-	removals := make([]*yamlv3.Node, 0)
-	additions := make([]*yamlv3.Node, 0)
-
-	result := make([]Diff, 0)
+	var removals, additions []*yamlv3.Node
+	var result []Diff
 
 	// Fill two lists with the names of the entries that are common in both lists
 	fromLength := len(from.Content)
@@ -603,6 +672,32 @@ func (compare *compare) namedEntryLists(path ytbx.Path, identifier listItemIdent
 }
 
 func (compare *compare) nodeValues(path ytbx.Path, from *yamlv3.Node, to *yamlv3.Node) ([]Diff, error) {
+	if compare.settings.FormatStrings {
+		var jsonFormat = func(input string) (string, bool) {
+			var tmp any
+
+			if err := json.Unmarshal([]byte(input), &tmp); err != nil {
+				return "", false
+			}
+
+			var buf bytes.Buffer
+			var encoder = json.NewEncoder(&buf)
+			encoder.SetIndent("", "  ")
+			if err := encoder.Encode(tmp); err != nil {
+				return "", false
+			}
+
+			return buf.String(), true
+		}
+
+		if fromValue, ok := jsonFormat(from.Value); ok {
+			if toValue, ok := jsonFormat(to.Value); ok {
+				from.Value = fromValue
+				to.Value = toValue
+			}
+		}
+	}
+
 	if strings.Compare(from.Value, to.Value) != 0 {
 		// leave and don't report any differences if ignore whitespaces changes is
 		// configured and it is really only a whitespace only change between the strings
@@ -610,14 +705,11 @@ func (compare *compare) nodeValues(path ytbx.Path, from *yamlv3.Node, to *yamlv3
 			return nil, nil
 		}
 
-		return []Diff{{
-			&path,
-			[]Detail{{
-				Kind: MODIFICATION,
-				From: from,
-				To:   to,
-			}},
-		}}, nil
+		return []Diff{{&path, []Detail{{
+			Kind: MODIFICATION,
+			From: from,
+			To:   to,
+		}}}}, nil
 	}
 
 	return nil, nil
@@ -894,7 +986,15 @@ func (compare *compare) getNonStandardIdentifierFromNamedLists(listA, listB *yam
 	counterA := createKeyCountMap(listA)
 	counterB := createKeyCountMap(listB)
 
-	for keyA, countA := range counterA {
+	// Sort the keys to ensure deterministic order
+	keysA := make([]string, 0, len(counterA))
+	for keyA := range counterA {
+		keysA = append(keysA, keyA)
+	}
+	sort.Strings(keysA)
+
+	for _, keyA := range keysA {
+		countA := counterA[keyA]
 		if countB, ok := counterB[keyA]; ok {
 			if countA == listALength && countB == listBLength && countA > compare.settings.NonStandardIdentifierGuessCountThreshold {
 				return &singleField{keyA}
@@ -948,20 +1048,6 @@ func isEmptyDocument(node *yamlv3.Node) bool {
 	return false
 }
 
-func (compare *compare) createLookUpMap(sequenceNode *yamlv3.Node) map[uint64][]int {
-	result := make(map[uint64][]int, len(sequenceNode.Content))
-	for idx, entry := range sequenceNode.Content {
-		hash := compare.calcNodeHash(entry)
-		if _, ok := result[hash]; !ok {
-			result[hash] = []int{}
-		}
-
-		result[hash] = append(result[hash], idx)
-	}
-
-	return result
-}
-
 func (compare *compare) basicType(node *yamlv3.Node) interface{} {
 	switch node.Kind {
 	case yamlv3.DocumentNode:
@@ -1005,10 +1091,10 @@ func (compare *compare) calcNodeHash(node *yamlv3.Node) (hash uint64) {
 
 	switch node.Kind {
 	case yamlv3.MappingNode, yamlv3.SequenceNode:
-		hash, err = hashstructure.Hash(compare.basicType(node), nil)
+		hash, err = hashstructure.Hash(compare.basicType(node), hashstructure.FormatV2, nil)
 
 	case yamlv3.ScalarNode:
-		hash, err = hashstructure.Hash(node.Value, nil)
+		hash, err = hashstructure.Hash(node.Tag+"/"+node.Value, hashstructure.FormatV2, nil)
 
 	case yamlv3.AliasNode:
 		hash = compare.calcNodeHash(followAlias(node))
@@ -1043,22 +1129,6 @@ func sortNode(node *yamlv3.Node) {
 
 		return len(a.Content) < len(b.Content)
 	})
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-
-	return b
 }
 
 func isList(node *yamlv3.Node) bool {
