@@ -3661,6 +3661,126 @@ line4`)
 			})
 			So(err, ShouldNotBeNil)
 		})
+
+		Convey("can grab a value using a dynamic bracket reference", func() {
+			ev2 := &Evaluator{
+				Tree: YAML(
+					`key:
+  subkey: found it
+  other: value 2
+lookup: subkey
+`),
+			}
+			dynRef := func(s string) *Expr {
+				return &Expr{Type: Reference, Reference: cursor(s), BracketedNodes: bracketsOf(s)}
+			}
+			r, err := op.Run(ev2, []*Expr{
+				dynRef("key[lookup]"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "found it")
+		})
+
+		Convey("can grab a value using a nested path in a bracket reference", func() {
+			ev2 := &Evaluator{
+				Tree: YAML(
+					`key:
+  subkey: found it
+meta:
+  which: subkey
+`),
+			}
+			dynRef := func(s string) *Expr {
+				return &Expr{Type: Reference, Reference: cursor(s), BracketedNodes: bracketsOf(s)}
+			}
+			r, err := op.Run(ev2, []*Expr{
+				dynRef("key[meta.which]"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "found it")
+		})
+
+		Convey("returns error when the bracket key reference resolves to a non-scalar", func() {
+			ev2 := &Evaluator{
+				Tree: YAML(
+					`key:
+  subkey: found it
+lookup:
+  nested: subkey
+`),
+			}
+			dynRef := func(s string) *Expr {
+				return &Expr{Type: Reference, Reference: cursor(s), BracketedNodes: bracketsOf(s)}
+			}
+			_, err := op.Run(ev2, []*Expr{
+				dynRef("key[lookup]"),
+			})
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("can grab a value using a numeric-valued bracket reference", func() {
+			ev2 := &Evaluator{
+				Tree: YAML(
+					`versions:
+  "1": first
+  "2": second
+pick: 2
+`),
+			}
+			dynRef := func(s string) *Expr {
+				return &Expr{Type: Reference, Reference: cursor(s), BracketedNodes: bracketsOf(s)}
+			}
+			r, err := op.Run(ev2, []*Expr{
+				dynRef("versions[pick]"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "second")
+		})
+
+		Convey("can grab a value using an environment variable in a bracket reference", func() {
+			os.Setenv("BRACKET_SUB_KEY", "subkey")
+			ev2 := &Evaluator{
+				Tree: YAML(
+					`key:
+  subkey: found it
+  other: value 2
+`),
+			}
+			dynRef := func(s string) *Expr {
+				return &Expr{Type: Reference, Reference: cursor(s), BracketedNodes: bracketsOf(s)}
+			}
+			r, err := op.Run(ev2, []*Expr{
+				dynRef("key[$BRACKET_SUB_KEY]"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "found it")
+		})
+	})
+
+	Convey("bracketsOf", t, func() {
+		Convey("marks bracket-notation nodes as true", func() {
+			So(bracketsOf("foo[bar]"), ShouldResemble, []bool{false, true})
+		})
+		Convey("marks dot-notation nodes as false", func() {
+			So(bracketsOf("foo.bar"), ShouldResemble, []bool{false, false})
+		})
+		Convey("handles leading $ sentinel", func() {
+			So(bracketsOf("$.foo[bar]"), ShouldResemble, []bool{false, true})
+		})
+		Convey("handles mixed notation", func() {
+			So(bracketsOf("a[b].c[d]"), ShouldResemble, []bool{false, true, false, true})
+		})
+		Convey("handles numeric brackets (array indices)", func() {
+			So(bracketsOf("list[0]"), ShouldResemble, []bool{false, true})
+		})
 	})
 
 	Convey("RawEnv Operator", t, func() {

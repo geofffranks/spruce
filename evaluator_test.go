@@ -1528,6 +1528,23 @@ output:
 z_one: hello
 z_two: world
 
+#################################### (( join ... )) an array via dynamic bracket reference
+---
+z:
+  greeting: [hello, world]
+lookup: greeting
+output: (( join " " z[lookup] ))
+---
+dataflow:
+- output: (( join " " z[lookup] ))
+---
+lookup: greeting
+output: hello world
+z:
+  greeting:
+  - hello
+  - world
+
 
 ################################################   basic escape sequence handling
 ---
