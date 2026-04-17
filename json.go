@@ -126,7 +126,7 @@ func deinterfaceMap(o map[interface{}]interface{}, strict bool) (map[string]inte
 			}
 		default:
 			if strict {
-				return nil, fmt.Errorf("Non-string keys found during strict JSON conversion")
+				return nil, fmt.Errorf("non-string keys found during strict JSON conversion")
 			} else {
 				addKeyToMap(m, k, v, strict)
 			}

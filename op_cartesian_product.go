@@ -71,7 +71,7 @@ func (CartesianProductOperator) Run(ev *Evaluator, args []*Expr) (*Response, err
 			s, err := v.Reference.Resolve(ev.Tree)
 			if err != nil {
 				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
-				return nil, ansi.Errorf("Unable to resolve `@m{%s}`: %s", v.Reference, err)
+				return nil, ansi.Errorf("unable to resolve `@m{%s}`: %s", v.Reference, err)
 			}
 			switch s.(type) {
 			case []interface{}:

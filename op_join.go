@@ -141,7 +141,7 @@ func (JoinOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 				s, err := ref.Reference.Resolve(ev.Tree)
 				if err != nil {
 					DEBUG("     [%d]: resolution failed with error: %s", i, err)
-					return nil, fmt.Errorf("Unable to resolve `%s`: %s", ref.Reference, err)
+					return nil, fmt.Errorf("unable to resolve `%s`: %s", ref.Reference, err)
 				}
 
 				switch s.(type) {

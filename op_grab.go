@@ -51,7 +51,7 @@ func (GrabOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			s, err := v.Reference.Resolve(ev.Tree)
 			if err != nil {
 				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
-				return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
+				return nil, fmt.Errorf("unable to resolve `%s`: %s", v.Reference, err)
 			}
 			DEBUG("     [%d]: resolved to a value (could be a map, a list or a scalar); appending", i)
 			vals = append(vals, s)

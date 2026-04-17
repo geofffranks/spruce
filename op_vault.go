@@ -91,7 +91,7 @@ func initializeVaultClient() error {
 	}
 
 	if addr == "" || token == "" {
-		return fmt.Errorf("Failed to determine Vault URL / token, and the $REDACT environment variable is not set.")
+		return fmt.Errorf("failed to determine Vault URL / token, and the $REDACT environment variable is not set")
 	}
 
 	roots, err := x509.SystemCertPool()
@@ -101,7 +101,7 @@ func initializeVaultClient() error {
 
 	parsedURL, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("Could not parse Vault URL `%s': %s", addr, err)
+		return fmt.Errorf("could not parse Vault URL `%s': %s", addr, err)
 	}
 
 	if parsedURL.Port() == "" {
@@ -139,7 +139,7 @@ func initializeVaultClient() error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("Error setting up Vault client: %s", err)
+		return fmt.Errorf("error setting up Vault client: %s", err)
 	}
 
 	kv = client.NewKV()
@@ -179,7 +179,7 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			s, err := v.Reference.Resolve(ev.Tree)
 			if err != nil {
 				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
-				return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
+				return nil, fmt.Errorf("unable to resolve `%s`: %s", v.Reference, err)
 			}
 
 			switch s.(type) {
@@ -226,7 +226,7 @@ func (VaultOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		if kv == nil {
 			err := initializeVaultClient()
 			if err != nil {
-				return nil, fmt.Errorf("Error during Vault client initialization: %s", err)
+				return nil, fmt.Errorf("error during Vault client initialization: %s", err)
 			}
 		}
 

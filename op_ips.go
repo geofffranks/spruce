@@ -97,7 +97,7 @@ func (IpsOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			s, err := v.Reference.Resolve(ev.Tree)
 			if err != nil {
 				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
-				return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
+				return nil, fmt.Errorf("unable to resolve `%s`: %s", v.Reference, err)
 			}
 			DEBUG("     [%d]: resolved to a value (could be a map, a list or a scalar); appending", i)
 			vals = append(vals, s)
@@ -125,7 +125,7 @@ func (IpsOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		netsize := netSize(ipnet)
 
 		if abs(start) > netsize {
-			return nil, fmt.Errorf("Start index %d exceeds size of subnet %s", start, vals[0])
+			return nil, fmt.Errorf("start index %d exceeds size of subnet %s", start, vals[0])
 		}
 		if start < 0 {
 			start += netsize
@@ -143,7 +143,7 @@ func (IpsOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		count := makeInt(vals[2])
 		if ipnet != nil {
 			if start + count > netSize(ipnet) {
-			  return nil, fmt.Errorf("Start index %d and count %d would exceed size of subnet %s", start, count, vals[0])
+			  return nil, fmt.Errorf("start index %d and count %d would exceed size of subnet %s", start, count, vals[0])
 			}
 		}
 		lst := []interface{}{}

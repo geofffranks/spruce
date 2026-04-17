@@ -4621,7 +4621,7 @@ meta:
 				ref("meta.non-existent"),
 			})
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "Unable to resolve")
+			So(err.Error(), ShouldContainSubstring, "unable to resolve")
 			So(r, ShouldBeNil)
 		})
 
@@ -4950,7 +4950,7 @@ meta:
 			})
 
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "Start index 100 exceeds size of subnet 192.168.1.16/29")
+			So(err.Error(), ShouldEqual, "start index 100 exceeds size of subnet 192.168.1.16/29")
 			So(r, ShouldBeNil)
 		})
 
@@ -4962,7 +4962,7 @@ meta:
 			})
 
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "Start index 7 and count 3 would exceed size of subnet 192.168.1.16/29")
+			So(err.Error(), ShouldEqual, "start index 7 and count 3 would exceed size of subnet 192.168.1.16/29")
 			So(r, ShouldBeNil)
 		})
 	})
