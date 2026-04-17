@@ -7,3 +7,11 @@ updates:
     target-branch: "main"
     labels:
       - "dependencies"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    labels:
+      - "dependencies"

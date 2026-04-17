@@ -39,9 +39,7 @@ func (CalcOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor, 
 		switch args[0].Type {
 		case Literal:
 			if cursors, searchError := searchForCursors(args[0].Literal.(string)); searchError == nil {
-				for _, cursor := range cursors {
-					deps = append(deps, cursor)
-				}
+				deps = append(deps, cursors...)
 			}
 		}
 	}
