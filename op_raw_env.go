@@ -44,8 +44,8 @@ func (RawEnvOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	}
 
 	DEBUG(" arg: retrieving environment variable $%s", arg.Name)
-	v := os.Getenv(arg.Name)
-	if v == "" {
+	v, ok := os.LookupEnv(arg.Name)
+	if !ok {
 		DEBUG("  environment variable $%s is not set", arg.Name)
 		return nil, fmt.Errorf("environment variable $%s is not set", arg.Name)
 	}
