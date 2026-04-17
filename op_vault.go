@@ -119,6 +119,7 @@ func initializeVaultClient() error {
 		Client: &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,
+				// G402 excluded in Makefile — InsecureSkipVerify is user-controlled via VAULT_SKIP_VERIFY
 				TLSClientConfig: &tls.Config{
 					RootCAs:            roots,
 					InsecureSkipVerify: skip,

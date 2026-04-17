@@ -1,10 +1,14 @@
-all: vet test build clitests
+all: vet lint test build clitests
 
 vet:
-	go list ./... | grep -v vendor | xargs go vet
+	go vet ./...
 
-test:
-	go list ./... | grep -v vendor | xargs go test
+lint: vet
+	go tool staticcheck ./...
+	go tool gosec -exclude=G402 ./...
+
+test: lint
+	go test ./...
 
 colortest: build
 	./assets/color_tester
@@ -12,5 +16,5 @@ colortest: build
 clitests: build
 	./assets/cli_tests
 
-build:
+build: lint
 	go build ./cmd/spruce
