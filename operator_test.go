@@ -3675,9 +3675,21 @@ line4`)
 
 line3
 line4`)
-		os.Setenv("RAW_ENV_UNSET", "")
+		os.Setenv("RAW_ENV_EMPTY_STRING", "")
 		os.Setenv("RAW_ENV_YAML_LIST", "[1, 2, 3]")
 		os.Setenv("RAW_ENV_YAML_MAP", "{key: value}")
+
+		Reset(func() {
+			os.Unsetenv("RAW_ENV_TEST")
+			os.Unsetenv("RAW_ENV_SCI")
+			os.Unsetenv("RAW_ENV_BOOL")
+			os.Unsetenv("RAW_ENV_NUM")
+			os.Unsetenv("RAW_ENV_FLOAT")
+			os.Unsetenv("RAW_ENV_MULTILINE")
+			os.Unsetenv("RAW_ENV_EMPTY_STRING")
+			os.Unsetenv("RAW_ENV_YAML_LIST")
+			os.Unsetenv("RAW_ENV_YAML_MAP")
+		})
 
 		Convey("can retrieve an environment variable as raw string", func() {
 			r, err := op.Run(ev, []*Expr{
@@ -3768,6 +3780,17 @@ line4`)
 
 line3
 line4`)
+		})
+
+		Convey("allows empty string environment variables", func() {
+			r, err := op.Run(ev, []*Expr{
+				env("RAW_ENV_EMPTY_STRING"),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "")
 		})
 
 		Convey("throws errors for unset environment variables", func() {
