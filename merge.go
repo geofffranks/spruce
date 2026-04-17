@@ -29,7 +29,6 @@ type Merger struct {
 	AppendByDefault bool
 
 	Errors MultiError
-	depth  int
 }
 
 // ModificationDefinition encapsulates the details of an array modification:

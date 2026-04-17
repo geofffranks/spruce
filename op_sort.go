@@ -12,16 +12,6 @@ import (
 
 var pathsToSort = map[string]string{}
 
-type itemType int
-
-const (
-	stringItems itemType = iota
-	floatItems
-	intItems
-	mapItems
-	otherItems
-)
-
 // SortOperator ...
 type SortOperator struct{}
 

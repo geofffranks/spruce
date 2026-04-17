@@ -23,8 +23,6 @@ type Evaluator struct {
 	CheckOps []*Opcall
 
 	Only []string
-
-	pointer *interface{}
 }
 
 func nameOfObj(o interface{}, def string) string {
