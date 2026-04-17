@@ -245,7 +245,7 @@ key: testing
 `)
 
 		os.Setenv("VAULT_ADDR", mock.URL)
-		oldhome := os.Getenv("HOME")
+		var oldhome string
 		os.Setenv("HOME", "assets/home/auth")
 		os.Setenv("VAULT_TOKEN", "")
 		RunTests(`

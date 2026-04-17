@@ -3425,7 +3425,7 @@ meta:
 
 			So(r.Type, ShouldEqual, Replace)
 
-			content, err := os.ReadFile("assets/file_operator/sample.txt")
+			content, _ := os.ReadFile("assets/file_operator/sample.txt")
 			So(r.Value.(string), ShouldEqual, string(content))
 		})
 
@@ -3452,7 +3452,7 @@ meta:
 
 				So(r.Type, ShouldEqual, Replace)
 
-				content, err := os.ReadFile("/etc/hosts")
+				content, _ := os.ReadFile("/etc/hosts")
 				So(r.Value.(string), ShouldEqual, string(content))
 			})
 		}
