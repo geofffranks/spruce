@@ -547,7 +547,9 @@ func diffFiles(paths []string) (string, bool, error) {
 	var buf bytes.Buffer
 	out := bufio.NewWriter(&buf)
 	reportWriter.WriteReport(out)
-	out.Flush()
+	if err := out.Flush(); err != nil {
+		return "", false, err
+	}
 
 	return buf.String(), len(report.Diffs) > 0, nil
 }
