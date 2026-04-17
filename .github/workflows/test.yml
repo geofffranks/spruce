@@ -27,9 +27,7 @@ jobs:
           install-go: false
 
       - name: gosec
-        uses: securego/gosec@v2.25.0
-        with:
-          args: ./...
+        run: go tool gosec ./...
 
       - name: CLI Tests
         run: |
