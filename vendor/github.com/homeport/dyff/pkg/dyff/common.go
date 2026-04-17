@@ -1,4 +1,4 @@
-// Copyright © 2019 The Homeport Team
+// Copyright © 2025 The Homeport Team
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,46 +20,22 @@
 
 package dyff
 
-import (
-	"io"
-
-	"github.com/gonvenience/ytbx"
-	yamlv3 "go.yaml.in/yaml/v3"
-)
-
-// Constants to distinguish between the different kinds of differences
-const (
-	ADDITION     = '+'
-	REMOVAL      = '-'
-	MODIFICATION = '±'
-	ORDERCHANGE  = '⇆'
-	// ILLEGAL      = '✕'
-	// ATTENTION    = '⚠'
-)
-
-// Detail encapsulate the actual details of a change, mainly the kind of
-// difference and the values
-type Detail struct {
-	From *yamlv3.Node
-	To   *yamlv3.Node
-	Kind rune
+func mapItemsToSlice[E any, S ~[]E, T any](slice S, fn func(e E) T) []T {
+	ret := make([]T, len(slice))
+	for i, e := range slice {
+		ret[i] = fn(e)
+	}
+	return ret
 }
 
-// Diff encapsulates everything noteworthy about a difference
-type Diff struct {
-	Path    *ytbx.Path
-	Details []Detail
-}
-
-// Report encapsulates the actual end-result of the comparison: The input data
-// and the list of differences
-type Report struct {
-	From  ytbx.InputFile
-	To    ytbx.InputFile
-	Diffs []Diff
-}
-
-// ReportWriter defines the interface required for types that can write reports
-type ReportWriter interface {
-	WriteReport(out io.Writer) error
+func reject[E comparable, S ~[]E](slice S, elt E) (ret S, ok bool) {
+	ret = make(S, 0, len(slice))
+	for _, e := range slice {
+		if elt == e {
+			ok = true
+		} else {
+			ret = append(ret, e)
+		}
+	}
+	return
 }
