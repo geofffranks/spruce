@@ -3,7 +3,6 @@ package spruce
 import (
 	"fmt"
 	"math/rand"
-	"time"
 
 	"github.com/starkandwayne/goutils/tree"
 
@@ -87,7 +86,6 @@ func init() {
 }
 
 func shuffle(l []interface{}) []interface{} {
-	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(l), func(i, j int) { l[i], l[j] = l[j], l[i] })
 	return l
 }
