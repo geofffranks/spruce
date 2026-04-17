@@ -13,6 +13,31 @@ import (
 	. "github.com/geofffranks/spruce/log"
 )
 
+var (
+	// mergeMap regexes
+	mergeMapRx = regexp.MustCompile(`^\s*\Q((\E\s*merge\s*.*\Q))\E`)
+
+	// mergeObj regexes
+	mergeObjPruneRx = regexp.MustCompile(`^\s*\Q((\E\s*prune\s*\Q))\E`)
+	mergeObjSortRx  = regexp.MustCompile(`^\s*\Q((\E\s*sort(?:\s+by\s+(.*?))?\s*\Q))\E$`)
+
+	// getArrayModifications regexes
+	mergeRegEx                  = regexp.MustCompile(`^\Q((\E\s*merge\s*\Q))\E$`)
+	mergeOnKeyRegEx             = regexp.MustCompile(`^\Q((\E\s*merge\s+(on)\s+(.+)\s*\Q))\E$`)
+	replaceRegEx                = regexp.MustCompile(`^\Q((\E\s*replace\s*\Q))\E$`)
+	inlineRegEx                 = regexp.MustCompile(`^\Q((\E\s*inline\s*\Q))\E$`)
+	appendRegEx                 = regexp.MustCompile(`^\Q((\E\s*append\s*\Q))\E$`)
+	prependRegEx                = regexp.MustCompile(`^\Q((\E\s*prepend\s*\Q))\E$`)
+	insertByIdxRegEx            = regexp.MustCompile(`^\Q((\E\s*insert\s+(after|before)\s+(\d+)\s*\Q))\E$`)
+	insertByNameRegEx           = regexp.MustCompile(`^\Q((\E\s*insert\s+(after|before)\s+([^ ]+)?\s*"(.+)"\s*\Q))\E$`)
+	deleteByIdxRegEx            = regexp.MustCompile(`^\Q((\E\s*delete\s+(-?\d+)\s*\Q))\E$`)
+	deleteByNameRegEx           = regexp.MustCompile(`^\Q((\E\s*delete\s+([^ ]+)?\s*"(.+)"\s*\Q))\E$`)
+	deleteByNameUnquotedRegEx   = regexp.MustCompile(`^\Q((\E\s*delete\s+([^ ]+)?\s*(.+)\s*\Q))\E$`)
+
+	// shouldKeyMergeArray regexes
+	shouldKeyMergeArrayRx = regexp.MustCompile(`^\Q((\E\s*merge(?:\s+on\s+(.*?))?\s*\Q))\E$`)
+)
+
 type listOp int
 
 const (
@@ -103,10 +128,9 @@ func (m *Merger) Merge(a map[interface{}]interface{}, b map[interface{}]interfac
 }
 
 func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]interface{}, node string) {
-	mergeRx := regexp.MustCompile(`^\s*\Q((\E\s*merge\s*.*\Q))\E`)
 	for k, val := range n {
 		path := fmt.Sprintf("%s.%v", node, k)
-		if s, ok := val.(string); ok && mergeRx.MatchString(s) {
+		if s, ok := val.(string); ok && mergeMapRx.MatchString(s) {
 			m.Errors.Append(ansi.Errorf("@m{%s}: @R{inappropriate use of} @c{(( merge ))} @R{operator outside of a list} (this is @G{spruce}, after all)", path))
 		}
 
@@ -123,8 +147,6 @@ func (m *Merger) mergeMap(orig map[interface{}]interface{}, n map[interface{}]in
 func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interface{} {
 	// regular expression to search for prune and sort operator to make their
 	// special behavior possible
-	pruneRx := regexp.MustCompile(`^\s*\Q((\E\s*prune\s*\Q))\E`)
-	sortRx := regexp.MustCompile(`^\s*\Q((\E\s*sort(?:\s+by\s+(.*?))?\s*\Q))\E$`)
 
 	// prune/sort operator special behavior I:
 	// operator is defined in the original object and will now be overwritten by
@@ -139,20 +161,20 @@ func (m *Merger) mergeObj(orig interface{}, n interface{}, node string) interfac
 	origString, origOk := orig.(string)
 	newString, newOk := n.(string)
 	switch {
-	case origOk && pruneRx.MatchString(origString):
+	case origOk && mergeObjPruneRx.MatchString(origString):
 		DEBUG("%s: a (( prune )) operator is about to be replaced, check if its path needs to be saved", node)
 		addToPruneListIfNecessary(strings.Replace(node, "$.", "", -1))
 
-	case newOk && pruneRx.MatchString(newString) && orig != nil:
+	case newOk && mergeObjPruneRx.MatchString(newString) && orig != nil:
 		DEBUG("%s: a (( prune )) operator is about to replace existing content, check if its path needs to be saved", node)
 		addToPruneListIfNecessary(strings.Replace(node, "$.", "", -1))
 		return orig
 
-	case origOk && sortRx.MatchString(origString):
+	case origOk && mergeObjSortRx.MatchString(origString):
 		DEBUG("%s: a (( sort )) operator is about to be replaced, check if its path needs to be saved", node)
 		addToSortListIfNecessary(origString, strings.Replace(node, "$.", "", -1))
 
-	case newOk && sortRx.MatchString(newString) && orig != nil:
+	case newOk && mergeObjSortRx.MatchString(newString) && orig != nil:
 		DEBUG("%s: a (( sort )) operator is about to replace existing content, check if its path needs to be saved", node)
 		addToSortListIfNecessary(newString, strings.Replace(node, "$.", "", -1))
 		return orig
@@ -456,18 +478,6 @@ func getArrayModifications(obj []interface{}, simpleList bool) []ModificationDef
 		return result
 	}
 
-	mergeRegEx := regexp.MustCompile("^\\Q((\\E\\s*merge\\s*\\Q))\\E$")
-	mergeOnKeyRegEx := regexp.MustCompile("^\\Q((\\E\\s*merge\\s+(on)\\s+(.+)\\s*\\Q))\\E$")
-	replaceRegEx := regexp.MustCompile("^\\Q((\\E\\s*replace\\s*\\Q))\\E$")
-	inlineRegEx := regexp.MustCompile("^\\Q((\\E\\s*inline\\s*\\Q))\\E$")
-	appendRegEx := regexp.MustCompile("^\\Q((\\E\\s*append\\s*\\Q))\\E$")
-	prependRegEx := regexp.MustCompile("^\\Q((\\E\\s*prepend\\s*\\Q))\\E$")
-	insertByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+(\\d+)\\s*\\Q))\\E$")
-	insertByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*insert\\s+(after|before)\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
-	deleteByIdxRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+(-?\\d+)\\s*\\Q))\\E$")
-	deleteByNameRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*\"(.+)\"\\s*\\Q))\\E$")
-	deleteByNameUnquotedRegEx := regexp.MustCompile("^\\Q((\\E\\s*delete\\s+([^ ]+)?\\s*(.+)\\s*\\Q))\\E$")
-
 	for _, entry := range obj {
 		e, isString := entry.(string)
 		switch {
@@ -633,10 +643,8 @@ func shouldKeyMergeArray(obj []interface{}) (bool, string) {
 	key := getDefaultIdentifierKey()
 
 	if len(obj) >= 1 && obj[0] != nil && reflect.TypeOf(obj[0]).Kind() == reflect.String {
-		re := regexp.MustCompile("^\\Q((\\E\\s*merge(?:\\s+on\\s+(.*?))?\\s*\\Q))\\E$")
-
-		if re.MatchString(obj[0].(string)) {
-			keys := re.FindStringSubmatch(obj[0].(string))
+		if shouldKeyMergeArrayRx.MatchString(obj[0].(string)) {
+			keys := shouldKeyMergeArrayRx.FindStringSubmatch(obj[0].(string))
 			if keys[1] != "" {
 				key = keys[1]
 			}
