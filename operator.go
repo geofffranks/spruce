@@ -290,7 +290,7 @@ type Opcall struct {
 // ParseOpcall ...
 func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 	split := func(src string) []string {
-		list := make([]string, 0, 0)
+		list := make([]string, 0)
 
 		buf := ""
 		escaped := false

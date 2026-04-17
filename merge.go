@@ -317,7 +317,7 @@ func (m *Merger) mergeArray(orig []interface{}, n []interface{}, node string) []
 			}
 
 			// Sanity check new list, depending on the operation type (delete or insert)
-			if delete == false {
+			if !delete {
 
 				// Sanity check new list, list must contain key/id based entries
 				if err := canKeyMergeArray("new", modificationDefinition.list, node, key); err != nil {
@@ -407,7 +407,7 @@ func (m *Merger) mergeArrayInline(orig []interface{}, n []interface{}, node stri
 	if len(n) > len(orig) {
 		length = len(n)
 	}
-	merged := make([]interface{}, length, length)
+	merged := make([]interface{}, length)
 
 	var last int
 	for i := range orig {
@@ -435,7 +435,7 @@ func (m *Merger) mergeArrayInline(orig []interface{}, n []interface{}, node stri
 }
 
 func (m *Merger) mergeArrayByKey(orig []interface{}, n []interface{}, node string, key string) []interface{} {
-	merged := make([]interface{}, len(orig), len(orig))
+	merged := make([]interface{}, len(orig))
 	newMap := make(map[interface{}]interface{})
 	for _, o := range n {
 		obj := o.(map[interface{}]interface{})

@@ -376,7 +376,7 @@ func (ev *Evaluator) Prune(paths []string) error {
 				parent.Pop()
 				if s, err := parent.Resolve(ev.Tree); err == nil {
 					if reflect.TypeOf(s).Kind() == reflect.Map {
-						parentName := fmt.Sprintf("%s", c.Component(-2))
+						parentName := fmt.Sprint(c.Component(-2))
 						DEBUG("  pruning index %d of array '%s'", idx, parentName)
 
 						length := len(o) - 1
@@ -510,7 +510,7 @@ func (ev *Evaluator) CherryPick(paths []string) error {
 							cherryValue = tmp
 
 						case []interface{}:
-							tmp := make([]interface{}, 0, 0)
+							tmp := make([]interface{}, 0)
 							tmp = append(tmp, cherryValue)
 
 							cherryName = parent.Nodes[len(parent.Nodes)-1]

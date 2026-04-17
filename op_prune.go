@@ -1,8 +1,6 @@
 package spruce
 
 import (
-	"fmt"
-
 	"github.com/starkandwayne/goutils/tree"
 
 	. "github.com/geofffranks/spruce/log"
@@ -52,7 +50,7 @@ func (PruneOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	DEBUG("running (( prune ... )) operation at $.%s", ev.Here)
 	defer DEBUG("done with (( prune ... )) operation at $.%s\n", ev.Here)
 
-	addToPruneListIfNecessary(fmt.Sprintf("%s", ev.Here))
+	addToPruneListIfNecessary(ev.Here.String())
 
 	// simply replace it with nil (will be pruned at the end anyway)
 	return &Response{
