@@ -114,7 +114,7 @@ func (LoadOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 func getBytesFromLocation(location string) ([]byte, error) {
 	// Handle location as a URI if it looks like one and has a scheme
 	if locURL, err := url.ParseRequestURI(location); err == nil && locURL.Scheme != "" {
-		response, err := http.Get(location) // #nosec G107 -- user-specified URL is core CLI functionality
+		response, err := http.Get(location) // #nosec G107 G704 -- user-specified URL is core CLI functionality
 		if err != nil {
 			return nil, err
 		}
