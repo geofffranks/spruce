@@ -21,7 +21,7 @@
 package ytbx
 
 import (
-	yamlv3 "gopkg.in/yaml.v3"
+	yamlv3 "go.yaml.in/yaml/v3"
 )
 
 // listKeys returns a list of the keys of a Go-YAML v3 MappingNode (map)

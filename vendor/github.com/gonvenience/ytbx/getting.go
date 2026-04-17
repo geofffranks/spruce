@@ -23,7 +23,7 @@ package ytbx
 import (
 	"fmt"
 
-	yamlv3 "gopkg.in/yaml.v3"
+	yamlv3 "go.yaml.in/yaml/v3"
 )
 
 // Grab gets the value from the provided YAML tree using a path to traverse

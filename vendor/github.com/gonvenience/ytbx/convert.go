@@ -21,7 +21,7 @@
 package ytbx
 
 import (
-	yamlv3 "gopkg.in/yaml.v3"
+	yamlv3 "go.yaml.in/yaml/v3"
 )
 
 func asYAMLNode(obj interface{}) (*yamlv3.Node, error) {

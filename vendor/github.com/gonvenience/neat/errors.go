@@ -26,8 +26,12 @@ import (
 	"strings"
 
 	"github.com/gonvenience/bunt"
-	"github.com/gonvenience/wrap"
 )
+
+var defaultOpts = []BoxStyle{
+	HeadlineColor(bunt.OrangeRed),
+	ContentColor(bunt.Red),
+}
 
 // PrintError prints the provided error to stdout
 func PrintError(err error) {
@@ -41,27 +45,17 @@ func FprintError(w io.Writer, err error) {
 
 // SprintError prints the provided error as a string
 func SprintError(err error) string {
-	switch e := err.(type) {
-	case wrap.ContextError:
-		var content string
-		switch e.Cause().(type) {
-		case wrap.ContextError:
-			content = SprintError(e.Cause())
+	var errMsg = err.Error()
 
-		default:
-			content = e.Cause().Error()
-		}
-
-		return ContentBox(
-			fmt.Sprintf("Error: %s", e.Context()),
-			content,
-			HeadlineColor(bunt.OrangeRed),
-			ContentColor(bunt.Red),
-		)
-
-	default:
-		return unpack(err.Error())
+	if strings.Contains(errMsg, ":") {
+		return unpack(errMsg)
 	}
+
+	return ContentBox(
+		"Error",
+		errMsg,
+		defaultOpts...,
+	)
 }
 
 func unpack(content string) string {
@@ -70,8 +64,7 @@ func unpack(content string) string {
 		return ContentBox(
 			fmt.Sprintf("Error: %s", message),
 			unpack(cause),
-			HeadlineColor(bunt.OrangeRed),
-			ContentColor(bunt.Red),
+			defaultOpts...,
 		)
 	}
 

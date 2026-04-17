@@ -1,8 +1,9 @@
 version: 2
 updates:
   - package-ecosystem: "gomod"
+    directory: "/"
     schedule:
       interval: "weekly"
-    target-branch: "master"
+    target-branch: "main"
     labels:
       - "dependencies"

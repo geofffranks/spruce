@@ -27,8 +27,8 @@ import (
 	"strings"
 	"time"
 
-	yamlv2 "gopkg.in/yaml.v2"
-	yamlv3 "gopkg.in/yaml.v3"
+	yamlv2 "go.yaml.in/yaml/v2"
+	yamlv3 "go.yaml.in/yaml/v3"
 
 	"github.com/gonvenience/bunt"
 )
@@ -215,7 +215,7 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 
 	case yamlv3.MappingNode:
 		if len(node.Content) == 0 {
-			fmt.Fprint(p.out, p.colorize("{}", "emptyStructures"))
+			fmt.Fprint(p.out, p.colorize(emptyStructures, emptyObject))
 			return nil
 		}
 
@@ -225,7 +225,7 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 
 			fmt.Fprint(p.out,
 				optionalIndentPrefix(),
-				p.colorize(`"`+k.Value+`"`, "keyColor"), ": ",
+				p.colorizef(colorKey, "%q", k.Value), ": ",
 			)
 
 			if p.isScalar(v) {
@@ -249,7 +249,7 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 
 	case yamlv3.SequenceNode:
 		if len(node.Content) == 0 {
-			fmt.Fprint(p.out, p.colorize("[]", "emptyStructures"))
+			fmt.Fprint(p.out, p.colorize(emptyStructures, emptyList))
 			return nil
 		}
 
@@ -291,8 +291,8 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 		fmt.Fprint(p.out,
 			prefix,
 			p.colorize(
-				string(bytes),
 				p.determineColorByType(node),
+				string(bytes),
 			))
 	}
 
@@ -301,7 +301,7 @@ func (p *OutputProcessor) neatJSONofNode(prefix string, node *yamlv3.Node) error
 
 func (p *OutputProcessor) neatJSONofYAMLMapSlice(prefix string, mapslice yamlv2.MapSlice) error {
 	if len(mapslice) == 0 {
-		_, _ = p.out.WriteString(p.colorize("{}", "emptyStructures"))
+		_, _ = p.out.WriteString(p.colorize(emptyStructures, emptyObject))
 		return nil
 	}
 
@@ -312,7 +312,7 @@ func (p *OutputProcessor) neatJSONofYAMLMapSlice(prefix string, mapslice yamlv2.
 		keyString := fmt.Sprintf("\"%v\": ", mapitem.Key)
 
 		_, _ = p.out.WriteString(prefix + p.prefixAdd())
-		_, _ = p.out.WriteString(p.colorize(keyString, "keyColor"))
+		_, _ = p.out.WriteString(p.colorize(colorKey, keyString))
 
 		if p.isScalar(mapitem.Value) {
 			if err := p.neatJSONofScalar("", mapitem.Value); err != nil {
@@ -340,7 +340,7 @@ func (p *OutputProcessor) neatJSONofYAMLMapSlice(prefix string, mapslice yamlv2.
 
 func (p *OutputProcessor) neatJSONofSlice(prefix string, list []interface{}) error {
 	if len(list) == 0 {
-		_, _ = p.out.WriteString(p.colorize("[]", "emptyStructures"))
+		_, _ = p.out.WriteString(p.colorize(emptyStructures, emptyList))
 		return nil
 	}
 
@@ -375,7 +375,7 @@ func (p *OutputProcessor) neatJSONofSlice(prefix string, list []interface{}) err
 
 func (p *OutputProcessor) neatJSONofScalar(prefix string, obj interface{}) error {
 	if obj == nil {
-		_, _ = p.out.WriteString(p.colorize("null", "nullColor"))
+		_, _ = p.out.WriteString(p.colorize(colorNull, "null"))
 		return nil
 	}
 
@@ -389,10 +389,10 @@ func (p *OutputProcessor) neatJSONofScalar(prefix string, obj interface{}) error
 	_, _ = p.out.WriteString(prefix)
 	parts := strings.Split(string(data), "\\n")
 	for idx, part := range parts {
-		_, _ = p.out.WriteString(p.colorize(part, color))
+		_, _ = p.out.WriteString(p.colorize(color, part))
 
 		if idx < len(parts)-1 {
-			_, _ = p.out.WriteString(p.colorize("\\n", "emptyStructures"))
+			_, _ = p.out.WriteString(p.colorize(emptyStructures, "\\n"))
 		}
 	}
 
@@ -405,22 +405,22 @@ func cast(node yamlv3.Node) (interface{}, error) {
 	}
 
 	switch node.Tag {
-	case "!!str":
+	case nodeTagString:
 		return node.Value, nil
 
-	case "!!timestamp":
+	case nodeTagTime:
 		return parseTime(node.Value)
 
-	case "!!int":
+	case nodeTagInt:
 		return strconv.Atoi(node.Value)
 
-	case "!!float":
+	case nodeTagFloat:
 		return strconv.ParseFloat(node.Value, 64)
 
-	case "!!bool":
+	case nodeTagBool:
 		return strconv.ParseBool(node.Value)
 
-	case "!!null":
+	case nodeTagNull:
 		return nil, nil
 
 	default:
@@ -429,17 +429,7 @@ func cast(node yamlv3.Node) (interface{}, error) {
 }
 
 func parseTime(value string) (time.Time, error) {
-	// YAML Spec regarding timestamp: https://yaml.org/type/timestamp.html
-	var layouts = [...]string{
-		time.RFC3339,
-		"2006-01-02T15:04:05.999999999Z",
-		"2006-01-02t15:04:05.999999999-07:00",
-		"2006-01-02 15:04:05.999999999 07:00",
-		"2006-01-02 15:04:05.999999999",
-		"2006-01-02",
-	}
-
-	for _, layout := range layouts {
+	for _, layout := range yamlTimeLayouts {
 		if result, err := time.Parse(layout, value); err == nil {
 			return result, nil
 		}

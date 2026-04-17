@@ -4,9 +4,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: stable
           check-latest: true
@@ -19,3 +19,14 @@ jobs:
 
       - name: Vet
         run: go list ./... | grep -v vendor | xargs go vet
+
+      - name: staticcheck
+        uses: dominikh/staticcheck-action@v1
+        with:
+          version: latest
+          install-go: false
+
+      - name: gosec
+        uses: securego/gosec@v2
+        with:
+          args: ./...

@@ -23,7 +23,7 @@ package ytbx
 import (
 	"reflect"
 
-	yamlv3 "gopkg.in/yaml.v3"
+	yamlv3 "go.yaml.in/yaml/v3"
 )
 
 // Internal string constants for type names and type decisions
