@@ -51,7 +51,7 @@ func (GrabOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			s, err := v.Reference.Resolve(ev.Tree)
 			if err != nil {
 				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
-				return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
+				return nil, fmt.Errorf("unable to resolve `%s`: %s", v.Reference, err)
 			}
 			DEBUG("     [%d]: resolved to a value (could be a map, a list or a scalar); appending", i)
 			vals = append(vals, s)
@@ -79,10 +79,10 @@ func (GrabOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		DEBUG("  called with more than one arguments; flattening top-level lists into a single list")
 		flat := []interface{}{}
 		for i, lst := range vals {
-			switch lst.(type) {
+			switch lst := lst.(type) {
 			case []interface{}:
 				DEBUG("    [%d]: $.%s is a list; flattening it out", i, args[i].Reference)
-				flat = append(flat, lst.([]interface{})...)
+				flat = append(flat, lst...)
 			default:
 				DEBUG("    [%d]: $.%s is not a list; appending it as-is", i, args[i].Reference)
 				flat = append(flat, lst)

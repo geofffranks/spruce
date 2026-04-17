@@ -12,16 +12,6 @@ import (
 
 var pathsToSort = map[string]string{}
 
-type itemType int
-
-const (
-	stringItems itemType = iota
-	floatItems
-	intItems
-	mapItems
-	otherItems
-)
-
 // SortOperator ...
 type SortOperator struct{}
 
@@ -125,8 +115,8 @@ func sortList(path string, list []interface{}, key string) error {
 		case reflect.Slice.String():
 			return tree.TypeMismatchError{
 				Path:   []string{path},
-				Wanted: fmt.Sprintf("a list with maps, strings or numbers"),
-				Got:    fmt.Sprintf("a list with list entries"),
+				Wanted: "a list with maps, strings or numbers",
+				Got:    "a list with list entries",
 			}
 		}
 	}

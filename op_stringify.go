@@ -52,13 +52,13 @@ func (StringifyOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 		s, err := v.Reference.Resolve(ev.Tree)
 		if err != nil {
 			log.DEBUG(" resolution failed\n error: %s", err)
-			return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
+			return nil, fmt.Errorf("unable to resolve `%s`: %s", v.Reference, err)
 		}
 		log.DEBUG("  resolved to a value (could be a map, a list or a scalar)")
 		data, err := yaml.Marshal(s)
 		if err != nil {
 			log.DEBUG("   marshaling failed\n   error: %s", err)
-			return nil, fmt.Errorf("Unable to marshal `%s`: %s", v.Reference, err)
+			return nil, fmt.Errorf("unable to marshal `%s`: %s", v.Reference, err)
 		}
 		val = string(data)
 

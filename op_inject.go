@@ -42,9 +42,7 @@ func (InjectOperator) Dependencies(ev *Evaluator, args []*Expr, locs []*tree.Cur
 		}
 	}
 
-	for _, dep := range auto {
-		l = append(l, dep)
-	}
+	l = append(l, auto...)
 
 	return l
 }

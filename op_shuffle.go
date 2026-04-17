@@ -3,7 +3,6 @@ package spruce
 import (
 	"fmt"
 	"math/rand"
-	"time"
 
 	"github.com/starkandwayne/goutils/tree"
 
@@ -52,21 +51,19 @@ func (ShuffleOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 			s, err := v.Reference.Resolve(ev.Tree)
 			if err != nil {
 				DEBUG("     [%d]: resolution failed\n    error: %s", i, err)
-				return nil, fmt.Errorf("Unable to resolve `%s`: %s", v.Reference, err)
+				return nil, fmt.Errorf("unable to resolve `%s`: %s", v.Reference, err)
 			}
 
-			switch s.(type) {
+			switch s := s.(type) {
 			case []interface{}:
-				for _, thing := range s.([]interface{}) {
-					vals = append(vals, thing)
-				}
+				vals = append(vals, s...)
 
 			case map[interface{}]interface{}:
 				DEBUG("     [%d]: resolved to a map; error!", i)
 				return nil, fmt.Errorf("shuffle only accepts arrays and string values")
 
 			default:
-				vals = append(vals, s.(interface{}))
+				vals = append(vals, s)
 			}
 
 		default:
@@ -87,7 +84,6 @@ func init() {
 }
 
 func shuffle(l []interface{}) []interface{} {
-	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(l), func(i, j int) { l[i], l[j] = l[j], l[i] })
 	return l
 }
