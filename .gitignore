@@ -9,3 +9,4 @@ artifacts
 .vscode
 .claude
 docs/superpowers
+.worktrees
