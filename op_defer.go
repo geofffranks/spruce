@@ -34,7 +34,7 @@ func (DeferOperator) Dependencies(_ *Evaluator, _ []*Expr, _ []*tree.Cursor, _ [
 func (DeferOperator) Run(_ *Evaluator, args []*Expr) (*Response, error) {
 	DEBUG("Running defer operator...")
 	if len(args) == 0 {
-		return nil, fmt.Errorf("Defer has no arguments - what are you deferring?")
+		return nil, fmt.Errorf("defer has no arguments - what are you deferring?")
 	}
 
 	components := []string{"(("} //Join these with spaces at the end

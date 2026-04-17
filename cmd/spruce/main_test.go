@@ -465,7 +465,7 @@ properties:
 			stdout = ""
 			stderr = ""
 			main()
-			So(stderr, ShouldContainSubstring, "$.bad.dereference: Unable to resolve `my.value`")
+			So(stderr, ShouldContainSubstring, "$.bad.dereference: unable to resolve `my.value`")
 			So(rc, ShouldEqual, 2)
 		})
 		Convey("Pruning should happen after de-referencing", func() {
@@ -624,7 +624,7 @@ storage: 4096
 			stderr = ""
 			main()
 			So(stdout, ShouldEqual, "")
-			So(stderr, ShouldContainSubstring, "$.ident: Unable to resolve `local.sites.42.uuid`:")
+			So(stderr, ShouldContainSubstring, "$.ident: unable to resolve `local.sites.42.uuid`:")
 		})
 		Convey("string concatentation handles multiple levels of reference", func() {
 			os.Args = []string{"spruce", "merge", "../../assets/concat/multi.yml"}
@@ -1865,7 +1865,7 @@ releases:
 				stderr = ""
 				main()
 				So(stderr, ShouldEqual, `1 error(s) detected:
- - $.foo: Defer has no arguments - what are you deferring?
+ - $.foo: defer has no arguments - what are you deferring?
 
 
 `)

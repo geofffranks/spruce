@@ -30,3 +30,8 @@ jobs:
         uses: securego/gosec@v2.25.0
         with:
           args: ./...
+
+      - name: CLI Tests
+        run: |
+          go build ./cmd/spruce
+          ./assets/cli_tests

@@ -9,13 +9,13 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/aws"         //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/aws/request" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
 
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
-	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"           //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/service/ssm"                    //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"           //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
 
 	"github.com/geofffranks/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"
@@ -3425,7 +3425,7 @@ meta:
 
 			So(r.Type, ShouldEqual, Replace)
 
-			content, err := os.ReadFile("assets/file_operator/sample.txt")
+			content, _ := os.ReadFile("assets/file_operator/sample.txt")
 			So(r.Value.(string), ShouldEqual, string(content))
 		})
 
@@ -3452,7 +3452,7 @@ meta:
 
 				So(r.Type, ShouldEqual, Replace)
 
-				content, err := os.ReadFile("/etc/hosts")
+				content, _ := os.ReadFile("/etc/hosts")
 				So(r.Value.(string), ShouldEqual, string(content))
 			})
 		}
@@ -4621,7 +4621,7 @@ meta:
 				ref("meta.non-existent"),
 			})
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "Unable to resolve")
+			So(err.Error(), ShouldContainSubstring, "unable to resolve")
 			So(r, ShouldBeNil)
 		})
 
@@ -4950,7 +4950,7 @@ meta:
 			})
 
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "Start index 100 exceeds size of subnet 192.168.1.16/29")
+			So(err.Error(), ShouldEqual, "start index 100 exceeds size of subnet 192.168.1.16/29")
 			So(r, ShouldBeNil)
 		})
 
@@ -4962,7 +4962,7 @@ meta:
 			})
 
 			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldEqual, "Start index 7 and count 3 would exceed size of subnet 192.168.1.16/29")
+			So(err.Error(), ShouldEqual, "start index 7 and count 3 would exceed size of subnet 192.168.1.16/29")
 			So(r, ShouldBeNil)
 		})
 	})
