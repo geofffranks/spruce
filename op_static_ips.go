@@ -12,7 +12,7 @@ import (
 	"github.com/starkandwayne/goutils/tree"
 )
 
-const UNDEFINED_AZ = "__UNDEFINED_AZ__"
+const UndefinedAZ = "__UndefinedAZ__"
 
 // UsedIPs ...
 var UsedIPs map[string]string
@@ -142,14 +142,14 @@ func statics(ev *Evaluator) (map[string][]string, []string, error) {
 		// list of azs associated with this specific subnet
 		// do not confuse with `azs`, which is a list of
 		// all `azs` for the network.
-		subnet_zones := []string{}
+		subnetZones := []string{}
 
 		// look for az definition in the `az` key
 		c, _ = tree.ParseCursor(fmt.Sprintf("%s.az", r.String()))
 		z, err := c.ResolveString(ev.Tree)
 		if err == nil && len(z) > 0 {
 			azs = append(azs, z) // to preserve subnet ordering
-			subnet_zones = append(subnet_zones, z)
+			subnetZones = append(subnetZones, z)
 		}
 
 		// look for az definitions in the `azs` key
@@ -160,7 +160,7 @@ func statics(ev *Evaluator) (map[string][]string, []string, error) {
 				for _, o := range zs {
 					if z, ok := o.(string); ok && len(z) > 0 {
 						azs = append(azs, z)
-						subnet_zones = append(subnet_zones, z)
+						subnetZones = append(subnetZones, z)
 					}
 				}
 			}
@@ -168,9 +168,9 @@ func statics(ev *Evaluator) (map[string][]string, []string, error) {
 
 		// add a default zone for azs + subnet zones, if
 		// this network has no zones specified
-		if len(subnet_zones) == 0 {
+		if len(subnetZones) == 0 {
 			azs = append(azs, "z1")
-			subnet_zones = append(subnet_zones, "z1")
+			subnetZones = append(subnetZones, "z1")
 		}
 
 		c, err = tree.ParseCursor(fmt.Sprintf("%s.static.*", r.String()))
@@ -202,7 +202,7 @@ func statics(ev *Evaluator) (map[string][]string, []string, error) {
 				return nil, azs, ansi.Errorf("@c{%s}@R{: not a valid IP address}", segments[0])
 			}
 
-			for _, az := range subnet_zones {
+			for _, az := range subnetZones {
 				addrs[az] = append(addrs[az], start.String())
 				if len(segments) == 1 {
 					continue
@@ -221,7 +221,7 @@ func statics(ev *Evaluator) (map[string][]string, []string, error) {
 
 				for !start.Equal(end) {
 					incrementIP(start, len(start)-1)
-					for _, az := range subnet_zones {
+					for _, az := range subnetZones {
 						addrs[az] = append(addrs[az], start.String())
 					}
 				}
@@ -395,7 +395,7 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 
 		// parse argument, could be in form of <az>:<number>, or just <number>
 		var offset int64
-		az := UNDEFINED_AZ
+		az := UndefinedAZ
 		a, ok := v.Literal.(string)
 		if !ok {
 			offset, ok = v.Literal.(int64)
@@ -419,7 +419,7 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 
 		// get IPs to use
 		pool := allIPs(pools, azs)
-		if az != UNDEFINED_AZ {
+		if az != UndefinedAZ {
 			// check if az is actually in instance_groups azs
 			var found bool
 			for _, z := range azs {

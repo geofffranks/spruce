@@ -441,7 +441,7 @@ func (ev *Evaluator) SortPaths(pathKeyMap map[string]string) error {
 	return nil
 }
 
-// Cherry-pick ...
+// CherryPick evaluates cherry-pick expressions in the YAML tree.
 func (ev *Evaluator) CherryPick(paths []string) error {
 	DEBUG("cherry-picking %d paths from the final YAML structure", len(paths))
 

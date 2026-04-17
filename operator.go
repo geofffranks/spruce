@@ -1,3 +1,5 @@
+// Package spruce provides a YAML merging tool with support for operators,
+// references, and various merge strategies.
 package spruce
 
 import (
@@ -199,7 +201,7 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 	case Reference:
 		e.Reference.Nodes = ResolveEnv(e.Reference.Nodes)
 		if _, err := e.Reference.Resolve(tree); err != nil {
-			return nil, ansi.Errorf("@R{Unable to resolve `}@c{%s}@R{`: %s}", e.Reference, err)
+			return nil, ansi.Errorf("@R{unable to resolve `}@c{%s}@R{`: %s}", e.Reference, err)
 		}
 		return e, nil
 

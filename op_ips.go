@@ -11,7 +11,7 @@ import (
 	. "github.com/geofffranks/spruce/log"
 )
 
-// IpOperator...
+// IpsOperator implements the (( ips ... )) operator for IP address manipulation.
 type IpsOperator struct{}
 
 // Setup ...

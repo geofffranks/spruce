@@ -626,17 +626,17 @@ func isSimpleList(list []interface{}) bool {
 		return false
 	}
 
-	var hash_count int
+	var hashCount int
 	for _, item := range list {
 		switch item.(type) {
 		case map[interface{}]interface{}:
-			hash_count = hash_count + 1
+			hashCount = hashCount + 1
 		}
 	}
-	if hash_count == 0 {
+	if hashCount == 0 {
 		DEBUG("Working on a simple list")
 	}
-	return hash_count == 0
+	return hashCount == 0
 }
 
 func shouldKeyMergeArray(obj []interface{}) (bool, string) {

@@ -230,7 +230,7 @@ func parseYAML(data []byte) (map[interface{}]interface{}, error) {
 		return nil, err
 	}
 
-	if empty_y, _ := simpleyaml.NewYaml([]byte{}); *y == *empty_y {
+	if emptyY, _ := simpleyaml.NewYaml([]byte{}); *y == *emptyY {
 		DEBUG("YAML doc is empty, creating empty hash/map")
 		return make(map[interface{}]interface{}), nil
 	}
