@@ -215,15 +215,15 @@ func (e *Expr) Resolve(tree map[interface{}]interface{}) (*Expr, error) {
 }
 
 func ResolveEnv(nodes []string) []string {
-    var resolved []string
-    for _, node := range nodes {
-        if len(node) > 0 && node[0] == '$' {
-            resolved = append(resolved, os.Getenv(node[1:]))
-        } else {
-            resolved = append(resolved, node)
-        }
-    }
-    return resolved
+	var resolved []string
+	for _, node := range nodes {
+		if len(node) > 0 && node[0] == '$' {
+			resolved = append(resolved, os.Getenv(node[1:]))
+		} else {
+			resolved = append(resolved, node)
+		}
+	}
+	return resolved
 }
 
 // Evaluate ...

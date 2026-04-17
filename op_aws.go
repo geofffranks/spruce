@@ -6,10 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/secretsmanager"           //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/service/secretsmanager"                     //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
 	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
-	"github.com/aws/aws-sdk-go/service/ssm"                    //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"           //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/service/ssm"                                //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"                       //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
 
 	"github.com/aws/aws-sdk-go/aws/session" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
 
@@ -22,8 +22,8 @@ import (
 	// Also https://github.com/go-yaml/yaml/pull/195
 	"github.com/geofffranks/yaml"
 
-	"github.com/aws/aws-sdk-go/aws"                            //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"       //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/aws"                      //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
 )
 
 // awsSession holds a shared AWS session struct

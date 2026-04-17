@@ -10,7 +10,7 @@ import (
 var DebugOn bool = false
 var TraceOn bool = false
 
-//PrintfStdErr is a configurable hook to print to error output
+// PrintfStdErr is a configurable hook to print to error output
 var PrintfStdErr func(string, ...interface{})
 
 func init() {
