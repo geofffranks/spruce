@@ -7,3 +7,5 @@ artifacts
 .svtoken
 *.swp
 .vscode
+.claude
+docs/superpowers
