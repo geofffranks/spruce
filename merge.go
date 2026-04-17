@@ -22,17 +22,17 @@ var (
 	mergeObjSortRx  = regexp.MustCompile(`^\s*\Q((\E\s*sort(?:\s+by\s+(.*?))?\s*\Q))\E$`)
 
 	// getArrayModifications regexes
-	mergeRegEx                  = regexp.MustCompile(`^\Q((\E\s*merge\s*\Q))\E$`)
-	mergeOnKeyRegEx             = regexp.MustCompile(`^\Q((\E\s*merge\s+(on)\s+(.+)\s*\Q))\E$`)
-	replaceRegEx                = regexp.MustCompile(`^\Q((\E\s*replace\s*\Q))\E$`)
-	inlineRegEx                 = regexp.MustCompile(`^\Q((\E\s*inline\s*\Q))\E$`)
-	appendRegEx                 = regexp.MustCompile(`^\Q((\E\s*append\s*\Q))\E$`)
-	prependRegEx                = regexp.MustCompile(`^\Q((\E\s*prepend\s*\Q))\E$`)
-	insertByIdxRegEx            = regexp.MustCompile(`^\Q((\E\s*insert\s+(after|before)\s+(\d+)\s*\Q))\E$`)
-	insertByNameRegEx           = regexp.MustCompile(`^\Q((\E\s*insert\s+(after|before)\s+([^ ]+)?\s*"(.+)"\s*\Q))\E$`)
-	deleteByIdxRegEx            = regexp.MustCompile(`^\Q((\E\s*delete\s+(-?\d+)\s*\Q))\E$`)
-	deleteByNameRegEx           = regexp.MustCompile(`^\Q((\E\s*delete\s+([^ ]+)?\s*"(.+)"\s*\Q))\E$`)
-	deleteByNameUnquotedRegEx   = regexp.MustCompile(`^\Q((\E\s*delete\s+([^ ]+)?\s*(.+)\s*\Q))\E$`)
+	mergeRegEx                = regexp.MustCompile(`^\Q((\E\s*merge\s*\Q))\E$`)
+	mergeOnKeyRegEx           = regexp.MustCompile(`^\Q((\E\s*merge\s+(on)\s+(.+)\s*\Q))\E$`)
+	replaceRegEx              = regexp.MustCompile(`^\Q((\E\s*replace\s*\Q))\E$`)
+	inlineRegEx               = regexp.MustCompile(`^\Q((\E\s*inline\s*\Q))\E$`)
+	appendRegEx               = regexp.MustCompile(`^\Q((\E\s*append\s*\Q))\E$`)
+	prependRegEx              = regexp.MustCompile(`^\Q((\E\s*prepend\s*\Q))\E$`)
+	insertByIdxRegEx          = regexp.MustCompile(`^\Q((\E\s*insert\s+(after|before)\s+(\d+)\s*\Q))\E$`)
+	insertByNameRegEx         = regexp.MustCompile(`^\Q((\E\s*insert\s+(after|before)\s+([^ ]+)?\s*"(.+)"\s*\Q))\E$`)
+	deleteByIdxRegEx          = regexp.MustCompile(`^\Q((\E\s*delete\s+(-?\d+)\s*\Q))\E$`)
+	deleteByNameRegEx         = regexp.MustCompile(`^\Q((\E\s*delete\s+([^ ]+)?\s*"(.+)"\s*\Q))\E$`)
+	deleteByNameUnquotedRegEx = regexp.MustCompile(`^\Q((\E\s*delete\s+([^ ]+)?\s*(.+)\s*\Q))\E$`)
 
 	// shouldKeyMergeArray regexes
 	shouldKeyMergeArrayRx = regexp.MustCompile(`^\Q((\E\s*merge(?:\s+on\s+(.*?))?\s*\Q))\E$`)
@@ -59,7 +59,9 @@ type Merger struct {
 // ModificationDefinition encapsulates the details of an array modification:
 // (1) the type of modification, e.g. insert, delete, replace
 // (2) an optional guide to the specific part of the array to be modified,
-//    for example the index at which an insertion should be done
+//
+//	for example the index at which an insertion should be done
+//
 // (3) an optional list of entries to be added or merged into the array
 type ModificationDefinition struct {
 	listOp listOp

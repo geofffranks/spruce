@@ -20,6 +20,9 @@ jobs:
       - name: Vet
         run: go list ./... | grep -v vendor | xargs go vet
 
+      - name: gofmt
+        run: test -z "$(gofmt -l $(find . -name '*.go' -not -path './vendor/*'))" || (echo "gofmt check failed:"; gofmt -l $(find . -name '*.go' -not -path './vendor/*'); exit 1)
+
       - name: staticcheck
         uses: dominikh/staticcheck-action@v1
         with:
