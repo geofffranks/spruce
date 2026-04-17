@@ -102,12 +102,11 @@ func (t Type) String() string {
 }
 
 func typeof(x interface{}) Type {
-	switch x.(type) {
+	switch x := x.(type) {
 	case map[interface{}]interface{}:
 		return Map
 	case []interface{}:
-		l := x.([]interface{})
-		if keyed(l) != "" {
+		if keyed(x) != "" {
 			return KeyedList
 		}
 		return SimpleList

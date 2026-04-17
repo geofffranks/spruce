@@ -125,9 +125,23 @@ github.com/mitchellh/go-ps
 # github.com/mitchellh/hashstructure/v2 v2.0.2
 ## explicit; go 1.14
 github.com/mitchellh/hashstructure/v2
+# github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d
+## explicit
+github.com/nbutton23/zxcvbn-go
+github.com/nbutton23/zxcvbn-go/adjacency
+github.com/nbutton23/zxcvbn-go/data
+github.com/nbutton23/zxcvbn-go/entropy
+github.com/nbutton23/zxcvbn-go/frequency
+github.com/nbutton23/zxcvbn-go/match
+github.com/nbutton23/zxcvbn-go/matching
+github.com/nbutton23/zxcvbn-go/scoring
+github.com/nbutton23/zxcvbn-go/utils/math
 # github.com/securego/gosec v0.0.0-20200401082031-e946c8c39989
 ## explicit; go 1.13
 github.com/securego/gosec
+github.com/securego/gosec/cmd/gosec
+github.com/securego/gosec/output
+github.com/securego/gosec/rules
 # github.com/sergi/go-diff v1.4.0
 ## explicit; go 1.13
 github.com/sergi/go-diff/diffmatchpatch

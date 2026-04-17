@@ -37,6 +37,7 @@ require (
 	github.com/mattn/go-ciede2000 v0.0.0-20170301095244-782e8c62fec3 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
+	github.com/nbutton23/zxcvbn-go v0.0.0-20180912185939-ae427f1e4c1d // indirect
 	github.com/securego/gosec v0.0.0-20200401082031-e946c8c39989 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/smarty/assertions v1.16.0 // indirect
@@ -55,6 +56,6 @@ require (
 )
 
 tool (
-	github.com/securego/gosec
+	github.com/securego/gosec/cmd/gosec
 	honnef.co/go/tools/cmd/staticcheck
 )
