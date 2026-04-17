@@ -519,9 +519,7 @@ func ParseOpcall(phase OperatorPhase, src string) (*Opcall, error) {
 func (op *Opcall) Dependencies(ev *Evaluator, locs []*tree.Cursor) []*tree.Cursor {
 	l := []*tree.Cursor{}
 	for _, arg := range op.args {
-		for _, c := range arg.Dependencies(ev, locs) {
-			l = append(l, c)
-		}
+		l = append(l, arg.Dependencies(ev, locs)...)
 	}
 
 	return op.op.Dependencies(ev, op.args, locs, l)

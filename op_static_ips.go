@@ -44,9 +44,7 @@ func (StaticIPOperator) Dependencies(ev *Evaluator, _ []*Expr, _ []*tree.Cursor,
 		if err != nil {
 			return
 		}
-		for _, alt := range keys {
-			l = append(l, alt)
-		}
+		l = append(l, keys...)
 	}
 
 	// top level stuff
@@ -363,9 +361,7 @@ func (s StaticIPOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 
 	// if no AZs are specified on instance_groups, then just use whatever is in networks / pools
 	if len(azs) == 0 {
-		for _, az := range poolAZs {
-			azs = append(azs, az)
-		}
+		azs = append(azs, poolAZs...)
 	}
 
 	ord := func(n int64) string {

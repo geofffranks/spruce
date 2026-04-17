@@ -81,9 +81,7 @@ func (JoinOperator) Dependencies(ev *Evaluator, args []*Expr, _ []*tree.Cursor, 
 	}
 
 	//Append on the auto-generated deps (the operator path args)
-	for _, dep := range auto {
-		deps = append(deps, dep)
-	}
+	deps = append(deps, auto...)
 
 	DEBUG("Dependencies for (( join ... )):")
 	for i, dep := range deps {
