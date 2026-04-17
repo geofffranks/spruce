@@ -1,3 +1,8 @@
+# Runs on pull_request_target (not pull_request) so it has write access to the
+# repo. Deliberately does NOT check out the PR's code — only reads dependabot
+# metadata and calls `gh pr merge`. Do not add a checkout step unless you
+# understand the security implications of running untrusted PR code with
+# elevated permissions.
 name: Dependabot Auto-Merge
 
 on:

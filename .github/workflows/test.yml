@@ -27,6 +27,6 @@ jobs:
           install-go: false
 
       - name: gosec
-        uses: securego/gosec@master
+        uses: securego/gosec@v2
         with:
           args: ./...
