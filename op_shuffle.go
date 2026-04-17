@@ -56,9 +56,7 @@ func (ShuffleOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 
 			switch s := s.(type) {
 			case []interface{}:
-				for _, thing := range s {
-					vals = append(vals, thing)
-				}
+				vals = append(vals, s...)
 
 			case map[interface{}]interface{}:
 				DEBUG("     [%d]: resolved to a map; error!", i)
