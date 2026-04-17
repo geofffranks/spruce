@@ -12,6 +12,9 @@ require (
 	github.com/gonvenience/ytbx v1.4.9
 	github.com/homeport/dyff v1.11.3
 	github.com/mattn/go-isatty v0.0.21
+	github.com/maxbrunsfeld/counterfeiter/v6 v6.12.2
+	github.com/onsi/ginkgo/v2 v2.28.1
+	github.com/onsi/gomega v1.39.1
 	github.com/smartystreets/goconvey v1.8.1
 	github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be
 	github.com/voxelbrain/goptions v0.0.0-20180630082107-58cddc247ea2
@@ -23,18 +26,21 @@ require (
 	cloud.google.com/go/auth v0.16.5 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
+	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/anthropics/anthropic-sdk-go v1.26.0 // indirect
 	github.com/ccojocar/zxcvbn-go v1.0.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
 	github.com/gonvenience/bunt v1.4.3 // indirect
 	github.com/gonvenience/idem v0.0.3 // indirect
 	github.com/gonvenience/neat v1.3.18 // indirect
 	github.com/gonvenience/term v1.0.5 // indirect
 	github.com/gonvenience/text v1.0.10 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/pprof v0.0.0-20260202012954-cb029daf43ef // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
