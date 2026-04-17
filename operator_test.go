@@ -9,13 +9,13 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/aws"         //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/aws/request" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
 
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
-	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"           //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/service/ssm"                    //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"           //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
 
 	"github.com/geofffranks/simpleyaml"
 	. "github.com/smartystreets/goconvey/convey"

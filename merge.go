@@ -77,7 +77,7 @@ func Merge(l ...map[interface{}]interface{}) (map[interface{}]interface{}, error
 	m := &Merger{}
 	root := map[interface{}]interface{}{}
 	for _, next := range l {
-		m.Merge(root, next)
+		m.Merge(root, next) // #nosec G104 -- errors collected via m.Error() after loop
 	}
 	return root, m.Error()
 }

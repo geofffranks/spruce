@@ -252,7 +252,7 @@ func loadYamlFile(file string) (YamlFile, error) {
 	if file == "-" {
 		target = YamlFile{Reader: os.Stdin, Path: "-"}
 	} else {
-		f, err := os.Open(file)
+		f, err := os.Open(file) // #nosec G304 -- user-specified file path is core CLI functionality
 		if err != nil {
 			return YamlFile{}, ansi.Errorf("@R{Error reading file} @m{%s}: %s", file, err.Error())
 		}
@@ -507,7 +507,7 @@ func mergeAllDocs(files []YamlFile, options mergeOpts) (*Evaluator, error) {
 				return nil, ansi.Errorf("@m{%s}: @R{%s}\n", file.Path, err.Error())
 			}
 		} else {
-			m.Merge(root, doc)
+			m.Merge(root, doc) // #nosec G104 -- errors collected via m.Error() after loop
 		}
 		tmpYaml, _ := yaml.Marshal(root) // we don't care about errors for debugging
 		TRACE("Current data after processing '%s':\n%s", file.Path, tmpYaml)
@@ -546,7 +546,7 @@ func diffFiles(paths []string) (string, bool, error) {
 
 	var buf bytes.Buffer
 	out := bufio.NewWriter(&buf)
-	reportWriter.WriteReport(out)
+	reportWriter.WriteReport(out) // #nosec G104 -- WriteReport errors are informational; Flush below catches buffered write failures
 	if err := out.Flush(); err != nil {
 		return "", false, err
 	}

@@ -114,7 +114,7 @@ func (LoadOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 func getBytesFromLocation(location string) ([]byte, error) {
 	// Handle location as a URI if it looks like one and has a scheme
 	if locURL, err := url.ParseRequestURI(location); err == nil && locURL.Scheme != "" {
-		response, err := http.Get(location)
+		response, err := http.Get(location) // #nosec G107 -- user-specified URL is core CLI functionality
 		if err != nil {
 			return nil, err
 		}
@@ -134,8 +134,8 @@ func getBytesFromLocation(location string) ([]byte, error) {
 	}
 
 	// Handle location as local file if there is a file at that location
-	if _, err := os.Stat(location); err == nil {
-		return os.ReadFile(location)
+	if _, err := os.Stat(location); err == nil { // #nosec G304 G703 -- user-specified file path is core CLI functionality
+		return os.ReadFile(location) // #nosec G304 G703 -- user-specified file path is core CLI functionality
 	}
 
 	// In any other case, bail out ...

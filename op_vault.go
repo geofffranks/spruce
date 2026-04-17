@@ -84,7 +84,7 @@ func initializeVaultClient() error {
 	}
 
 	if token == "" {
-		b, err := os.ReadFile(fmt.Sprintf("%s/.vault-token", os.Getenv("HOME")))
+		b, err := os.ReadFile(fmt.Sprintf("%s/.vault-token", os.Getenv("HOME"))) // #nosec G703 -- reading well-known vault token file
 		if err == nil {
 			token = strings.TrimSuffix(string(b), "\n")
 		}

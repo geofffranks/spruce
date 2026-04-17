@@ -58,7 +58,7 @@ func makeInt(val interface{}) int {
 
 func netSize(ipnet *net.IPNet) int {
 	ones, bits := ipnet.Mask.Size()
-	return 1<<uint(bits-ones)
+	return 1 << uint(bits-ones) // #nosec G115 -- bits-ones bounded by net.Mask.Size (0-128)
 }
 
 func abs(n int) int {

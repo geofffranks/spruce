@@ -64,7 +64,7 @@ func JSONifyFiles(paths []string, strict bool) ([]string, error) {
 			}
 		} else {
 			DEBUG("Processing file '%s'", path)
-			data, err = os.ReadFile(path)
+			data, err = os.ReadFile(path) // #nosec G304 -- user-specified file path is core CLI functionality
 			if err != nil {
 				return nil, ansi.Errorf("@R{Error reading file} @m{%s}: %s", path, err)
 			}
@@ -128,7 +128,7 @@ func deinterfaceMap(o map[interface{}]interface{}, strict bool) (map[string]inte
 			if strict {
 				return nil, fmt.Errorf("non-string keys found during strict JSON conversion")
 			} else {
-				addKeyToMap(m, k, v, strict)
+				addKeyToMap(m, k, v, strict) // #nosec G104 -- non-strict mode intentionally ignores duplicate key errors
 			}
 		}
 
