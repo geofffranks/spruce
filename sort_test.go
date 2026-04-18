@@ -96,4 +96,30 @@ var _ = Describe("Sort", func() {
 			Expect(err.Error()).To(Equal("$.some.path is a list with map entries, where some do not contain foo (not a list with map entries each containing foo)"))
 		})
 	})
+
+	Describe("addToSortListIfNecessary", func() {
+		BeforeEach(func() {
+			pathsToSort = map[string]string{}
+		})
+
+		AfterEach(func() {
+			pathsToSort = map[string]string{}
+		})
+
+		It("adds a sort-by-key entry for a valid sort operator string", func() {
+			addToSortListIfNecessary("(( sort by name ))", "jobs")
+			Expect(pathsToSort).To(HaveKeyWithValue("jobs", "name"))
+		})
+
+		It("adds a simple sort entry (no key) for a sort operator with no arguments", func() {
+			addToSortListIfNecessary("(( sort ))", "releases")
+			Expect(pathsToSort).To(HaveKeyWithValue("releases", ""))
+		})
+
+		It("does not overwrite an existing path entry", func() {
+			addToSortListIfNecessary("(( sort by name ))", "jobs")
+			addToSortListIfNecessary("(( sort by id ))", "jobs")
+			Expect(pathsToSort["jobs"]).To(Equal("name"))
+		})
+	})
 })

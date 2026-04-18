@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/aws/aws-sdk-go/aws"         //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/aws"                    //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
 	"github.com/aws/aws-sdk-go/service/secretsmanager" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
-	"github.com/aws/aws-sdk-go/service/ssm"             //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go/service/ssm"            //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
 
 	"github.com/geofffranks/simpleyaml"
 	"github.com/geofffranks/spruce/fakes"

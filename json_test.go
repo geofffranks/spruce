@@ -1,6 +1,7 @@
 package spruce
 
 import (
+	"os"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -109,6 +110,68 @@ var _ = Describe("JSON", func() {
 			Expect(err).NotTo(HaveOccurred())
 			// Duplicate detected — original value preserved
 			Expect(m["key"]).To(Equal("old"))
+		})
+	})
+
+	Describe("JSONifyFiles", func() {
+		var tmpFile *os.File
+
+		BeforeEach(func() {
+			var err error
+			tmpFile, err = os.CreateTemp("", "spruce-json-test-*.yml")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			os.Remove(tmpFile.Name())
+		})
+
+		It("converts a YAML file to JSON", func() {
+			_, err := tmpFile.WriteString("key: value\n")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tmpFile.Close()).To(Succeed())
+
+			results, err := JSONifyFiles([]string{tmpFile.Name()}, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(results).To(HaveLen(1))
+			Expect(results[0]).To(Equal(`{"key":"value"}`))
+		})
+
+		It("returns an error for a non-existent file", func() {
+			_, err := JSONifyFiles([]string{"/nonexistent/path/file.yml"}, false)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Error reading file"))
+		})
+
+		It("handles multiple YAML documents in a single file", func() {
+			_, err := tmpFile.WriteString("a: 1\n---\nb: 2\n")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tmpFile.Close()).To(Succeed())
+
+			results, err := JSONifyFiles([]string{tmpFile.Name()}, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(results).To(HaveLen(2))
+			Expect(results[0]).To(Equal(`{"a":1}`))
+			Expect(results[1]).To(Equal(`{"b":2}`))
+		})
+
+		It("converts multiple files", func() {
+			_, err := tmpFile.WriteString("first: 10\n")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tmpFile.Close()).To(Succeed())
+
+			tmpFile2, err2 := os.CreateTemp("", "spruce-json-test2-*.yml")
+			Expect(err2).NotTo(HaveOccurred())
+			defer os.Remove(tmpFile2.Name())
+			_, err = tmpFile2.WriteString("second: 20\n")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(tmpFile2.Close()).To(Succeed())
+
+			results, err := JSONifyFiles([]string{tmpFile.Name(), tmpFile2.Name()}, false)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(results).To(HaveLen(2))
+			Expect(results[0]).To(Equal(`{"first":10}`))
+			Expect(results[1]).To(Equal(`{"second":20}`))
 		})
 	})
 })

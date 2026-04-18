@@ -29,7 +29,6 @@ import (
 // Version holds the Current version of spruce
 var Version = "(development)"
 
-
 func envFlag(varname string) bool {
 	val := os.Getenv(varname)
 	return val != "" && strings.ToLower(val) != "false" && val != "0"
