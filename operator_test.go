@@ -3793,6 +3793,73 @@ line4`)
 			So(r.Value.(string), ShouldEqual, "")
 		})
 
+		Convey("falls back to second env var when first is unset", func() {
+			r, err := op.Run(ev, []*Expr{
+				or(env("RAW_ENV_UNSET"), env("RAW_ENV_TEST")),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "hello world")
+		})
+
+		Convey("falls back to string literal when env var is unset", func() {
+			r, err := op.Run(ev, []*Expr{
+				or(env("RAW_ENV_UNSET"), str("default_value")),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "default_value")
+		})
+
+		Convey("uses first env var when it is set (short-circuit)", func() {
+			r, err := op.Run(ev, []*Expr{
+				or(env("RAW_ENV_TEST"), str("fallback")),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "hello world")
+		})
+
+		Convey("chained fallback preserves raw string", func() {
+			r, err := op.Run(ev, []*Expr{
+				or(env("RAW_ENV_UNSET"), or(env("RAW_ENV_ALSO_UNSET"), env("RAW_ENV_SCI"))),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "25e25")
+		})
+
+		Convey("errors when all alternatives are unset", func() {
+			_, err := op.Run(ev, []*Expr{
+				or(env("RAW_ENV_UNSET"), env("RAW_ENV_ALSO_UNSET")),
+			})
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("falls back to reference when env var is unset", func() {
+			evWithTree := &Evaluator{
+				Tree: YAML(`meta:
+  default: from_tree
+`),
+			}
+			r, err := op.Run(evWithTree, []*Expr{
+				or(env("RAW_ENV_UNSET"), ref("meta.default")),
+			})
+			So(err, ShouldBeNil)
+			So(r, ShouldNotBeNil)
+
+			So(r.Type, ShouldEqual, Replace)
+			So(r.Value.(string), ShouldEqual, "from_tree")
+		})
+
 		Convey("throws errors for unset environment variables", func() {
 			_, err := op.Run(ev, []*Expr{
 				env("RAW_ENV_UNSET"),
