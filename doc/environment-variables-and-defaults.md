@@ -42,4 +42,12 @@ reference parts of the root document in an operator. Their values are currently 
 given to the operator. If you have a use case that needs this, stick in an [issue][issues], and
 we'll see if we can work in support for this.
 
+The `(( grab ))` operator will make an attempt to convert the value of the environment variable
+to an appropriate type. For example, if `$INT_VAR` is set to `42`, then `(( grab $INT_VAR ))` 
+will evaluate to the integer `42`, not the string `"42"`. 
+If you want to force the value to be a string, you can use the `(( raw_env ))` operator instead:
+```
+envVar: (( raw_env $MY_ENVIRONMENT_VARIABLE ))
+```
+
 [issues]: https://github.com/geofffranks/spruce/issues/new

@@ -294,6 +294,17 @@ Example:
 commit_hash: (( raw_env $COMMIT_HASH ))
 ```
 
+The `(( raw_env ))` operator also supports fallbacks via the logical-or operator (`||`).
+Note that fallback values which are not environment variables are resolved in the same 
+way as for `(( grab ))` and similar operators. In particular, they can be non-strings.
+The following example would evaluate to the integer `42` if `$UNSET_VAR` is not set:
+```yaml
+password: (( raw_env $UNSET_VAR || 42 ))
+```
+
+For more details, see the notes on [environment variables and default values][env-var].
+
+
 ## (( shuffle ))
 
 Usage: `(( shuffle LITERAL | REFERENCE [other [args]] ))`
