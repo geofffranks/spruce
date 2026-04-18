@@ -202,9 +202,6 @@ github.com/googleapis/gax-go/v2/internallog/internal
 # github.com/gookit/color v1.6.0
 ## explicit; go 1.18
 github.com/gookit/color
-# github.com/gopherjs/gopherjs v1.17.2
-## explicit; go 1.17
-github.com/gopherjs/gopherjs/js
 # github.com/gorilla/websocket v1.5.3
 ## explicit; go 1.12
 github.com/gorilla/websocket
@@ -229,9 +226,6 @@ github.com/homeport/dyff/pkg/dyff
 # github.com/jmespath/go-jmespath v0.4.0
 ## explicit; go 1.14
 github.com/jmespath/go-jmespath
-# github.com/jtolds/gls v4.20.0+incompatible
-## explicit
-github.com/jtolds/gls
 # github.com/lucasb-eyer/go-colorful v1.3.0
 ## explicit; go 1.12
 github.com/lucasb-eyer/go-colorful
@@ -341,17 +335,6 @@ github.com/securego/gosec/v2/taint
 # github.com/sergi/go-diff v1.4.0
 ## explicit; go 1.13
 github.com/sergi/go-diff/diffmatchpatch
-# github.com/smarty/assertions v1.16.0
-## explicit; go 1.21
-github.com/smarty/assertions
-github.com/smarty/assertions/internal/go-diff/diffmatchpatch
-github.com/smarty/assertions/internal/go-render/render
-github.com/smarty/assertions/internal/oglematchers
-# github.com/smartystreets/goconvey v1.8.1
-## explicit; go 1.18
-github.com/smartystreets/goconvey/convey
-github.com/smartystreets/goconvey/convey/gotest
-github.com/smartystreets/goconvey/convey/reporting
 # github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be
 ## explicit
 github.com/starkandwayne/goutils/ansi

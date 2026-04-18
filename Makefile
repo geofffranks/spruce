@@ -1,4 +1,4 @@
-all: vet lint test build clitests
+all: vet lint test build
 
 vet:
 	go vet ./...
@@ -9,13 +9,7 @@ lint: vet
 	go tool gosec ./...
 
 test: lint
-	go test ./...
-
-colortest: build
-	./assets/color_tester
-
-clitests: build
-	./assets/cli_tests
+	go tool ginkgo -r --race --fail-on-pending --keep-going --fail-on-empty --require-suite ./...
 
 build: lint
 	go build ./cmd/spruce
