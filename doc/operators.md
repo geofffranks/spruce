@@ -15,6 +15,7 @@
 - [negate](#-negate-)
 - [param](#-param-)
 - [prune](#-prune-)
+- [raw_env](#-raw_env-)
 - [shuffle](#-shuffle-)
 - [sort](#-sort-)
 - [static_ips](#-static_ips-)
@@ -277,6 +278,32 @@ actual name, e.g. `10.local: (( prune ))` will **not** work. You have to use the
 go-patch equivalent instruction instead.
 
 [Example][prune-example]
+
+## (( raw_env ))
+
+Usage: `(( raw_env $ENV_VAR_NAME ))`
+
+This operator allows you to get the raw string value of an environment variable.
+
+In contrast to grab, the value will not be interpreted as YAML, and hence not be type-
+cast. This is, for example, useful when you work with commit hashes such as `48502e25` 
+that could be misinterpreted as a number in scientific notation.
+
+Example:
+```yaml
+commit_hash: (( raw_env $COMMIT_HASH ))
+```
+
+The `(( raw_env ))` operator also supports fallbacks via the logical-or operator (`||`).
+Note that fallback values which are not environment variables are resolved in the same 
+way as for `(( grab ))` and similar operators. In particular, they can be non-strings.
+The following example would evaluate to the integer `42` if `$UNSET_VAR` is not set:
+```yaml
+password: (( raw_env $UNSET_VAR || 42 ))
+```
+
+For more details, see the notes on [environment variables and default values][env-var].
+
 
 ## (( shuffle ))
 
