@@ -1,7 +1,7 @@
 # AWS SDK v1 → v2 Migration Design
 
-**Date:** 2026-04-17
-**Prerequisite:** Ginkgo test migration plan (`2026-04-16-ginkgo-test-migration.md`) must be completed first. That plan converts tests to Ginkgo/Gomega and generates counterfeiter fakes against v1 `ssmiface`/`secretsmanageriface` interfaces. This plan replaces those with own interfaces backed by v2 clients.
+**Date:** 2026-04-17 (updated 2026-04-20)
+**Prior work:** Ginkgo test migration (`2026-04-16-ginkgo-test-migration.md`) is complete. Tests run under Ginkgo/Gomega; counterfeiter fakes live in `fakes/` and target v1 `ssmiface.SSMAPI` / `secretsmanageriface.SecretsManagerAPI`. This plan replaces those with own interfaces backed by v2 clients.
 
 ## Problem
 
@@ -9,18 +9,19 @@
 
 ## Scope
 
-Two source files are affected:
+Files affected:
 
 | File | Role |
 |------|------|
-| `op_aws.go` | Production code (~200 lines): session init, SSM GetParameter, SecretsManager GetSecretValue, STS AssumeRole |
-| `operator_test.go` | Tests for `awsparam`/`awssecret` operators (post-ginkgo: counterfeiter fakes) |
-
-Supporting files: `go.mod`, `go.sum`, `vendor/`, `fakes/generate.go`
+| `op_aws.go` | Production code (~200 lines): session init, SSM GetParameter, SecretsManager GetSecretValue, STS AssumeRole. Uses `ssmiface.SSMAPI` / `secretsmanageriface.SecretsManagerAPI` typed vars. |
+| `operator_test.go` | Ginkgo tests referencing `fakes.FakeSSMAPI` / `fakes.FakeSecretsManagerAPI` (4 refs). |
+| `fakes/generate.go` | Counterfeiter directives targeting v1 `ssmiface`/`secretsmanageriface`. Uses `go tool counterfeiter` (go.mod tool directive). |
+| `fakes/fake_ssm_api.go`, `fakes/fake_secrets_manager_api.go` | Existing generated fakes (large: full SDK interface). Delete + regenerate against own interfaces. |
+| `go.mod`, `go.sum`, `vendor/` | Drop v1 modules, add v2 modules, revendor. |
 
 ## Approach
 
-Approach C from brainstorming: ginkgo plan runs as-is (fakes against v1 `*iface`), then this plan swaps to v2 with own interfaces and regenerates fakes. Clean two-step with clear PR boundaries.
+Approach C from brainstorming: ginkgo migration already done (fakes against v1 `*iface`). This plan swaps to v2 with own interfaces and regenerates fakes. The regenerated fakes will be dramatically smaller — counterfeiter generates one stub per interface method, and the new interfaces define 1 method each vs. the ~300 methods in v1 `ssmiface.SSMAPI`.
 
 ## Design
 
@@ -85,7 +86,7 @@ if parameterstoreClient == nil {
 
 `getAwsParam` and `getAwsSecret` signatures gain `context.Context`. `Run()` passes `context.Background()`.
 
-DI for tests unchanged — counterfeiter fakes injected into package vars in `BeforeEach`, same as post-ginkgo.
+DI for tests unchanged — counterfeiter fakes injected into package vars in `BeforeEach`, as established by the ginkgo migration. Fake variable names in `operator_test.go` change: `fakeSSM *fakes.FakeSSMAPI` → `fakeSSM *fakes.FakeSSMClient`; same for SecretsManager.
 
 ### 4. Type/Import Changes
 
@@ -107,16 +108,20 @@ Helper changes:
 
 ### 5. Counterfeiter Fake Regeneration
 
-`fakes/generate.go` directives update:
+`fakes/generate.go` directives update. Match the existing `go tool counterfeiter` pattern (counterfeiter is registered as a tool in `go.mod`, not run via `go run`):
 
 ```go
-//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -o fake_ssm_client.go github.com/geofffranks/spruce.SSMClient
-//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -o fake_secrets_manager_client.go github.com/geofffranks/spruce.SecretsManagerClient
+//go:generate go tool counterfeiter -o fake_ssm_client.go github.com/geofffranks/spruce.SSMClient
+//go:generate go tool counterfeiter -o fake_secrets_manager_client.go github.com/geofffranks/spruce.SecretsManagerClient
 ```
 
-Old fakes (`fake_ssm_api.go`, `fake_secrets_manager_api.go`) are deleted. New fakes generated.
+Old fakes (`fake_ssm_api.go`, `fake_secrets_manager_api.go`) deleted. New fakes will be ~1/300th the size (one stub per method, and each new interface has exactly one method).
 
-Test updates: counterfeiter method names change (e.g., `GetParameterReturns` stays the same, but input/output types are now v2 types).
+Test updates in `operator_test.go`:
+- `fakes.FakeSSMAPI` → `fakes.FakeSSMClient`
+- `fakes.FakeSecretsManagerAPI` → `fakes.FakeSecretsManagerClient`
+- Counterfeiter helper names preserve semantics: `GetParameterReturns`, `GetParameterStub`, `GetParameterCallCount`, `GetParameterArgsForCall` — but stub signatures now include `context.Context` as first arg and `...func(*ssm.Options)` as trailing variadic.
+- Input/output struct types change from v1 to v2 package paths.
 
 ### 6. Cleanup
 
@@ -135,16 +140,17 @@ Test updates: counterfeiter method names change (e.g., `GetParameterReturns` sta
 
 ## Subagent Model Guidance
 
-For tasks involving mechanical code transformation, use the **qwen-3.5 MCP** (`local_llm` tool). Read the file content yourself, pass it to qwen-3.5 with clear instructions, then apply the result.
+For tasks involving mechanical code transformation, use the **`local_llm` MCP tool** (LM Studio, currently configured for Gemma 4 e4b 8bit per CLAUDE.md hardware tuning). Read the file content yourself, pass it to `local_llm` with clear instructions, then apply the result. The `local-llm-delegation` skill describes when and how.
 
-**Good for qwen-3.5:**
-- **Import rewriting** — mechanical v1→v2 import path swaps across `op_aws.go` and test files
+**Good for `local_llm`:**
+- **Import rewriting** — mechanical v1→v2 import path swaps in `op_aws.go` and `operator_test.go`
 - **`aws.StringValue` → `aws.ToString`** — bulk replacement with context validation
-- **Nolint comment removal** — identify and strip `SA1019` suppressions, verify no other suppressions lost
-- **Counterfeiter fake review** — pass generated fake code to verify it matches interface signatures
-- **Test assertion updates** — adapting test code to v2 input/output struct types
+- **Nolint comment removal** — identify and strip `//nolint:staticcheck // SA1019` suppressions, verify no unrelated suppressions lost
+- **Counterfeiter fake spot-check** — pass generated fake code to verify it matches the new interface signatures
+- **Test assertion updates** — adapting counterfeiter fake usage from `FakeSSMAPI` to `FakeSSMClient` and from v1 to v2 input/output struct types
+- **Commit message drafts** — per granular-commits memory, one commit per logical change category
 
-**Not suitable for qwen-3.5:**
+**Not suitable for `local_llm`:**
 - `stscreds` migration (credential provider chain logic requires understanding v2 config loading)
 - `initializeAwsConfig` rewrite (v2 config option composition semantics)
 - Debugging build/test failures
