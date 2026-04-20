@@ -29,26 +29,6 @@ import (
 // Version holds the Current version of spruce
 var Version = "(development)"
 
-var printfStdOut = func(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stdout, format, args...)
-}
-
-var getopts = func(o interface{}) {
-	err := goptions.Parse(o)
-	if err != nil {
-		usage()
-	}
-}
-
-var exit = func(code int) {
-	os.Exit(code)
-}
-
-var usage = func() {
-	goptions.PrintHelp()
-	exit(1)
-}
-
 func envFlag(varname string) bool {
 	val := os.Getenv(varname)
 	return val != "" && strings.ToLower(val) != "false" && val != "0"
@@ -93,7 +73,10 @@ func main() {
 			Files         goptions.Remainder `goptions:"description='List vault references in the given files'"`
 		} `goptions:"vaultinfo"`
 	}
-	getopts(&options)
+	if err := goptions.Parse(&options); err != nil {
+		goptions.PrintHelp()
+		os.Exit(1)
+	}
 
 	if envFlag("DEBUG") || options.Debug {
 		DebugOn = true
@@ -105,13 +88,14 @@ func main() {
 	}
 
 	if options.JSON.Help || options.Merge.Help || options.Fan.Help {
-		usage()
+		goptions.PrintHelp()
+		os.Exit(1)
 		return
 	}
 
 	if options.Version {
-		printfStdOut("%s - Version %s\n", os.Args[0], Version)
-		exit(0)
+		fmt.Fprintf(os.Stdout, "%s - Version %s\n", os.Args[0], Version)
+		os.Exit(0)
 		return
 	}
 
@@ -121,8 +105,8 @@ func main() {
 	case "merge":
 		tree, err := cmdMergeEval(options.Merge)
 		if err != nil {
-			PrintfStdErr("%s\n", err.Error())
-			exit(2)
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			os.Exit(2)
 			return
 		}
 
@@ -130,18 +114,18 @@ func main() {
 		TRACE("%#v", tree)
 		merged, err := yaml.Marshal(tree)
 		if err != nil {
-			PrintfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), tree)
-			exit(2)
+			fmt.Fprintf(os.Stderr, "Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), tree)
+			os.Exit(2)
 			return
 		}
 
-		printfStdOut("%s\n", string(merged))
+		fmt.Fprintf(os.Stdout, "%s\n", string(merged))
 
 	case "fan":
 		trees, err := cmdFanEval(options.Fan)
 		if err != nil {
-			PrintfStdErr("%s\n", err.Error())
-			exit(2)
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			os.Exit(2)
 			return
 		}
 
@@ -150,12 +134,12 @@ func main() {
 			TRACE("%#v", tree)
 			merged, err := yaml.Marshal(tree)
 			if err != nil {
-				PrintfStdErr("Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), tree)
-				exit(2)
+				fmt.Fprintf(os.Stderr, "Unable to convert merged result back to YAML: %s\nData:\n%#v", err.Error(), tree)
+				os.Exit(2)
 				return
 			}
 
-			printfStdOut("---\n%s\n", string(merged))
+			fmt.Fprintf(os.Stdout, "---\n%s\n", string(merged))
 		}
 
 	case "vaultinfo":
@@ -165,45 +149,47 @@ func main() {
 		options.Merge.EnableGoPatch = options.VaultInfo.EnableGoPatch
 		_, err := cmdMergeEval(options.Merge)
 		if err != nil {
-			PrintfStdErr("%s\n", err.Error())
-			exit(2)
+			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+			os.Exit(2)
 			return
 		}
 
-		printfStdOut("%s\n", formatVaultRefs())
+		fmt.Fprintf(os.Stdout, "%s\n", formatVaultRefs())
 	case "json":
 		jsons, err := cmdJSONEval(options.JSON)
 		if err != nil {
-			PrintfStdErr("%s\n", err)
-			exit(2)
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			os.Exit(2)
 			return
 		}
 		for _, output := range jsons {
-			printfStdOut("%s\n", output)
+			fmt.Fprintf(os.Stdout, "%s\n", output)
 		}
 
 	case "diff":
 		ansi.Color(isatty.IsTerminal(os.Stdout.Fd()))
 		if len(options.Diff.Files) != 2 {
-			usage()
+			goptions.PrintHelp()
+			os.Exit(1)
 			return
 		}
 		output, differences, err := diffFiles(options.Diff.Files)
 		if err != nil {
-			PrintfStdErr("%s\n", err)
-			exit(2)
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			os.Exit(2)
 			return
 		}
-		printfStdOut("%s\n", output)
+		fmt.Fprintf(os.Stdout, "%s\n", output)
 		if differences {
-			exit(1)
+			os.Exit(1)
 		}
 
 	default:
-		usage()
+		goptions.PrintHelp()
+		os.Exit(1)
 		return
 	}
-	exit(0)
+	os.Exit(0)
 }
 
 func isArrayError(err error) bool {

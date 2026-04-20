@@ -1,4 +1,4 @@
-all: vet lint test build clitests
+all: vet lint test build
 
 vet:
 	go vet ./...
@@ -8,14 +8,10 @@ lint: vet
 	go tool staticcheck ./...
 	go tool gosec ./...
 
+# -p is intentionally omitted: vault_test.go uses os.Setenv globally and is
+# not safe to run concurrently with other packages.
 test: lint
-	go test ./...
-
-colortest: build
-	./assets/color_tester
-
-clitests: build
-	./assets/cli_tests
+	go tool ginkgo -r --race --fail-on-pending --keep-going --fail-on-empty --require-suite ./...
 
 build: lint
 	go build ./cmd/spruce

@@ -1,96 +1,125 @@
 package spruce
 
 import (
-	"testing"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 
-	. "github.com/smartystreets/goconvey/convey"
 	"github.com/starkandwayne/goutils/tree"
 )
 
-func TestSort(t *testing.T) {
-	Convey("that the actual Run function of the sort operator is dead code", t, func() {
-		op := &SortOperator{}
-		ev := &Evaluator{Here: &tree.Cursor{Nodes: []string{"foobar"}}}
+var _ = Describe("Sort", func() {
+	Describe("SortOperator.Run", func() {
+		It("returns an error indicating orphaned operator", func() {
+			op := &SortOperator{}
+			ev := &Evaluator{Here: &tree.Cursor{Nodes: []string{"foobar"}}}
 
-		resp, err := op.Run(ev, []*Expr{})
-		So(resp, ShouldBeNil)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldResemble, "orphaned (( sort )) operator at $.foobar, no list exists at that path")
-	})
-
-	Convey("that sorting an empty list returns an empty list", t, func() {
-		list := []interface{}{}
-		err := sortList("some.path", list, "")
-		So(err, ShouldBeNil)
-		So(list, ShouldResemble, []interface{}{})
-	})
-
-	Convey("that sorting of integers works", t, func() {
-		list := []interface{}{2, 1}
-		err := sortList("some.path", list, "")
-		So(err, ShouldBeNil)
-		So(list, ShouldResemble, []interface{}{1, 2})
-	})
-
-	Convey("that sorting of floats works", t, func() {
-		list := []interface{}{2.0, 1.0}
-		err := sortList("some.path", list, "")
-		So(err, ShouldBeNil)
-		So(list, ShouldResemble, []interface{}{1.0, 2.0})
-	})
-
-	Convey("that sorting of strings works", t, func() {
-		list := []interface{}{"spruce", "spiff"}
-		err := sortList("some.path", list, "")
-		So(err, ShouldBeNil)
-		So(list, ShouldResemble, []interface{}{"spiff", "spruce"})
-	})
-
-	Convey("that sorting of named-entry lists works", t, func() {
-		list := []interface{}{
-			map[interface{}]interface{}{"name": "B"},
-			map[interface{}]interface{}{"name": "A"},
-		}
-		err := sortList("some.path", list, "")
-		So(err, ShouldBeNil)
-		So(list, ShouldResemble, []interface{}{
-			map[interface{}]interface{}{"name": "A"},
-			map[interface{}]interface{}{"name": "B"},
+			resp, err := op.Run(ev, []*Expr{})
+			Expect(resp).To(BeNil())
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("orphaned (( sort )) operator at $.foobar, no list exists at that path"))
 		})
 	})
 
-	Convey("that sorting of lists of lists fails", t, func() {
-		list := []interface{}{
-			[]interface{}{"B", "A"},
-			[]interface{}{"A", "B"},
-		}
+	Describe("sortList", func() {
+		It("returns an empty list unchanged", func() {
+			list := []interface{}{}
+			err := sortList("some.path", list, "")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(list).To(BeEmpty())
+		})
 
-		err := sortList("some.path", list, "")
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldResemble, "$.some.path is a list with list entries (not a list with maps, strings or numbers)")
+		It("sorts integers", func() {
+			list := []interface{}{2, 1}
+			err := sortList("some.path", list, "")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(list).To(Equal([]interface{}{1, 2}))
+		})
+
+		It("sorts floats", func() {
+			list := []interface{}{2.0, 1.0}
+			err := sortList("some.path", list, "")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(list).To(Equal([]interface{}{1.0, 2.0}))
+		})
+
+		It("sorts strings", func() {
+			list := []interface{}{"spruce", "spiff"}
+			err := sortList("some.path", list, "")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(list).To(Equal([]interface{}{"spiff", "spruce"}))
+		})
+
+		It("sorts named-entry lists by name key", func() {
+			list := []interface{}{
+				map[interface{}]interface{}{"name": "B"},
+				map[interface{}]interface{}{"name": "A"},
+			}
+			err := sortList("some.path", list, "")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(list).To(Equal([]interface{}{
+				map[interface{}]interface{}{"name": "A"},
+				map[interface{}]interface{}{"name": "B"},
+			}))
+		})
+
+		It("fails on lists of lists", func() {
+			list := []interface{}{
+				[]interface{}{"B", "A"},
+				[]interface{}{"A", "B"},
+			}
+			err := sortList("some.path", list, "")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("$.some.path is a list with list entries (not a list with maps, strings or numbers)"))
+		})
+
+		It("fails on inhomogeneous types", func() {
+			list := []interface{}{42, 42.0, "42"}
+			err := sortList("some.path", list, "")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("$.some.path is a list with different types (not a list with homogeneous entry types)"))
+		})
+
+		It("fails on nil values in list", func() {
+			list := []interface{}{"A", "B", "C", nil}
+			err := sortList("some.path", list, "")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("$.some.path is a list with different types (not a list with homogeneous entry types)"))
+		})
+
+		It("fails on inconsistent identifier key", func() {
+			list := []interface{}{
+				map[interface{}]interface{}{"foo": "one"},
+				map[interface{}]interface{}{"key": "two"},
+			}
+			err := sortList("some.path", list, "foo")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("$.some.path is a list with map entries, where some do not contain foo (not a list with map entries each containing foo)"))
+		})
 	})
 
-	Convey("that sorting of a list of inhomogeneous types fails", t, func() {
-		list := []interface{}{42, 42.0, "42"}
-		err := sortList("some.path", list, "")
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldResemble, "$.some.path is a list with different types (not a list with homogeneous entry types)")
-	})
+	Describe("addToSortListIfNecessary", func() {
+		BeforeEach(func() {
+			pathsToSort = map[string]string{}
+		})
 
-	Convey("that sorting of a list with nil values fails (by definition considered to be inhomogeneous types)", t, func() {
-		list := []interface{}{"A", "B", "C", nil}
-		err := sortList("some.path", list, "")
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldResemble, "$.some.path is a list with different types (not a list with homogeneous entry types)")
-	})
+		AfterEach(func() {
+			pathsToSort = map[string]string{}
+		})
 
-	Convey("that sorting of a named-entry list with inconsistent identifier fails", t, func() {
-		list := []interface{}{
-			map[interface{}]interface{}{"foo": "one"},
-			map[interface{}]interface{}{"key": "two"},
-		}
-		err := sortList("some.path", list, "foo")
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldResemble, "$.some.path is a list with map entries, where some do not contain foo (not a list with map entries each containing foo)")
+		It("adds a sort-by-key entry for a valid sort operator string", func() {
+			addToSortListIfNecessary("(( sort by name ))", "jobs")
+			Expect(pathsToSort).To(HaveKeyWithValue("jobs", "name"))
+		})
+
+		It("adds a simple sort entry (no key) for a sort operator with no arguments", func() {
+			addToSortListIfNecessary("(( sort ))", "releases")
+			Expect(pathsToSort).To(HaveKeyWithValue("releases", ""))
+		})
+
+		It("does not overwrite an existing path entry", func() {
+			addToSortListIfNecessary("(( sort by name ))", "jobs")
+			addToSortListIfNecessary("(( sort by id ))", "jobs")
+			Expect(pathsToSort["jobs"]).To(Equal("name"))
+		})
 	})
-}
+})
