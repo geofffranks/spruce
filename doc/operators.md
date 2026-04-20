@@ -57,6 +57,10 @@ literal values (strings/numbers/booleans), references (paths defining a datastru
 (`||`) to failover to other values. See our notes on [environment variables and default values][env-var]
 for more information on environment variables and the logical-or.
 
+References can also use **dynamic key lookup**: wrap a reference in square brackets
+(e.g. `colors[pick]`) and `spruce` will resolve the inner reference first, then use the
+resulting scalar as the key. See the `(( grab ))` section for an example.
+
 ## (( calc ))
 
 Usage: `(( calc EXPRESSION ))`
@@ -176,6 +180,34 @@ but it's entirely possible to simply `username: (( grab "admin" ))`. I have no i
 might want to do that though, since it's much more typing than `username: admin`...
 
 [Example][grab-example]
+
+**Dynamic key lookup:**
+
+Sometimes the key you want to look up isn't known ahead of time - it lives
+somewhere else in the same document. You can wrap a reference in square brackets
+and `spruce` will resolve that reference first, then use the resulting value as
+the key:
+
+```
+$ cat <<EOF > config.yml
+colors:
+  primary: blue
+  secondary: red
+pick: primary
+chosen: (( grab colors[pick] ))
+EOF
+
+$ spruce merge config.yml
+chosen: blue
+colors:
+  primary: blue
+  secondary: red
+pick: primary
+```
+
+The bracketed reference can itself be a nested path, e.g. `colors[meta.which]`.
+The looked-up value must be a scalar (string, integer, float, or boolean). This
+syntax is available anywhere references are accepted, not just inside `(( grab ))`.
 
 ## (( inject ))
 
