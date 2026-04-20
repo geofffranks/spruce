@@ -309,8 +309,8 @@ func ResolveDynamicRefs(nodes []string, bracketed []bool, t map[interface{}]inte
 		if len(node) == 0 || node[0] == '$' {
 			continue // $VAR nodes were already substituted by ResolveEnv; skip any remnants
 		}
-		if _, err := strconv.ParseUint(node, 10, 64); err == nil {
-			continue // numeric nodes are array indices, not YAML references
+		if _, err := strconv.ParseInt(node, 10, 64); err == nil {
+			continue // numeric nodes (including negatives) are array indices, not YAML references
 		}
 		c, err := tree.ParseCursor(node)
 		if err != nil {
@@ -389,7 +389,7 @@ func (e *Expr) Dependencies(ev *Evaluator, locs []*tree.Cursor) []*tree.Cursor {
 			if len(node) == 0 || node[0] == '$' {
 				continue
 			}
-			if _, err := strconv.ParseUint(node, 10, 64); err == nil {
+			if _, err := strconv.ParseInt(node, 10, 64); err == nil {
 				continue
 			}
 			if c, err := tree.ParseCursor(node); err == nil {
