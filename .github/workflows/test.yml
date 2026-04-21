@@ -11,28 +11,11 @@ jobs:
           go-version: stable
           check-latest: true
 
-      - name: Build
-        run: go build -v ./...
+      - name: Lint
+        run: make lint
 
       - name: Test
-        run: go list ./... | grep -v vendor | xargs go test
+        run: make test
 
-      - name: Vet
-        run: go list ./... | grep -v vendor | xargs go vet
-
-      - name: gofmt
-        run: test -z "$(gofmt -l $(find . -name '*.go' -not -path './vendor/*'))" || (echo "gofmt check failed:"; gofmt -l $(find . -name '*.go' -not -path './vendor/*'); exit 1)
-
-      - name: staticcheck
-        uses: dominikh/staticcheck-action@v1
-        with:
-          version: latest
-          install-go: false
-
-      - name: gosec
-        run: go tool gosec ./...
-
-      - name: CLI Tests
-        run: |
-          go build ./cmd/spruce
-          ./assets/cli_tests
+      - name: Build
+        run: make build
