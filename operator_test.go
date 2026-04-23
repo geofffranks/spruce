@@ -1,15 +1,17 @@
 package spruce
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
 
-	"github.com/aws/aws-sdk-go/aws"                    //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
-	"github.com/aws/aws-sdk-go/service/secretsmanager" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
-	"github.com/aws/aws-sdk-go/service/ssm"            //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	ssmtypes "github.com/aws/aws-sdk-go-v2/service/ssm/types"
 
 	"github.com/geofffranks/simpleyaml"
 	"github.com/geofffranks/spruce/fakes"
@@ -2035,8 +2037,8 @@ var _ = Describe("Base64Decode Operator", func() {
 var _ = Describe("awsparam/awssecret operator", func() {
 	var op AwsOperator
 	var ev *Evaluator
-	var fakeSSM *fakes.FakeSSMAPI
-	var fakeSecretsManager *fakes.FakeSecretsManagerAPI
+	var fakeSSM *fakes.FakeSSMClient
+	var fakeSecretsManager *fakes.FakeSecretsManagerClient
 
 	BeforeEach(func() {
 		op = AwsOperator{variant: "awsparam"}
@@ -2044,8 +2046,8 @@ var _ = Describe("awsparam/awssecret operator", func() {
 			Tree: opYAML(`{ "testval": "test", "testmap": {}, "testarr": [] }`),
 			Here: &tree.Cursor{},
 		}
-		fakeSSM = new(fakes.FakeSSMAPI)
-		fakeSecretsManager = new(fakes.FakeSecretsManagerAPI)
+		fakeSSM = new(fakes.FakeSSMClient)
+		fakeSecretsManager = new(fakes.FakeSecretsManagerClient)
 		parameterstoreClient = fakeSSM
 		secretsManagerClient = fakeSecretsManager
 	})
@@ -2058,10 +2060,10 @@ var _ = Describe("awsparam/awssecret operator", func() {
 
 		It("should concatenate args", func() {
 			var ssmKey string
-			fakeSSM.GetParameterStub = func(in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
-				ssmKey = aws.StringValue(in.Name)
+			fakeSSM.GetParameterStub = func(ctx context.Context, in *ssm.GetParameterInput, optFns ...func(*ssm.Options)) (*ssm.GetParameterOutput, error) {
+				ssmKey = aws.ToString(in.Name)
 				return &ssm.GetParameterOutput{
-					Parameter: &ssm.Parameter{
+					Parameter: &ssmtypes.Parameter{
 						Value: aws.String(""),
 					},
 				}, nil
@@ -2073,10 +2075,10 @@ var _ = Describe("awsparam/awssecret operator", func() {
 
 		It("should resolve references", func() {
 			var ssmKey string
-			fakeSSM.GetParameterStub = func(in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
-				ssmKey = aws.StringValue(in.Name)
+			fakeSSM.GetParameterStub = func(ctx context.Context, in *ssm.GetParameterInput, optFns ...func(*ssm.Options)) (*ssm.GetParameterOutput, error) {
+				ssmKey = aws.ToString(in.Name)
 				return &ssm.GetParameterOutput{
-					Parameter: &ssm.Parameter{
+					Parameter: &ssmtypes.Parameter{
 						Value: aws.String(""),
 					},
 				}, nil
@@ -2099,9 +2101,9 @@ var _ = Describe("awsparam/awssecret operator", func() {
 		})
 
 		It("without key", func() {
-			fakeSSM.GetParameterStub = func(in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+			fakeSSM.GetParameterStub = func(ctx context.Context, in *ssm.GetParameterInput, optFns ...func(*ssm.Options)) (*ssm.GetParameterOutput, error) {
 				return &ssm.GetParameterOutput{
-					Parameter: &ssm.Parameter{
+					Parameter: &ssmtypes.Parameter{
 						Value: aws.String("testx"),
 					},
 				}, nil
@@ -2114,9 +2116,9 @@ var _ = Describe("awsparam/awssecret operator", func() {
 
 		Describe("with key", func() {
 			It("should parse subkey and extract if provided", func() {
-				fakeSSM.GetParameterStub = func(in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+				fakeSSM.GetParameterStub = func(ctx context.Context, in *ssm.GetParameterInput, optFns ...func(*ssm.Options)) (*ssm.GetParameterOutput, error) {
 					return &ssm.GetParameterOutput{
-						Parameter: &ssm.Parameter{
+						Parameter: &ssmtypes.Parameter{
 							Value: aws.String(`{ "key": "val" }`),
 						},
 					}, nil
@@ -2128,9 +2130,9 @@ var _ = Describe("awsparam/awssecret operator", func() {
 			})
 
 			It("should error if document not valid yaml / json", func() {
-				fakeSSM.GetParameterStub = func(in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+				fakeSSM.GetParameterStub = func(ctx context.Context, in *ssm.GetParameterInput, optFns ...func(*ssm.Options)) (*ssm.GetParameterOutput, error) {
 					return &ssm.GetParameterOutput{
-						Parameter: &ssm.Parameter{
+						Parameter: &ssmtypes.Parameter{
 							Value: aws.String(`key: {`),
 						},
 					}, nil
@@ -2141,9 +2143,9 @@ var _ = Describe("awsparam/awssecret operator", func() {
 			})
 
 			It("should error if subkey invalid", func() {
-				fakeSSM.GetParameterStub = func(in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+				fakeSSM.GetParameterStub = func(ctx context.Context, in *ssm.GetParameterInput, optFns ...func(*ssm.Options)) (*ssm.GetParameterOutput, error) {
 					return &ssm.GetParameterOutput{
-						Parameter: &ssm.Parameter{
+						Parameter: &ssmtypes.Parameter{
 							Value: aws.String(`key: {}`),
 						},
 					}, nil
@@ -2158,10 +2160,10 @@ var _ = Describe("awsparam/awssecret operator", func() {
 			SkipAws = true
 			defer func() { SkipAws = false }()
 			count := 0
-			fakeSSM.GetParameterStub = func(in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+			fakeSSM.GetParameterStub = func(ctx context.Context, in *ssm.GetParameterInput, optFns ...func(*ssm.Options)) (*ssm.GetParameterOutput, error) {
 				count++
 				return &ssm.GetParameterOutput{
-					Parameter: &ssm.Parameter{
+					Parameter: &ssmtypes.Parameter{
 						Value: aws.String(""),
 					},
 				}, nil
@@ -2175,10 +2177,10 @@ var _ = Describe("awsparam/awssecret operator", func() {
 	Describe("awsparam", func() {
 		It("should cache lookups", func() {
 			count := 0
-			fakeSSM.GetParameterStub = func(in *ssm.GetParameterInput) (*ssm.GetParameterOutput, error) {
+			fakeSSM.GetParameterStub = func(ctx context.Context, in *ssm.GetParameterInput, optFns ...func(*ssm.Options)) (*ssm.GetParameterOutput, error) {
 				count++
 				return &ssm.GetParameterOutput{
-					Parameter: &ssm.Parameter{
+					Parameter: &ssmtypes.Parameter{
 						Value: aws.String(""),
 					},
 				}, nil
@@ -2199,7 +2201,7 @@ var _ = Describe("awsparam/awssecret operator", func() {
 
 		It("should cache lookups", func() {
 			count := 0
-			fakeSecretsManager.GetSecretValueStub = func(in *secretsmanager.GetSecretValueInput) (*secretsmanager.GetSecretValueOutput, error) {
+			fakeSecretsManager.GetSecretValueStub = func(ctx context.Context, in *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error) {
 				count++
 				return &secretsmanager.GetSecretValueOutput{
 					SecretString: aws.String(""),
@@ -2215,8 +2217,8 @@ var _ = Describe("awsparam/awssecret operator", func() {
 
 		It("should use stage if provided", func() {
 			stage := ""
-			fakeSecretsManager.GetSecretValueStub = func(in *secretsmanager.GetSecretValueInput) (*secretsmanager.GetSecretValueOutput, error) {
-				stage = aws.StringValue(in.VersionStage)
+			fakeSecretsManager.GetSecretValueStub = func(ctx context.Context, in *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error) {
+				stage = aws.ToString(in.VersionStage)
 				return &secretsmanager.GetSecretValueOutput{
 					SecretString: aws.String(""),
 				}, nil
@@ -2229,8 +2231,8 @@ var _ = Describe("awsparam/awssecret operator", func() {
 
 		It("should use version if provided", func() {
 			version := ""
-			fakeSecretsManager.GetSecretValueStub = func(in *secretsmanager.GetSecretValueInput) (*secretsmanager.GetSecretValueOutput, error) {
-				version = aws.StringValue(in.VersionId)
+			fakeSecretsManager.GetSecretValueStub = func(ctx context.Context, in *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error) {
+				version = aws.ToString(in.VersionId)
 				return &secretsmanager.GetSecretValueOutput{
 					SecretString: aws.String(""),
 				}, nil
