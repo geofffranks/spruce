@@ -115,4 +115,3 @@ func (fake *FakeSecretsManagerClient) recordInvocation(key string, args []interf
 	}
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
-
