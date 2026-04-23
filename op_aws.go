@@ -1,17 +1,18 @@
 package spruce
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/secretsmanager"                     //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
-	"github.com/aws/aws-sdk-go/service/secretsmanager/secretsmanageriface" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
-	"github.com/aws/aws-sdk-go/service/ssm"                                //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"                       //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
-
-	"github.com/aws/aws-sdk-go/aws/session" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	"github.com/starkandwayne/goutils/ansi"
 
@@ -21,21 +22,30 @@ import (
 	// Use geofffranks forks to persist the fix in https://github.com/go-yaml/yaml/pull/133/commits
 	// Also https://github.com/go-yaml/yaml/pull/195
 	"github.com/geofffranks/yaml"
-
-	"github.com/aws/aws-sdk-go/aws"                      //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds" //nolint:staticcheck // SA1019: aws-sdk-go v1 deprecated; v2 migration tracked separately
 )
 
-// awsSession holds a shared AWS session struct
-var awsSession *session.Session
+// SSMClient abstracts SSM Parameter Store access. The real v2 *ssm.Client
+// satisfies this interface implicitly.
+type SSMClient interface {
+	GetParameter(ctx context.Context, params *ssm.GetParameterInput, optFns ...func(*ssm.Options)) (*ssm.GetParameterOutput, error)
+}
 
-// secretsManagerClient holds a secretsmanager client configured with a session
-// We use secretsmanageriface.SecretsManagerAPI to be able to provide mocks in testing
-var secretsManagerClient secretsmanageriface.SecretsManagerAPI
+// SecretsManagerClient abstracts Secrets Manager access. The real v2
+// *secretsmanager.Client satisfies this interface implicitly.
+type SecretsManagerClient interface {
+	GetSecretValue(ctx context.Context, params *secretsmanager.GetSecretValueInput, optFns ...func(*secretsmanager.Options)) (*secretsmanager.GetSecretValueOutput, error)
+}
 
-// parameterstoreClient holds a parameterstore client configured with a session
-// We use ssmiface.SSMAPI to be able to provide mocks in testing
-var parameterstoreClient ssmiface.SSMAPI
+// awsConfig holds a shared AWS config value
+var awsConfig *aws.Config
+
+// secretsManagerClient holds a secretsmanager client configured with a config.
+// Test code replaces this with a counterfeiter fake.
+var secretsManagerClient SecretsManagerClient
+
+// parameterstoreClient holds a parameterstore client configured with a config.
+// Test code replaces this with a counterfeiter fake.
+var parameterstoreClient SSMClient
 
 // awsSecretsCache caches values from AWS Secretsmanager
 var awsSecretsCache = make(map[string]string)
@@ -53,43 +63,43 @@ type AwsOperator struct {
 	variant string
 }
 
-// initializeAwsSession will configure an AWS session with profile, region and role assume including loading shared config (e.g. ~/.aws/credentials)
-func initializeAwsSession(profile string, region string, role string) (s *session.Session, err error) {
-	options := session.Options{
-		Config:            aws.Config{},
-		SharedConfigState: session.SharedConfigEnable,
-	}
-
+// initializeAwsConfig builds an aws.Config honoring shared config (e.g. ~/.aws/credentials),
+// optional profile, optional region, and optional STS AssumeRole.
+func initializeAwsConfig(ctx context.Context, profile string, region string, role string) (*aws.Config, error) {
+	var optFns []func(*config.LoadOptions) error
 	if region != "" {
-		options.Config.Region = aws.String(region)
+		optFns = append(optFns, config.WithRegion(region))
 	}
-
 	if profile != "" {
-		options.Profile = profile
+		optFns = append(optFns, config.WithSharedConfigProfile(profile))
 	}
 
-	s, err = session.NewSessionWithOptions(options)
+	cfg, err := config.LoadDefaultConfig(ctx, optFns...)
 	if err != nil {
 		return nil, err
 	}
 
 	if role != "" {
-		options.Config.Credentials = stscreds.NewCredentials(s, role, func(p *stscreds.AssumeRoleProvider) {})
-		s, err = session.NewSession(&options.Config)
+		stsClient := sts.NewFromConfig(cfg)
+		// Wrap AssumeRoleProvider in CredentialsCache per v2 best practice —
+		// without it, every service call could trigger a new STS AssumeRole.
+		// config.LoadDefaultConfig sets up caching for the default chain, but
+		// that wrapping is lost when we replace cfg.Credentials here.
+		cfg.Credentials = aws.NewCredentialsCache(stscreds.NewAssumeRoleProvider(stsClient, role))
 	}
 
-	return s, err
+	return &cfg, nil
 }
 
 // getAwsSecret will fetch the specified secret from AWS Secretsmanager at the specified (if provided) stage / version
-func getAwsSecret(awsSession *session.Session, secret string, params url.Values) (string, error) {
+func getAwsSecret(ctx context.Context, cfg *aws.Config, secret string, params url.Values) (string, error) {
 	val, cached := awsSecretsCache[secret]
 	if cached {
 		return val, nil
 	}
 
 	if secretsManagerClient == nil {
-		secretsManagerClient = secretsmanager.New(awsSession)
+		secretsManagerClient = secretsmanager.NewFromConfig(*cfg)
 	}
 
 	input := secretsmanager.GetSecretValueInput{
@@ -102,25 +112,25 @@ func getAwsSecret(awsSession *session.Session, secret string, params url.Values)
 		input.VersionId = aws.String(params.Get("version"))
 	}
 
-	output, err := secretsManagerClient.GetSecretValue(&input)
+	output, err := secretsManagerClient.GetSecretValue(ctx, &input)
 	if err != nil {
 		return "", err
 	}
 
-	awsSecretsCache[secret] = aws.StringValue(output.SecretString)
+	awsSecretsCache[secret] = aws.ToString(output.SecretString)
 
 	return awsSecretsCache[secret], nil
 }
 
 // getAwsParam will fetch the specified parameter from AWS SSM Parameterstore
-func getAwsParam(awsSession *session.Session, param string) (string, error) {
+func getAwsParam(ctx context.Context, cfg *aws.Config, param string) (string, error) {
 	val, cached := awsParamsCache[param]
 	if cached {
 		return val, nil
 	}
 
 	if parameterstoreClient == nil {
-		parameterstoreClient = ssm.New(awsSession)
+		parameterstoreClient = ssm.NewFromConfig(*cfg)
 	}
 
 	input := ssm.GetParameterInput{
@@ -128,12 +138,12 @@ func getAwsParam(awsSession *session.Session, param string) (string, error) {
 		WithDecryption: aws.Bool(true),
 	}
 
-	output, err := parameterstoreClient.GetParameter(&input)
+	output, err := parameterstoreClient.GetParameter(ctx, &input)
 	if err != nil {
 		return "", err
 	}
 
-	awsParamsCache[param] = aws.StringValue(output.Parameter.Value)
+	awsParamsCache[param] = aws.ToString(output.Parameter.Value)
 
 	return awsParamsCache[param], nil
 }
@@ -215,17 +225,18 @@ func (o AwsOperator) Run(ev *Evaluator, args []*Expr) (*Response, error) {
 	value := "REDACTED"
 
 	if !SkipAws {
-		if awsSession == nil {
-			awsSession, err = initializeAwsSession(os.Getenv("AWS_PROFILE"), os.Getenv("AWS_REGION"), os.Getenv("AWS_ROLE"))
+		ctx := context.Background()
+		if awsConfig == nil {
+			awsConfig, err = initializeAwsConfig(ctx, os.Getenv("AWS_PROFILE"), os.Getenv("AWS_REGION"), os.Getenv("AWS_ROLE"))
 			if err != nil {
-				return nil, fmt.Errorf("error during AWS session initialization: %s", err)
+				return nil, fmt.Errorf("error during AWS config initialization: %s", err)
 			}
 		}
 
 		if o.variant == "awsparam" {
-			value, err = getAwsParam(awsSession, key)
+			value, err = getAwsParam(ctx, awsConfig, key)
 		} else if o.variant == "awssecret" {
-			value, err = getAwsSecret(awsSession, key, params)
+			value, err = getAwsSecret(ctx, awsConfig, key, params)
 		}
 
 		if err != nil {
