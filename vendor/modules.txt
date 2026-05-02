@@ -297,7 +297,7 @@ github.com/lucasb-eyer/go-colorful
 # github.com/mattn/go-ciede2000 v0.0.0-20170301095244-782e8c62fec3
 ## explicit
 github.com/mattn/go-ciede2000
-# github.com/mattn/go-isatty v0.0.21
+# github.com/mattn/go-isatty v0.0.22
 ## explicit; go 1.21
 github.com/mattn/go-isatty
 # github.com/maxbrunsfeld/counterfeiter/v6 v6.12.2
