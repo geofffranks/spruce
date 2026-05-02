@@ -18,7 +18,7 @@ require (
 	github.com/homeport/dyff v1.11.3
 	github.com/mattn/go-isatty v0.0.21
 	github.com/onsi/ginkgo/v2 v2.28.1
-	github.com/onsi/gomega v1.39.1
+	github.com/onsi/gomega v1.40.0
 	github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be
 	github.com/voxelbrain/goptions v0.0.0-20180630082107-58cddc247ea2
 	github.com/ziutek/utils v0.0.0-20190626152656-eb2a3b364d6c
