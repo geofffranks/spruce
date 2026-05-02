@@ -16,7 +16,7 @@ require (
 	github.com/geofffranks/yaml v0.0.0-20161117152608-9f2fe4b6f295
 	github.com/gonvenience/ytbx v1.4.9
 	github.com/homeport/dyff v1.11.3
-	github.com/mattn/go-isatty v0.0.21
+	github.com/mattn/go-isatty v0.0.22
 	github.com/onsi/ginkgo/v2 v2.28.3
 	github.com/onsi/gomega v1.40.0
 	github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be
