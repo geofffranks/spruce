@@ -211,7 +211,7 @@ github.com/gonvenience/bunt
 # github.com/gonvenience/idem v0.0.3
 ## explicit; go 1.24.0
 github.com/gonvenience/idem
-# github.com/gonvenience/neat v1.3.18
+# github.com/gonvenience/neat v1.3.20
 ## explicit; go 1.25.0
 github.com/gonvenience/neat
 # github.com/gonvenience/term v1.0.5
@@ -288,7 +288,7 @@ github.com/hashicorp/go-secure-stdlib/base62
 # github.com/hashicorp/go-uuid v1.0.3
 ## explicit
 github.com/hashicorp/go-uuid
-# github.com/homeport/dyff v1.11.3
+# github.com/homeport/dyff v1.12.0
 ## explicit; go 1.25.0
 github.com/homeport/dyff/pkg/dyff
 # github.com/lucasb-eyer/go-colorful v1.4.0

@@ -91,15 +91,20 @@ var DefaultColorSchema = map[string]colorful.Color{
 // OutputProcessor provides the functionality to output neat YAML strings using
 // colors and text emphasis
 type OutputProcessor struct {
-	data           *bytes.Buffer
-	out            *bufio.Writer
-	colorSchema    *map[string]colorful.Color
-	useIndentLines bool
-	boldKeys       bool
+	data *bytes.Buffer
+	out  *bufio.Writer
+
+	colorSchema *map[string]colorful.Color
+
+	useIndentLines             bool
+	boldKeys                   bool
+	enforceDocumentStartMarker bool
 }
 
 // NewOutputProcessor creates a new output processor including the required
 // internals using the provided preferences
+//
+// Deprecated: Use NewOutputProcessorWithDefaults() instead.
 func NewOutputProcessor(useIndentLines bool, boldKeys bool, colorSchema *map[string]colorful.Color) *OutputProcessor {
 	bytesBuffer := &bytes.Buffer{}
 	writer := bufio.NewWriter(bytesBuffer)
@@ -110,12 +115,49 @@ func NewOutputProcessor(useIndentLines bool, boldKeys bool, colorSchema *map[str
 	}
 
 	return &OutputProcessor{
-		data:           bytesBuffer,
-		out:            writer,
-		useIndentLines: useIndentLines,
-		boldKeys:       boldKeys,
-		colorSchema:    colorSchema,
+		data: bytesBuffer,
+		out:  writer,
+
+		colorSchema: colorSchema,
+
+		useIndentLines:             useIndentLines,
+		boldKeys:                   boldKeys,
+		enforceDocumentStartMarker: true, // default for backwards compability
 	}
+}
+
+func NewOutputProcessorWithDefaults() *OutputProcessor {
+	var bytesBuffer bytes.Buffer
+	return &OutputProcessor{
+		data: &bytesBuffer,
+		out:  bufio.NewWriter(&bytesBuffer),
+	}
+}
+
+func (p *OutputProcessor) ColorSchema(colorSchema map[string]colorful.Color) *OutputProcessor {
+	p.colorSchema = &colorSchema
+	return p
+}
+
+func (p *OutputProcessor) BoldKeys(value bool) *OutputProcessor {
+	p.boldKeys = value
+	return p
+}
+
+func (p *OutputProcessor) UseIndentLines(value bool) *OutputProcessor {
+	p.useIndentLines = value
+
+	// Only use indent lines in color mode
+	if !bunt.UseColors() {
+		p.useIndentLines = false
+	}
+
+	return p
+}
+
+func (p *OutputProcessor) EnforceDocumentStartMarker(value bool) *OutputProcessor {
+	p.enforceDocumentStartMarker = value
+	return p
 }
 
 // colorize returns the given string with the color applied via bunt.
