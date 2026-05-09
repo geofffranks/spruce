@@ -12,6 +12,7 @@ permissions:
 jobs:
   bump:
     runs-on: ubuntu-latest
+    environment: auto-bump
     steps:
       - uses: actions/checkout@v6
         with:
