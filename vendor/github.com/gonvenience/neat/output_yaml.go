@@ -194,7 +194,10 @@ func (p *OutputProcessor) neatYAMLofNode(prefix string, skipIndentOnFirstLine bo
 
 	switch node.Kind {
 	case yamlv3.DocumentNode:
-		bunt.Fprint(p.out, p.colorize(documentStart, "---"), "\n")
+		if p.enforceDocumentStartMarker {
+			_, _ = bunt.Fprint(p.out, p.colorize(documentStart, "---"), "\n")
+		}
+
 		for _, content := range node.Content {
 			if err := p.neatYAML(prefix, false, content); err != nil {
 				return err
