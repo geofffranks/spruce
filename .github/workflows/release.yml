@@ -2,6 +2,9 @@ on:
   release:
     types: [created]
 
+permissions:
+  contents: write
+
 jobs:
   build-release-artifacts:
     name: build-release-artifacts
@@ -42,3 +45,33 @@ jobs:
 
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  annotate-go-version:
+    name: annotate-go-version
+    needs: build-release-artifacts
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: stable
+        check-latest: true
+
+    - name: Capture resolved Go version
+      id: gover
+      run: echo "version=$(go env GOVERSION)" >> "$GITHUB_OUTPUT"
+
+    - name: Append Go version to release notes (idempotent)
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG: ${{ github.event.release.tag_name }}
+        GOVER: ${{ steps.gover.outputs.version }}
+      run: |
+        BODY=$(gh release view "$TAG" --json body -q .body)
+        MARKER='<!-- go-version-footer -->'
+        if printf '%s' "$BODY" | grep -qF "$MARKER"; then
+          echo "Go version footer already present; skipping."
+          exit 0
+        fi
+        FOOTER=$(printf '\n\n---\n%s\n_Binaries built with %s._' "$MARKER" "$GOVER")
+        gh release edit "$TAG" --notes "$BODY$FOOTER"
