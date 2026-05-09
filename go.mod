@@ -14,7 +14,7 @@ require (
 	github.com/cppforlife/go-patch v0.2.0
 	github.com/geofffranks/simpleyaml v0.0.0-20161109204137-c9320f076de5
 	github.com/geofffranks/yaml v0.0.0-20161117152608-9f2fe4b6f295
-	github.com/gonvenience/ytbx v1.4.9
+	github.com/gonvenience/ytbx v1.5.0
 	github.com/homeport/dyff v1.11.3
 	github.com/mattn/go-isatty v0.0.22
 	github.com/onsi/ginkgo/v2 v2.28.3
@@ -65,7 +65,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-secure-stdlib/base62 v0.1.2 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
-	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
+	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/mattn/go-ciede2000 v0.0.0-20170301095244-782e8c62fec3 // indirect
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.12.2 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect

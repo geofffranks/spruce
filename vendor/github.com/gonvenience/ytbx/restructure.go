@@ -45,6 +45,9 @@ var knownKeyOrders = [][]string{
 	{"releases", "instance_groups", "configuration", "variables"},
 	{"auth", "templates"},
 
+	// Kubernetes Object
+	{"apiVersion", "kind", "metadata", "spec", "status"},
+
 	// Universal default #1 ... name should always be first
 	{"name"},
 
