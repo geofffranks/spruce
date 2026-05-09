@@ -12,10 +12,12 @@ permissions:
 jobs:
   bump:
     runs-on: ubuntu-latest
+    environment: auto-bump
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          token: ${{ secrets.GH_BUMP_TOKEN }}
 
       - name: Resolve latest stable Go version
         id: gover
@@ -76,7 +78,7 @@ jobs:
         env:
           BRANCH: ${{ steps.branchcheck.outputs.branch }}
           VERSION: ${{ steps.gover.outputs.latest }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_BUMP_TOKEN }}
         run: |
           PR_URL=$(gh pr create \
             --base main \

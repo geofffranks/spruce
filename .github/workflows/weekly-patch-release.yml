@@ -1,0 +1,67 @@
+name: Weekly Patch Release
+
+# Cron: Mondays at 13:00 UTC == 8am EST (winter) / 9am EDT (summer).
+# GitHub cron has no DST awareness; the ~1h drift across DST is acceptable
+# for a "release the dependabot drips" reminder job.
+on:
+  schedule:
+    - cron: '0 13 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve latest release tag
+        id: latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+          if [ -z "$TAG" ]; then
+            echo "No prior release found; refusing to auto-create the first release."
+          else
+            echo "Latest release: $TAG"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Count commits since last release
+        if: steps.latest.outputs.tag != ''
+        id: commits
+        run: |
+          COUNT=$(git rev-list --count "${{ steps.latest.outputs.tag }}..HEAD")
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "Commits since ${{ steps.latest.outputs.tag }}: $COUNT"
+
+      - name: Compute next patch version
+        if: steps.latest.outputs.tag != '' && steps.commits.outputs.count != '0'
+        id: next
+        run: |
+          TAG="${{ steps.latest.outputs.tag }}"
+          VERS="${TAG#v}"
+          IFS=. read -r MAJ MIN PATCH <<< "$VERS"
+          if ! [[ "$MAJ" =~ ^[0-9]+$ && "$MIN" =~ ^[0-9]+$ && "$PATCH" =~ ^[0-9]+$ ]]; then
+            echo "Latest tag $TAG not in vX.Y.Z form; aborting."
+            exit 1
+          fi
+          NEXT="v${MAJ}.${MIN}.$((PATCH + 1))"
+          echo "tag=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Next patch: $NEXT"
+
+      - name: Create release
+        if: steps.latest.outputs.tag != '' && steps.commits.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.next.outputs.tag }}" \
+            --target main \
+            --title "${{ steps.next.outputs.tag }}" \
+            --generate-notes \
+            --notes-start-tag "${{ steps.latest.outputs.tag }}"
