@@ -1,6 +1,15 @@
 on:
   release:
     types: [created]
+  # Fallback trigger: releases created via GITHUB_TOKEN (e.g. by the
+  # weekly-patch-release workflow) do NOT emit `release: created` events,
+  # so this workflow must also be dispatchable by tag.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build artifacts for (e.g. v1.35.3)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -25,6 +34,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        ref: ${{ github.event.release.tag_name || inputs.tag }}
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
@@ -36,15 +47,16 @@ jobs:
         CGO_ENABLED: 0
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
-      run: 'go build -v -o spruce-${{ matrix.goos }}-${{ matrix.goarch }} -ldflags="-X main.Version=${{ github.event.release.tag_name }}" ./cmd/spruce'
+      run: 'go build -v -o spruce-${{ matrix.goos }}-${{ matrix.goarch }} -ldflags="-X main.Version=${{ github.event.release.tag_name || inputs.tag }}" ./cmd/spruce'
 
-    - uses: geofffranks/upload-asset@v2
-      with:
-        file: ./spruce-${{ matrix.goos }}-${{ matrix.goarch }}
-        with_sha1: true
-
+    - name: Upload asset + sha1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        BIN: spruce-${{ matrix.goos }}-${{ matrix.goarch }}
+      run: |
+        sha1sum "$BIN" > "$BIN.sha1"
+        gh release upload "$TAG" "$BIN" "$BIN.sha1" --clobber
 
   annotate-go-version:
     name: annotate-go-version
@@ -64,7 +76,7 @@ jobs:
     - name: Append Go version to release notes (idempotent)
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        TAG: ${{ github.event.release.tag_name }}
+        TAG: ${{ github.event.release.tag_name || inputs.tag }}
         GOVER: ${{ steps.gover.outputs.version }}
       run: |
         BODY=$(gh release view "$TAG" --json body -q .body)

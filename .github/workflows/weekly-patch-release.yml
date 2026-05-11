@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # needed to `gh workflow run release.yml` after creating the release
 
 jobs:
   release:
@@ -65,3 +66,15 @@ jobs:
             --title "${{ steps.next.outputs.tag }}" \
             --generate-notes \
             --notes-start-tag "${{ steps.latest.outputs.tag }}"
+
+      # Releases created via GITHUB_TOKEN don't emit `release: created`
+      # events (anti-recursion safeguard), so the artifact-build workflow
+      # never fires on its own. Trigger it explicitly by tag.
+      - name: Dispatch artifact build
+        if: steps.latest.outputs.tag != '' && steps.commits.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run release.yml \
+            --ref main \
+            -f tag="${{ steps.next.outputs.tag }}"
