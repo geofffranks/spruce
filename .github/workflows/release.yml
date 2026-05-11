@@ -76,6 +76,9 @@ jobs:
     - name: Append Go version to release notes (idempotent)
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # No checkout in this job, so gh CLI cannot infer the repo from
+        # git remotes. Pin it explicitly.
+        GH_REPO: ${{ github.repository }}
         TAG: ${{ github.event.release.tag_name || inputs.tag }}
         GOVER: ${{ steps.gover.outputs.version }}
       run: |
