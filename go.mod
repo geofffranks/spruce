@@ -2,7 +2,7 @@ module github.com/geofffranks/spruce
 
 go 1.26.0
 
-toolchain go1.26.3
+toolchain go1.26.4
 
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
