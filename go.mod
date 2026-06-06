@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.20
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.22
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.42.2
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.68.8
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.69.2
 	github.com/aws/aws-sdk-go-v2/service/sts v1.43.2
 	github.com/cloudfoundry-community/vaultkv v0.7.0
 	github.com/cppforlife/go-patch v0.2.0
