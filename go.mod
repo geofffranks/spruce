@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.42.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.25
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.24
-	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.42.2
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.42.3
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.69.3
 	github.com/aws/aws-sdk-go-v2/service/sts v1.43.3
 	github.com/cloudfoundry-community/vaultkv v0.7.0
