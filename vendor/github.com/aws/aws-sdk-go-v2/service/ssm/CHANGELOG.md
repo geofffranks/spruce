@@ -1,3 +1,11 @@
+# v1.71.0 (2026-07-07)
+
+* **Feature**: Adding SSM Cloud Connector to support Azure Virtual Machines onboarding to AWS Systems Manager
+
+# v1.70.0 (2026-07-06)
+
+* **Feature**: Add request serialization snapshot tests.
+
 # v1.69.5 (2026-07-01)
 
 * **Bug Fix**: Bump smithy-go to 1.27.3, fix JSON encorder for document.Number, endpoint host label format validation and CBOR union serialization on new serde
