@@ -1,3 +1,7 @@
+# v1.43.0 (2026-07-06)
+
+* **Feature**: Add request serialization snapshot tests.
+
 # v1.42.5 (2026-07-01)
 
 * **Bug Fix**: Bump smithy-go to 1.27.3, fix JSON encorder for document.Number, endpoint host label format validation and CBOR union serialization on new serde
