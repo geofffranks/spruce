@@ -9615,7 +9615,7 @@ func awsAwsjson11_serializeDocumentAutomationExecutionInputs(v *types.Automation
 
 	if v.Targets != nil {
 		ok := object.Key("Targets")
-		if err := awsAwsjson11_serializeDocumentTargets(v.Targets, ok); err != nil {
+		if err := awsAwsjson11_serializeDocumentAutomationTargets(v.Targets, ok); err != nil {
 			return err
 		}
 	}
@@ -9646,6 +9646,19 @@ func awsAwsjson11_serializeDocumentAutomationParameterValueList(v []string, valu
 	for i := range v {
 		av := array.Value()
 		av.String(v[i])
+	}
+	return nil
+}
+
+func awsAwsjson11_serializeDocumentAutomationTargets(v []types.Target, value smithyjson.Value) error {
+	array := value.Array()
+	defer array.Close()
+
+	for i := range v {
+		av := array.Value()
+		if err := awsAwsjson11_serializeDocumentTarget(&v[i], av); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -12598,7 +12611,7 @@ func awsAwsjson11_serializeDocumentTargetLocation(v *types.TargetLocation, value
 
 	if v.Targets != nil {
 		ok := object.Key("Targets")
-		if err := awsAwsjson11_serializeDocumentTargets(v.Targets, ok); err != nil {
+		if err := awsAwsjson11_serializeDocumentAutomationTargets(v.Targets, ok); err != nil {
 			return err
 		}
 	}
@@ -16373,7 +16386,7 @@ func awsAwsjson11_serializeOpDocumentStartAutomationExecutionInput(v *StartAutom
 
 	if v.Targets != nil {
 		ok := object.Key("Targets")
-		if err := awsAwsjson11_serializeDocumentTargets(v.Targets, ok); err != nil {
+		if err := awsAwsjson11_serializeDocumentAutomationTargets(v.Targets, ok); err != nil {
 			return err
 		}
 	}
