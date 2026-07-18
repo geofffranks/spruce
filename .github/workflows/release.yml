@@ -37,7 +37,7 @@ jobs:
       with:
         ref: ${{ github.event.release.tag_name || inputs.tag }}
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: stable
         check-latest: true
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Go
-      uses: actions/setup-go@v6
+      uses: actions/setup-go@v7
       with:
         go-version: stable
         check-latest: true
