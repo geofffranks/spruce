@@ -798,6 +798,10 @@ type AutomationExecution struct {
 	// Variables defined for the automation.
 	Variables map[string][]string
 
+	// A message that describes a non-critical issue that occurred during the
+	// automation execution.
+	WarningMessage *string
+
 	noSmithyDocumentSerde
 }
 
@@ -902,7 +906,8 @@ type AutomationExecutionMetadata struct {
 	// The time the execution started.
 	ExecutionStartTime *time.Time
 
-	// The list of execution outputs as defined in the Automation runbook.
+	// A message that describes a failure that occurred during the automation
+	// execution.
 	FailureMessage *string
 
 	// An S3 bucket where execution information is stored.
@@ -958,6 +963,10 @@ type AutomationExecutionMetadata struct {
 
 	// The CloudWatch alarm that was invoked by the automation.
 	TriggeredAlarms []AlarmStateInformation
+
+	// A message that describes a non-critical issue that occurred during the
+	// automation execution.
+	WarningMessage *string
 
 	noSmithyDocumentSerde
 }
@@ -6064,6 +6073,10 @@ type StepExecution struct {
 	// step and allow automation to run the next step. With conditional branching, we
 	// add step:stepName to support the automation to go to another specific step.
 	ValidNextSteps []string
+
+	// A message that describes a non-critical issue that occurred during the step
+	// execution. Present only if the step status includes a warning.
+	WarningMessage *string
 
 	noSmithyDocumentSerde
 }
