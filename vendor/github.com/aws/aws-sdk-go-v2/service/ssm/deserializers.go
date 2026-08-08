@@ -25748,6 +25748,15 @@ func awsAwsjson11_deserializeDocumentAutomationExecution(v **types.AutomationExe
 				return err
 			}
 
+		case "WarningMessage":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected String to be of type string, got %T instead", value)
+				}
+				sv.WarningMessage = ptr.String(jtv)
+			}
+
 		default:
 			_, _ = key, value
 
@@ -26089,6 +26098,15 @@ func awsAwsjson11_deserializeDocumentAutomationExecutionMetadata(v **types.Autom
 		case "TriggeredAlarms":
 			if err := awsAwsjson11_deserializeDocumentAlarmStateInformationList(&sv.TriggeredAlarms, value); err != nil {
 				return err
+			}
+
+		case "WarningMessage":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected String to be of type string, got %T instead", value)
+				}
+				sv.WarningMessage = ptr.String(jtv)
 			}
 
 		default:
@@ -44459,6 +44477,15 @@ func awsAwsjson11_deserializeDocumentStepExecution(v **types.StepExecution, valu
 		case "ValidNextSteps":
 			if err := awsAwsjson11_deserializeDocumentValidNextStepList(&sv.ValidNextSteps, value); err != nil {
 				return err
+			}
+
+		case "WarningMessage":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected String to be of type string, got %T instead", value)
+				}
+				sv.WarningMessage = ptr.String(jtv)
 			}
 
 		default:
