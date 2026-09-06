@@ -8,8 +8,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: stable
-          check-latest: true
+          go-version-file: go.mod
 
       - name: Lint
         run: make lint
