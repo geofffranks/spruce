@@ -84,6 +84,6 @@ func init() {
 }
 
 func shuffle(l []interface{}) []interface{} {
-	rand.Shuffle(len(l), func(i, j int) { l[i], l[j] = l[j], l[i] })
+	rand.Shuffle(len(l), func(i, j int) { l[i], l[j] = l[j], l[i] }) // #nosec G404 -- shuffling configuration values does not require cryptographic randomness
 	return l
 }

@@ -54,11 +54,14 @@ jobs:
           go-version: stable
           check-latest: true
 
-      - name: Update go.mod toolchain directive
+      - name: Update Go toolchain and tools
         if: steps.branchcheck.outputs.skip == 'false'
         run: |
           go mod edit -toolchain=go${{ steps.gover.outputs.latest }}
+          mapfile -t tools < <(go mod edit -json | jq -r '.Tool[].Path + "@latest"')
+          go get -tool "${tools[@]}"
           go mod tidy
+          go mod vendor
 
       - name: Create branch, commit, push
         if: steps.branchcheck.outputs.skip == 'false'
@@ -69,7 +72,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add go.mod go.sum
+          git add go.mod go.sum vendor
           git commit -m "chore: bump Go toolchain to go$VERSION"
           git push origin "$BRANCH"
 
