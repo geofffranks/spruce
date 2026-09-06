@@ -1,4 +1,4 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
@@ -47,7 +47,8 @@ func NewAudioTranscriptionService(opts ...option.RequestOption) (r AudioTranscri
 // Returns a transcription object in `json`, `diarized_json`, or `verbose_json`
 // format, or a stream of transcript events.
 func (r *AudioTranscriptionService) New(ctx context.Context, body AudioTranscriptionNewParams, opts ...option.RequestOption) (res *AudioTranscriptionNewResponseUnion, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "audio/transcriptions"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
@@ -62,7 +63,8 @@ func (r *AudioTranscriptionService) NewStreaming(ctx context.Context, body Audio
 		raw *http.Response
 		err error
 	)
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	body.SetExtraFields(map[string]any{
 		"stream": "true",
 	})
@@ -76,6 +78,9 @@ func (r *AudioTranscriptionService) NewStreaming(ctx context.Context, body Audio
 type Transcription struct {
 	// The transcribed text.
 	Text string `json:"text" api:"required"`
+	// The languages detected in the audio. Returned by `gpt-transcribe`. An empty
+	// array indicates that no language could be reliably detected.
+	Languages []TranscriptionLanguage `json:"languages"`
 	// The log probabilities of the tokens in the transcription. Only returned with the
 	// models `gpt-4o-transcribe` and `gpt-4o-mini-transcribe` if `logprobs` is added
 	// to the `include` array.
@@ -85,6 +90,7 @@ type Transcription struct {
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Text        respjson.Field
+		Languages   respjson.Field
 		Logprobs    respjson.Field
 		Usage       respjson.Field
 		ExtraFields map[string]respjson.Field
@@ -180,12 +186,12 @@ func (u TranscriptionUsageUnion) AsAny() anyTranscriptionUsage {
 }
 
 func (u TranscriptionUsageUnion) AsTokens() (v TranscriptionUsageTokens) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u TranscriptionUsageUnion) AsDuration() (v TranscriptionUsageDuration) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -205,7 +211,7 @@ type TranscriptionUsageTokens struct {
 	// Total number of tokens used (input + output).
 	TotalTokens int64 `json:"total_tokens" api:"required"`
 	// The type of the usage object. Always `tokens` for this variant.
-	Type constant.Tokens `json:"type" api:"required"`
+	Type constant.Tokens `json:"type" default:"tokens"`
 	// Details about the input tokens billed for this request.
 	InputTokenDetails TranscriptionUsageTokensInputTokenDetails `json:"input_token_details"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
@@ -252,7 +258,7 @@ type TranscriptionUsageDuration struct {
 	// Duration of the input audio in seconds.
 	Seconds float64 `json:"seconds" api:"required"`
 	// The type of the usage object. Always `duration` for this variant.
-	Type constant.Duration `json:"type" api:"required"`
+	Type constant.Duration `json:"type" default:"duration"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Seconds     respjson.Field
@@ -273,6 +279,24 @@ type TranscriptionInclude string
 const (
 	TranscriptionIncludeLogprobs TranscriptionInclude = "logprobs"
 )
+
+// A language detected in transcribed audio.
+type TranscriptionLanguage struct {
+	// The code of a language detected in the audio.
+	Code string `json:"code" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Code        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r TranscriptionLanguage) RawJSON() string { return r.JSON.raw }
+func (r *TranscriptionLanguage) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
 
 type TranscriptionSegment struct {
 	// Unique identifier of the segment.
@@ -349,6 +373,8 @@ type TranscriptionStreamEventUnion struct {
 	// This field is from variant [TranscriptionTextDeltaEvent].
 	SegmentID string `json:"segment_id"`
 	// This field is from variant [TranscriptionTextDoneEvent].
+	Languages []TranscriptionLanguage `json:"languages"`
+	// This field is from variant [TranscriptionTextDoneEvent].
 	Usage TranscriptionTextDoneEventUsage `json:"usage"`
 	JSON  struct {
 		ID        respjson.Field
@@ -360,6 +386,7 @@ type TranscriptionStreamEventUnion struct {
 		Delta     respjson.Field
 		Logprobs  respjson.Field
 		SegmentID respjson.Field
+		Languages respjson.Field
 		Usage     respjson.Field
 		raw       string
 	} `json:"-"`
@@ -398,17 +425,17 @@ func (u TranscriptionStreamEventUnion) AsAny() anyTranscriptionStreamEvent {
 }
 
 func (u TranscriptionStreamEventUnion) AsTranscriptTextSegment() (v TranscriptionTextSegmentEvent) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u TranscriptionStreamEventUnion) AsTranscriptTextDelta() (v TranscriptionTextDeltaEvent) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u TranscriptionStreamEventUnion) AsTranscriptTextDone() (v TranscriptionTextDoneEvent) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -455,7 +482,7 @@ type TranscriptionTextDeltaEvent struct {
 	// The text delta that was additionally transcribed.
 	Delta string `json:"delta" api:"required"`
 	// The type of the event. Always `transcript.text.delta`.
-	Type constant.TranscriptTextDelta `json:"type" api:"required"`
+	Type constant.TranscriptTextDelta `json:"type" default:"transcript.text.delta"`
 	// The log probabilities of the delta. Only included if you
 	// [create a transcription](https://platform.openai.com/docs/api-reference/audio/create-transcription)
 	// with the `include[]` parameter set to `logprobs`.
@@ -511,7 +538,10 @@ type TranscriptionTextDoneEvent struct {
 	// The text that was transcribed.
 	Text string `json:"text" api:"required"`
 	// The type of the event. Always `transcript.text.done`.
-	Type constant.TranscriptTextDone `json:"type" api:"required"`
+	Type constant.TranscriptTextDone `json:"type" default:"transcript.text.done"`
+	// The languages detected in the audio. Returned by `gpt-transcribe`. An empty
+	// array indicates that no language could be reliably detected.
+	Languages []TranscriptionLanguage `json:"languages"`
 	// The log probabilities of the individual tokens in the transcription. Only
 	// included if you
 	// [create a transcription](https://platform.openai.com/docs/api-reference/audio/create-transcription)
@@ -523,6 +553,7 @@ type TranscriptionTextDoneEvent struct {
 	JSON struct {
 		Text        respjson.Field
 		Type        respjson.Field
+		Languages   respjson.Field
 		Logprobs    respjson.Field
 		Usage       respjson.Field
 		ExtraFields map[string]respjson.Field
@@ -568,7 +599,7 @@ type TranscriptionTextDoneEventUsage struct {
 	// Total number of tokens used (input + output).
 	TotalTokens int64 `json:"total_tokens" api:"required"`
 	// The type of the usage object. Always `tokens` for this variant.
-	Type constant.Tokens `json:"type" api:"required"`
+	Type constant.Tokens `json:"type" default:"tokens"`
 	// Details about the input tokens billed for this request.
 	InputTokenDetails TranscriptionTextDoneEventUsageInputTokenDetails `json:"input_token_details"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
@@ -626,7 +657,7 @@ type TranscriptionTextSegmentEvent struct {
 	// Transcript text for this segment.
 	Text string `json:"text" api:"required"`
 	// The type of the event. Always `transcript.text.segment`.
-	Type constant.TranscriptTextSegment `json:"type" api:"required"`
+	Type constant.TranscriptTextSegment `json:"type" default:"transcript.text.segment"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -685,7 +716,7 @@ type TranscriptionVerboseUsage struct {
 	// Duration of the input audio in seconds.
 	Seconds float64 `json:"seconds" api:"required"`
 	// The type of the usage object. Always `duration` for this variant.
-	Type constant.Duration `json:"type" api:"required"`
+	Type constant.Duration `json:"type" default:"duration"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Seconds     respjson.Field
@@ -731,6 +762,8 @@ func (r *TranscriptionWord) UnmarshalJSON(data []byte) error {
 type AudioTranscriptionNewResponseUnion struct {
 	Text string `json:"text"`
 	// This field is from variant [Transcription].
+	Languages []TranscriptionLanguage `json:"languages"`
+	// This field is from variant [Transcription].
 	Logprobs []TranscriptionLogprob `json:"logprobs"`
 	// This field is a union of [TranscriptionUsageUnion], [TranscriptionVerboseUsage]
 	Usage AudioTranscriptionNewResponseUnionUsage `json:"usage"`
@@ -743,24 +776,25 @@ type AudioTranscriptionNewResponseUnion struct {
 	// This field is from variant [TranscriptionVerbose].
 	Words []TranscriptionWord `json:"words"`
 	JSON  struct {
-		Text     respjson.Field
-		Logprobs respjson.Field
-		Usage    respjson.Field
-		Duration respjson.Field
-		Language respjson.Field
-		Segments respjson.Field
-		Words    respjson.Field
-		raw      string
+		Text      respjson.Field
+		Languages respjson.Field
+		Logprobs  respjson.Field
+		Usage     respjson.Field
+		Duration  respjson.Field
+		Language  respjson.Field
+		Segments  respjson.Field
+		Words     respjson.Field
+		raw       string
 	} `json:"-"`
 }
 
 func (u AudioTranscriptionNewResponseUnion) AsTranscription() (v Transcription) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u AudioTranscriptionNewResponseUnion) AsTranscriptionVerbose() (v TranscriptionVerbose) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -805,9 +839,11 @@ func (r *AudioTranscriptionNewResponseUnionUsage) UnmarshalJSON(data []byte) err
 
 type AudioTranscriptionNewParams struct {
 	// The audio file object (not file name) to transcribe, in one of these formats:
-	// flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm.
+	// flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm. The request must include
+	// enough format metadata for the file to be identified. We recommend an
+	// extension-bearing filename and an appropriate content type.
 	File io.Reader `json:"file,omitzero" api:"required" format:"binary"`
-	// ID of the model to use. The options are `gpt-4o-transcribe`,
+	// ID of the model to use. The options are `gpt-transcribe`, `gpt-4o-transcribe`,
 	// `gpt-4o-mini-transcribe`, `gpt-4o-mini-transcribe-2025-12-15`, `whisper-1`
 	// (which is powered by our open source Whisper V2 model), and
 	// `gpt-4o-transcribe-diarize`.
@@ -842,6 +878,9 @@ type AudioTranscriptionNewParams struct {
 	// `gpt-4o-mini-transcribe`, and `gpt-4o-mini-transcribe-2025-12-15`. This field is
 	// not supported when using `gpt-4o-transcribe-diarize`.
 	Include []TranscriptionInclude `json:"include,omitzero"`
+	// Words or phrases to guide transcription of the input audio. Supported by
+	// `gpt-transcribe`.
+	Keywords []string `json:"keywords,omitzero"`
 	// Optional list of speaker names that correspond to the audio samples provided in
 	// `known_speaker_references[]`. Each entry should be a short identifier (for
 	// example `customer` or `agent`). Up to 4 speakers are supported.
@@ -852,6 +891,10 @@ type AudioTranscriptionNewParams struct {
 	// sample must be between 2 and 10 seconds, and can use any of the same input audio
 	// formats supported by `file`.
 	KnownSpeakerReferences []string `json:"known_speaker_references,omitzero"`
+	// Possible languages of the input audio, in
+	// [ISO-639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) format.
+	// Supported by `gpt-transcribe`.
+	Languages []string `json:"languages,omitzero"`
 	// The format of the output, in one of these options: `json`, `text`, `srt`,
 	// `verbose_json`, `vtt`, or `diarized_json`. For `gpt-4o-transcribe` and
 	// `gpt-4o-mini-transcribe`, the only supported format is `json`. For
@@ -880,7 +923,7 @@ func (r AudioTranscriptionNewParams) MarshalMultipart() (data []byte, contentTyp
 		err = apiform.WriteExtras(writer, r.ExtraFields())
 	}
 	if err != nil {
-		writer.Close()
+		_ = writer.Close()
 		return nil, "", err
 	}
 	err = writer.Close()

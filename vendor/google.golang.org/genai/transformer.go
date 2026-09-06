@@ -193,6 +193,10 @@ func InternalTSchema(origin any) (any, error) {
 	return tSchema(origin)
 }
 
+func InternalTJsonSchema(origin any) (any, error) {
+	return origin, nil
+}
+
 func tSchema(origin any) (any, error) {
 	return origin, nil
 }
@@ -458,7 +462,46 @@ func InternalTRecvBatchJobDestination(dest any) (any, error) {
 }
 
 func tRecvBatchJobDestination(dest any) (any, error) {
-	return dest, nil
+	destMap, ok := dest.(map[string]any)
+	if !ok {
+		return dest, nil
+	}
+
+	inlinedRespMap, ok := destMap["inlinedResponses"].(map[string]any)
+	if !ok {
+		return dest, nil
+	}
+
+	inlinedResps, ok := inlinedRespMap["inlinedResponses"].([]any)
+	if !ok || len(inlinedResps) == 0 {
+		return dest, nil
+	}
+
+	// Inspect the list to see if this is an embedding response
+	isEmbedding := false
+	for _, item := range inlinedResps {
+		itemMap, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		respMap, ok := itemMap["response"].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// If it has 'embedding', it's an embedding job.
+		if _, hasEmbedding := respMap["embedding"]; hasEmbedding {
+			isEmbedding = true
+			break
+		}
+	}
+
+	if isEmbedding {
+		destMap["inlinedEmbedContentResponses"] = destMap["inlinedResponses"]
+		delete(destMap, "inlinedResponses")
+	}
+
+	return destMap, nil
 }
 
 // InternalTBatchJobName is an internal function used for transforming batch job names.

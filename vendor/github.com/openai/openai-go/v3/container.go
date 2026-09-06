@@ -1,11 +1,10 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -43,7 +42,8 @@ func NewContainerService(opts ...option.RequestOption) (r ContainerService) {
 
 // Create Container
 func (r *ContainerService) New(ctx context.Context, body ContainerNewParams, opts ...option.RequestOption) (res *ContainerNewResponse, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "containers"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
@@ -51,12 +51,13 @@ func (r *ContainerService) New(ctx context.Context, body ContainerNewParams, opt
 
 // Retrieve Container
 func (r *ContainerService) Get(ctx context.Context, containerID string, opts ...option.RequestOption) (res *ContainerGetResponse, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if containerID == "" {
 		err = errors.New("missing required container_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("containers/%s", containerID)
+	path := requestconfig.FormatPath("containers/%s", containerID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
@@ -64,7 +65,8 @@ func (r *ContainerService) Get(ctx context.Context, containerID string, opts ...
 // List Containers
 func (r *ContainerService) List(ctx context.Context, query ContainerListParams, opts ...option.RequestOption) (res *pagination.CursorPage[ContainerListResponse], err error) {
 	var raw *http.Response
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	path := "containers"
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, query, &res, opts...)
@@ -86,13 +88,14 @@ func (r *ContainerService) ListAutoPaging(ctx context.Context, query ContainerLi
 
 // Delete Container
 func (r *ContainerService) Delete(ctx context.Context, containerID string, opts ...option.RequestOption) (err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("Accept", "*/*")}, opts...)
 	if containerID == "" {
 		err = errors.New("missing required container_id parameter")
 		return err
 	}
-	path := fmt.Sprintf("containers/%s", containerID)
+	path := requestconfig.FormatPath("containers/%s", containerID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, nil, opts...)
 	return err
 }
@@ -101,7 +104,7 @@ type ContainerNewResponse struct {
 	// Unique identifier for the container.
 	ID string `json:"id" api:"required"`
 	// Unix timestamp (in seconds) when the container was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Name of the container.
 	Name string `json:"name" api:"required"`
 	// The type of this object.
@@ -113,7 +116,7 @@ type ContainerNewResponse struct {
 	// before the container expires.
 	ExpiresAfter ContainerNewResponseExpiresAfter `json:"expires_after"`
 	// Unix timestamp (in seconds) when the container was last active.
-	LastActiveAt int64 `json:"last_active_at"`
+	LastActiveAt int64 `json:"last_active_at" format:"unixtime"`
 	// The memory limit configured for the container.
 	//
 	// Any of "1g", "4g", "16g", "64g".
@@ -204,7 +207,7 @@ type ContainerGetResponse struct {
 	// Unique identifier for the container.
 	ID string `json:"id" api:"required"`
 	// Unix timestamp (in seconds) when the container was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Name of the container.
 	Name string `json:"name" api:"required"`
 	// The type of this object.
@@ -216,7 +219,7 @@ type ContainerGetResponse struct {
 	// before the container expires.
 	ExpiresAfter ContainerGetResponseExpiresAfter `json:"expires_after"`
 	// Unix timestamp (in seconds) when the container was last active.
-	LastActiveAt int64 `json:"last_active_at"`
+	LastActiveAt int64 `json:"last_active_at" format:"unixtime"`
 	// The memory limit configured for the container.
 	//
 	// Any of "1g", "4g", "16g", "64g".
@@ -307,7 +310,7 @@ type ContainerListResponse struct {
 	// Unique identifier for the container.
 	ID string `json:"id" api:"required"`
 	// Unix timestamp (in seconds) when the container was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Name of the container.
 	Name string `json:"name" api:"required"`
 	// The type of this object.
@@ -319,7 +322,7 @@ type ContainerListResponse struct {
 	// before the container expires.
 	ExpiresAfter ContainerListResponseExpiresAfter `json:"expires_after"`
 	// Unix timestamp (in seconds) when the container was last active.
-	LastActiveAt int64 `json:"last_active_at"`
+	LastActiveAt int64 `json:"last_active_at" format:"unixtime"`
 	// The memory limit configured for the container.
 	//
 	// Any of "1g", "4g", "16g", "64g".

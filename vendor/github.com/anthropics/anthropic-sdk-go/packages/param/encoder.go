@@ -52,12 +52,18 @@ func MarshalWithExtras[T ParamStruct, R any](f T, underlying any, extras map[str
 			var a any = v
 			if a == Omit {
 				// Errors when handling ForceOmitted are ignored.
-				if b, e := sjson.DeleteBytes(bytes, k); e == nil {
+				if b, e := sjson.DeleteBytes(bytes, EscapeSJSONKey(k)); e == nil {
 					bytes = b
 				}
 				continue
 			}
-			bytes, err = sjson.SetBytes(bytes, EscapeSJSONKey(k), v)
+			// Marshal the value ourselves so extras are HTML-escaped and
+			// validated like every other field; sjson would insert it raw.
+			raw, err := shimjson.Marshal(v)
+			if err != nil {
+				return nil, err
+			}
+			bytes, err = sjson.SetRawBytes(bytes, EscapeSJSONKey(k), raw)
 			if err != nil {
 				return nil, err
 			}
@@ -66,7 +72,7 @@ func MarshalWithExtras[T ParamStruct, R any](f T, underlying any, extras map[str
 	} else if ovr, ok := f.Overrides(); ok {
 		return shimjson.Marshal(ovr)
 	} else {
-		return shimjson.Marshal(underlying)
+		return shimjson.Marshal(underlying, shimjson.WithSkipCompaction(true))
 	}
 }
 
@@ -96,7 +102,7 @@ func MarshalUnion[T ParamStruct](metadata T, variants ...any) ([]byte, error) {
 			Err:  fmt.Errorf("expected union to have only one present variant, got %d", nPresent),
 		}
 	}
-	return shimjson.Marshal(variants[presentIdx])
+	return shimjson.Marshal(variants[presentIdx], shimjson.WithSkipCompaction(true))
 }
 
 // typeFor is shimmed from Go 1.23 "reflect" package

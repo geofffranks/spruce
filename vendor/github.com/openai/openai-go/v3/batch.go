@@ -1,11 +1,10 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -44,7 +43,8 @@ func NewBatchService(opts ...option.RequestOption) (r BatchService) {
 
 // Creates and executes a batch from an uploaded file of requests
 func (r *BatchService) New(ctx context.Context, body BatchNewParams, opts ...option.RequestOption) (res *Batch, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "batches"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
@@ -52,12 +52,13 @@ func (r *BatchService) New(ctx context.Context, body BatchNewParams, opts ...opt
 
 // Retrieves a batch.
 func (r *BatchService) Get(ctx context.Context, batchID string, opts ...option.RequestOption) (res *Batch, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if batchID == "" {
 		err = errors.New("missing required batch_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("batches/%s", batchID)
+	path := requestconfig.FormatPath("batches/%s", batchID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
@@ -65,7 +66,8 @@ func (r *BatchService) Get(ctx context.Context, batchID string, opts ...option.R
 // List your organization's batches.
 func (r *BatchService) List(ctx context.Context, query BatchListParams, opts ...option.RequestOption) (res *pagination.CursorPage[Batch], err error) {
 	var raw *http.Response
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	path := "batches"
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, query, &res, opts...)
@@ -89,12 +91,13 @@ func (r *BatchService) ListAutoPaging(ctx context.Context, query BatchListParams
 // 10 minutes, before changing to `cancelled`, where it will have partial results
 // (if any) available in the output file.
 func (r *BatchService) Cancel(ctx context.Context, batchID string, opts ...option.RequestOption) (res *Batch, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if batchID == "" {
 		err = errors.New("missing required batch_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("batches/%s/cancel", batchID)
+	path := requestconfig.FormatPath("batches/%s/cancel", batchID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, nil, &res, opts...)
 	return res, err
 }
@@ -104,37 +107,37 @@ type Batch struct {
 	// The time frame within which the batch should be processed.
 	CompletionWindow string `json:"completion_window" api:"required"`
 	// The Unix timestamp (in seconds) for when the batch was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// The OpenAI API endpoint used by the batch.
 	Endpoint string `json:"endpoint" api:"required"`
 	// The ID of the input file for the batch.
 	InputFileID string `json:"input_file_id" api:"required"`
 	// The object type, which is always `batch`.
-	Object constant.Batch `json:"object" api:"required"`
+	Object constant.Batch `json:"object" default:"batch"`
 	// The current status of the batch.
 	//
 	// Any of "validating", "failed", "in_progress", "finalizing", "completed",
 	// "expired", "cancelling", "cancelled".
 	Status BatchStatus `json:"status" api:"required"`
 	// The Unix timestamp (in seconds) for when the batch was cancelled.
-	CancelledAt int64 `json:"cancelled_at"`
+	CancelledAt int64 `json:"cancelled_at" format:"unixtime"`
 	// The Unix timestamp (in seconds) for when the batch started cancelling.
-	CancellingAt int64 `json:"cancelling_at"`
+	CancellingAt int64 `json:"cancelling_at" format:"unixtime"`
 	// The Unix timestamp (in seconds) for when the batch was completed.
-	CompletedAt int64 `json:"completed_at"`
+	CompletedAt int64 `json:"completed_at" format:"unixtime"`
 	// The ID of the file containing the outputs of requests with errors.
 	ErrorFileID string      `json:"error_file_id"`
 	Errors      BatchErrors `json:"errors"`
 	// The Unix timestamp (in seconds) for when the batch expired.
-	ExpiredAt int64 `json:"expired_at"`
+	ExpiredAt int64 `json:"expired_at" format:"unixtime"`
 	// The Unix timestamp (in seconds) for when the batch will expire.
-	ExpiresAt int64 `json:"expires_at"`
+	ExpiresAt int64 `json:"expires_at" format:"unixtime"`
 	// The Unix timestamp (in seconds) for when the batch failed.
-	FailedAt int64 `json:"failed_at"`
+	FailedAt int64 `json:"failed_at" format:"unixtime"`
 	// The Unix timestamp (in seconds) for when the batch started finalizing.
-	FinalizingAt int64 `json:"finalizing_at"`
+	FinalizingAt int64 `json:"finalizing_at" format:"unixtime"`
 	// The Unix timestamp (in seconds) for when the batch started processing.
-	InProgressAt int64 `json:"in_progress_at"`
+	InProgressAt int64 `json:"in_progress_at" format:"unixtime"`
 	// Set of 16 key-value pairs that can be attached to an object. This can be useful
 	// for storing additional information about the object in a structured format, and
 	// querying for objects via API or the dashboard.
@@ -431,7 +434,7 @@ type BatchNewParamsOutputExpiresAfter struct {
 	// batch is created.
 	//
 	// This field can be elided, and will marshal its zero value as "created_at".
-	Anchor constant.CreatedAt `json:"anchor" api:"required"`
+	Anchor constant.CreatedAt `json:"anchor" default:"created_at"`
 	paramObj
 }
 

@@ -1,4 +1,4 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -48,7 +47,8 @@ func NewFileService(opts ...option.RequestOption) (r FileService) {
 
 // Upload a file that can be used across various endpoints. Individual files can be
 // up to 512 MB, and each project can store up to 2.5 TB of files in total. There
-// is no organization-wide storage limit.
+// is no organization-wide storage limit. Uploads to this endpoint are rate-limited
+// to 1,000 requests per minute per authenticated user.
 //
 //   - The Assistants API supports files up to 2 million tokens and of specific file
 //     types. See the
@@ -63,11 +63,18 @@ func NewFileService(opts ...option.RequestOption) (r FileService) {
 //   - The Batch API only supports `.jsonl` files up to 200 MB in size. The input
 //     also has a specific required
 //     [format](https://platform.openai.com/docs/api-reference/batch/request-input).
+//   - For Retrieval or `file_search` ingestion, upload files here first. If you need
+//     to attach multiple uploaded files to the same vector store, use
+//     [`/vector_stores/{vector_store_id}/file_batches`](https://platform.openai.com/docs/api-reference/vector-stores-file-batches/createBatch)
+//     instead of attaching them one by one. Vector store attachment has separate
+//     limits from file upload, including 2,000 attached files per minute per
+//     organization.
 //
 // Please [contact us](https://help.openai.com/) if you need to increase these
 // storage limits.
 func (r *FileService) New(ctx context.Context, body FileNewParams, opts ...option.RequestOption) (res *FileObject, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "files"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
@@ -75,12 +82,13 @@ func (r *FileService) New(ctx context.Context, body FileNewParams, opts ...optio
 
 // Returns information about a specific file.
 func (r *FileService) Get(ctx context.Context, fileID string, opts ...option.RequestOption) (res *FileObject, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if fileID == "" {
 		err = errors.New("missing required file_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("files/%s", fileID)
+	path := requestconfig.FormatPath("files/%s", fileID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
@@ -88,7 +96,8 @@ func (r *FileService) Get(ctx context.Context, fileID string, opts ...option.Req
 // Returns a list of files.
 func (r *FileService) List(ctx context.Context, query FileListParams, opts ...option.RequestOption) (res *pagination.CursorPage[FileObject], err error) {
 	var raw *http.Response
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	path := "files"
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, query, &res, opts...)
@@ -110,25 +119,27 @@ func (r *FileService) ListAutoPaging(ctx context.Context, query FileListParams, 
 
 // Delete a file and remove it from all vector stores.
 func (r *FileService) Delete(ctx context.Context, fileID string, opts ...option.RequestOption) (res *FileDeleted, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if fileID == "" {
 		err = errors.New("missing required file_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("files/%s", fileID)
+	path := requestconfig.FormatPath("files/%s", fileID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, &res, opts...)
 	return res, err
 }
 
-// Returns the contents of the specified file.
+// Returns a response containing the contents of the specified file.
 func (r *FileService) Content(ctx context.Context, fileID string, opts ...option.RequestOption) (res *http.Response, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("Accept", "application/binary")}, opts...)
 	if fileID == "" {
 		err = errors.New("missing required file_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("files/%s/content", fileID)
+	path := requestconfig.FormatPath("files/%s/content", fileID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
@@ -136,7 +147,7 @@ func (r *FileService) Content(ctx context.Context, fileID string, opts ...option
 type FileDeleted struct {
 	ID      string        `json:"id" api:"required"`
 	Deleted bool          `json:"deleted" api:"required"`
-	Object  constant.File `json:"object" api:"required"`
+	Object  constant.File `json:"object" default:"file"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -160,11 +171,11 @@ type FileObject struct {
 	// The size of the file, in bytes.
 	Bytes int64 `json:"bytes" api:"required"`
 	// The Unix timestamp (in seconds) for when the file was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// The name of the file.
 	Filename string `json:"filename" api:"required"`
 	// The object type, which is always `file`.
-	Object constant.File `json:"object" api:"required"`
+	Object constant.File `json:"object" default:"file"`
 	// The intended purpose of the file. Supported values are `assistants`,
 	// `assistants_output`, `batch`, `batch_output`, `fine-tune`, `fine-tune-results`,
 	// `vision`, and `user_data`.
@@ -180,7 +191,7 @@ type FileObject struct {
 	// Deprecated: deprecated
 	Status FileObjectStatus `json:"status" api:"required"`
 	// The Unix timestamp (in seconds) for when the file will expire.
-	ExpiresAt int64 `json:"expires_at"`
+	ExpiresAt int64 `json:"expires_at" format:"unixtime"`
 	// Deprecated. For details on why a fine-tuning training file failed validation,
 	// see the `error` field on `fine_tuning.job`.
 	//
@@ -281,7 +292,7 @@ func (r FileNewParams) MarshalMultipart() (data []byte, contentType string, err 
 		err = apiform.WriteExtras(writer, r.ExtraFields())
 	}
 	if err != nil {
-		writer.Close()
+		_ = writer.Close()
 		return nil, "", err
 	}
 	err = writer.Close()
@@ -303,7 +314,7 @@ type FileNewParamsExpiresAfter struct {
 	// `created_at`.
 	//
 	// This field can be elided, and will marshal its zero value as "created_at".
-	Anchor constant.CreatedAt `json:"anchor" api:"required"`
+	Anchor constant.CreatedAt `json:"anchor" default:"created_at"`
 	paramObj
 }
 

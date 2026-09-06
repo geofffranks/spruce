@@ -1,4 +1,4 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -42,13 +41,14 @@ func NewBetaChatKitThreadService(opts ...option.RequestOption) (r BetaChatKitThr
 
 // Retrieve a ChatKit thread by its identifier.
 func (r *BetaChatKitThreadService) Get(ctx context.Context, threadID string, opts ...option.RequestOption) (res *ChatKitThread, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "chatkit_beta=v1")}, opts...)
 	if threadID == "" {
 		err = errors.New("missing required thread_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("chatkit/threads/%s", threadID)
+	path := requestconfig.FormatPath("chatkit/threads/%s", threadID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
@@ -56,7 +56,8 @@ func (r *BetaChatKitThreadService) Get(ctx context.Context, threadID string, opt
 // List ChatKit threads with optional pagination and user filters.
 func (r *BetaChatKitThreadService) List(ctx context.Context, query BetaChatKitThreadListParams, opts ...option.RequestOption) (res *pagination.ConversationCursorPage[ChatKitThread], err error) {
 	var raw *http.Response
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "chatkit_beta=v1"), option.WithResponseInto(&raw)}, opts...)
 	path := "chatkit/threads"
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, query, &res, opts...)
@@ -78,13 +79,14 @@ func (r *BetaChatKitThreadService) ListAutoPaging(ctx context.Context, query Bet
 
 // Delete a ChatKit thread along with its items and stored attachments.
 func (r *BetaChatKitThreadService) Delete(ctx context.Context, threadID string, opts ...option.RequestOption) (res *BetaChatKitThreadDeleteResponse, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "chatkit_beta=v1")}, opts...)
 	if threadID == "" {
 		err = errors.New("missing required thread_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("chatkit/threads/%s", threadID)
+	path := requestconfig.FormatPath("chatkit/threads/%s", threadID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, &res, opts...)
 	return res, err
 }
@@ -92,13 +94,14 @@ func (r *BetaChatKitThreadService) Delete(ctx context.Context, threadID string, 
 // List items that belong to a ChatKit thread.
 func (r *BetaChatKitThreadService) ListItems(ctx context.Context, threadID string, query BetaChatKitThreadListItemsParams, opts ...option.RequestOption) (res *pagination.ConversationCursorPage[ChatKitThreadItemListDataUnion], err error) {
 	var raw *http.Response
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "chatkit_beta=v1"), option.WithResponseInto(&raw)}, opts...)
 	if threadID == "" {
 		err = errors.New("missing required thread_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("chatkit/threads/%s/items", threadID)
+	path := requestconfig.FormatPath("chatkit/threads/%s/items", threadID)
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, query, &res, opts...)
 	if err != nil {
 		return nil, err
@@ -125,11 +128,11 @@ type ChatSession struct {
 	// Ephemeral client secret that authenticates session requests.
 	ClientSecret string `json:"client_secret" api:"required"`
 	// Unix timestamp (in seconds) for when the session expires.
-	ExpiresAt int64 `json:"expires_at" api:"required"`
+	ExpiresAt int64 `json:"expires_at" api:"required" format:"unixtime"`
 	// Convenience copy of the per-minute request limit.
 	MaxRequestsPer1Minute int64 `json:"max_requests_per_1_minute" api:"required"`
 	// Type discriminator that is always `chatkit.session`.
-	Object constant.ChatKitSession `json:"object" api:"required"`
+	Object constant.ChatKitSession `json:"object" default:"chatkit.session"`
 	// Resolved rate limit values.
 	RateLimits ChatSessionRateLimits `json:"rate_limits" api:"required"`
 	// Current lifecycle state of the session.
@@ -292,7 +295,7 @@ type ChatSessionExpiresAfterParam struct {
 	// Base timestamp used to calculate expiration. Currently fixed to `created_at`.
 	//
 	// This field can be elided, and will marshal its zero value as "created_at".
-	Anchor constant.CreatedAt `json:"anchor" api:"required"`
+	Anchor constant.CreatedAt `json:"anchor" default:"created_at"`
 	paramObj
 }
 
@@ -469,7 +472,7 @@ type ChatKitAttachment struct {
 	// Original display name for the attachment.
 	Name string `json:"name" api:"required"`
 	// Preview URL for rendering the attachment inline.
-	PreviewURL string `json:"preview_url" api:"required"`
+	PreviewURL string `json:"preview_url" api:"required" format:"uri"`
 	// Attachment discriminator.
 	//
 	// Any of "image", "file".
@@ -507,7 +510,7 @@ type ChatKitResponseOutputText struct {
 	// Assistant generated text.
 	Text string `json:"text" api:"required"`
 	// Type discriminator that is always `output_text`.
-	Type constant.OutputText `json:"type" api:"required"`
+	Type constant.OutputText `json:"type" default:"output_text"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Annotations respjson.Field
@@ -574,12 +577,12 @@ func (u ChatKitResponseOutputTextAnnotationUnion) AsAny() anyChatKitResponseOutp
 }
 
 func (u ChatKitResponseOutputTextAnnotationUnion) AsFile() (v ChatKitResponseOutputTextAnnotationFile) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u ChatKitResponseOutputTextAnnotationUnion) AsURL() (v ChatKitResponseOutputTextAnnotationURL) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -620,7 +623,7 @@ type ChatKitResponseOutputTextAnnotationFile struct {
 	// File attachment referenced by the annotation.
 	Source ChatKitResponseOutputTextAnnotationFileSource `json:"source" api:"required"`
 	// Type discriminator that is always `file` for this annotation.
-	Type constant.File `json:"type" api:"required"`
+	Type constant.File `json:"type" default:"file"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Source      respjson.Field
@@ -641,7 +644,7 @@ type ChatKitResponseOutputTextAnnotationFileSource struct {
 	// Filename referenced by the annotation.
 	Filename string `json:"filename" api:"required"`
 	// Type discriminator that is always `file`.
-	Type constant.File `json:"type" api:"required"`
+	Type constant.File `json:"type" default:"file"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Filename    respjson.Field
@@ -662,7 +665,7 @@ type ChatKitResponseOutputTextAnnotationURL struct {
 	// URL referenced by the annotation.
 	Source ChatKitResponseOutputTextAnnotationURLSource `json:"source" api:"required"`
 	// Type discriminator that is always `url` for this annotation.
-	Type constant.URL `json:"type" api:"required"`
+	Type constant.URL `json:"type" default:"url"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Source      respjson.Field
@@ -681,9 +684,9 @@ func (r *ChatKitResponseOutputTextAnnotationURL) UnmarshalJSON(data []byte) erro
 // URL referenced by the annotation.
 type ChatKitResponseOutputTextAnnotationURLSource struct {
 	// Type discriminator that is always `url`.
-	Type constant.URL `json:"type" api:"required"`
+	Type constant.URL `json:"type" default:"url"`
 	// URL referenced by the annotation.
-	URL string `json:"url" api:"required"`
+	URL string `json:"url" api:"required" format:"uri"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Type        respjson.Field
@@ -704,9 +707,9 @@ type ChatKitThread struct {
 	// Identifier of the thread.
 	ID string `json:"id" api:"required"`
 	// Unix timestamp (in seconds) for when the thread was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Type discriminator that is always `chatkit.thread`.
-	Object constant.ChatKitThread `json:"object" api:"required"`
+	Object constant.ChatKitThread `json:"object" default:"chatkit.thread"`
 	// Current status for the thread. Defaults to `active` for newly created threads.
 	Status ChatKitThreadStatusUnion `json:"status" api:"required"`
 	// Optional human-readable title for the thread. Defaults to null when no title has
@@ -784,17 +787,17 @@ func (u ChatKitThreadStatusUnion) AsAny() anyChatKitThreadStatus {
 }
 
 func (u ChatKitThreadStatusUnion) AsActive() (v ChatKitThreadStatusActive) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u ChatKitThreadStatusUnion) AsLocked() (v ChatKitThreadStatusLocked) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u ChatKitThreadStatusUnion) AsClosed() (v ChatKitThreadStatusClosed) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -808,7 +811,7 @@ func (r *ChatKitThreadStatusUnion) UnmarshalJSON(data []byte) error {
 // Indicates that a thread is active.
 type ChatKitThreadStatusActive struct {
 	// Status discriminator that is always `active`.
-	Type constant.Active `json:"type" api:"required"`
+	Type constant.Active `json:"type" default:"active"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Type        respjson.Field
@@ -828,7 +831,7 @@ type ChatKitThreadStatusLocked struct {
 	// Reason that the thread was locked. Defaults to null when no reason is recorded.
 	Reason string `json:"reason" api:"required"`
 	// Status discriminator that is always `locked`.
-	Type constant.Locked `json:"type" api:"required"`
+	Type constant.Locked `json:"type" default:"locked"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Reason      respjson.Field
@@ -849,7 +852,7 @@ type ChatKitThreadStatusClosed struct {
 	// Reason that the thread was closed. Defaults to null when no reason is recorded.
 	Reason string `json:"reason" api:"required"`
 	// Status discriminator that is always `closed`.
-	Type constant.Closed `json:"type" api:"required"`
+	Type constant.Closed `json:"type" default:"closed"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Reason      respjson.Field
@@ -872,13 +875,13 @@ type ChatKitThreadAssistantMessageItem struct {
 	// Ordered assistant response segments.
 	Content []ChatKitResponseOutputText `json:"content" api:"required"`
 	// Unix timestamp (in seconds) for when the item was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Type discriminator that is always `chatkit.thread_item`.
-	Object constant.ChatKitThreadItem `json:"object" api:"required"`
+	Object constant.ChatKitThreadItem `json:"object" default:"chatkit.thread_item"`
 	// Identifier of the parent thread.
 	ThreadID string `json:"thread_id" api:"required"`
 	// Type discriminator that is always `chatkit.assistant_message`.
-	Type constant.ChatKitAssistantMessage `json:"type" api:"required"`
+	Type constant.ChatKitAssistantMessage `json:"type" default:"chatkit.assistant_message"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -909,7 +912,7 @@ type ChatKitThreadItemList struct {
 	// The ID of the last item in the list.
 	LastID string `json:"last_id" api:"required"`
 	// The type of object returned, must be `list`.
-	Object constant.List `json:"object" api:"required"`
+	Object constant.List `json:"object" default:"list"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Data        respjson.Field
@@ -1041,32 +1044,32 @@ func (u ChatKitThreadItemListDataUnion) AsAny() anyChatKitThreadItemListData {
 }
 
 func (u ChatKitThreadItemListDataUnion) AsChatKitUserMessage() (v ChatKitThreadUserMessageItem) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u ChatKitThreadItemListDataUnion) AsChatKitAssistantMessage() (v ChatKitThreadAssistantMessageItem) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u ChatKitThreadItemListDataUnion) AsChatKitWidget() (v ChatKitWidgetItem) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u ChatKitThreadItemListDataUnion) AsChatKitClientToolCall() (v ChatKitThreadItemListDataChatKitClientToolCall) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u ChatKitThreadItemListDataUnion) AsChatKitTask() (v ChatKitThreadItemListDataChatKitTask) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u ChatKitThreadItemListDataUnion) AsChatKitTaskGroup() (v ChatKitThreadItemListDataChatKitTaskGroup) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -1114,11 +1117,11 @@ type ChatKitThreadItemListDataChatKitClientToolCall struct {
 	// Identifier for the client tool call.
 	CallID string `json:"call_id" api:"required"`
 	// Unix timestamp (in seconds) for when the item was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Tool name that was invoked.
 	Name string `json:"name" api:"required"`
 	// Type discriminator that is always `chatkit.thread_item`.
-	Object constant.ChatKitThreadItem `json:"object" api:"required"`
+	Object constant.ChatKitThreadItem `json:"object" default:"chatkit.thread_item"`
 	// JSON-encoded output captured from the tool. Defaults to null while execution is
 	// in progress.
 	Output string `json:"output" api:"required"`
@@ -1129,7 +1132,7 @@ type ChatKitThreadItemListDataChatKitClientToolCall struct {
 	// Identifier of the parent thread.
 	ThreadID string `json:"thread_id" api:"required"`
 	// Type discriminator that is always `chatkit.client_tool_call`.
-	Type constant.ChatKitClientToolCall `json:"type" api:"required"`
+	Type constant.ChatKitClientToolCall `json:"type" default:"chatkit.client_tool_call"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -1158,11 +1161,11 @@ type ChatKitThreadItemListDataChatKitTask struct {
 	// Identifier of the thread item.
 	ID string `json:"id" api:"required"`
 	// Unix timestamp (in seconds) for when the item was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Optional heading for the task. Defaults to null when not provided.
 	Heading string `json:"heading" api:"required"`
 	// Type discriminator that is always `chatkit.thread_item`.
-	Object constant.ChatKitThreadItem `json:"object" api:"required"`
+	Object constant.ChatKitThreadItem `json:"object" default:"chatkit.thread_item"`
 	// Optional summary that describes the task. Defaults to null when omitted.
 	Summary string `json:"summary" api:"required"`
 	// Subtype for the task.
@@ -1172,7 +1175,7 @@ type ChatKitThreadItemListDataChatKitTask struct {
 	// Identifier of the parent thread.
 	ThreadID string `json:"thread_id" api:"required"`
 	// Type discriminator that is always `chatkit.task`.
-	Type constant.ChatKitTask `json:"type" api:"required"`
+	Type constant.ChatKitTask `json:"type" default:"chatkit.task"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -1199,15 +1202,15 @@ type ChatKitThreadItemListDataChatKitTaskGroup struct {
 	// Identifier of the thread item.
 	ID string `json:"id" api:"required"`
 	// Unix timestamp (in seconds) for when the item was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Type discriminator that is always `chatkit.thread_item`.
-	Object constant.ChatKitThreadItem `json:"object" api:"required"`
+	Object constant.ChatKitThreadItem `json:"object" default:"chatkit.thread_item"`
 	// Tasks included in the group.
 	Tasks []ChatKitThreadItemListDataChatKitTaskGroupTask `json:"tasks" api:"required"`
 	// Identifier of the parent thread.
 	ThreadID string `json:"thread_id" api:"required"`
 	// Type discriminator that is always `chatkit.task_group`.
-	Type constant.ChatKitTaskGroup `json:"type" api:"required"`
+	Type constant.ChatKitTaskGroup `json:"type" default:"chatkit.task_group"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -1262,14 +1265,14 @@ type ChatKitThreadUserMessageItem struct {
 	// Ordered content elements supplied by the user.
 	Content []ChatKitThreadUserMessageItemContentUnion `json:"content" api:"required"`
 	// Unix timestamp (in seconds) for when the item was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Inference overrides applied to the message. Defaults to null when unset.
 	InferenceOptions ChatKitThreadUserMessageItemInferenceOptions `json:"inference_options" api:"required"`
 	// Type discriminator that is always `chatkit.thread_item`.
-	Object constant.ChatKitThreadItem `json:"object" api:"required"`
+	Object constant.ChatKitThreadItem `json:"object" default:"chatkit.thread_item"`
 	// Identifier of the parent thread.
 	ThreadID string                      `json:"thread_id" api:"required"`
-	Type     constant.ChatKitUserMessage `json:"type" api:"required"`
+	Type     constant.ChatKitUserMessage `json:"type" default:"chatkit.user_message"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID               respjson.Field
@@ -1339,12 +1342,12 @@ func (u ChatKitThreadUserMessageItemContentUnion) AsAny() anyChatKitThreadUserMe
 }
 
 func (u ChatKitThreadUserMessageItemContentUnion) AsInputText() (v ChatKitThreadUserMessageItemContentInputText) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u ChatKitThreadUserMessageItemContentUnion) AsQuotedText() (v ChatKitThreadUserMessageItemContentQuotedText) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -1360,7 +1363,7 @@ type ChatKitThreadUserMessageItemContentInputText struct {
 	// Plain-text content supplied by the user.
 	Text string `json:"text" api:"required"`
 	// Type discriminator that is always `input_text`.
-	Type constant.InputText `json:"type" api:"required"`
+	Type constant.InputText `json:"type" default:"input_text"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Text        respjson.Field
@@ -1381,7 +1384,7 @@ type ChatKitThreadUserMessageItemContentQuotedText struct {
 	// Quoted text content.
 	Text string `json:"text" api:"required"`
 	// Type discriminator that is always `quoted_text`.
-	Type constant.QuotedText `json:"type" api:"required"`
+	Type constant.QuotedText `json:"type" default:"quoted_text"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Text        respjson.Field
@@ -1442,13 +1445,13 @@ type ChatKitWidgetItem struct {
 	// Identifier of the thread item.
 	ID string `json:"id" api:"required"`
 	// Unix timestamp (in seconds) for when the item was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Type discriminator that is always `chatkit.thread_item`.
-	Object constant.ChatKitThreadItem `json:"object" api:"required"`
+	Object constant.ChatKitThreadItem `json:"object" default:"chatkit.thread_item"`
 	// Identifier of the parent thread.
 	ThreadID string `json:"thread_id" api:"required"`
 	// Type discriminator that is always `chatkit.widget`.
-	Type constant.ChatKitWidget `json:"type" api:"required"`
+	Type constant.ChatKitWidget `json:"type" default:"chatkit.widget"`
 	// Serialized widget payload rendered in the UI.
 	Widget string `json:"widget" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
@@ -1477,7 +1480,7 @@ type BetaChatKitThreadDeleteResponse struct {
 	// Indicates that the thread has been deleted.
 	Deleted bool `json:"deleted" api:"required"`
 	// Type discriminator that is always `chatkit.thread.deleted`.
-	Object constant.ChatKitThreadDeleted `json:"object" api:"required"`
+	Object constant.ChatKitThreadDeleted `json:"object" default:"chatkit.thread.deleted"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field

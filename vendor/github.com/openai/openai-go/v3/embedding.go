@@ -1,4 +1,4 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
@@ -39,7 +39,8 @@ func NewEmbeddingService(opts ...option.RequestOption) (r EmbeddingService) {
 
 // Creates an embedding vector representing the input text.
 func (r *EmbeddingService) New(ctx context.Context, body EmbeddingNewParams, opts ...option.RequestOption) (res *CreateEmbeddingResponse, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "embeddings"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
@@ -51,7 +52,7 @@ type CreateEmbeddingResponse struct {
 	// The name of the model used to generate the embedding.
 	Model string `json:"model" api:"required"`
 	// The object type, which is always "list".
-	Object constant.List `json:"object" api:"required"`
+	Object constant.List `json:"object" default:"list"`
 	// The usage information for the request.
 	Usage CreateEmbeddingResponseUsage `json:"usage" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
@@ -101,7 +102,7 @@ type Embedding struct {
 	// The index of the embedding in the list of embeddings.
 	Index int64 `json:"index" api:"required"`
 	// The object type, which is always "embedding".
-	Object constant.Embedding `json:"object" api:"required"`
+	Object constant.Embedding `json:"object" default:"embedding"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Embedding   respjson.Field

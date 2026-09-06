@@ -51,11 +51,11 @@ func (r *BetaModelService) Get(ctx context.Context, modelID string, query BetaMo
 	opts = slices.Concat(r.Options, opts)
 	if modelID == "" {
 		err = errors.New("missing required model_id parameter")
-		return
+		return nil, err
 	}
 	path := fmt.Sprintf("v1/models/%s?beta=true", modelID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
-	return
+	return res, err
 }
 
 // List available models.
@@ -90,32 +90,208 @@ func (r *BetaModelService) ListAutoPaging(ctx context.Context, params BetaModelL
 	return pagination.NewPageAutoPager(r.List(ctx, params, opts...))
 }
 
-type BetaModelInfo struct {
-	// Unique model identifier.
-	ID string `json:"id,required"`
-	// RFC 3339 datetime string representing the time at which the model was released.
-	// May be set to an epoch value if the release date is unknown.
-	CreatedAt time.Time `json:"created_at,required" format:"date-time"`
-	// A human-readable name for the model.
-	DisplayName string `json:"display_name,required"`
-	// Object type.
-	//
-	// For Models, this is always `"model"`.
-	Type constant.Model `json:"type,required"`
+// Indicates whether a capability is supported.
+type BetaCapabilitySupport struct {
+	// Whether this capability is supported by the model.
+	Supported bool `json:"supported" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		ID          respjson.Field
-		CreatedAt   respjson.Field
-		DisplayName respjson.Field
-		Type        respjson.Field
+		Supported   respjson.Field
 		ExtraFields map[string]respjson.Field
 		raw         string
 	} `json:"-"`
 }
 
 // Returns the unmodified JSON received from the API
+func (r BetaCapabilitySupport) RawJSON() string { return r.JSON.raw }
+func (r *BetaCapabilitySupport) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Context management capability details.
+type BetaContextManagementCapability struct {
+	// Indicates whether a capability is supported.
+	ClearThinking20251015 BetaCapabilitySupport `json:"clear_thinking_20251015" api:"required"`
+	// Indicates whether a capability is supported.
+	ClearToolUses20250919 BetaCapabilitySupport `json:"clear_tool_uses_20250919" api:"required"`
+	// Indicates whether a capability is supported.
+	Compact20260112 BetaCapabilitySupport `json:"compact_20260112" api:"required"`
+	// Whether this capability is supported by the model.
+	Supported bool `json:"supported" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ClearThinking20251015 respjson.Field
+		ClearToolUses20250919 respjson.Field
+		Compact20260112       respjson.Field
+		Supported             respjson.Field
+		ExtraFields           map[string]respjson.Field
+		raw                   string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BetaContextManagementCapability) RawJSON() string { return r.JSON.raw }
+func (r *BetaContextManagementCapability) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Effort (reasoning_effort) capability details.
+type BetaEffortCapability struct {
+	// Whether the model supports high effort level.
+	High BetaCapabilitySupport `json:"high" api:"required"`
+	// Whether the model supports low effort level.
+	Low BetaCapabilitySupport `json:"low" api:"required"`
+	// Whether the model supports max effort level.
+	Max BetaCapabilitySupport `json:"max" api:"required"`
+	// Whether the model supports medium effort level.
+	Medium BetaCapabilitySupport `json:"medium" api:"required"`
+	// Whether this capability is supported by the model.
+	Supported bool `json:"supported" api:"required"`
+	// Indicates whether a capability is supported.
+	Xhigh BetaCapabilitySupport `json:"xhigh" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		High        respjson.Field
+		Low         respjson.Field
+		Max         respjson.Field
+		Medium      respjson.Field
+		Supported   respjson.Field
+		Xhigh       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BetaEffortCapability) RawJSON() string { return r.JSON.raw }
+func (r *BetaEffortCapability) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Model capability information.
+type BetaModelCapabilities struct {
+	// Whether the model supports the Batch API.
+	Batch BetaCapabilitySupport `json:"batch" api:"required"`
+	// Whether the model supports citation generation.
+	Citations BetaCapabilitySupport `json:"citations" api:"required"`
+	// Whether the model supports code execution tools.
+	CodeExecution BetaCapabilitySupport `json:"code_execution" api:"required"`
+	// Context management support and available strategies.
+	ContextManagement BetaContextManagementCapability `json:"context_management" api:"required"`
+	// Effort (reasoning_effort) support and available levels.
+	Effort BetaEffortCapability `json:"effort" api:"required"`
+	// Whether the model accepts image content blocks.
+	ImageInput BetaCapabilitySupport `json:"image_input" api:"required"`
+	// Whether the model accepts PDF content blocks.
+	PDFInput BetaCapabilitySupport `json:"pdf_input" api:"required"`
+	// Whether the model supports structured output / JSON mode / strict tool schemas.
+	StructuredOutputs BetaCapabilitySupport `json:"structured_outputs" api:"required"`
+	// Thinking capability and supported type configurations.
+	Thinking BetaThinkingCapability `json:"thinking" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Batch             respjson.Field
+		Citations         respjson.Field
+		CodeExecution     respjson.Field
+		ContextManagement respjson.Field
+		Effort            respjson.Field
+		ImageInput        respjson.Field
+		PDFInput          respjson.Field
+		StructuredOutputs respjson.Field
+		Thinking          respjson.Field
+		ExtraFields       map[string]respjson.Field
+		raw               string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BetaModelCapabilities) RawJSON() string { return r.JSON.raw }
+func (r *BetaModelCapabilities) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BetaModelInfo struct {
+	// Unique model identifier.
+	ID string `json:"id" api:"required"`
+	// Model IDs this model accepts as `fallbacks[i].model` on the Messages API. An
+	// empty list means the `fallbacks` parameter is not supported for this model as
+	// primary.
+	AllowedFallbackModels []string `json:"allowed_fallback_models" api:"required"`
+	// Model capability information.
+	Capabilities BetaModelCapabilities `json:"capabilities" api:"required"`
+	// RFC 3339 datetime string representing the time at which the model was released.
+	// May be set to an epoch value if the release date is unknown.
+	CreatedAt time.Time `json:"created_at" api:"required" format:"date-time"`
+	// A human-readable name for the model.
+	DisplayName string `json:"display_name" api:"required"`
+	// Maximum input context window size in tokens for this model.
+	MaxInputTokens int64 `json:"max_input_tokens" api:"required"`
+	// Maximum value for the `max_tokens` parameter when using this model.
+	MaxTokens int64 `json:"max_tokens" api:"required"`
+	// Object type.
+	//
+	// For Models, this is always `"model"`.
+	Type constant.Model `json:"type" default:"model"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID                    respjson.Field
+		AllowedFallbackModels respjson.Field
+		Capabilities          respjson.Field
+		CreatedAt             respjson.Field
+		DisplayName           respjson.Field
+		MaxInputTokens        respjson.Field
+		MaxTokens             respjson.Field
+		Type                  respjson.Field
+		ExtraFields           map[string]respjson.Field
+		raw                   string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
 func (r BetaModelInfo) RawJSON() string { return r.JSON.raw }
 func (r *BetaModelInfo) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Thinking capability details.
+type BetaThinkingCapability struct {
+	// Whether this capability is supported by the model.
+	Supported bool `json:"supported" api:"required"`
+	// Supported thinking type configurations.
+	Types BetaThinkingTypes `json:"types" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Supported   respjson.Field
+		Types       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BetaThinkingCapability) RawJSON() string { return r.JSON.raw }
+func (r *BetaThinkingCapability) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Supported thinking type configurations.
+type BetaThinkingTypes struct {
+	// Whether the model supports thinking with type 'adaptive' (auto).
+	Adaptive BetaCapabilitySupport `json:"adaptive" api:"required"`
+	// Whether the model supports thinking with type 'enabled'.
+	Enabled BetaCapabilitySupport `json:"enabled" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Adaptive    respjson.Field
+		Enabled     respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BetaThinkingTypes) RawJSON() string { return r.JSON.raw }
+func (r *BetaThinkingTypes) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -144,7 +320,7 @@ type BetaModelListParams struct {
 // URLQuery serializes [BetaModelListParams]'s query parameters as `url.Values`.
 func (r BetaModelListParams) URLQuery() (v url.Values, err error) {
 	return apiquery.MarshalWithSettings(r, apiquery.QuerySettings{
-		ArrayFormat:  apiquery.ArrayQueryFormatComma,
+		ArrayFormat:  apiquery.ArrayQueryFormatBrackets,
 		NestedFormat: apiquery.NestedQueryFormatBrackets,
 	})
 }

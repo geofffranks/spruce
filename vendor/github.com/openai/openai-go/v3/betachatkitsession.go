@@ -1,11 +1,10 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
 
@@ -36,7 +35,8 @@ func NewBetaChatKitSessionService(opts ...option.RequestOption) (r BetaChatKitSe
 
 // Create a ChatKit session.
 func (r *BetaChatKitSessionService) New(ctx context.Context, body BetaChatKitSessionNewParams, opts ...option.RequestOption) (res *ChatSession, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "chatkit_beta=v1")}, opts...)
 	path := "chatkit/sessions"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
@@ -47,13 +47,14 @@ func (r *BetaChatKitSessionService) New(ctx context.Context, body BetaChatKitSes
 //
 // Cancelling prevents new requests from using the issued client secret.
 func (r *BetaChatKitSessionService) Cancel(ctx context.Context, sessionID string, opts ...option.RequestOption) (res *ChatSession, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "chatkit_beta=v1")}, opts...)
 	if sessionID == "" {
 		err = errors.New("missing required session_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("chatkit/sessions/%s/cancel", sessionID)
+	path := requestconfig.FormatPath("chatkit/sessions/%s/cancel", sessionID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, nil, &res, opts...)
 	return res, err
 }

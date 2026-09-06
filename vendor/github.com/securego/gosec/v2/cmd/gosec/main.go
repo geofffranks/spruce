@@ -66,7 +66,9 @@ USAGE:
 	$ gosec --exclude-rules="scripts/.*:*" ./...
 `
 	// Environment variable for AI API key.
-	aiAPIKeyEnv = "GOSEC_AI_API_KEY" // #nosec G101
+	aiAPIKeyEnv   = "GOSEC_AI_API_KEY" // #nosec G101
+	aiProviderEnv = "GOSEC_AI_PROVIDER"
+	aiBaseURLEnv  = "GOSEC_AI_BASE_URL"
 
 	// Exit codes
 	exitSuccess = 0
@@ -102,6 +104,12 @@ Use "*" to exclude all rules for a path: "scripts/.*:*"`)
 
 	// #nosec alternative tag
 	flagAlternativeNoSec = flag.String("nosec-tag", "", "Set an alternative string for #nosec. Some examples: #dontanalyze, #falsepositive")
+
+	// require rule IDs in #nosec annotations
+	flagNoSecRequireRules = flag.Bool("nosec-require-rules", false, "Require at least one rule ID (e.g. G401) in every #nosec / //gosec:disable annotation")
+
+	// require justification in #nosec annotations
+	flagNoSecRequireJustification = flag.Bool("nosec-require-justification", false, "Require a `-- justification` in every #nosec / //gosec:disable annotation")
 
 	// flagEnableAudit enables audit mode
 	flagEnableAudit = flag.Bool("enable-audit", false, "Enable audit mode")
@@ -238,6 +246,12 @@ func loadConfig(configFile string) (gosec.Config, error) {
 	}
 	if *flagAlternativeNoSec != "" {
 		config.SetGlobal(gosec.NoSecAlternative, *flagAlternativeNoSec)
+	}
+	if *flagNoSecRequireRules {
+		config.SetGlobal(gosec.NoSecRequireRules, "true")
+	}
+	if *flagNoSecRequireJustification {
+		config.SetGlobal(gosec.NoSecRequireJustification, "true")
 	}
 	if *flagEnableAudit {
 		config.SetGlobal(gosec.Audit, "true")
@@ -576,15 +590,25 @@ func run() int {
 	reportInfo := gosec.NewReportInfo(issues, metrics, errors).WithVersion(Version)
 
 	// Call AI request to solve the issues
+	aiProvider := *flagAiAPIProvider
+	if aiProvider == "" {
+		aiProvider = os.Getenv(aiProviderEnv)
+	}
+
 	aiAPIKey := os.Getenv(aiAPIKeyEnv)
 	if aiAPIKey == "" {
 		aiAPIKey = *flagAiAPIKey
 	}
 
-	aiEnabled := *flagAiAPIProvider != ""
+	aiBaseURL := *flagAiBaseURL
+	if aiBaseURL == "" {
+		aiBaseURL = os.Getenv(aiBaseURLEnv)
+	}
+
+	aiEnabled := aiProvider != ""
 
 	if len(issues) > 0 && aiEnabled {
-		err := autofix.GenerateSolution(*flagAiAPIProvider, aiAPIKey, *flagAiBaseURL, *flagAiSkipSSL, issues)
+		err := autofix.GenerateSolution(aiProvider, aiAPIKey, aiBaseURL, *flagAiSkipSSL, issues)
 		if err != nil {
 			logger.Print(err)
 		}

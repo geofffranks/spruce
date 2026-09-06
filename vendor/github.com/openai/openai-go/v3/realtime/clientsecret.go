@@ -1,4 +1,4 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package realtime
 
@@ -52,45 +52,25 @@ func NewClientSecretService(opts ...option.RequestOption) (r ClientSecretService
 // Returns the created client secret and the effective session object. The client
 // secret is a string that looks like `ek_1234`.
 func (r *ClientSecretService) New(ctx context.Context, body ClientSecretNewParams, opts ...option.RequestOption) (res *ClientSecretNewResponse, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "realtime/client_secrets"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
 }
 
-// Ephemeral key returned by the API.
-type RealtimeSessionClientSecret struct {
-	// Timestamp for when the token expires. Currently, all tokens expire after one
-	// minute.
-	ExpiresAt int64 `json:"expires_at" api:"required"`
-	// Ephemeral key usable in client environments to authenticate connections to the
-	// Realtime API. Use this in client-side environments rather than a standard API
-	// token, which should only be used server-side.
-	Value string `json:"value" api:"required"`
-	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
-	JSON struct {
-		ExpiresAt   respjson.Field
-		Value       respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
-	} `json:"-"`
-}
-
-// Returns the unmodified JSON received from the API
-func (r RealtimeSessionClientSecret) RawJSON() string { return r.JSON.raw }
-func (r *RealtimeSessionClientSecret) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
-// A new Realtime session configuration, with an ephemeral key. Default TTL for
-// keys is one minute.
+// A Realtime session configuration object.
 type RealtimeSessionCreateResponse struct {
-	// Ephemeral key returned by the API.
-	ClientSecret RealtimeSessionClientSecret `json:"client_secret" api:"required"`
+	// Unique identifier for the session that looks like `sess_1234567890abcdef`.
+	ID string `json:"id" api:"required"`
+	// The object type. Always `realtime.session`.
+	Object constant.RealtimeSession `json:"object" default:"realtime.session"`
 	// The type of session to create. Always `realtime` for the Realtime API.
-	Type constant.Realtime `json:"type" api:"required"`
+	Type constant.Realtime `json:"type" default:"realtime"`
 	// Configuration for input and output audio.
 	Audio RealtimeSessionCreateResponseAudio `json:"audio"`
+	// Expiration timestamp for the session, in seconds since epoch.
+	ExpiresAt int64 `json:"expires_at" format:"unixtime"`
 	// Additional fields to include in server outputs.
 	//
 	// `item.input_audio_transcription.logprobs`: Include logprobs for input audio
@@ -126,14 +106,17 @@ type RealtimeSessionCreateResponse struct {
 	// Reference to a prompt template and its variables.
 	// [Learn more](https://platform.openai.com/docs/guides/text?api-mode=responses#reusable-prompts).
 	Prompt responses.ResponsePrompt `json:"prompt" api:"nullable"`
+	// Configuration for reasoning-capable Realtime models such as `gpt-realtime-2`.
+	Reasoning RealtimeReasoning `json:"reasoning"`
 	// How the model chooses tools. Provide one of the string modes or force a specific
 	// function/MCP tool.
 	ToolChoice RealtimeSessionCreateResponseToolChoiceUnion `json:"tool_choice"`
 	// Tools available to the model.
 	Tools []RealtimeSessionCreateResponseToolUnion `json:"tools"`
 	// Realtime API can write session traces to the
-	// [Traces Dashboard](/logs?api=traces). Set to null to disable tracing. Once
-	// tracing is enabled for a session, the configuration cannot be modified.
+	// [Traces Dashboard](https://platform.openai.com/logs?api=traces). Set to null to
+	// disable tracing. Once tracing is enabled for a session, the configuration cannot
+	// be modified.
 	//
 	// `auto` will create a trace for the session with default values for the workflow
 	// name, group id, and metadata.
@@ -159,15 +142,18 @@ type RealtimeSessionCreateResponse struct {
 	Truncation RealtimeTruncationUnion `json:"truncation"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		ClientSecret     respjson.Field
+		ID               respjson.Field
+		Object           respjson.Field
 		Type             respjson.Field
 		Audio            respjson.Field
+		ExpiresAt        respjson.Field
 		Include          respjson.Field
 		Instructions     respjson.Field
 		MaxOutputTokens  respjson.Field
 		Model            respjson.Field
 		OutputModalities respjson.Field
 		Prompt           respjson.Field
+		Reasoning        respjson.Field
 		ToolChoice       respjson.Field
 		Tools            respjson.Field
 		Tracing          respjson.Field
@@ -211,15 +197,7 @@ type RealtimeSessionCreateResponseAudioInput struct {
 	// detection accuracy (reducing false positives) and model performance by improving
 	// perception of the input audio.
 	NoiseReduction RealtimeSessionCreateResponseAudioInputNoiseReduction `json:"noise_reduction"`
-	// Configuration for input audio transcription, defaults to off and can be set to
-	// `null` to turn off once on. Input audio transcription is not native to the
-	// model, since the model consumes audio directly. Transcription runs
-	// asynchronously through
-	// [the /audio/transcriptions endpoint](https://platform.openai.com/docs/api-reference/audio/createTranscription)
-	// and should be treated as guidance of input audio content rather than precisely
-	// what the model heard. The client can optionally set the language and prompt for
-	// transcription, these offer additional guidance to the transcription service.
-	Transcription AudioTranscription `json:"transcription"`
+	Transcription  AudioTranscription                                    `json:"transcription"`
 	// Configuration for turn detection, ether Server VAD or Semantic VAD. This can be
 	// set to `null` to turn off, in which case the client must manually trigger model
 	// response.
@@ -233,6 +211,9 @@ type RealtimeSessionCreateResponseAudioInput struct {
 	// trails off with "uhhm", the model will score a low probability of turn end and
 	// wait longer for the user to continue speaking. This can be useful for more
 	// natural conversations, but may have a higher latency.
+	//
+	// For `gpt-realtime-whisper` transcription sessions, turn detection must be set to
+	// `null`; VAD is not supported.
 	TurnDetection RealtimeSessionCreateResponseAudioInputTurnDetectionUnion `json:"turn_detection" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
@@ -351,12 +332,12 @@ func (u RealtimeSessionCreateResponseAudioInputTurnDetectionUnion) AsAny() anyRe
 }
 
 func (u RealtimeSessionCreateResponseAudioInputTurnDetectionUnion) AsServerVad() (v RealtimeSessionCreateResponseAudioInputTurnDetectionServerVad) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u RealtimeSessionCreateResponseAudioInputTurnDetectionUnion) AsSemanticVad() (v RealtimeSessionCreateResponseAudioInputTurnDetectionSemanticVad) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -373,7 +354,7 @@ func (r *RealtimeSessionCreateResponseAudioInputTurnDetectionUnion) UnmarshalJSO
 // detected and off after a period of silence.
 type RealtimeSessionCreateResponseAudioInputTurnDetectionServerVad struct {
 	// Type of turn detection, `server_vad` to turn on simple Server VAD.
-	Type constant.ServerVad `json:"type" api:"required"`
+	Type constant.ServerVad `json:"type" default:"server_vad"`
 	// Whether or not to automatically generate a response when a VAD stop event
 	// occurs. If `interrupt_response` is set to `false` this may fail to create a
 	// response if the model is already responding.
@@ -439,7 +420,7 @@ func (r *RealtimeSessionCreateResponseAudioInputTurnDetectionServerVad) Unmarsha
 // user has finished speaking.
 type RealtimeSessionCreateResponseAudioInputTurnDetectionSemanticVad struct {
 	// Type of turn detection, `semantic_vad` to turn on Semantic VAD.
-	Type constant.SemanticVad `json:"type" api:"required"`
+	Type constant.SemanticVad `json:"type" default:"semantic_vad"`
 	// Whether or not to automatically generate a response when a VAD stop event
 	// occurs.
 	CreateResponse bool `json:"create_response"`
@@ -526,12 +507,12 @@ type RealtimeSessionCreateResponseMaxOutputTokensUnion struct {
 }
 
 func (u RealtimeSessionCreateResponseMaxOutputTokensUnion) AsInt() (v int64) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u RealtimeSessionCreateResponseMaxOutputTokensUnion) AsInf() (v constant.Inf) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -548,6 +529,9 @@ type RealtimeSessionCreateResponseModel string
 const (
 	RealtimeSessionCreateResponseModelGPTRealtime                        RealtimeSessionCreateResponseModel = "gpt-realtime"
 	RealtimeSessionCreateResponseModelGPTRealtime1_5                     RealtimeSessionCreateResponseModel = "gpt-realtime-1.5"
+	RealtimeSessionCreateResponseModelGPTRealtime2                       RealtimeSessionCreateResponseModel = "gpt-realtime-2"
+	RealtimeSessionCreateResponseModelGPTRealtime2_1                     RealtimeSessionCreateResponseModel = "gpt-realtime-2.1"
+	RealtimeSessionCreateResponseModelGPTRealtime2_1Mini                 RealtimeSessionCreateResponseModel = "gpt-realtime-2.1-mini"
 	RealtimeSessionCreateResponseModelGPTRealtime2025_08_28              RealtimeSessionCreateResponseModel = "gpt-realtime-2025-08-28"
 	RealtimeSessionCreateResponseModelGPT4oRealtimePreview               RealtimeSessionCreateResponseModel = "gpt-4o-realtime-preview"
 	RealtimeSessionCreateResponseModelGPT4oRealtimePreview2024_10_01     RealtimeSessionCreateResponseModel = "gpt-4o-realtime-preview-2024-10-01"
@@ -590,17 +574,17 @@ type RealtimeSessionCreateResponseToolChoiceUnion struct {
 }
 
 func (u RealtimeSessionCreateResponseToolChoiceUnion) AsToolChoiceMode() (v responses.ToolChoiceOptions) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u RealtimeSessionCreateResponseToolChoiceUnion) AsFunctionTool() (v responses.ToolChoiceFunction) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u RealtimeSessionCreateResponseToolChoiceUnion) AsMcpTool() (v responses.ToolChoiceMcp) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -626,6 +610,8 @@ type RealtimeSessionCreateResponseToolUnion struct {
 	// This field is from variant [RealtimeSessionCreateResponseToolMcpTool].
 	ServerLabel string `json:"server_label"`
 	// This field is from variant [RealtimeSessionCreateResponseToolMcpTool].
+	AllowedCallers []string `json:"allowed_callers"`
+	// This field is from variant [RealtimeSessionCreateResponseToolMcpTool].
 	AllowedTools RealtimeSessionCreateResponseToolMcpToolAllowedToolsUnion `json:"allowed_tools"`
 	// This field is from variant [RealtimeSessionCreateResponseToolMcpTool].
 	Authorization string `json:"authorization"`
@@ -641,12 +627,15 @@ type RealtimeSessionCreateResponseToolUnion struct {
 	ServerDescription string `json:"server_description"`
 	// This field is from variant [RealtimeSessionCreateResponseToolMcpTool].
 	ServerURL string `json:"server_url"`
-	JSON      struct {
+	// This field is from variant [RealtimeSessionCreateResponseToolMcpTool].
+	TunnelID string `json:"tunnel_id"`
+	JSON     struct {
 		Description       respjson.Field
 		Name              respjson.Field
 		Parameters        respjson.Field
 		Type              respjson.Field
 		ServerLabel       respjson.Field
+		AllowedCallers    respjson.Field
 		AllowedTools      respjson.Field
 		Authorization     respjson.Field
 		ConnectorID       respjson.Field
@@ -655,17 +644,18 @@ type RealtimeSessionCreateResponseToolUnion struct {
 		RequireApproval   respjson.Field
 		ServerDescription respjson.Field
 		ServerURL         respjson.Field
+		TunnelID          respjson.Field
 		raw               string
 	} `json:"-"`
 }
 
 func (u RealtimeSessionCreateResponseToolUnion) AsFunctionTool() (v RealtimeFunctionTool) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u RealtimeSessionCreateResponseToolUnion) AsMcpTool() (v RealtimeSessionCreateResponseToolMcpTool) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -683,7 +673,11 @@ type RealtimeSessionCreateResponseToolMcpTool struct {
 	// A label for this MCP server, used to identify it in tool calls.
 	ServerLabel string `json:"server_label" api:"required"`
 	// The type of the MCP tool. Always `mcp`.
-	Type constant.Mcp `json:"type" api:"required"`
+	Type constant.Mcp `json:"type" default:"mcp"`
+	// The tool invocation context(s).
+	//
+	// Any of "direct", "programmatic".
+	AllowedCallers []string `json:"allowed_callers" api:"nullable"`
 	// List of allowed tool names or a filter object.
 	AllowedTools RealtimeSessionCreateResponseToolMcpToolAllowedToolsUnion `json:"allowed_tools" api:"nullable"`
 	// An OAuth access token that can be used with a remote MCP server, either with a
@@ -691,8 +685,8 @@ type RealtimeSessionCreateResponseToolMcpTool struct {
 	// OAuth authorization flow and provide the token here.
 	Authorization string `json:"authorization"`
 	// Identifier for service connectors, like those available in ChatGPT. One of
-	// `server_url` or `connector_id` must be provided. Learn more about service
-	// connectors
+	// `server_url`, `connector_id`, or `tunnel_id` must be provided. Learn more about
+	// service connectors
 	// [here](https://platform.openai.com/docs/guides/tools-remote-mcp#connectors).
 	//
 	// Currently supported `connector_id` values are:
@@ -719,13 +713,17 @@ type RealtimeSessionCreateResponseToolMcpTool struct {
 	RequireApproval RealtimeSessionCreateResponseToolMcpToolRequireApprovalUnion `json:"require_approval" api:"nullable"`
 	// Optional description of the MCP server, used to provide more context.
 	ServerDescription string `json:"server_description"`
-	// The URL for the MCP server. One of `server_url` or `connector_id` must be
-	// provided.
-	ServerURL string `json:"server_url"`
+	// The URL for the MCP server. One of `server_url`, `connector_id`, or `tunnel_id`
+	// must be provided.
+	ServerURL string `json:"server_url" format:"uri"`
+	// The Secure MCP Tunnel ID to use instead of a direct server URL. One of
+	// `server_url`, `connector_id`, or `tunnel_id` must be provided.
+	TunnelID string `json:"tunnel_id"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ServerLabel       respjson.Field
 		Type              respjson.Field
+		AllowedCallers    respjson.Field
 		AllowedTools      respjson.Field
 		Authorization     respjson.Field
 		ConnectorID       respjson.Field
@@ -734,6 +732,7 @@ type RealtimeSessionCreateResponseToolMcpTool struct {
 		RequireApproval   respjson.Field
 		ServerDescription respjson.Field
 		ServerURL         respjson.Field
+		TunnelID          respjson.Field
 		ExtraFields       map[string]respjson.Field
 		raw               string
 	} `json:"-"`
@@ -771,12 +770,12 @@ type RealtimeSessionCreateResponseToolMcpToolAllowedToolsUnion struct {
 }
 
 func (u RealtimeSessionCreateResponseToolMcpToolAllowedToolsUnion) AsMcpAllowedTools() (v []string) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u RealtimeSessionCreateResponseToolMcpToolAllowedToolsUnion) AsMcpToolFilter() (v RealtimeSessionCreateResponseToolMcpToolAllowedToolsMcpToolFilter) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -842,12 +841,12 @@ type RealtimeSessionCreateResponseToolMcpToolRequireApprovalUnion struct {
 }
 
 func (u RealtimeSessionCreateResponseToolMcpToolRequireApprovalUnion) AsMcpToolApprovalFilter() (v RealtimeSessionCreateResponseToolMcpToolRequireApprovalMcpToolApprovalFilter) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u RealtimeSessionCreateResponseToolMcpToolRequireApprovalUnion) AsMcpToolApprovalSetting() (v string) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -977,12 +976,12 @@ type RealtimeSessionCreateResponseTracingUnion struct {
 }
 
 func (u RealtimeSessionCreateResponseTracingUnion) AsAuto() (v constant.Auto) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u RealtimeSessionCreateResponseTracingUnion) AsTracingConfiguration() (v RealtimeSessionCreateResponseTracingTracingConfiguration) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -1027,11 +1026,11 @@ type RealtimeTranscriptionSessionCreateResponse struct {
 	// The object type. Always `realtime.transcription_session`.
 	Object string `json:"object" api:"required"`
 	// The type of session. Always `transcription` for transcription sessions.
-	Type constant.Transcription `json:"type" api:"required"`
+	Type constant.Transcription `json:"type" default:"transcription"`
 	// Configuration for input audio for the session.
 	Audio RealtimeTranscriptionSessionCreateResponseAudio `json:"audio"`
 	// Expiration timestamp for the session, in seconds since epoch.
-	ExpiresAt int64 `json:"expires_at"`
+	ExpiresAt int64 `json:"expires_at" format:"unixtime"`
 	// Additional fields to include in server outputs.
 	//
 	//   - `item.input_audio_transcription.logprobs`: Include logprobs for input audio
@@ -1080,12 +1079,12 @@ type RealtimeTranscriptionSessionCreateResponseAudioInput struct {
 	Format RealtimeAudioFormatsUnion `json:"format"`
 	// Configuration for input audio noise reduction.
 	NoiseReduction RealtimeTranscriptionSessionCreateResponseAudioInputNoiseReduction `json:"noise_reduction"`
-	// Configuration of the transcription model.
-	Transcription AudioTranscription `json:"transcription"`
+	Transcription  AudioTranscription                                                 `json:"transcription"`
 	// Configuration for turn detection. Can be set to `null` to turn off. Server VAD
 	// means that the model will detect the start and end of speech based on audio
-	// volume and respond at the end of user speech.
-	TurnDetection RealtimeTranscriptionSessionTurnDetection `json:"turn_detection"`
+	// volume and respond at the end of user speech. For `gpt-realtime-whisper`, this
+	// must be `null`; VAD is not supported.
+	TurnDetection RealtimeTranscriptionSessionTurnDetection `json:"turn_detection" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Format         respjson.Field
@@ -1129,7 +1128,8 @@ func (r *RealtimeTranscriptionSessionCreateResponseAudioInputNoiseReduction) Unm
 
 // Configuration for turn detection. Can be set to `null` to turn off. Server VAD
 // means that the model will detect the start and end of speech based on audio
-// volume and respond at the end of user speech.
+// volume and respond at the end of user speech. For `gpt-realtime-whisper`, this
+// must be `null`; VAD is not supported.
 type RealtimeTranscriptionSessionTurnDetection struct {
 	// Amount of audio to include before the VAD detected speech (in milliseconds).
 	// Defaults to 300ms.
@@ -1164,7 +1164,7 @@ func (r *RealtimeTranscriptionSessionTurnDetection) UnmarshalJSON(data []byte) e
 // Response from creating a session and client secret for the Realtime API.
 type ClientSecretNewResponse struct {
 	// Expiration timestamp for the client secret, in seconds since epoch.
-	ExpiresAt int64 `json:"expires_at" api:"required"`
+	ExpiresAt int64 `json:"expires_at" api:"required" format:"unixtime"`
 	// The session configuration for either a realtime or transcription session.
 	Session ClientSecretNewResponseSessionUnion `json:"session" api:"required"`
 	// The generated client secret value.
@@ -1194,14 +1194,15 @@ func (r *ClientSecretNewResponse) UnmarshalJSON(data []byte) error {
 //
 // Use the methods beginning with 'As' to cast the union to one of its variants.
 type ClientSecretNewResponseSessionUnion struct {
-	// This field is from variant [RealtimeSessionCreateResponse].
-	ClientSecret RealtimeSessionClientSecret `json:"client_secret"`
+	ID     string `json:"id"`
+	Object string `json:"object"`
 	// Any of "realtime", "transcription".
 	Type string `json:"type"`
 	// This field is a union of [RealtimeSessionCreateResponseAudio],
 	// [RealtimeTranscriptionSessionCreateResponseAudio]
-	Audio   ClientSecretNewResponseSessionUnionAudio `json:"audio"`
-	Include []string                                 `json:"include"`
+	Audio     ClientSecretNewResponseSessionUnionAudio `json:"audio"`
+	ExpiresAt int64                                    `json:"expires_at"`
+	Include   []string                                 `json:"include"`
 	// This field is from variant [RealtimeSessionCreateResponse].
 	Instructions string `json:"instructions"`
 	// This field is from variant [RealtimeSessionCreateResponse].
@@ -1213,6 +1214,8 @@ type ClientSecretNewResponseSessionUnion struct {
 	// This field is from variant [RealtimeSessionCreateResponse].
 	Prompt responses.ResponsePrompt `json:"prompt"`
 	// This field is from variant [RealtimeSessionCreateResponse].
+	Reasoning RealtimeReasoning `json:"reasoning"`
+	// This field is from variant [RealtimeSessionCreateResponse].
 	ToolChoice RealtimeSessionCreateResponseToolChoiceUnion `json:"tool_choice"`
 	// This field is from variant [RealtimeSessionCreateResponse].
 	Tools []RealtimeSessionCreateResponseToolUnion `json:"tools"`
@@ -1220,29 +1223,23 @@ type ClientSecretNewResponseSessionUnion struct {
 	Tracing RealtimeSessionCreateResponseTracingUnion `json:"tracing"`
 	// This field is from variant [RealtimeSessionCreateResponse].
 	Truncation RealtimeTruncationUnion `json:"truncation"`
-	// This field is from variant [RealtimeTranscriptionSessionCreateResponse].
-	ID string `json:"id"`
-	// This field is from variant [RealtimeTranscriptionSessionCreateResponse].
-	Object string `json:"object"`
-	// This field is from variant [RealtimeTranscriptionSessionCreateResponse].
-	ExpiresAt int64 `json:"expires_at"`
-	JSON      struct {
-		ClientSecret     respjson.Field
+	JSON       struct {
+		ID               respjson.Field
+		Object           respjson.Field
 		Type             respjson.Field
 		Audio            respjson.Field
+		ExpiresAt        respjson.Field
 		Include          respjson.Field
 		Instructions     respjson.Field
 		MaxOutputTokens  respjson.Field
 		Model            respjson.Field
 		OutputModalities respjson.Field
 		Prompt           respjson.Field
+		Reasoning        respjson.Field
 		ToolChoice       respjson.Field
 		Tools            respjson.Field
 		Tracing          respjson.Field
 		Truncation       respjson.Field
-		ID               respjson.Field
-		Object           respjson.Field
-		ExpiresAt        respjson.Field
 		raw              string
 	} `json:"-"`
 }
@@ -1276,12 +1273,12 @@ func (u ClientSecretNewResponseSessionUnion) AsAny() anyClientSecretNewResponseS
 }
 
 func (u ClientSecretNewResponseSessionUnion) AsRealtime() (v RealtimeSessionCreateResponse) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u ClientSecretNewResponseSessionUnion) AsTranscription() (v RealtimeTranscriptionSessionCreateResponse) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -1516,9 +1513,25 @@ func (u ClientSecretNewParamsSessionUnion) GetOutputModalities() []string {
 }
 
 // Returns a pointer to the underlying variant's property, if present.
+func (u ClientSecretNewParamsSessionUnion) GetParallelToolCalls() *bool {
+	if vt := u.OfRealtime; vt != nil && vt.ParallelToolCalls.Valid() {
+		return &vt.ParallelToolCalls.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
 func (u ClientSecretNewParamsSessionUnion) GetPrompt() *responses.ResponsePromptParam {
 	if vt := u.OfRealtime; vt != nil {
 		return &vt.Prompt
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ClientSecretNewParamsSessionUnion) GetReasoning() *RealtimeReasoningParam {
+	if vt := u.OfRealtime; vt != nil {
+		return &vt.Reasoning
 	}
 	return nil
 }

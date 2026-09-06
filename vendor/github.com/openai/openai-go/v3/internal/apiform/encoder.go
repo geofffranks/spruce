@@ -58,7 +58,7 @@ type encoderField struct {
 }
 
 type encoderEntry struct {
-	reflect.Type
+	typ        reflect.Type
 	dateFormat string
 	arrayFmt   string
 	root       bool
@@ -76,7 +76,7 @@ func (e *encoder) marshal(value any, writer *multipart.Writer) error {
 
 func (e *encoder) typeEncoder(t reflect.Type) encoderFunc {
 	entry := encoderEntry{
-		Type:       t,
+		typ:        t,
 		dateFormat: e.dateFormat,
 		arrayFmt:   e.arrayFmt,
 		root:       e.root,
@@ -183,6 +183,18 @@ func (e *encoder) newPrimitiveTypeEncoder(t reflect.Type) encoderFunc {
 func (e *encoder) newArrayTypeEncoder(t reflect.Type) encoderFunc {
 	itemEncoder := e.typeEncoder(t.Elem())
 	keyFn := e.arrayKeyEncoder()
+	if e.arrayFmt == "comma" {
+		return func(key string, v reflect.Value, writer *multipart.Writer) error {
+			if v.Len() == 0 {
+				return nil
+			}
+			elements := make([]string, v.Len())
+			for i := 0; i < v.Len(); i++ {
+				elements[i] = fmt.Sprint(v.Index(i).Interface())
+			}
+			return writer.WriteField(key, strings.Join(elements, ","))
+		}
+	}
 	return func(key string, v reflect.Value, writer *multipart.Writer) error {
 		if keyFn == nil {
 			return fmt.Errorf("apiform: unsupported array format")
@@ -262,6 +274,14 @@ func (e *encoder) newStructTypeEncoder(t reflect.Type) encoderFunc {
 				encoderFn = func(key string, value reflect.Value, writer *multipart.Writer) error {
 					if value.IsZero() {
 						return nil
+					}
+					return typeEncoderFn(key, value, writer)
+				}
+			} else if ptag.defaultValue != nil {
+				typeEncoderFn := e.typeEncoder(field.Type)
+				encoderFn = func(key string, value reflect.Value, writer *multipart.Writer) error {
+					if value.IsZero() {
+						return typeEncoderFn(key, reflect.ValueOf(ptag.defaultValue), writer)
 					}
 					return typeEncoderFn(key, value, writer)
 				}

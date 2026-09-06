@@ -1,11 +1,10 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
 
@@ -63,7 +62,8 @@ func NewUploadService(opts ...option.RequestOption) (r UploadService) {
 //
 // Returns the Upload object with status `pending`.
 func (r *UploadService) New(ctx context.Context, body UploadNewParams, opts ...option.RequestOption) (res *Upload, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "uploads"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
@@ -73,12 +73,13 @@ func (r *UploadService) New(ctx context.Context, body UploadNewParams, opts ...o
 //
 // Returns the Upload object with status `cancelled`.
 func (r *UploadService) Cancel(ctx context.Context, uploadID string, opts ...option.RequestOption) (res *Upload, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if uploadID == "" {
 		err = errors.New("missing required upload_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("uploads/%s/cancel", uploadID)
+	path := requestconfig.FormatPath("uploads/%s/cancel", uploadID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, nil, &res, opts...)
 	return res, err
 }
@@ -99,12 +100,13 @@ func (r *UploadService) Cancel(ctx context.Context, uploadID string, opts ...opt
 // including an additional `file` property containing the created usable File
 // object.
 func (r *UploadService) Complete(ctx context.Context, uploadID string, body UploadCompleteParams, opts ...option.RequestOption) (res *Upload, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if uploadID == "" {
 		err = errors.New("missing required upload_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("uploads/%s/complete", uploadID)
+	path := requestconfig.FormatPath("uploads/%s/complete", uploadID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
 }
@@ -116,13 +118,13 @@ type Upload struct {
 	// The intended number of bytes to be uploaded.
 	Bytes int64 `json:"bytes" api:"required"`
 	// The Unix timestamp (in seconds) for when the Upload was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// The Unix timestamp (in seconds) for when the Upload will expire.
-	ExpiresAt int64 `json:"expires_at" api:"required"`
+	ExpiresAt int64 `json:"expires_at" api:"required" format:"unixtime"`
 	// The name of the file to be uploaded.
 	Filename string `json:"filename" api:"required"`
 	// The object type, which is always "upload".
-	Object constant.Upload `json:"object" api:"required"`
+	Object constant.Upload `json:"object" default:"upload"`
 	// The intended purpose of the file.
 	// [Please refer here](https://platform.openai.com/docs/api-reference/files/object#files/object-purpose)
 	// for acceptable values.
@@ -208,7 +210,7 @@ type UploadNewParamsExpiresAfter struct {
 	// `created_at`.
 	//
 	// This field can be elided, and will marshal its zero value as "created_at".
-	Anchor constant.CreatedAt `json:"anchor" api:"required"`
+	Anchor constant.CreatedAt `json:"anchor" default:"created_at"`
 	paramObj
 }
 
