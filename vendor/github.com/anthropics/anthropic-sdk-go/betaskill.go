@@ -53,7 +53,7 @@ func (r *BetaSkillService) New(ctx context.Context, params BetaSkillNewParams, o
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02")}, opts...)
 	path := "v1/skills?beta=true"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
-	return
+	return res, err
 }
 
 // Get Skill
@@ -65,11 +65,11 @@ func (r *BetaSkillService) Get(ctx context.Context, skillID string, query BetaSk
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02")}, opts...)
 	if skillID == "" {
 		err = errors.New("missing required skill_id parameter")
-		return
+		return nil, err
 	}
 	path := fmt.Sprintf("v1/skills/%s?beta=true", skillID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
-	return
+	return res, err
 }
 
 // List Skills
@@ -107,42 +107,42 @@ func (r *BetaSkillService) Delete(ctx context.Context, skillID string, body Beta
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02")}, opts...)
 	if skillID == "" {
 		err = errors.New("missing required skill_id parameter")
-		return
+		return nil, err
 	}
 	path := fmt.Sprintf("v1/skills/%s?beta=true", skillID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, &res, opts...)
-	return
+	return res, err
 }
 
 type BetaSkillNewResponse struct {
 	// Unique identifier for the skill.
 	//
 	// The format and length of IDs may change over time.
-	ID string `json:"id,required"`
+	ID string `json:"id" api:"required"`
 	// ISO 8601 timestamp of when the skill was created.
-	CreatedAt string `json:"created_at,required"`
+	CreatedAt string `json:"created_at" api:"required"`
 	// Display title for the skill.
 	//
 	// This is a human-readable label that is not included in the prompt sent to the
 	// model.
-	DisplayTitle string `json:"display_title,required"`
+	DisplayTitle string `json:"display_title" api:"required"`
 	// The latest version identifier for the skill.
 	//
 	// This represents the most recent version of the skill that has been created.
-	LatestVersion string `json:"latest_version,required"`
+	LatestVersion string `json:"latest_version" api:"required"`
 	// Source of the skill.
 	//
 	// This may be one of the following values:
 	//
 	// - `"custom"`: the skill was created by a user
 	// - `"anthropic"`: the skill was created by Anthropic
-	Source string `json:"source,required"`
+	Source string `json:"source" api:"required"`
 	// Object type.
 	//
 	// For Skills, this is always `"skill"`.
-	Type string `json:"type,required"`
+	Type string `json:"type" api:"required"`
 	// ISO 8601 timestamp of when the skill was last updated.
-	UpdatedAt string `json:"updated_at,required"`
+	UpdatedAt string `json:"updated_at" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID            respjson.Field
@@ -167,31 +167,31 @@ type BetaSkillGetResponse struct {
 	// Unique identifier for the skill.
 	//
 	// The format and length of IDs may change over time.
-	ID string `json:"id,required"`
+	ID string `json:"id" api:"required"`
 	// ISO 8601 timestamp of when the skill was created.
-	CreatedAt string `json:"created_at,required"`
+	CreatedAt string `json:"created_at" api:"required"`
 	// Display title for the skill.
 	//
 	// This is a human-readable label that is not included in the prompt sent to the
 	// model.
-	DisplayTitle string `json:"display_title,required"`
+	DisplayTitle string `json:"display_title" api:"required"`
 	// The latest version identifier for the skill.
 	//
 	// This represents the most recent version of the skill that has been created.
-	LatestVersion string `json:"latest_version,required"`
+	LatestVersion string `json:"latest_version" api:"required"`
 	// Source of the skill.
 	//
 	// This may be one of the following values:
 	//
 	// - `"custom"`: the skill was created by a user
 	// - `"anthropic"`: the skill was created by Anthropic
-	Source string `json:"source,required"`
+	Source string `json:"source" api:"required"`
 	// Object type.
 	//
 	// For Skills, this is always `"skill"`.
-	Type string `json:"type,required"`
+	Type string `json:"type" api:"required"`
 	// ISO 8601 timestamp of when the skill was last updated.
-	UpdatedAt string `json:"updated_at,required"`
+	UpdatedAt string `json:"updated_at" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID            respjson.Field
@@ -216,31 +216,31 @@ type BetaSkillListResponse struct {
 	// Unique identifier for the skill.
 	//
 	// The format and length of IDs may change over time.
-	ID string `json:"id,required"`
+	ID string `json:"id" api:"required"`
 	// ISO 8601 timestamp of when the skill was created.
-	CreatedAt string `json:"created_at,required"`
+	CreatedAt string `json:"created_at" api:"required"`
 	// Display title for the skill.
 	//
 	// This is a human-readable label that is not included in the prompt sent to the
 	// model.
-	DisplayTitle string `json:"display_title,required"`
+	DisplayTitle string `json:"display_title" api:"required"`
 	// The latest version identifier for the skill.
 	//
 	// This represents the most recent version of the skill that has been created.
-	LatestVersion string `json:"latest_version,required"`
+	LatestVersion string `json:"latest_version" api:"required"`
 	// Source of the skill.
 	//
 	// This may be one of the following values:
 	//
 	// - `"custom"`: the skill was created by a user
 	// - `"anthropic"`: the skill was created by Anthropic
-	Source string `json:"source,required"`
+	Source string `json:"source" api:"required"`
 	// Object type.
 	//
 	// For Skills, this is always `"skill"`.
-	Type string `json:"type,required"`
+	Type string `json:"type" api:"required"`
 	// ISO 8601 timestamp of when the skill was last updated.
-	UpdatedAt string `json:"updated_at,required"`
+	UpdatedAt string `json:"updated_at" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID            respjson.Field
@@ -265,11 +265,11 @@ type BetaSkillDeleteResponse struct {
 	// Unique identifier for the skill.
 	//
 	// The format and length of IDs may change over time.
-	ID string `json:"id,required"`
+	ID string `json:"id" api:"required"`
 	// Deleted object type.
 	//
 	// For Skills, this is always `"skill_deleted"`.
-	Type string `json:"type,required"`
+	Type string `json:"type" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -286,16 +286,16 @@ func (r *BetaSkillDeleteResponse) UnmarshalJSON(data []byte) error {
 }
 
 type BetaSkillNewParams struct {
+	// Files to upload for the skill.
+	//
+	// All files must be in the same top-level directory and must include a SKILL.md
+	// file at the root of that directory.
+	Files []io.Reader `json:"files,omitzero" api:"required" format:"binary"`
 	// Display title for the skill.
 	//
 	// This is a human-readable label that is not included in the prompt sent to the
 	// model.
 	DisplayTitle param.Opt[string] `json:"display_title,omitzero"`
-	// Files to upload for the skill.
-	//
-	// All files must be in the same top-level directory and must include a SKILL.md
-	// file at the root of that directory.
-	Files []io.Reader `json:"files,omitzero" format:"binary"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
@@ -350,7 +350,7 @@ type BetaSkillListParams struct {
 // URLQuery serializes [BetaSkillListParams]'s query parameters as `url.Values`.
 func (r BetaSkillListParams) URLQuery() (v url.Values, err error) {
 	return apiquery.MarshalWithSettings(r, apiquery.QuerySettings{
-		ArrayFormat:  apiquery.ArrayQueryFormatComma,
+		ArrayFormat:  apiquery.ArrayQueryFormatBrackets,
 		NestedFormat: apiquery.NestedQueryFormatBrackets,
 	})
 }

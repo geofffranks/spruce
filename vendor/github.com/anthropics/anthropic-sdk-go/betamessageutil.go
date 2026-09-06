@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/tidwall/sjson"
+
 	"github.com/anthropics/anthropic-sdk-go/internal/paramutil"
 	"github.com/anthropics/anthropic-sdk-go/packages/param"
 )
 
 // Accumulate builds up the Message incrementally from a MessageStreamEvent. The Message then can be used as
-// any other Message, except with the caveat that the Message.JSON field which normally can be used to inspect
-// the JSON sent over the network may not be populated fully.
+// any other Message, including the Message.JSON field, which holds the wire JSON with the streamed deltas
+// applied and is complete once message_stop arrives.
 //
 //	message := anthropic.Message{}
 //	for stream.Next() {
@@ -22,74 +24,155 @@ func (acc *BetaMessage) Accumulate(event BetaRawMessageStreamEventUnion) error {
 		return fmt.Errorf("accumulate: cannot accumulate into nil Message")
 	}
 
-	switch event := event.AsAny().(type) {
-	case BetaRawMessageStartEvent:
+	switch event.Type {
+	case "message_start":
 		*acc = event.Message
-	case BetaRawMessageDeltaEvent:
+	case "message_delta":
+		// stop_reason, stop_sequence and stop_details are always sent and null is
+		// their final value when the turn carries no such detail.
 		acc.StopReason = event.Delta.StopReason
 		acc.StopSequence = event.Delta.StopSequence
+		acc.StopDetails = event.Delta.StopDetails
+		if event.Delta.JSON.Container.Valid() {
+			acc.Container = event.Delta.Container
+		}
+		// Every usage count here is a cumulative whole-message total, so it
+		// overwrites rather than adds; the ones that do not apply are omitted, and
+		// message_start keeps the last word on those.
 		acc.Usage.OutputTokens = event.Usage.OutputTokens
-		acc.Usage.Iterations = event.Usage.Iterations
-		acc.ContextManagement = event.ContextManagement
-	case BetaRawContentBlockStartEvent:
+		if event.Usage.JSON.InputTokens.Valid() {
+			acc.Usage.InputTokens = event.Usage.InputTokens
+		}
+		if event.Usage.JSON.CacheCreationInputTokens.Valid() {
+			acc.Usage.CacheCreationInputTokens = event.Usage.CacheCreationInputTokens
+		}
+		if event.Usage.JSON.CacheReadInputTokens.Valid() {
+			acc.Usage.CacheReadInputTokens = event.Usage.CacheReadInputTokens
+		}
+		if event.Usage.JSON.ServerToolUse.Valid() {
+			acc.Usage.ServerToolUse = event.Usage.ServerToolUse
+		}
+		if event.Usage.JSON.OutputTokensDetails.Valid() {
+			acc.Usage.OutputTokensDetails = event.Usage.OutputTokensDetails
+		}
+		if event.Usage.JSON.FallbackCredit.Valid() {
+			acc.Usage.FallbackCredit = event.Usage.FallbackCredit
+		}
+		if event.Usage.JSON.Iterations.Valid() {
+			acc.Usage.Iterations = event.Usage.Iterations
+		}
+		if event.JSON.ContextManagement.Valid() {
+			acc.ContextManagement = event.ContextManagement
+			acc.JSON.raw, _ = sjson.SetRaw(acc.JSON.raw, "context_management", event.ContextManagement.RawJSON())
+		}
+		acc.JSON.raw = mergeRaw(acc.JSON.raw, "", event.Delta.JSON.raw)
+		acc.JSON.raw = mergeRaw(acc.JSON.raw, "usage", event.Usage.RawJSON())
+	case "content_block_start":
+		// Content blocks start in index order with no gaps: a start event always
+		// addresses the slot right after the previous block, even when deltas and
+		// stops for still-open blocks interleave after it.
+		if event.Index != int64(len(acc.Content)) {
+			return fmt.Errorf("received event of type %s for content block at index %d, expected index %d", event.Type, event.Index, len(acc.Content))
+		}
 		acc.Content = append(acc.Content, BetaContentBlockUnion{})
-		err := acc.Content[len(acc.Content)-1].UnmarshalJSON([]byte(event.ContentBlock.RawJSON()))
+		err := acc.Content[event.Index].UnmarshalJSON([]byte(event.ContentBlock.RawJSON()))
 		if err != nil {
 			return err
 		}
-	case BetaRawContentBlockDeltaEvent:
-		if len(acc.Content) == 0 {
-			return fmt.Errorf("received event of type %s but there was no content block", event.Type)
+		// The final hop's fallback block names the model that served the response;
+		// non-streaming responses already report that model, so relabel the
+		// accumulated snapshot to match. Last block wins on multi-hop chains.
+		if fallback, ok := acc.Content[event.Index].AsAny().(BetaFallbackBlock); ok {
+			acc.Model = fallback.To.Model
+			acc.JSON.raw, _ = sjson.SetRaw(acc.JSON.raw, "model", jsonString(string(fallback.To.Model)))
 		}
-		cb := &acc.Content[len(acc.Content)-1]
-		switch delta := event.Delta.AsAny().(type) {
-		case BetaTextDelta:
-			cb.Text += delta.Text
-		case BetaInputJSONDelta:
-			if len(delta.PartialJSON) != 0 {
+	case "content_block_delta":
+		if err := checkContentBlockIndex(event.Type, event.Index, len(acc.Content)); err != nil {
+			return err
+		}
+		cb := &acc.Content[event.Index]
+		switch event.Delta.Type {
+		case "text_delta":
+			cb.Text += event.Delta.Text
+		case "input_json_delta":
+			if len(event.Delta.PartialJSON) != 0 {
 				if string(cb.Input) == "{}" {
-					cb.Input = []byte(delta.PartialJSON)
+					cb.Input = []byte(event.Delta.PartialJSON)
 				} else {
-					cb.Input = append(cb.Input, []byte(delta.PartialJSON)...)
+					cb.Input = append(cb.Input, event.Delta.PartialJSON...)
 				}
 			}
-		case BetaThinkingDelta:
-			cb.Thinking += delta.Thinking
-		case BetaSignatureDelta:
-			cb.Signature += delta.Signature
-		case BetaCitationsDelta:
+		case "thinking_delta":
+			cb.Thinking += event.Delta.Thinking
+		case "signature_delta":
+			cb.Signature += event.Delta.Signature
+		case "citations_delta":
 			citation := BetaTextCitationUnion{}
-			err := citation.UnmarshalJSON([]byte(delta.Citation.RawJSON()))
+			err := citation.UnmarshalJSON([]byte(event.Delta.Citation.RawJSON()))
 			if err != nil {
 				return fmt.Errorf("could not unmarshal citation delta into citation type: %w", err)
 			}
 			cb.Citations = append(cb.Citations, citation)
-		case BetaCompactionContentBlockDelta:
-			cb.Content.OfString = delta.Content
+		case "compaction_delta":
+			cb.Content.OfString = event.Delta.Content
+			cb.EncryptedContent = event.Delta.EncryptedContent
 		}
-	case BetaRawMessageStopEvent:
-		// Re-marshal the accumulated message to update JSON.raw so that AsAny()
-		// returns the accumulated data rather than the original stream data
-		accJSON, err := json.Marshal(acc)
-		if err != nil {
-			return fmt.Errorf("error converting accumulated message to JSON: %w", err)
+	case "message_stop":
+		// A block whose stop event never arrived has not been refreshed yet.
+		for i := range acc.Content {
+			refreshBetaContentBlockRaw(&acc.Content[i])
 		}
-		acc.JSON.raw = string(accJSON)
-	case BetaRawContentBlockStopEvent:
-		// Re-marshal the content block to update JSON.raw so that AsAny()
-		// returns the accumulated data rather than the original stream data
-		if len(acc.Content) == 0 {
-			return fmt.Errorf("received event of type %s but there was no content block", event.Type)
+		acc.JSON.raw, _ = sjson.SetRaw(acc.JSON.raw, "content", rawArray(acc.Content))
+	case "content_block_stop":
+		if err := checkContentBlockIndex(event.Type, event.Index, len(acc.Content)); err != nil {
+			return err
 		}
-		contentBlock := &acc.Content[len(acc.Content)-1]
-		cbJSON, err := json.Marshal(contentBlock)
-		if err != nil {
-			return fmt.Errorf("error converting content block to JSON: %w", err)
-		}
-		contentBlock.JSON.raw = string(cbJSON)
+		refreshBetaContentBlockRaw(&acc.Content[event.Index])
 	}
 
 	return nil
+}
+
+// refreshBetaContentBlockRaw overlays the delta-mutated fields onto the block's
+// wire JSON, leaving a block that received no deltas byte for byte.
+func refreshBetaContentBlockRaw(cb *BetaContentBlockUnion) {
+	raw := cb.JSON.raw
+	if cb.Text != "" {
+		raw, _ = sjson.SetRaw(raw, "text", jsonString(cb.Text))
+	}
+	if cb.Thinking != "" {
+		raw, _ = sjson.SetRaw(raw, "thinking", jsonString(cb.Thinking))
+	}
+	if cb.Signature != "" {
+		raw, _ = sjson.SetRaw(raw, "signature", jsonString(cb.Signature))
+	}
+	if json.Valid(cb.Input) {
+		raw, _ = sjson.SetRaw(raw, "input", string(cb.Input))
+	} else if len(cb.Input) > 0 {
+		// A cut-off tool call left non-JSON input; empty it so the block marshals.
+		cb.Input = json.RawMessage(`{}`)
+	}
+	if len(cb.Citations) > 0 {
+		raw, _ = sjson.SetRaw(raw, "citations", rawArray(cb.Citations))
+	}
+	if cb.Content.OfString != "" {
+		raw, _ = sjson.SetRaw(raw, "content", jsonString(cb.Content.OfString))
+	}
+	if cb.EncryptedContent != "" {
+		raw, _ = sjson.SetRaw(raw, "encrypted_content", jsonString(cb.EncryptedContent))
+	}
+	cb.JSON.raw = raw
+}
+
+// ParseOutput finds the first text content block in the message and unmarshals it
+// into dest. This is useful for streaming workflows where you accumulate the message
+// first and then parse the structured output.
+//
+//	var msg anthropic.BetaMessage
+//	for stream.Next() { msg.Accumulate(stream.Current()) }
+//	msg.ParseOutput(&myStruct)
+func (r *BetaMessage) ParseOutput(dest any) error {
+	return parseOutputContent(r, dest)
 }
 
 // Param converters
@@ -138,6 +221,18 @@ func (variant BetaContainerUploadBlock) toParamUnion() BetaContentBlockParamUnio
 	return BetaContentBlockParamUnion{OfContainerUpload: &p}
 }
 
+func (variant BetaAdvisorToolResultBlock) toParamUnion() BetaContentBlockParamUnion {
+	p := variant.ToParam()
+	return BetaContentBlockParamUnion{OfAdvisorToolResult: &p}
+}
+
+func (r BetaAdvisorToolResultBlock) ToParam() BetaAdvisorToolResultBlockParam {
+	var p BetaAdvisorToolResultBlockParam
+	p.Type = r.Type
+	p.ToolUseID = r.ToolUseID
+	return p
+}
+
 func (variant BetaMCPToolResultBlock) toParamUnion() BetaContentBlockParamUnion {
 	p := variant.ToParam()
 	return BetaContentBlockParamUnion{OfMCPToolResult: &p}
@@ -171,6 +266,11 @@ func (variant BetaToolSearchToolResultBlock) toParamUnion() BetaContentBlockPara
 func (variant BetaCompactionBlock) toParamUnion() BetaContentBlockParamUnion {
 	p := variant.ToParam()
 	return BetaContentBlockParamUnion{OfCompaction: &p}
+}
+
+func (variant BetaFallbackBlock) toParamUnion() BetaContentBlockParamUnion {
+	p := variant.ToParam()
+	return BetaContentBlockParamUnion{OfFallback: &p}
 }
 
 func (r BetaMessage) ToParam() BetaMessageParam {
@@ -222,6 +322,7 @@ func (citationVariant BetaCitationPageLocation) toParamUnion() BetaTextCitationP
 	var citationParam BetaCitationPageLocationParam
 	citationParam.Type = citationVariant.Type
 	citationParam.DocumentTitle = paramutil.ToOpt(citationVariant.DocumentTitle, citationVariant.JSON.DocumentTitle)
+	citationParam.CitedText = citationVariant.CitedText
 	citationParam.DocumentIndex = citationVariant.DocumentIndex
 	citationParam.EndPageNumber = citationVariant.EndPageNumber
 	citationParam.StartPageNumber = citationVariant.StartPageNumber
@@ -244,6 +345,8 @@ func (citationVariant BetaCitationsWebSearchResultLocation) toParamUnion() BetaT
 	citationParam.Type = citationVariant.Type
 	citationParam.CitedText = citationVariant.CitedText
 	citationParam.Title = paramutil.ToOpt(citationVariant.Title, citationVariant.JSON.Title)
+	citationParam.EncryptedIndex = citationVariant.EncryptedIndex
+	citationParam.URL = citationVariant.URL
 	return BetaTextCitationParamUnion{OfWebSearchResultLocation: &citationParam}
 }
 
@@ -253,8 +356,9 @@ func (citationVariant BetaCitationSearchResultLocation) toParamUnion() BetaTextC
 	citationParam.CitedText = citationVariant.CitedText
 	citationParam.Title = paramutil.ToOpt(citationVariant.Title, citationVariant.JSON.Title)
 	citationParam.EndBlockIndex = citationVariant.EndBlockIndex
-	citationParam.StartBlockIndex = citationVariant.StartBlockIndex
+	citationParam.SearchResultIndex = citationVariant.SearchResultIndex
 	citationParam.Source = citationVariant.Source
+	citationParam.StartBlockIndex = citationVariant.StartBlockIndex
 	return BetaTextCitationParamUnion{OfSearchResultLocation: &citationParam}
 }
 
@@ -272,6 +376,7 @@ func (r BetaToolUseBlock) ToParam() BetaToolUseBlockParam {
 	p.ID = r.ID
 	p.Input = r.Input
 	p.Name = r.Name
+	p.ToolsetName = paramutil.ToOpt(r.ToolsetName, r.JSON.ToolsetName)
 	return p
 }
 
@@ -455,5 +560,13 @@ func (r BetaCompactionBlock) ToParam() BetaCompactionBlockParam {
 	var p BetaCompactionBlockParam
 	p.Type = r.Type
 	p.Content = param.NewOpt(r.Content)
+	return p
+}
+
+func (r BetaFallbackBlock) ToParam() BetaFallbackBlockParam {
+	var p BetaFallbackBlockParam
+	p.Type = r.Type
+	p.From = BetaFallbackInfoParam{Model: r.From.Model}
+	p.To = BetaFallbackInfoParam{Model: r.To.Model}
 	return p
 }

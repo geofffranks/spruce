@@ -1,4 +1,4 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
 
@@ -57,7 +56,8 @@ func NewBetaThreadService(opts ...option.RequestOption) (r BetaThreadService) {
 //
 // Deprecated: The Assistants API is deprecated in favor of the Responses API
 func (r *BetaThreadService) New(ctx context.Context, body BetaThreadNewParams, opts ...option.RequestOption) (res *Thread, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "assistants=v2")}, opts...)
 	path := "threads"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
@@ -68,13 +68,14 @@ func (r *BetaThreadService) New(ctx context.Context, body BetaThreadNewParams, o
 //
 // Deprecated: The Assistants API is deprecated in favor of the Responses API
 func (r *BetaThreadService) Get(ctx context.Context, threadID string, opts ...option.RequestOption) (res *Thread, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "assistants=v2")}, opts...)
 	if threadID == "" {
 		err = errors.New("missing required thread_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("threads/%s", threadID)
+	path := requestconfig.FormatPath("threads/%s", threadID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
@@ -83,13 +84,14 @@ func (r *BetaThreadService) Get(ctx context.Context, threadID string, opts ...op
 //
 // Deprecated: The Assistants API is deprecated in favor of the Responses API
 func (r *BetaThreadService) Update(ctx context.Context, threadID string, body BetaThreadUpdateParams, opts ...option.RequestOption) (res *Thread, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "assistants=v2")}, opts...)
 	if threadID == "" {
 		err = errors.New("missing required thread_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("threads/%s", threadID)
+	path := requestconfig.FormatPath("threads/%s", threadID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
 }
@@ -98,13 +100,14 @@ func (r *BetaThreadService) Update(ctx context.Context, threadID string, body Be
 //
 // Deprecated: The Assistants API is deprecated in favor of the Responses API
 func (r *BetaThreadService) Delete(ctx context.Context, threadID string, opts ...option.RequestOption) (res *ThreadDeleted, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "assistants=v2")}, opts...)
 	if threadID == "" {
 		err = errors.New("missing required thread_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("threads/%s", threadID)
+	path := requestconfig.FormatPath("threads/%s", threadID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, &res, opts...)
 	return res, err
 }
@@ -113,7 +116,8 @@ func (r *BetaThreadService) Delete(ctx context.Context, threadID string, opts ..
 //
 // Deprecated: The Assistants API is deprecated in favor of the Responses API
 func (r *BetaThreadService) NewAndRun(ctx context.Context, body BetaThreadNewAndRunParams, opts ...option.RequestOption) (res *Run, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "assistants=v2")}, opts...)
 	path := "threads/runs"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
@@ -128,7 +132,8 @@ func (r *BetaThreadService) NewAndRunStreaming(ctx context.Context, body BetaThr
 		raw *http.Response
 		err error
 	)
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("OpenAI-Beta", "assistants=v2")}, opts...)
 	opts = append(opts, option.WithJSONSet("stream", true))
 	path := "threads/runs"
@@ -160,22 +165,22 @@ type AssistantResponseFormatOptionUnion struct {
 }
 
 func (u AssistantResponseFormatOptionUnion) AsAuto() (v constant.Auto) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u AssistantResponseFormatOptionUnion) AsText() (v shared.ResponseFormatText) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u AssistantResponseFormatOptionUnion) AsJSONObject() (v shared.ResponseFormatJSONObject) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u AssistantResponseFormatOptionUnion) AsJSONSchema() (v shared.ResponseFormatJSONSchema) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -385,12 +390,12 @@ type AssistantToolChoiceOptionUnion struct {
 }
 
 func (u AssistantToolChoiceOptionUnion) AsAuto() (v string) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u AssistantToolChoiceOptionUnion) AsAssistantToolChoice() (v AssistantToolChoice) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -461,7 +466,7 @@ type Thread struct {
 	// The identifier, which can be referenced in API endpoints.
 	ID string `json:"id" api:"required"`
 	// The Unix timestamp (in seconds) for when the thread was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Set of 16 key-value pairs that can be attached to an object. This can be useful
 	// for storing additional information about the object in a structured format, and
 	// querying for objects via API or the dashboard.
@@ -470,7 +475,7 @@ type Thread struct {
 	// a maximum length of 512 characters.
 	Metadata shared.Metadata `json:"metadata" api:"required"`
 	// The object type, which is always `thread`.
-	Object constant.Thread `json:"object" api:"required"`
+	Object constant.Thread `json:"object" default:"thread"`
 	// A set of resources that are made available to the assistant's tools in this
 	// thread. The resources are specific to the type of tool. For example, the
 	// `code_interpreter` tool requires a list of file IDs, while the `file_search`
@@ -558,7 +563,7 @@ func (r *ThreadToolResourcesFileSearch) UnmarshalJSON(data []byte) error {
 type ThreadDeleted struct {
 	ID      string                 `json:"id" api:"required"`
 	Deleted bool                   `json:"deleted" api:"required"`
-	Object  constant.ThreadDeleted `json:"object" api:"required"`
+	Object  constant.ThreadDeleted `json:"object" default:"thread.deleted"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -735,7 +740,7 @@ func NewBetaThreadNewParamsMessageAttachmentToolFileSearch() BetaThreadNewParams
 // [NewBetaThreadNewParamsMessageAttachmentToolFileSearch].
 type BetaThreadNewParamsMessageAttachmentToolFileSearch struct {
 	// The type of tool being defined: `file_search`
-	Type constant.FileSearch `json:"type" api:"required"`
+	Type constant.FileSearch `json:"type" default:"file_search"`
 	paramObj
 }
 
@@ -894,7 +899,7 @@ func NewBetaThreadNewParamsToolResourcesFileSearchVectorStoreChunkingStrategyAut
 // [NewBetaThreadNewParamsToolResourcesFileSearchVectorStoreChunkingStrategyAuto].
 type BetaThreadNewParamsToolResourcesFileSearchVectorStoreChunkingStrategyAuto struct {
 	// Always `auto`.
-	Type constant.Auto `json:"type" api:"required"`
+	Type constant.Auto `json:"type" default:"auto"`
 	paramObj
 }
 
@@ -912,7 +917,7 @@ type BetaThreadNewParamsToolResourcesFileSearchVectorStoreChunkingStrategyStatic
 	// Always `static`.
 	//
 	// This field can be elided, and will marshal its zero value as "static".
-	Type constant.Static `json:"type" api:"required"`
+	Type constant.Static `json:"type" default:"static"`
 	paramObj
 }
 
@@ -1281,7 +1286,7 @@ func NewBetaThreadNewAndRunParamsThreadMessageAttachmentToolFileSearch() BetaThr
 // [NewBetaThreadNewAndRunParamsThreadMessageAttachmentToolFileSearch].
 type BetaThreadNewAndRunParamsThreadMessageAttachmentToolFileSearch struct {
 	// The type of tool being defined: `file_search`
-	Type constant.FileSearch `json:"type" api:"required"`
+	Type constant.FileSearch `json:"type" default:"file_search"`
 	paramObj
 }
 
@@ -1440,7 +1445,7 @@ func NewBetaThreadNewAndRunParamsThreadToolResourcesFileSearchVectorStoreChunkin
 // [NewBetaThreadNewAndRunParamsThreadToolResourcesFileSearchVectorStoreChunkingStrategyAuto].
 type BetaThreadNewAndRunParamsThreadToolResourcesFileSearchVectorStoreChunkingStrategyAuto struct {
 	// Always `auto`.
-	Type constant.Auto `json:"type" api:"required"`
+	Type constant.Auto `json:"type" default:"auto"`
 	paramObj
 }
 
@@ -1458,7 +1463,7 @@ type BetaThreadNewAndRunParamsThreadToolResourcesFileSearchVectorStoreChunkingSt
 	// Always `static`.
 	//
 	// This field can be elided, and will marshal its zero value as "static".
-	Type constant.Static `json:"type" api:"required"`
+	Type constant.Static `json:"type" default:"static"`
 	paramObj
 }
 

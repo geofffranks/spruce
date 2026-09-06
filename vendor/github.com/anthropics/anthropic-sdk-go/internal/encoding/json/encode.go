@@ -173,15 +173,21 @@ import (
 // JSON cannot represent cyclic data structures and Marshal does not
 // handle them. Passing cyclic structures to Marshal will result in
 // an error.
-func Marshal(v any) ([]byte, error) {
+// EDIT(begin): add optimization options
+func Marshal(v any, opts ...Option) ([]byte, error) {
+	// EDIT(end): add optimization options
 	e := newEncodeState()
 	defer encodeStatePool.Put(e)
 
-	// SHIM(begin): don't escape HTML by default
-	err := e.marshal(v, encOpts{escapeHTML: shims.EscapeHTMLByDefault})
+	// EDIT(begin): don't escape HTML by default, and apply options
+	encOpts := encOpts{escapeHTML: shims.EscapeHTMLByDefault}
+	if opts != nil {
+		encOpts = encOpts.apply(opts...)
+	}
+	err := e.marshal(v, encOpts)
 	// ORIGINAL:
 	//  err := e.marshal(v, encOpts{escapeHTML: true})
-	// SHIM(end)
+	// EDIT(end)
 	if err != nil {
 		return nil, err
 	}
@@ -352,6 +358,9 @@ type encOpts struct {
 	// EDIT(begin): save the timefmt
 	timefmt string
 	// EDIT(end)
+	// EDIT(begin): add optimization to skip compaction
+	skipCompaction bool
+	// EDIT(end)
 }
 
 type encoderFunc func(e *encodeState, v reflect.Value, opts encOpts)
@@ -407,6 +416,14 @@ func newTypeEncoder(t reflect.Type, allowAddr bool) encoderFunc {
 	// EDIT(begin): add custom time encoder
 	if t == timeType {
 		return newTimeEncoder()
+	}
+	// EDIT(end)
+
+	// EDIT(begin): json.RawMessage carries caller-supplied bytes; never skip its scanning pass.
+	// The Implements guard keeps named pointer types (empty method set) on the
+	// regular pointer-encoder path.
+	if t == rawMessageType || (t.Kind() == reflect.Pointer && t.Elem() == rawMessageType && t.Implements(marshalerType)) {
+		return rawMessageEncoder
 	}
 	// EDIT(end)
 
@@ -483,7 +500,7 @@ func marshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	if err == nil {
 		e.Grow(len(b))
 		out := e.AvailableBuffer()
-		out, err = appendCompact(out, b, opts.escapeHTML)
+		out, err = appendCompact(out, b, opts)
 		e.Buffer.Write(out)
 	}
 	if err != nil {
@@ -509,7 +526,7 @@ func addrMarshalerEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 	if err == nil {
 		e.Grow(len(b))
 		out := e.AvailableBuffer()
-		out, err = appendCompact(out, b, opts.escapeHTML)
+		out, err = appendCompact(out, b, opts)
 		e.Buffer.Write(out)
 	}
 	if err != nil {

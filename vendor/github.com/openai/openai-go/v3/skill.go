@@ -1,4 +1,4 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -49,7 +48,8 @@ func NewSkillService(opts ...option.RequestOption) (r SkillService) {
 
 // Create a new skill.
 func (r *SkillService) New(ctx context.Context, body SkillNewParams, opts ...option.RequestOption) (res *Skill, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "skills"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
@@ -57,24 +57,26 @@ func (r *SkillService) New(ctx context.Context, body SkillNewParams, opts ...opt
 
 // Get a skill by its ID.
 func (r *SkillService) Get(ctx context.Context, skillID string, opts ...option.RequestOption) (res *Skill, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if skillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("skills/%s", skillID)
+	path := requestconfig.FormatPath("skills/%s", skillID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
 
 // Update the default version pointer for a skill.
 func (r *SkillService) Update(ctx context.Context, skillID string, body SkillUpdateParams, opts ...option.RequestOption) (res *Skill, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if skillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("skills/%s", skillID)
+	path := requestconfig.FormatPath("skills/%s", skillID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
 }
@@ -82,7 +84,8 @@ func (r *SkillService) Update(ctx context.Context, skillID string, body SkillUpd
 // List all skills for the current project.
 func (r *SkillService) List(ctx context.Context, query SkillListParams, opts ...option.RequestOption) (res *pagination.CursorPage[Skill], err error) {
 	var raw *http.Response
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	path := "skills"
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, query, &res, opts...)
@@ -104,12 +107,13 @@ func (r *SkillService) ListAutoPaging(ctx context.Context, query SkillListParams
 
 // Delete a skill by its ID.
 func (r *SkillService) Delete(ctx context.Context, skillID string, opts ...option.RequestOption) (res *DeletedSkill, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if skillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("skills/%s", skillID)
+	path := requestconfig.FormatPath("skills/%s", skillID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, &res, opts...)
 	return res, err
 }
@@ -117,7 +121,7 @@ func (r *SkillService) Delete(ctx context.Context, skillID string, opts ...optio
 type DeletedSkill struct {
 	ID      string                `json:"id" api:"required"`
 	Deleted bool                  `json:"deleted" api:"required"`
-	Object  constant.SkillDeleted `json:"object" api:"required"`
+	Object  constant.SkillDeleted `json:"object" default:"skill.deleted"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -138,7 +142,7 @@ type Skill struct {
 	// Unique identifier for the skill.
 	ID string `json:"id" api:"required"`
 	// Unix timestamp (seconds) for when the skill was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Default version for the skill.
 	DefaultVersion string `json:"default_version" api:"required"`
 	// Description of the skill.
@@ -148,7 +152,7 @@ type Skill struct {
 	// Name of the skill.
 	Name string `json:"name" api:"required"`
 	// The object type, which is `skill`.
-	Object constant.Skill `json:"object" api:"required"`
+	Object constant.Skill `json:"object" default:"skill"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID             respjson.Field
@@ -179,7 +183,7 @@ type SkillList struct {
 	// The ID of the last item in the list.
 	LastID string `json:"last_id" api:"required"`
 	// The type of object returned, must be `list`.
-	Object constant.List `json:"object" api:"required"`
+	Object constant.List `json:"object" default:"list"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Data        respjson.Field
@@ -212,7 +216,7 @@ func (r SkillNewParams) MarshalMultipart() (data []byte, contentType string, err
 		err = apiform.WriteExtras(writer, r.ExtraFields())
 	}
 	if err != nil {
-		writer.Close()
+		_ = writer.Close()
 		return nil, "", err
 	}
 	err = writer.Close()

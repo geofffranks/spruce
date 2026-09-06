@@ -1,4 +1,4 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -54,7 +53,8 @@ func NewFineTuningJobService(opts ...option.RequestOption) (r FineTuningJobServi
 //
 // [Learn more about fine-tuning](https://platform.openai.com/docs/guides/model-optimization)
 func (r *FineTuningJobService) New(ctx context.Context, body FineTuningJobNewParams, opts ...option.RequestOption) (res *FineTuningJob, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "fine_tuning/jobs"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
@@ -64,12 +64,13 @@ func (r *FineTuningJobService) New(ctx context.Context, body FineTuningJobNewPar
 //
 // [Learn more about fine-tuning](https://platform.openai.com/docs/guides/model-optimization)
 func (r *FineTuningJobService) Get(ctx context.Context, fineTuningJobID string, opts ...option.RequestOption) (res *FineTuningJob, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if fineTuningJobID == "" {
 		err = errors.New("missing required fine_tuning_job_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("fine_tuning/jobs/%s", fineTuningJobID)
+	path := requestconfig.FormatPath("fine_tuning/jobs/%s", fineTuningJobID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
@@ -77,7 +78,8 @@ func (r *FineTuningJobService) Get(ctx context.Context, fineTuningJobID string, 
 // List your organization's fine-tuning jobs
 func (r *FineTuningJobService) List(ctx context.Context, query FineTuningJobListParams, opts ...option.RequestOption) (res *pagination.CursorPage[FineTuningJob], err error) {
 	var raw *http.Response
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	path := "fine_tuning/jobs"
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, query, &res, opts...)
@@ -99,12 +101,13 @@ func (r *FineTuningJobService) ListAutoPaging(ctx context.Context, query FineTun
 
 // Immediately cancel a fine-tune job.
 func (r *FineTuningJobService) Cancel(ctx context.Context, fineTuningJobID string, opts ...option.RequestOption) (res *FineTuningJob, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if fineTuningJobID == "" {
 		err = errors.New("missing required fine_tuning_job_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("fine_tuning/jobs/%s/cancel", fineTuningJobID)
+	path := requestconfig.FormatPath("fine_tuning/jobs/%s/cancel", fineTuningJobID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, nil, &res, opts...)
 	return res, err
 }
@@ -112,13 +115,14 @@ func (r *FineTuningJobService) Cancel(ctx context.Context, fineTuningJobID strin
 // Get status updates for a fine-tuning job.
 func (r *FineTuningJobService) ListEvents(ctx context.Context, fineTuningJobID string, query FineTuningJobListEventsParams, opts ...option.RequestOption) (res *pagination.CursorPage[FineTuningJobEvent], err error) {
 	var raw *http.Response
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	if fineTuningJobID == "" {
 		err = errors.New("missing required fine_tuning_job_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("fine_tuning/jobs/%s/events", fineTuningJobID)
+	path := requestconfig.FormatPath("fine_tuning/jobs/%s/events", fineTuningJobID)
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, query, &res, opts...)
 	if err != nil {
 		return nil, err
@@ -138,24 +142,26 @@ func (r *FineTuningJobService) ListEventsAutoPaging(ctx context.Context, fineTun
 
 // Pause a fine-tune job.
 func (r *FineTuningJobService) Pause(ctx context.Context, fineTuningJobID string, opts ...option.RequestOption) (res *FineTuningJob, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if fineTuningJobID == "" {
 		err = errors.New("missing required fine_tuning_job_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("fine_tuning/jobs/%s/pause", fineTuningJobID)
+	path := requestconfig.FormatPath("fine_tuning/jobs/%s/pause", fineTuningJobID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, nil, &res, opts...)
 	return res, err
 }
 
 // Resume a fine-tune job.
 func (r *FineTuningJobService) Resume(ctx context.Context, fineTuningJobID string, opts ...option.RequestOption) (res *FineTuningJob, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if fineTuningJobID == "" {
 		err = errors.New("missing required fine_tuning_job_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("fine_tuning/jobs/%s/resume", fineTuningJobID)
+	path := requestconfig.FormatPath("fine_tuning/jobs/%s/resume", fineTuningJobID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, nil, &res, opts...)
 	return res, err
 }
@@ -166,7 +172,7 @@ type FineTuningJob struct {
 	// The object identifier, which can be referenced in the API endpoints.
 	ID string `json:"id" api:"required"`
 	// The Unix timestamp (in seconds) for when the fine-tuning job was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// For fine-tuning jobs that have `failed`, this will contain more information on
 	// the cause of the failure.
 	Error FineTuningJobError `json:"error" api:"required"`
@@ -175,14 +181,14 @@ type FineTuningJob struct {
 	FineTunedModel string `json:"fine_tuned_model" api:"required"`
 	// The Unix timestamp (in seconds) for when the fine-tuning job was finished. The
 	// value will be null if the fine-tuning job is still running.
-	FinishedAt int64 `json:"finished_at" api:"required"`
+	FinishedAt int64 `json:"finished_at" api:"required" format:"unixtime"`
 	// The hyperparameters used for the fine-tuning job. This value will only be
 	// returned when running `supervised` jobs.
 	Hyperparameters FineTuningJobHyperparameters `json:"hyperparameters" api:"required"`
 	// The base model that is being fine-tuned.
 	Model string `json:"model" api:"required"`
 	// The object type, which is always "fine_tuning.job".
-	Object constant.FineTuningJob `json:"object" api:"required"`
+	Object constant.FineTuningJob `json:"object" default:"fine_tuning.job"`
 	// The organization that owns the fine-tuning job.
 	OrganizationID string `json:"organization_id" api:"required"`
 	// The compiled results file ID(s) for the fine-tuning job. You can retrieve the
@@ -209,7 +215,7 @@ type FineTuningJob struct {
 	ValidationFile string `json:"validation_file" api:"required"`
 	// The Unix timestamp (in seconds) for when the fine-tuning job is estimated to
 	// finish. The value will be null if the fine-tuning job is not running.
-	EstimatedFinish int64 `json:"estimated_finish" api:"nullable"`
+	EstimatedFinish int64 `json:"estimated_finish" api:"nullable" format:"unixtime"`
 	// A list of integrations to enable for this fine-tuning job.
 	Integrations []FineTuningJobWandbIntegrationObject `json:"integrations" api:"nullable"`
 	// Set of 16 key-value pairs that can be attached to an object. This can be useful
@@ -328,12 +334,12 @@ type FineTuningJobHyperparametersBatchSizeUnion struct {
 }
 
 func (u FineTuningJobHyperparametersBatchSizeUnion) AsAuto() (v constant.Auto) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u FineTuningJobHyperparametersBatchSizeUnion) AsInt() (v int64) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -365,12 +371,12 @@ type FineTuningJobHyperparametersLearningRateMultiplierUnion struct {
 }
 
 func (u FineTuningJobHyperparametersLearningRateMultiplierUnion) AsAuto() (v constant.Auto) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u FineTuningJobHyperparametersLearningRateMultiplierUnion) AsFloat() (v float64) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -402,12 +408,12 @@ type FineTuningJobHyperparametersNEpochsUnion struct {
 }
 
 func (u FineTuningJobHyperparametersNEpochsUnion) AsAuto() (v constant.Auto) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u FineTuningJobHyperparametersNEpochsUnion) AsInt() (v int64) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -465,7 +471,7 @@ type FineTuningJobEvent struct {
 	// The object identifier.
 	ID string `json:"id" api:"required"`
 	// The Unix timestamp (in seconds) for when the fine-tuning job was created.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// The log level of the event.
 	//
 	// Any of "info", "warn", "error".
@@ -473,7 +479,7 @@ type FineTuningJobEvent struct {
 	// The message of the event.
 	Message string `json:"message" api:"required"`
 	// The object type, which is always "fine_tuning.job.event".
-	Object constant.FineTuningJobEvent `json:"object" api:"required"`
+	Object constant.FineTuningJobEvent `json:"object" default:"fine_tuning.job.event"`
 	// The data associated with the event.
 	Data any `json:"data"`
 	// The type of event.
@@ -554,7 +560,7 @@ func (r *FineTuningJobWandbIntegration) UnmarshalJSON(data []byte) error {
 
 type FineTuningJobWandbIntegrationObject struct {
 	// The type of the integration being enabled for the fine-tuning job
-	Type constant.Wandb `json:"type" api:"required"`
+	Type constant.Wandb `json:"type" default:"wandb"`
 	// The settings for your integration with Weights and Biases. This payload
 	// specifies the project that metrics will be sent to. Optionally, you can set an
 	// explicit display name for your run, add tags to your run, and set a default
@@ -772,7 +778,7 @@ type FineTuningJobNewParamsIntegration struct {
 	// is supported.
 	//
 	// This field can be elided, and will marshal its zero value as "wandb".
-	Type constant.Wandb `json:"type" api:"required"`
+	Type constant.Wandb `json:"type" default:"wandb"`
 	paramObj
 }
 

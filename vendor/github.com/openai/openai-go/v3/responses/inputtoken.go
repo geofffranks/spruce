@@ -1,4 +1,4 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package responses
 
@@ -40,7 +40,8 @@ func NewInputTokenService(opts ...option.RequestOption) (r InputTokenService) {
 // Returns an object with `object` set to `response.input_tokens` and an
 // `input_tokens` count.
 func (r *InputTokenService) Count(ctx context.Context, body InputTokenCountParams, opts ...option.RequestOption) (res *InputTokenCountResponse, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "responses/input_tokens"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
@@ -48,7 +49,7 @@ func (r *InputTokenService) Count(ctx context.Context, body InputTokenCountParam
 
 type InputTokenCountResponse struct {
 	InputTokens int64                        `json:"input_tokens" api:"required"`
-	Object      constant.ResponseInputTokens `json:"object" api:"required"`
+	Object      constant.ResponseInputTokens `json:"object" default:"response.input_tokens"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		InputTokens respjson.Field
@@ -101,6 +102,10 @@ type InputTokenCountParams struct {
 	// An array of tools the model may call while generating a response. You can
 	// specify which tool to use by setting the `tool_choice` parameter.
 	Tools []ToolUnionParam `json:"tools,omitzero"`
+	// A model-owned style preset to apply to this request. Omit this parameter to use
+	// the model's default style. Supported values may expand over time. Values must be
+	// at most 64 characters.
+	Personality InputTokenCountParamsPersonality `json:"personality,omitzero"`
 	// **gpt-5 and o-series models only** Configuration options for
 	// [reasoning models](https://platform.openai.com/docs/guides/reasoning).
 	Reasoning shared.ReasoningParam `json:"reasoning,omitzero"`
@@ -173,6 +178,16 @@ func (u *InputTokenCountParamsInputUnion) asAny() any {
 	return nil
 }
 
+// A model-owned style preset to apply to this request. Omit this parameter to use
+// the model's default style. Supported values may expand over time. Values must be
+// at most 64 characters.
+type InputTokenCountParamsPersonality string
+
+const (
+	InputTokenCountParamsPersonalityFriendly  InputTokenCountParamsPersonality = "friendly"
+	InputTokenCountParamsPersonalityPragmatic InputTokenCountParamsPersonality = "pragmatic"
+)
+
 // Configuration options for a text response from the model. Can be plain text or
 // structured JSON data. Learn more:
 //
@@ -181,7 +196,8 @@ func (u *InputTokenCountParamsInputUnion) asAny() any {
 type InputTokenCountParamsText struct {
 	// Constrains the verbosity of the model's response. Lower values will result in
 	// more concise responses, while higher values will result in more verbose
-	// responses. Currently supported values are `low`, `medium`, and `high`.
+	// responses. Currently supported values are `low`, `medium`, and `high`. The
+	// default is `medium`.
 	//
 	// Any of "low", "medium", "high".
 	Verbosity string `json:"verbosity,omitzero"`
@@ -221,14 +237,15 @@ func init() {
 // Use [param.IsOmitted] to confirm if a field is set.
 type InputTokenCountParamsToolChoiceUnion struct {
 	// Check if union is this variant with !param.IsOmitted(union.OfToolChoiceMode)
-	OfToolChoiceMode               param.Opt[ToolChoiceOptions] `json:",omitzero,inline"`
-	OfAllowedTools                 *ToolChoiceAllowedParam      `json:",omitzero,inline"`
-	OfHostedTool                   *ToolChoiceTypesParam        `json:",omitzero,inline"`
-	OfFunctionTool                 *ToolChoiceFunctionParam     `json:",omitzero,inline"`
-	OfMcpTool                      *ToolChoiceMcpParam          `json:",omitzero,inline"`
-	OfCustomTool                   *ToolChoiceCustomParam       `json:",omitzero,inline"`
-	OfSpecificApplyPatchToolChoice *ToolChoiceApplyPatchParam   `json:",omitzero,inline"`
-	OfSpecificShellToolChoice      *ToolChoiceShellParam        `json:",omitzero,inline"`
+	OfToolChoiceMode                                                 param.Opt[ToolChoiceOptions]                                         `json:",omitzero,inline"`
+	OfAllowedTools                                                   *ToolChoiceAllowedParam                                              `json:",omitzero,inline"`
+	OfHostedTool                                                     *ToolChoiceTypesParam                                                `json:",omitzero,inline"`
+	OfFunctionTool                                                   *ToolChoiceFunctionParam                                             `json:",omitzero,inline"`
+	OfMcpTool                                                        *ToolChoiceMcpParam                                                  `json:",omitzero,inline"`
+	OfCustomTool                                                     *ToolChoiceCustomParam                                               `json:",omitzero,inline"`
+	OfInputTokenCountsToolChoiceSpecificProgrammaticToolCallingParam *InputTokenCountParamsToolChoiceSpecificProgrammaticToolCallingParam `json:",omitzero,inline"`
+	OfSpecificApplyPatchToolChoice                                   *ToolChoiceApplyPatchParam                                           `json:",omitzero,inline"`
+	OfSpecificShellToolChoice                                        *ToolChoiceShellParam                                                `json:",omitzero,inline"`
 	paramUnion
 }
 
@@ -239,6 +256,7 @@ func (u InputTokenCountParamsToolChoiceUnion) MarshalJSON() ([]byte, error) {
 		u.OfFunctionTool,
 		u.OfMcpTool,
 		u.OfCustomTool,
+		u.OfInputTokenCountsToolChoiceSpecificProgrammaticToolCallingParam,
 		u.OfSpecificApplyPatchToolChoice,
 		u.OfSpecificShellToolChoice)
 }
@@ -259,6 +277,8 @@ func (u *InputTokenCountParamsToolChoiceUnion) asAny() any {
 		return u.OfMcpTool
 	} else if !param.IsOmitted(u.OfCustomTool) {
 		return u.OfCustomTool
+	} else if !param.IsOmitted(u.OfInputTokenCountsToolChoiceSpecificProgrammaticToolCallingParam) {
+		return u.OfInputTokenCountsToolChoiceSpecificProgrammaticToolCallingParam
 	} else if !param.IsOmitted(u.OfSpecificApplyPatchToolChoice) {
 		return u.OfSpecificApplyPatchToolChoice
 	} else if !param.IsOmitted(u.OfSpecificShellToolChoice) {
@@ -303,6 +323,8 @@ func (u InputTokenCountParamsToolChoiceUnion) GetType() *string {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfCustomTool; vt != nil {
 		return (*string)(&vt.Type)
+	} else if vt := u.OfInputTokenCountsToolChoiceSpecificProgrammaticToolCallingParam; vt != nil {
+		return (*string)(&vt.Type)
 	} else if vt := u.OfSpecificApplyPatchToolChoice; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfSpecificShellToolChoice; vt != nil {
@@ -321,6 +343,28 @@ func (u InputTokenCountParamsToolChoiceUnion) GetName() *string {
 		return (*string)(&vt.Name)
 	}
 	return nil
+}
+
+func NewInputTokenCountParamsToolChoiceSpecificProgrammaticToolCallingParam() InputTokenCountParamsToolChoiceSpecificProgrammaticToolCallingParam {
+	return InputTokenCountParamsToolChoiceSpecificProgrammaticToolCallingParam{
+		Type: "programmatic_tool_calling",
+	}
+}
+
+// This struct has a constant value, construct it with
+// [NewInputTokenCountParamsToolChoiceSpecificProgrammaticToolCallingParam].
+type InputTokenCountParamsToolChoiceSpecificProgrammaticToolCallingParam struct {
+	// The tool to call. Always `programmatic_tool_calling`.
+	Type constant.ProgrammaticToolCalling `json:"type" default:"programmatic_tool_calling"`
+	paramObj
+}
+
+func (r InputTokenCountParamsToolChoiceSpecificProgrammaticToolCallingParam) MarshalJSON() (data []byte, err error) {
+	type shadow InputTokenCountParamsToolChoiceSpecificProgrammaticToolCallingParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *InputTokenCountParamsToolChoiceSpecificProgrammaticToolCallingParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
 }
 
 // The truncation strategy to use for the model response. - `auto`: If the input to

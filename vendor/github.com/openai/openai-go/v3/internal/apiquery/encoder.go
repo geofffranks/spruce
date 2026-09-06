@@ -29,7 +29,7 @@ type encoderField struct {
 }
 
 type encoderEntry struct {
-	reflect.Type
+	typ        reflect.Type
 	dateFormat string
 	root       bool
 	settings   QuerySettings
@@ -42,7 +42,7 @@ type Pair struct {
 
 func (e *encoder) typeEncoder(t reflect.Type) encoderFunc {
 	entry := encoderEntry{
-		Type:       t,
+		typ:        t,
 		dateFormat: e.dateFormat,
 		root:       e.root,
 		settings:   e.settings,
@@ -238,7 +238,8 @@ func (e *encoder) newStructUnionTypeEncoder(t reflect.Type) encoderFunc {
 func (e *encoder) newMapEncoder(t reflect.Type) encoderFunc {
 	keyEncoder := e.typeEncoder(t.Key())
 	elementEncoder := e.typeEncoder(t.Elem())
-	return func(key string, value reflect.Value) (pairs []Pair, err error) {
+	return func(key string, value reflect.Value) ([]Pair, error) {
+		var pairs []Pair
 		iter := value.MapRange()
 		for iter.Next() {
 			encodedKey, err := keyEncoder("", iter.Key())
@@ -250,13 +251,13 @@ func (e *encoder) newMapEncoder(t reflect.Type) encoderFunc {
 			}
 			subkey := encodedKey[0].value
 			keyPath := e.renderKeyPath(key, subkey)
-			subpairs, suberr := elementEncoder(keyPath, iter.Value())
-			if suberr != nil {
-				err = suberr
+			subpairs, err := elementEncoder(keyPath, iter.Value())
+			if err != nil {
+				return nil, err
 			}
 			pairs = append(pairs, subpairs...)
 		}
-		return pairs, err
+		return pairs, nil
 	}
 }
 

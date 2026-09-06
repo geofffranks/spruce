@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/anthropics/anthropic-sdk-go/internal/apierror"
 )
 
 type Decoder interface {
@@ -33,7 +35,43 @@ func NewDecoder(res *http.Response) Decoder {
 		scn.Buffer(nil, bufio.MaxScanTokenSize<<9)
 		decoder = &eventStreamDecoder{rc: res.Body, scn: scn}
 	}
+
+	// richDecoder needs the http request to provide helpful errors
+	// Aside from the error case there should be no difference
+	// from the underlying decoder.
+	if res.Request != nil {
+		return richErrorDecoder{Decoder: decoder, resp: res}
+	}
+
 	return decoder
+}
+
+// richErrorDecoder wraps a Decoder and carries the original [*http.Response]
+// so that it can construct rich API errors from SSE error events.
+//
+// A richErrorDecoder is used by [Stream] to construct errors whenever possible.
+// [Stream] needs to rely on the underlying decoder, because the [Stream] has
+// no access to the original http request.
+//
+// There should be no other differences from the underlying decoder.
+type richErrorDecoder struct {
+	Decoder
+	resp *http.Response
+}
+
+func (d *richErrorDecoder) newAPIError(errorJSON []byte) error {
+	aerr := &apierror.Error{}
+	if d.resp != nil {
+		aerr.Request = d.resp.Request
+		aerr.Response = d.resp
+		aerr.StatusCode = d.resp.StatusCode
+		aerr.RequestID = d.resp.Header.Get("request-id")
+		aerr.WorkspaceID = d.resp.Header.Get("anthropic-workspace-id")
+	}
+	if aerr.UnmarshalJSON(errorJSON) != nil {
+		return fmt.Errorf("received error while streaming: %s", string(errorJSON))
+	}
+	return aerr
 }
 
 var decoderTypes = map[string](func(io.ReadCloser) Decoder){}
@@ -159,7 +197,7 @@ func (s *Stream[T]) Next() bool {
 			}
 			s.cur = nxt
 			return true
-		case "message_start", "message_delta", "message_stop", "content_block_start", "content_block_delta", "content_block_stop":
+		case "message_start", "message_delta", "message_stop", "content_block_start", "content_block_delta", "content_block_stop", "message", "user.message", "user.interrupt", "user.tool_confirmation", "user.custom_tool_result", "user.tool_result", "agent.message", "agent.thinking", "agent.tool_use", "agent.tool_result", "agent.mcp_tool_use", "agent.mcp_tool_result", "agent.custom_tool_use", "agent.thread_context_compacted", "session.status_running", "session.status_idle", "session.status_rescheduled", "session.status_terminated", "session.error", "session.deleted", "session.updated", "span.model_request_start", "span.model_request_end", "span.outcome_evaluation_start", "span.outcome_evaluation_ongoing", "span.outcome_evaluation_end", "user.define_outcome", "agent.thread_message_received", "agent.thread_message_sent", "agent.session_thread_message_received", "agent.session_thread_message_sent", "session.thread_created", "session.thread_status_created", "session.thread_status_running", "session.thread_status_idle", "session.thread_status_rescheduled", "session.thread_status_terminated", "event_start", "event_delta", "system.message":
 			var nxt T
 			s.err = json.Unmarshal(s.decoder.Event().Data, &nxt)
 			if s.err != nil {
@@ -170,7 +208,12 @@ func (s *Stream[T]) Next() bool {
 		case "ping":
 			continue
 		case "error":
-			s.err = fmt.Errorf("received error while streaming: %s", string(s.decoder.Event().Data))
+			data := s.decoder.Event().Data
+			if ed, ok := s.decoder.(richErrorDecoder); ok {
+				s.err = ed.newAPIError(data)
+			} else {
+				s.err = fmt.Errorf("received error while streaming: %s", string(data))
+			}
 			return false
 		}
 	}

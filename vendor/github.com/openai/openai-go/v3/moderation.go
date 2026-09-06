@@ -1,4 +1,4 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package openai
 
@@ -40,7 +40,8 @@ func NewModerationService(opts ...option.RequestOption) (r ModerationService) {
 // Classifies if text and/or image inputs are potentially harmful. Learn more in
 // the [moderation guide](https://platform.openai.com/docs/guides/moderation).
 func (r *ModerationService) New(ctx context.Context, body ModerationNewParams, opts ...option.RequestOption) (res *ModerationNewResponse, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "moderations"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
@@ -286,7 +287,7 @@ type ModerationImageURLInputParam struct {
 	// Always `image_url`.
 	//
 	// This field can be elided, and will marshal its zero value as "image_url".
-	Type constant.ImageURL `json:"type" api:"required"`
+	Type constant.ImageURL `json:"type" default:"image_url"`
 	paramObj
 }
 
@@ -404,7 +405,7 @@ type ModerationTextInputParam struct {
 	// Always `text`.
 	//
 	// This field can be elided, and will marshal its zero value as "text".
-	Type constant.Text `json:"type" api:"required"`
+	Type constant.Text `json:"type" default:"text"`
 	paramObj
 }
 

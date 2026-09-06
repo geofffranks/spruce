@@ -1,4 +1,4 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+// File generated from our OpenAPI spec by Castiron. See CONTRIBUTING.md for details.
 
 package conversations
 
@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"slices"
 
@@ -46,7 +45,8 @@ func NewConversationService(opts ...option.RequestOption) (r ConversationService
 
 // Create a conversation.
 func (r *ConversationService) New(ctx context.Context, body ConversationNewParams, opts ...option.RequestOption) (res *Conversation, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "conversations"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
@@ -54,36 +54,39 @@ func (r *ConversationService) New(ctx context.Context, body ConversationNewParam
 
 // Get a conversation
 func (r *ConversationService) Get(ctx context.Context, conversationID string, opts ...option.RequestOption) (res *Conversation, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if conversationID == "" {
 		err = errors.New("missing required conversation_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("conversations/%s", conversationID)
+	path := requestconfig.FormatPath("conversations/%s", conversationID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
 
 // Update a conversation
 func (r *ConversationService) Update(ctx context.Context, conversationID string, body ConversationUpdateParams, opts ...option.RequestOption) (res *Conversation, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if conversationID == "" {
 		err = errors.New("missing required conversation_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("conversations/%s", conversationID)
+	path := requestconfig.FormatPath("conversations/%s", conversationID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
 	return res, err
 }
 
 // Delete a conversation. Items in the conversation will not be deleted.
 func (r *ConversationService) Delete(ctx context.Context, conversationID string, opts ...option.RequestOption) (res *ConversationDeletedResource, err error) {
-	opts = slices.Concat(r.Options, opts)
+	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
 	if conversationID == "" {
 		err = errors.New("missing required conversation_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("conversations/%s", conversationID)
+	path := requestconfig.FormatPath("conversations/%s", conversationID)
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, &res, opts...)
 	return res, err
 }
@@ -98,18 +101,23 @@ type ComputerScreenshotContent struct {
 	// The identifier of an uploaded file that contains the screenshot.
 	FileID string `json:"file_id" api:"required"`
 	// The URL of the screenshot image.
-	ImageURL string `json:"image_url" api:"required"`
+	ImageURL string `json:"image_url" api:"required" format:"uri"`
 	// Specifies the event type. For a computer screenshot, this property is always set
 	// to `computer_screenshot`.
-	Type constant.ComputerScreenshot `json:"type" api:"required"`
+	Type constant.ComputerScreenshot `json:"type" default:"computer_screenshot"`
+	// Marks the exact end of a reusable prompt prefix. The breakpoint inherits its TTL
+	// from the request's `prompt_cache_options.ttl`; the boundary is not rounded to a
+	// token block.
+	PromptCacheBreakpoint ComputerScreenshotContentPromptCacheBreakpoint `json:"prompt_cache_breakpoint"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Detail      respjson.Field
-		FileID      respjson.Field
-		ImageURL    respjson.Field
-		Type        respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Detail                respjson.Field
+		FileID                respjson.Field
+		ImageURL              respjson.Field
+		Type                  respjson.Field
+		PromptCacheBreakpoint respjson.Field
+		ExtraFields           map[string]respjson.Field
+		raw                   string
 	} `json:"-"`
 }
 
@@ -130,12 +138,32 @@ const (
 	ComputerScreenshotContentDetailOriginal ComputerScreenshotContentDetail = "original"
 )
 
+// Marks the exact end of a reusable prompt prefix. The breakpoint inherits its TTL
+// from the request's `prompt_cache_options.ttl`; the boundary is not rounded to a
+// token block.
+type ComputerScreenshotContentPromptCacheBreakpoint struct {
+	// The breakpoint mode. Always `explicit`.
+	Mode constant.Explicit `json:"mode" default:"explicit"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Mode        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerScreenshotContentPromptCacheBreakpoint) RawJSON() string { return r.JSON.raw }
+func (r *ComputerScreenshotContentPromptCacheBreakpoint) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 type Conversation struct {
 	// The unique ID of the conversation.
 	ID string `json:"id" api:"required"`
 	// The time at which the conversation was created, measured in seconds since the
 	// Unix epoch.
-	CreatedAt int64 `json:"created_at" api:"required"`
+	CreatedAt int64 `json:"created_at" api:"required" format:"unixtime"`
 	// Set of 16 key-value pairs that can be attached to an object. This can be useful
 	// for storing additional information about the object in a structured format, and
 	// querying for objects via API or the dashboard. Keys are strings with a maximum
@@ -143,7 +171,7 @@ type Conversation struct {
 	// characters.
 	Metadata any `json:"metadata" api:"required"`
 	// The object type, which is always `conversation`.
-	Object constant.Conversation `json:"object" api:"required"`
+	Object constant.Conversation `json:"object" default:"conversation"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -164,7 +192,7 @@ func (r *Conversation) UnmarshalJSON(data []byte) error {
 type ConversationDeletedResource struct {
 	ID      string                       `json:"id" api:"required"`
 	Deleted bool                         `json:"deleted" api:"required"`
-	Object  constant.ConversationDeleted `json:"object" api:"required"`
+	Object  constant.ConversationDeleted `json:"object" default:"conversation.deleted"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -199,7 +227,14 @@ type Message struct {
 	// Any of "in_progress", "completed", "incomplete".
 	Status MessageStatus `json:"status" api:"required"`
 	// The type of the message. Always set to `message`.
-	Type constant.Message `json:"type" api:"required"`
+	Type constant.Message `json:"type" default:"message"`
+	// Labels an `assistant` message as intermediate commentary (`commentary`) or the
+	// final answer (`final_answer`). For models like `gpt-5.3-codex` and beyond, when
+	// sending follow-up requests, preserve and resend phase on all assistant messages
+	// — dropping it can degrade performance. Not used for user messages.
+	//
+	// Any of "commentary", "final_answer".
+	Phase MessagePhase `json:"phase" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -207,6 +242,7 @@ type Message struct {
 		Role        respjson.Field
 		Status      respjson.Field
 		Type        respjson.Field
+		Phase       respjson.Field
 		ExtraFields map[string]respjson.Field
 		raw         string
 	} `json:"-"`
@@ -232,6 +268,11 @@ type MessageContentUnion struct {
 	// Any of "input_text", "output_text", "text", "summary_text", "reasoning_text",
 	// "refusal", "input_image", "computer_screenshot", "input_file".
 	Type string `json:"type"`
+	// This field is a union of [responses.ResponseInputTextPromptCacheBreakpoint],
+	// [responses.ResponseInputImagePromptCacheBreakpoint],
+	// [ComputerScreenshotContentPromptCacheBreakpoint],
+	// [responses.ResponseInputFilePromptCacheBreakpoint]
+	PromptCacheBreakpoint MessageContentUnionPromptCacheBreakpoint `json:"prompt_cache_breakpoint"`
 	// This field is from variant [responses.ResponseOutputText].
 	Annotations []responses.ResponseOutputTextAnnotationUnion `json:"annotations"`
 	// This field is from variant [responses.ResponseOutputText].
@@ -248,18 +289,19 @@ type MessageContentUnion struct {
 	// This field is from variant [responses.ResponseInputFile].
 	Filename string `json:"filename"`
 	JSON     struct {
-		Text        respjson.Field
-		Type        respjson.Field
-		Annotations respjson.Field
-		Logprobs    respjson.Field
-		Refusal     respjson.Field
-		Detail      respjson.Field
-		FileID      respjson.Field
-		ImageURL    respjson.Field
-		FileData    respjson.Field
-		FileURL     respjson.Field
-		Filename    respjson.Field
-		raw         string
+		Text                  respjson.Field
+		Type                  respjson.Field
+		PromptCacheBreakpoint respjson.Field
+		Annotations           respjson.Field
+		Logprobs              respjson.Field
+		Refusal               respjson.Field
+		Detail                respjson.Field
+		FileID                respjson.Field
+		ImageURL              respjson.Field
+		FileData              respjson.Field
+		FileURL               respjson.Field
+		Filename              respjson.Field
+		raw                   string
 	} `json:"-"`
 }
 
@@ -314,47 +356,47 @@ func (u MessageContentUnion) AsAny() anyMessageContent {
 }
 
 func (u MessageContentUnion) AsInputText() (v responses.ResponseInputText) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u MessageContentUnion) AsOutputText() (v responses.ResponseOutputText) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u MessageContentUnion) AsText() (v TextContent) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u MessageContentUnion) AsSummaryText() (v SummaryTextContent) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u MessageContentUnion) AsReasoningText() (v MessageContentReasoningText) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u MessageContentUnion) AsRefusal() (v responses.ResponseOutputRefusal) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u MessageContentUnion) AsInputImage() (v responses.ResponseInputImage) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u MessageContentUnion) AsComputerScreenshot() (v ComputerScreenshotContent) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
 func (u MessageContentUnion) AsInputFile() (v responses.ResponseInputFile) {
-	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
 
@@ -365,12 +407,31 @@ func (r *MessageContentUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// MessageContentUnionPromptCacheBreakpoint is an implicit subunion of
+// [MessageContentUnion]. MessageContentUnionPromptCacheBreakpoint provides
+// convenient access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [MessageContentUnion].
+type MessageContentUnionPromptCacheBreakpoint struct {
+	// This field is from variant [responses.ResponseInputTextPromptCacheBreakpoint].
+	Mode constant.Explicit `json:"mode"`
+	JSON struct {
+		Mode respjson.Field
+		raw  string
+	} `json:"-"`
+}
+
+func (r *MessageContentUnionPromptCacheBreakpoint) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // Reasoning text from the model.
 type MessageContentReasoningText struct {
 	// The reasoning text from the model.
 	Text string `json:"text" api:"required"`
 	// The type of the reasoning text. Always `reasoning_text`.
-	Type constant.ReasoningText `json:"type" api:"required"`
+	Type constant.ReasoningText `json:"type" default:"reasoning_text"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Text        respjson.Field
@@ -411,12 +472,23 @@ const (
 	MessageStatusIncomplete MessageStatus = "incomplete"
 )
 
+// Labels an `assistant` message as intermediate commentary (`commentary`) or the
+// final answer (`final_answer`). For models like `gpt-5.3-codex` and beyond, when
+// sending follow-up requests, preserve and resend phase on all assistant messages
+// — dropping it can degrade performance. Not used for user messages.
+type MessagePhase string
+
+const (
+	MessagePhaseCommentary  MessagePhase = "commentary"
+	MessagePhaseFinalAnswer MessagePhase = "final_answer"
+)
+
 // A summary text from the model.
 type SummaryTextContent struct {
 	// A summary of the reasoning output from the model so far.
 	Text string `json:"text" api:"required"`
 	// The type of the object. Always `summary_text`.
-	Type constant.SummaryText `json:"type" api:"required"`
+	Type constant.SummaryText `json:"type" default:"summary_text"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Text        respjson.Field
@@ -435,7 +507,7 @@ func (r *SummaryTextContent) UnmarshalJSON(data []byte) error {
 // A text content.
 type TextContent struct {
 	Text string        `json:"text" api:"required"`
-	Type constant.Text `json:"type" api:"required"`
+	Type constant.Text `json:"type" default:"text"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Text        respjson.Field

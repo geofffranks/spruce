@@ -5,6 +5,7 @@ package anthropic
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"reflect"
 	"slices"
@@ -49,23 +50,27 @@ func NewMessageService(opts ...option.RequestOption) (r MessageService) {
 // conversations.
 //
 // Learn more about the Messages API in our
-// [user guide](https://docs.claude.com/en/docs/initial-setup)
+// [user guide](https://platform.claude.com/docs/en/get-started)
 //
 // Note: If you choose to set a timeout for this request, we recommend 10 minutes.
-func (r *MessageService) New(ctx context.Context, body MessageNewParams, opts ...option.RequestOption) (res *Message, err error) {
+func (r *MessageService) New(ctx context.Context, params MessageNewParams, opts ...option.RequestOption) (res *Message, err error) {
+	if !param.IsOmitted(params.UserProfileID) {
+		opts = append(opts, option.WithHeader("anthropic-user-profile-id", fmt.Sprintf("%v", params.UserProfileID.Value)))
+	}
 	opts = slices.Concat(r.Options, opts)
+	warnIfThinkingEnabled(params.Model, params.Thinking.OfEnabled != nil)
 
 	// For non-streaming requests, calculate the appropriate timeout based on maxTokens
 	// and check against model-specific limits
-	timeout, timeoutErr := CalculateNonStreamingTimeout(int(body.MaxTokens), body.Model, opts)
+	timeout, timeoutErr := CalculateNonStreamingTimeout(int(params.MaxTokens), params.Model, opts)
 	if timeoutErr != nil {
 		return nil, timeoutErr
 	}
 	opts = append(opts, option.WithRequestTimeout(timeout))
 
 	path := "v1/messages"
-	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
-	return
+	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
+	return res, err
 }
 
 // Send a structured list of input messages with text and/or image content, and the
@@ -75,18 +80,22 @@ func (r *MessageService) New(ctx context.Context, body MessageNewParams, opts ..
 // conversations.
 //
 // Learn more about the Messages API in our
-// [user guide](https://docs.claude.com/en/docs/initial-setup)
+// [user guide](https://platform.claude.com/docs/en/get-started)
 //
 // Note: If you choose to set a timeout for this request, we recommend 10 minutes.
-func (r *MessageService) NewStreaming(ctx context.Context, body MessageNewParams, opts ...option.RequestOption) (stream *ssestream.Stream[MessageStreamEventUnion]) {
+func (r *MessageService) NewStreaming(ctx context.Context, params MessageNewParams, opts ...option.RequestOption) (stream *ssestream.Stream[MessageStreamEventUnion]) {
 	var (
 		raw *http.Response
 		err error
 	)
+	if !param.IsOmitted(params.UserProfileID) {
+		opts = append(opts, option.WithHeader("anthropic-user-profile-id", fmt.Sprintf("%v", params.UserProfileID.Value)))
+	}
 	opts = slices.Concat(r.Options, opts)
+	warnIfThinkingEnabled(params.Model, params.Thinking.OfEnabled != nil)
 	opts = append(opts, option.WithJSONSet("stream", true))
 	path := "v1/messages"
-	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &raw, opts...)
+	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &raw, opts...)
 	return ssestream.NewStream[MessageStreamEventUnion](ssestream.NewDecoder(raw), err)
 }
 
@@ -96,21 +105,24 @@ func (r *MessageService) NewStreaming(ctx context.Context, body MessageNewParams
 // including tools, images, and documents, without creating it.
 //
 // Learn more about token counting in our
-// [user guide](https://docs.claude.com/en/docs/build-with-claude/token-counting)
-func (r *MessageService) CountTokens(ctx context.Context, body MessageCountTokensParams, opts ...option.RequestOption) (res *MessageTokensCount, err error) {
+// [user guide](https://platform.claude.com/docs/en/build-with-claude/token-counting)
+func (r *MessageService) CountTokens(ctx context.Context, params MessageCountTokensParams, opts ...option.RequestOption) (res *MessageTokensCount, err error) {
+	if !param.IsOmitted(params.UserProfileID) {
+		opts = append(opts, option.WithHeader("anthropic-user-profile-id", fmt.Sprintf("%v", params.UserProfileID.Value)))
+	}
 	opts = slices.Concat(r.Options, opts)
 	path := "v1/messages/count_tokens"
-	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
-	return
+	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
+	return res, err
 }
 
 // The properties Data, MediaType, Type are required.
 type Base64ImageSourceParam struct {
-	Data string `json:"data,required" format:"byte"`
+	Data string `json:"data" api:"required" format:"byte"`
 	// Any of "image/jpeg", "image/png", "image/gif", "image/webp".
-	MediaType Base64ImageSourceMediaType `json:"media_type,omitzero,required"`
+	MediaType Base64ImageSourceMediaType `json:"media_type,omitzero" api:"required"`
 	// This field can be elided, and will marshal its zero value as "base64".
-	Type constant.Base64 `json:"type,required"`
+	Type constant.Base64 `json:"type" default:"base64"`
 	paramObj
 }
 
@@ -132,9 +144,9 @@ const (
 )
 
 type Base64PDFSource struct {
-	Data      string                  `json:"data,required" format:"byte"`
-	MediaType constant.ApplicationPDF `json:"media_type,required"`
-	Type      constant.Base64         `json:"type,required"`
+	Data      string                  `json:"data" api:"required" format:"byte"`
+	MediaType constant.ApplicationPDF `json:"media_type" default:"application/pdf"`
+	Type      constant.Base64         `json:"type" default:"base64"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Data        respjson.Field
@@ -162,11 +174,11 @@ func (r Base64PDFSource) ToParam() Base64PDFSourceParam {
 
 // The properties Data, MediaType, Type are required.
 type Base64PDFSourceParam struct {
-	Data string `json:"data,required" format:"byte"`
+	Data string `json:"data" api:"required" format:"byte"`
 	// This field can be elided, and will marshal its zero value as "application/pdf".
-	MediaType constant.ApplicationPDF `json:"media_type,required"`
+	MediaType constant.ApplicationPDF `json:"media_type" default:"application/pdf"`
 	// This field can be elided, and will marshal its zero value as "base64".
-	Type constant.Base64 `json:"type,required"`
+	Type constant.Base64 `json:"type" default:"base64"`
 	paramObj
 }
 
@@ -179,8 +191,8 @@ func (r *Base64PDFSourceParam) UnmarshalJSON(data []byte) error {
 }
 
 type BashCodeExecutionOutputBlock struct {
-	FileID string                           `json:"file_id,required"`
-	Type   constant.BashCodeExecutionOutput `json:"type,required"`
+	FileID string                           `json:"file_id" api:"required"`
+	Type   constant.BashCodeExecutionOutput `json:"type" default:"bash_code_execution_output"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		FileID      respjson.Field
@@ -198,10 +210,10 @@ func (r *BashCodeExecutionOutputBlock) UnmarshalJSON(data []byte) error {
 
 // The properties FileID, Type are required.
 type BashCodeExecutionOutputBlockParam struct {
-	FileID string `json:"file_id,required"`
+	FileID string `json:"file_id" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "bash_code_execution_output".
-	Type constant.BashCodeExecutionOutput `json:"type,required"`
+	Type constant.BashCodeExecutionOutput `json:"type" default:"bash_code_execution_output"`
 	paramObj
 }
 
@@ -214,11 +226,11 @@ func (r *BashCodeExecutionOutputBlockParam) UnmarshalJSON(data []byte) error {
 }
 
 type BashCodeExecutionResultBlock struct {
-	Content    []BashCodeExecutionOutputBlock   `json:"content,required"`
-	ReturnCode int64                            `json:"return_code,required"`
-	Stderr     string                           `json:"stderr,required"`
-	Stdout     string                           `json:"stdout,required"`
-	Type       constant.BashCodeExecutionResult `json:"type,required"`
+	Content    []BashCodeExecutionOutputBlock   `json:"content" api:"required"`
+	ReturnCode int64                            `json:"return_code" api:"required"`
+	Stderr     string                           `json:"stderr" api:"required"`
+	Stdout     string                           `json:"stdout" api:"required"`
+	Type       constant.BashCodeExecutionResult `json:"type" default:"bash_code_execution_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Content     respjson.Field
@@ -239,13 +251,13 @@ func (r *BashCodeExecutionResultBlock) UnmarshalJSON(data []byte) error {
 
 // The properties Content, ReturnCode, Stderr, Stdout, Type are required.
 type BashCodeExecutionResultBlockParam struct {
-	Content    []BashCodeExecutionOutputBlockParam `json:"content,omitzero,required"`
-	ReturnCode int64                               `json:"return_code,required"`
-	Stderr     string                              `json:"stderr,required"`
-	Stdout     string                              `json:"stdout,required"`
+	Content    []BashCodeExecutionOutputBlockParam `json:"content,omitzero" api:"required"`
+	ReturnCode int64                               `json:"return_code" api:"required"`
+	Stderr     string                              `json:"stderr" api:"required"`
+	Stdout     string                              `json:"stdout" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "bash_code_execution_result".
-	Type constant.BashCodeExecutionResult `json:"type,required"`
+	Type constant.BashCodeExecutionResult `json:"type" default:"bash_code_execution_result"`
 	paramObj
 }
 
@@ -258,9 +270,9 @@ func (r *BashCodeExecutionResultBlockParam) UnmarshalJSON(data []byte) error {
 }
 
 type BashCodeExecutionToolResultBlock struct {
-	Content   BashCodeExecutionToolResultBlockContentUnion `json:"content,required"`
-	ToolUseID string                                       `json:"tool_use_id,required"`
-	Type      constant.BashCodeExecutionToolResult         `json:"type,required"`
+	Content   BashCodeExecutionToolResultBlockContentUnion `json:"content" api:"required"`
+	ToolUseID string                                       `json:"tool_use_id" api:"required"`
+	Type      constant.BashCodeExecutionToolResult         `json:"type" default:"bash_code_execution_tool_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Content     respjson.Field
@@ -324,13 +336,13 @@ func (r *BashCodeExecutionToolResultBlockContentUnion) UnmarshalJSON(data []byte
 
 // The properties Content, ToolUseID, Type are required.
 type BashCodeExecutionToolResultBlockParam struct {
-	Content   BashCodeExecutionToolResultBlockParamContentUnion `json:"content,omitzero,required"`
-	ToolUseID string                                            `json:"tool_use_id,required"`
+	Content   BashCodeExecutionToolResultBlockParamContentUnion `json:"content,omitzero" api:"required"`
+	ToolUseID string                                            `json:"tool_use_id" api:"required"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "bash_code_execution_tool_result".
-	Type constant.BashCodeExecutionToolResult `json:"type,required"`
+	Type constant.BashCodeExecutionToolResult `json:"type" default:"bash_code_execution_tool_result"`
 	paramObj
 }
 
@@ -420,8 +432,8 @@ func (u BashCodeExecutionToolResultBlockParamContentUnion) GetType() *string {
 type BashCodeExecutionToolResultError struct {
 	// Any of "invalid_tool_input", "unavailable", "too_many_requests",
 	// "execution_time_exceeded", "output_file_too_large".
-	ErrorCode BashCodeExecutionToolResultErrorCode      `json:"error_code,required"`
-	Type      constant.BashCodeExecutionToolResultError `json:"type,required"`
+	ErrorCode BashCodeExecutionToolResultErrorCode      `json:"error_code" api:"required"`
+	Type      constant.BashCodeExecutionToolResultError `json:"type" default:"bash_code_execution_tool_result_error"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ErrorCode   respjson.Field
@@ -451,10 +463,10 @@ const (
 type BashCodeExecutionToolResultErrorParam struct {
 	// Any of "invalid_tool_input", "unavailable", "too_many_requests",
 	// "execution_time_exceeded", "output_file_too_large".
-	ErrorCode BashCodeExecutionToolResultErrorCode `json:"error_code,omitzero,required"`
+	ErrorCode BashCodeExecutionToolResultErrorCode `json:"error_code,omitzero" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "bash_code_execution_tool_result_error".
-	Type constant.BashCodeExecutionToolResultError `json:"type,required"`
+	Type constant.BashCodeExecutionToolResultError `json:"type" default:"bash_code_execution_tool_result_error"`
 	paramObj
 }
 
@@ -463,6 +475,1035 @@ func (r BashCodeExecutionToolResultErrorParam) MarshalJSON() (data []byte, err e
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BashCodeExecutionToolResultErrorParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `close_tab`'s config overrides.
+type BrowserCloseTabConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserCloseTabConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserCloseTabConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserCloseTabConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `double_click`'s config overrides.
+type BrowserDoubleClickConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserDoubleClickConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserDoubleClickConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserDoubleClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `file_upload`'s config overrides.
+type BrowserFileUploadConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserFileUploadConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserFileUploadConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserFileUploadConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `find`'s config overrides.
+type BrowserFindConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserFindConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserFindConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserFindConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `form_input`'s config overrides.
+type BrowserFormInputConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserFormInputConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserFormInputConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserFormInputConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `get_page_text`'s config overrides.
+type BrowserGetPageTextConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserGetPageTextConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserGetPageTextConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserGetPageTextConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `hold_key`'s config overrides.
+type BrowserHoldKeyConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserHoldKeyConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserHoldKeyConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserHoldKeyConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `hover`'s config overrides.
+type BrowserHoverConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserHoverConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserHoverConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserHoverConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `javascript_exec`'s config overrides.
+type BrowserJavascriptExecConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserJavascriptExecConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserJavascriptExecConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserJavascriptExecConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `key`'s config overrides.
+type BrowserKeyConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserKeyConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserKeyConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserKeyConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `left_click`'s config overrides.
+type BrowserLeftClickConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserLeftClickConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserLeftClickConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserLeftClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `left_click_drag`'s config overrides.
+type BrowserLeftClickDragConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserLeftClickDragConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserLeftClickDragConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserLeftClickDragConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `left_mouse_down`'s config overrides.
+type BrowserLeftMouseDownConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserLeftMouseDownConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserLeftMouseDownConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserLeftMouseDownConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `left_mouse_up`'s config overrides.
+type BrowserLeftMouseUpConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserLeftMouseUpConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserLeftMouseUpConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserLeftMouseUpConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `list_tabs`'s config overrides.
+type BrowserListTabsConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserListTabsConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserListTabsConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserListTabsConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `middle_click`'s config overrides.
+type BrowserMiddleClickConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserMiddleClickConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserMiddleClickConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserMiddleClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `mouse_move`'s config overrides.
+type BrowserMouseMoveConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserMouseMoveConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserMouseMoveConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserMouseMoveConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `navigate`'s config overrides.
+type BrowserNavigateConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserNavigateConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserNavigateConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserNavigateConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `new_tab`'s config overrides.
+type BrowserNewTabConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserNewTabConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserNewTabConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserNewTabConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `read_console`'s config overrides.
+type BrowserReadConsoleConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserReadConsoleConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserReadConsoleConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserReadConsoleConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `read_network`'s config overrides.
+type BrowserReadNetworkConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserReadNetworkConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserReadNetworkConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserReadNetworkConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `read_page`'s config overrides.
+type BrowserReadPageConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserReadPageConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserReadPageConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserReadPageConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `right_click`'s config overrides.
+type BrowserRightClickConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserRightClickConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserRightClickConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserRightClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `screenshot`'s config overrides.
+type BrowserScreenshotConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserScreenshotConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserScreenshotConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserScreenshotConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `scroll`'s config overrides.
+type BrowserScrollConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserScrollConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserScrollConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserScrollConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `scroll_to`'s config overrides.
+type BrowserScrollToConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserScrollToConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserScrollToConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserScrollToConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The caller's browser state after a browser toolset member call — the full
+// inventory of open tabs, which tab is active, and any side effects (tabs opened,
+// download state changes) the call produced.
+//
+// At most one per `tool_result`, only on a non-error result answering a browser
+// toolset member `tool_use`. The server renders the model-visible text from it;
+// the model never sees the raw fields.
+//
+// The properties Tabs, Type are required.
+type BrowserStateBlockParam struct {
+	// All tabs open in the browser after this call — the full inventory, not a delta.
+	// May be empty. Whenever non-empty, exactly one entry carries `active: true`.
+	Tabs []BrowserStateTabEntryParam `json:"tabs,omitzero" api:"required"`
+	// Tabs opened and download state changes during this call. "Nothing to report" is
+	// expressed by omitting the field, never by an empty list.
+	StateChanges []BrowserStateChangeUnionParam `json:"state_changes,omitzero"`
+	// Create a cache control breakpoint at this content block.
+	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
+	// This field can be elided, and will marshal its zero value as "browser_state".
+	Type constant.BrowserState `json:"type" default:"browser_state"`
+	paramObj
+}
+
+func (r BrowserStateBlockParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserStateBlockParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserStateBlockParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func BrowserStateChangeParamOfTabOpened(tabID string) BrowserStateChangeUnionParam {
+	var tabOpened BrowserStateChangeTabOpenedParam
+	tabOpened.TabID = tabID
+	return BrowserStateChangeUnionParam{OfTabOpened: &tabOpened}
+}
+
+func BrowserStateChangeParamOfDownloadStarted(downloadID string, url string) BrowserStateChangeUnionParam {
+	var downloadStarted BrowserStateChangeDownloadStartedParam
+	downloadStarted.DownloadID = downloadID
+	downloadStarted.URL = url
+	return BrowserStateChangeUnionParam{OfDownloadStarted: &downloadStarted}
+}
+
+func BrowserStateChangeParamOfDownloadCompleted(downloadID string, url string) BrowserStateChangeUnionParam {
+	var downloadCompleted BrowserStateChangeDownloadCompletedParam
+	downloadCompleted.DownloadID = downloadID
+	downloadCompleted.URL = url
+	return BrowserStateChangeUnionParam{OfDownloadCompleted: &downloadCompleted}
+}
+
+func BrowserStateChangeParamOfDownloadFailed(downloadID string, url string) BrowserStateChangeUnionParam {
+	var downloadFailed BrowserStateChangeDownloadFailedParam
+	downloadFailed.DownloadID = downloadID
+	downloadFailed.URL = url
+	return BrowserStateChangeUnionParam{OfDownloadFailed: &downloadFailed}
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type BrowserStateChangeUnionParam struct {
+	OfTabOpened         *BrowserStateChangeTabOpenedParam         `json:",omitzero,inline"`
+	OfDownloadStarted   *BrowserStateChangeDownloadStartedParam   `json:",omitzero,inline"`
+	OfDownloadCompleted *BrowserStateChangeDownloadCompletedParam `json:",omitzero,inline"`
+	OfDownloadFailed    *BrowserStateChangeDownloadFailedParam    `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u BrowserStateChangeUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfTabOpened, u.OfDownloadStarted, u.OfDownloadCompleted, u.OfDownloadFailed)
+}
+func (u *BrowserStateChangeUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *BrowserStateChangeUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfTabOpened) {
+		return u.OfTabOpened
+	} else if !param.IsOmitted(u.OfDownloadStarted) {
+		return u.OfDownloadStarted
+	} else if !param.IsOmitted(u.OfDownloadCompleted) {
+		return u.OfDownloadCompleted
+	} else if !param.IsOmitted(u.OfDownloadFailed) {
+		return u.OfDownloadFailed
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u BrowserStateChangeUnionParam) GetTabID() *string {
+	if vt := u.OfTabOpened; vt != nil {
+		return &vt.TabID
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u BrowserStateChangeUnionParam) GetPath() *string {
+	if vt := u.OfDownloadCompleted; vt != nil && vt.Path.Valid() {
+		return &vt.Path.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u BrowserStateChangeUnionParam) GetSizeBytes() *int64 {
+	if vt := u.OfDownloadCompleted; vt != nil && vt.SizeBytes.Valid() {
+		return &vt.SizeBytes.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u BrowserStateChangeUnionParam) GetError() *string {
+	if vt := u.OfDownloadFailed; vt != nil && vt.Error.Valid() {
+		return &vt.Error.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u BrowserStateChangeUnionParam) GetType() *string {
+	if vt := u.OfTabOpened; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfDownloadStarted; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfDownloadCompleted; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfDownloadFailed; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u BrowserStateChangeUnionParam) GetDownloadID() *string {
+	if vt := u.OfDownloadStarted; vt != nil {
+		return (*string)(&vt.DownloadID)
+	} else if vt := u.OfDownloadCompleted; vt != nil {
+		return (*string)(&vt.DownloadID)
+	} else if vt := u.OfDownloadFailed; vt != nil {
+		return (*string)(&vt.DownloadID)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u BrowserStateChangeUnionParam) GetURL() *string {
+	if vt := u.OfDownloadStarted; vt != nil {
+		return (*string)(&vt.URL)
+	} else if vt := u.OfDownloadCompleted; vt != nil {
+		return (*string)(&vt.URL)
+	} else if vt := u.OfDownloadFailed; vt != nil {
+		return (*string)(&vt.URL)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[BrowserStateChangeUnionParam](
+		"type",
+		apijson.Discriminator[BrowserStateChangeTabOpenedParam]("tab_opened"),
+		apijson.Discriminator[BrowserStateChangeDownloadStartedParam]("download_started"),
+		apijson.Discriminator[BrowserStateChangeDownloadCompletedParam]("download_completed"),
+		apijson.Discriminator[BrowserStateChangeDownloadFailedParam]("download_failed"),
+	)
+}
+
+// A file download that finished during this call, reported with the same
+// `download_id` as its `download_started` — or without a prior `download_started`,
+// when the download finished during the call that started it (at most one state
+// change per `download_id` per result).
+//
+// The properties DownloadID, Type, URL are required.
+type BrowserStateChangeDownloadCompletedParam struct {
+	// The caller-assigned identifier for this download, stable across the state
+	// changes reporting it.
+	DownloadID string `json:"download_id" api:"required"`
+	// The final post-redirect URL the download was served from.
+	URL string `json:"url" api:"required"`
+	// Where the executor saved the file, on the executor's filesystem. Only included
+	// when another tool in the same environment can read the file at that path.
+	Path param.Opt[string] `json:"path,omitzero"`
+	// The completed download's size.
+	SizeBytes param.Opt[int64] `json:"size_bytes,omitzero"`
+	// This field can be elided, and will marshal its zero value as
+	// "download_completed".
+	Type constant.DownloadCompleted `json:"type" default:"download_completed"`
+	paramObj
+}
+
+func (r BrowserStateChangeDownloadCompletedParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserStateChangeDownloadCompletedParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserStateChangeDownloadCompletedParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A file download that failed — or was cancelled — during this call.
+//
+// The properties DownloadID, Type, URL are required.
+type BrowserStateChangeDownloadFailedParam struct {
+	// The caller-assigned identifier for this download, stable across the state
+	// changes reporting it.
+	DownloadID string `json:"download_id" api:"required"`
+	// The final post-redirect URL the download was served from.
+	URL string `json:"url" api:"required"`
+	// The failure or cancellation detail, when known.
+	Error param.Opt[string] `json:"error,omitzero"`
+	// This field can be elided, and will marshal its zero value as "download_failed".
+	Type constant.DownloadFailed `json:"type" default:"download_failed"`
+	paramObj
+}
+
+func (r BrowserStateChangeDownloadFailedParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserStateChangeDownloadFailedParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserStateChangeDownloadFailedParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A file download that started during this call.
+//
+// The properties DownloadID, Type, URL are required.
+type BrowserStateChangeDownloadStartedParam struct {
+	// The caller-assigned identifier for this download, stable across the state
+	// changes reporting it.
+	DownloadID string `json:"download_id" api:"required"`
+	// The final post-redirect URL the download was served from.
+	URL string `json:"url" api:"required"`
+	// This field can be elided, and will marshal its zero value as "download_started".
+	Type constant.DownloadStarted `json:"type" default:"download_started"`
+	paramObj
+}
+
+func (r BrowserStateChangeDownloadStartedParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserStateChangeDownloadStartedParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserStateChangeDownloadStartedParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A tab this call's execution opened that remains open at its end — the creation
+// delta of the `tabs` inventory, not an event log.
+//
+// Carries only the `tab_id`; the tab's `title` and `url` live on its `tabs` entry,
+// which must include the same `tab_id`. A tab opened during a failed call gets no
+// deferred `tab_opened`; it simply appears in the next result's `tabs` inventory.
+//
+// The properties TabID, Type are required.
+type BrowserStateChangeTabOpenedParam struct {
+	// The `tab_id` of the opened tab, present in `tabs`.
+	TabID string `json:"tab_id" api:"required"`
+	// This field can be elided, and will marshal its zero value as "tab_opened".
+	Type constant.TabOpened `json:"type" default:"tab_opened"`
+	paramObj
+}
+
+func (r BrowserStateChangeTabOpenedParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserStateChangeTabOpenedParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserStateChangeTabOpenedParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// One open browser tab reported in a `browser_state` block's `tabs` inventory.
+//
+// `tab_id` is the caller-assigned identifier for the tab; `title` and `url`
+// describe the page the tab is currently showing and may be empty strings (a blank
+// tab legitimately has both empty). `active` marks the tab that is active after
+// this call; whenever `tabs` is non-empty, exactly one entry is marked.
+//
+// The properties TabID, Title, URL are required.
+type BrowserStateTabEntryParam struct {
+	// The caller-assigned identifier for this tab, unique within the inventory.
+	TabID string `json:"tab_id" api:"required"`
+	// The title of the page the tab is showing. May be empty.
+	Title string `json:"title" api:"required"`
+	// The URL of the page the tab is showing. May be empty.
+	URL string `json:"url" api:"required"`
+	// Whether this tab is the active tab after this call. Whenever `tabs` is
+	// non-empty, exactly one entry is marked `active: true`.
+	Active param.Opt[bool] `json:"active,omitzero"`
+	paramObj
+}
+
+func (r BrowserStateTabEntryParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserStateTabEntryParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserStateTabEntryParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `switch_tab`'s config overrides.
+type BrowserSwitchTabConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserSwitchTabConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserSwitchTabConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserSwitchTabConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The browser toolset: a single `tools[]` entry (carrying no `name`) that declares
+// the browser tool family. The model is served the family's tool with any members
+// disabled via `configs` removed from its schema.
+//
+// The property Type is required.
+type BrowserToolset20260801Param struct {
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
+	AllowedCallers []string `json:"allowed_callers,omitzero"`
+	// Create a cache control breakpoint at this content block.
+	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
+	// Per-member configuration for `browser_toolset_20260801`: one optional field per
+	// member tool, keyed by the member name — the same name the member's `tool_use`
+	// blocks carry. Every member is an accepted key, and a member's defaults apply
+	// wherever its key is absent. Unknown keys are rejected: the field set is this
+	// toolset version's complete member set.
+	Configs BrowserToolsetConfigsParam `json:"configs,omitzero"`
+	// This field can be elided, and will marshal its zero value as
+	// "browser_toolset_20260801".
+	Type constant.BrowserToolset20260801 `json:"type" default:"browser_toolset_20260801"`
+	paramObj
+}
+
+func (r BrowserToolset20260801Param) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserToolset20260801Param
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserToolset20260801Param) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Per-member configuration for `browser_toolset_20260801`: one optional field per
+// member tool, keyed by the member name — the same name the member's `tool_use`
+// blocks carry. Every member is an accepted key, and a member's defaults apply
+// wherever its key is absent. Unknown keys are rejected: the field set is this
+// toolset version's complete member set.
+type BrowserToolsetConfigsParam struct {
+	// `close_tab`'s config overrides.
+	CloseTab BrowserCloseTabConfigParam `json:"close_tab,omitzero"`
+	// `double_click`'s config overrides.
+	DoubleClick BrowserDoubleClickConfigParam `json:"double_click,omitzero"`
+	// `file_upload`'s config overrides.
+	FileUpload BrowserFileUploadConfigParam `json:"file_upload,omitzero"`
+	// `find`'s config overrides.
+	Find BrowserFindConfigParam `json:"find,omitzero"`
+	// `form_input`'s config overrides.
+	FormInput BrowserFormInputConfigParam `json:"form_input,omitzero"`
+	// `get_page_text`'s config overrides.
+	GetPageText BrowserGetPageTextConfigParam `json:"get_page_text,omitzero"`
+	// `hold_key`'s config overrides.
+	HoldKey BrowserHoldKeyConfigParam `json:"hold_key,omitzero"`
+	// `hover`'s config overrides.
+	Hover BrowserHoverConfigParam `json:"hover,omitzero"`
+	// `javascript_exec`'s config overrides.
+	JavascriptExec BrowserJavascriptExecConfigParam `json:"javascript_exec,omitzero"`
+	// `key`'s config overrides.
+	Key BrowserKeyConfigParam `json:"key,omitzero"`
+	// `left_click`'s config overrides.
+	LeftClick BrowserLeftClickConfigParam `json:"left_click,omitzero"`
+	// `left_click_drag`'s config overrides.
+	LeftClickDrag BrowserLeftClickDragConfigParam `json:"left_click_drag,omitzero"`
+	// `left_mouse_down`'s config overrides.
+	LeftMouseDown BrowserLeftMouseDownConfigParam `json:"left_mouse_down,omitzero"`
+	// `left_mouse_up`'s config overrides.
+	LeftMouseUp BrowserLeftMouseUpConfigParam `json:"left_mouse_up,omitzero"`
+	// `list_tabs`'s config overrides.
+	ListTabs BrowserListTabsConfigParam `json:"list_tabs,omitzero"`
+	// `middle_click`'s config overrides.
+	MiddleClick BrowserMiddleClickConfigParam `json:"middle_click,omitzero"`
+	// `mouse_move`'s config overrides.
+	MouseMove BrowserMouseMoveConfigParam `json:"mouse_move,omitzero"`
+	// `navigate`'s config overrides.
+	Navigate BrowserNavigateConfigParam `json:"navigate,omitzero"`
+	// `new_tab`'s config overrides.
+	NewTab BrowserNewTabConfigParam `json:"new_tab,omitzero"`
+	// `read_console`'s config overrides.
+	ReadConsole BrowserReadConsoleConfigParam `json:"read_console,omitzero"`
+	// `read_network`'s config overrides.
+	ReadNetwork BrowserReadNetworkConfigParam `json:"read_network,omitzero"`
+	// `read_page`'s config overrides.
+	ReadPage BrowserReadPageConfigParam `json:"read_page,omitzero"`
+	// `right_click`'s config overrides.
+	RightClick BrowserRightClickConfigParam `json:"right_click,omitzero"`
+	// `screenshot`'s config overrides.
+	Screenshot BrowserScreenshotConfigParam `json:"screenshot,omitzero"`
+	// `scroll`'s config overrides.
+	Scroll BrowserScrollConfigParam `json:"scroll,omitzero"`
+	// `scroll_to`'s config overrides.
+	ScrollTo BrowserScrollToConfigParam `json:"scroll_to,omitzero"`
+	// `switch_tab`'s config overrides.
+	SwitchTab BrowserSwitchTabConfigParam `json:"switch_tab,omitzero"`
+	// `triple_click`'s config overrides.
+	TripleClick BrowserTripleClickConfigParam `json:"triple_click,omitzero"`
+	// `type`'s config overrides.
+	Type BrowserTypeConfigParam `json:"type,omitzero"`
+	// `wait`'s config overrides.
+	Wait BrowserWaitConfigParam `json:"wait,omitzero"`
+	// `zoom`'s config overrides.
+	Zoom BrowserZoomConfigParam `json:"zoom,omitzero"`
+	paramObj
+}
+
+func (r BrowserToolsetConfigsParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserToolsetConfigsParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserToolsetConfigsParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `triple_click`'s config overrides.
+type BrowserTripleClickConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserTripleClickConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserTripleClickConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserTripleClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `type`'s config overrides.
+type BrowserTypeConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserTypeConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserTypeConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserTypeConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `wait`'s config overrides.
+type BrowserWaitConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserWaitConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserWaitConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserWaitConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `zoom`'s config overrides.
+type BrowserZoomConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r BrowserZoomConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow BrowserZoomConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *BrowserZoomConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -482,11 +1523,13 @@ type CacheControlEphemeralParam struct {
 	// - `5m`: 5 minutes
 	// - `1h`: 1 hour
 	//
-	// Defaults to `5m`.
+	// Defaults to `5m`. See
+	// [prompt caching pricing](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
+	// for details.
 	//
 	// Any of "5m", "1h".
 	TTL  CacheControlEphemeralTTL `json:"ttl,omitzero"`
-	Type constant.Ephemeral       `json:"type,required"`
+	Type constant.Ephemeral       `json:"type" default:"ephemeral"`
 	paramObj
 }
 
@@ -505,7 +1548,9 @@ func (r *CacheControlEphemeralParam) UnmarshalJSON(data []byte) error {
 // - `5m`: 5 minutes
 // - `1h`: 1 hour
 //
-// Defaults to `5m`.
+// Defaults to `5m`. See
+// [prompt caching pricing](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
+// for details.
 type CacheControlEphemeralTTL string
 
 const (
@@ -515,9 +1560,9 @@ const (
 
 type CacheCreation struct {
 	// The number of input tokens used to create the 1 hour cache entry.
-	Ephemeral1hInputTokens int64 `json:"ephemeral_1h_input_tokens,required"`
+	Ephemeral1hInputTokens int64 `json:"ephemeral_1h_input_tokens" api:"required"`
 	// The number of input tokens used to create the 5 minute cache entry.
-	Ephemeral5mInputTokens int64 `json:"ephemeral_5m_input_tokens,required"`
+	Ephemeral5mInputTokens int64 `json:"ephemeral_5m_input_tokens" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Ephemeral1hInputTokens respjson.Field
@@ -534,13 +1579,13 @@ func (r *CacheCreation) UnmarshalJSON(data []byte) error {
 }
 
 type CitationCharLocation struct {
-	CitedText      string                `json:"cited_text,required"`
-	DocumentIndex  int64                 `json:"document_index,required"`
-	DocumentTitle  string                `json:"document_title,required"`
-	EndCharIndex   int64                 `json:"end_char_index,required"`
-	FileID         string                `json:"file_id,required"`
-	StartCharIndex int64                 `json:"start_char_index,required"`
-	Type           constant.CharLocation `json:"type,required"`
+	CitedText      string                `json:"cited_text" api:"required"`
+	DocumentIndex  int64                 `json:"document_index" api:"required"`
+	DocumentTitle  string                `json:"document_title" api:"required"`
+	EndCharIndex   int64                 `json:"end_char_index" api:"required"`
+	FileID         string                `json:"file_id" api:"required"`
+	StartCharIndex int64                 `json:"start_char_index" api:"required"`
+	Type           constant.CharLocation `json:"type" default:"char_location"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		CitedText      respjson.Field
@@ -564,13 +1609,13 @@ func (r *CitationCharLocation) UnmarshalJSON(data []byte) error {
 // The properties CitedText, DocumentIndex, DocumentTitle, EndCharIndex,
 // StartCharIndex, Type are required.
 type CitationCharLocationParam struct {
-	DocumentTitle  param.Opt[string] `json:"document_title,omitzero,required"`
-	CitedText      string            `json:"cited_text,required"`
-	DocumentIndex  int64             `json:"document_index,required"`
-	EndCharIndex   int64             `json:"end_char_index,required"`
-	StartCharIndex int64             `json:"start_char_index,required"`
+	DocumentTitle  param.Opt[string] `json:"document_title,omitzero" api:"required"`
+	CitedText      string            `json:"cited_text" api:"required"`
+	DocumentIndex  int64             `json:"document_index" api:"required"`
+	EndCharIndex   int64             `json:"end_char_index" api:"required"`
+	StartCharIndex int64             `json:"start_char_index" api:"required"`
 	// This field can be elided, and will marshal its zero value as "char_location".
-	Type constant.CharLocation `json:"type,required"`
+	Type constant.CharLocation `json:"type" default:"char_location"`
 	paramObj
 }
 
@@ -583,13 +1628,25 @@ func (r *CitationCharLocationParam) UnmarshalJSON(data []byte) error {
 }
 
 type CitationContentBlockLocation struct {
-	CitedText       string                        `json:"cited_text,required"`
-	DocumentIndex   int64                         `json:"document_index,required"`
-	DocumentTitle   string                        `json:"document_title,required"`
-	EndBlockIndex   int64                         `json:"end_block_index,required"`
-	FileID          string                        `json:"file_id,required"`
-	StartBlockIndex int64                         `json:"start_block_index,required"`
-	Type            constant.ContentBlockLocation `json:"type,required"`
+	// The full text of the cited block range, concatenated.
+	//
+	// Always equals the contents of `content[start_block_index:end_block_index]`
+	// joined together. The text block is the minimal citable unit; this field is never
+	// a substring of a single block. Not counted toward output tokens, and not counted
+	// toward input tokens when sent back in subsequent turns.
+	CitedText     string `json:"cited_text" api:"required"`
+	DocumentIndex int64  `json:"document_index" api:"required"`
+	DocumentTitle string `json:"document_title" api:"required"`
+	// Exclusive 0-based end index of the cited block range in the source's `content`
+	// array.
+	//
+	// Always greater than `start_block_index`; a single-block citation has
+	// `end_block_index = start_block_index + 1`.
+	EndBlockIndex int64  `json:"end_block_index" api:"required"`
+	FileID        string `json:"file_id" api:"required"`
+	// 0-based index of the first cited block in the source's `content` array.
+	StartBlockIndex int64                         `json:"start_block_index" api:"required"`
+	Type            constant.ContentBlockLocation `json:"type" default:"content_block_location"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		CitedText       respjson.Field
@@ -613,14 +1670,26 @@ func (r *CitationContentBlockLocation) UnmarshalJSON(data []byte) error {
 // The properties CitedText, DocumentIndex, DocumentTitle, EndBlockIndex,
 // StartBlockIndex, Type are required.
 type CitationContentBlockLocationParam struct {
-	DocumentTitle   param.Opt[string] `json:"document_title,omitzero,required"`
-	CitedText       string            `json:"cited_text,required"`
-	DocumentIndex   int64             `json:"document_index,required"`
-	EndBlockIndex   int64             `json:"end_block_index,required"`
-	StartBlockIndex int64             `json:"start_block_index,required"`
+	DocumentTitle param.Opt[string] `json:"document_title,omitzero" api:"required"`
+	// The full text of the cited block range, concatenated.
+	//
+	// Always equals the contents of `content[start_block_index:end_block_index]`
+	// joined together. The text block is the minimal citable unit; this field is never
+	// a substring of a single block. Not counted toward output tokens, and not counted
+	// toward input tokens when sent back in subsequent turns.
+	CitedText     string `json:"cited_text" api:"required"`
+	DocumentIndex int64  `json:"document_index" api:"required"`
+	// Exclusive 0-based end index of the cited block range in the source's `content`
+	// array.
+	//
+	// Always greater than `start_block_index`; a single-block citation has
+	// `end_block_index = start_block_index + 1`.
+	EndBlockIndex int64 `json:"end_block_index" api:"required"`
+	// 0-based index of the first cited block in the source's `content` array.
+	StartBlockIndex int64 `json:"start_block_index" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "content_block_location".
-	Type constant.ContentBlockLocation `json:"type,required"`
+	Type constant.ContentBlockLocation `json:"type" default:"content_block_location"`
 	paramObj
 }
 
@@ -633,13 +1702,13 @@ func (r *CitationContentBlockLocationParam) UnmarshalJSON(data []byte) error {
 }
 
 type CitationPageLocation struct {
-	CitedText       string                `json:"cited_text,required"`
-	DocumentIndex   int64                 `json:"document_index,required"`
-	DocumentTitle   string                `json:"document_title,required"`
-	EndPageNumber   int64                 `json:"end_page_number,required"`
-	FileID          string                `json:"file_id,required"`
-	StartPageNumber int64                 `json:"start_page_number,required"`
-	Type            constant.PageLocation `json:"type,required"`
+	CitedText       string                `json:"cited_text" api:"required"`
+	DocumentIndex   int64                 `json:"document_index" api:"required"`
+	DocumentTitle   string                `json:"document_title" api:"required"`
+	EndPageNumber   int64                 `json:"end_page_number" api:"required"`
+	FileID          string                `json:"file_id" api:"required"`
+	StartPageNumber int64                 `json:"start_page_number" api:"required"`
+	Type            constant.PageLocation `json:"type" default:"page_location"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		CitedText       respjson.Field
@@ -663,13 +1732,13 @@ func (r *CitationPageLocation) UnmarshalJSON(data []byte) error {
 // The properties CitedText, DocumentIndex, DocumentTitle, EndPageNumber,
 // StartPageNumber, Type are required.
 type CitationPageLocationParam struct {
-	DocumentTitle   param.Opt[string] `json:"document_title,omitzero,required"`
-	CitedText       string            `json:"cited_text,required"`
-	DocumentIndex   int64             `json:"document_index,required"`
-	EndPageNumber   int64             `json:"end_page_number,required"`
-	StartPageNumber int64             `json:"start_page_number,required"`
+	DocumentTitle   param.Opt[string] `json:"document_title,omitzero" api:"required"`
+	CitedText       string            `json:"cited_text" api:"required"`
+	DocumentIndex   int64             `json:"document_index" api:"required"`
+	EndPageNumber   int64             `json:"end_page_number" api:"required"`
+	StartPageNumber int64             `json:"start_page_number" api:"required"`
 	// This field can be elided, and will marshal its zero value as "page_location".
-	Type constant.PageLocation `json:"type,required"`
+	Type constant.PageLocation `json:"type" default:"page_location"`
 	paramObj
 }
 
@@ -684,15 +1753,33 @@ func (r *CitationPageLocationParam) UnmarshalJSON(data []byte) error {
 // The properties CitedText, EndBlockIndex, SearchResultIndex, Source,
 // StartBlockIndex, Title, Type are required.
 type CitationSearchResultLocationParam struct {
-	Title             param.Opt[string] `json:"title,omitzero,required"`
-	CitedText         string            `json:"cited_text,required"`
-	EndBlockIndex     int64             `json:"end_block_index,required"`
-	SearchResultIndex int64             `json:"search_result_index,required"`
-	Source            string            `json:"source,required"`
-	StartBlockIndex   int64             `json:"start_block_index,required"`
+	Title param.Opt[string] `json:"title,omitzero" api:"required"`
+	// The full text of the cited block range, concatenated.
+	//
+	// Always equals the contents of `content[start_block_index:end_block_index]`
+	// joined together. The text block is the minimal citable unit; this field is never
+	// a substring of a single block. Not counted toward output tokens, and not counted
+	// toward input tokens when sent back in subsequent turns.
+	CitedText string `json:"cited_text" api:"required"`
+	// Exclusive 0-based end index of the cited block range in the source's `content`
+	// array.
+	//
+	// Always greater than `start_block_index`; a single-block citation has
+	// `end_block_index = start_block_index + 1`.
+	EndBlockIndex int64 `json:"end_block_index" api:"required"`
+	// 0-based index of the cited search result among all `search_result` content
+	// blocks in the request, in the order they appear across messages and tool
+	// results.
+	//
+	// Counted separately from `document_index`; server-side web search results are not
+	// included in this count.
+	SearchResultIndex int64  `json:"search_result_index" api:"required"`
+	Source            string `json:"source" api:"required"`
+	// 0-based index of the first cited block in the source's `content` array.
+	StartBlockIndex int64 `json:"start_block_index" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "search_result_location".
-	Type constant.SearchResultLocation `json:"type,required"`
+	Type constant.SearchResultLocation `json:"type" default:"search_result_location"`
 	paramObj
 }
 
@@ -706,13 +1793,13 @@ func (r *CitationSearchResultLocationParam) UnmarshalJSON(data []byte) error {
 
 // The properties CitedText, EncryptedIndex, Title, Type, URL are required.
 type CitationWebSearchResultLocationParam struct {
-	Title          param.Opt[string] `json:"title,omitzero,required"`
-	CitedText      string            `json:"cited_text,required"`
-	EncryptedIndex string            `json:"encrypted_index,required"`
-	URL            string            `json:"url,required"`
+	Title          param.Opt[string] `json:"title,omitzero" api:"required"`
+	CitedText      string            `json:"cited_text" api:"required"`
+	EncryptedIndex string            `json:"encrypted_index" api:"required"`
+	URL            string            `json:"url" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_search_result_location".
-	Type constant.WebSearchResultLocation `json:"type,required"`
+	Type constant.WebSearchResultLocation `json:"type" default:"web_search_result_location"`
 	paramObj
 }
 
@@ -725,7 +1812,7 @@ func (r *CitationWebSearchResultLocationParam) UnmarshalJSON(data []byte) error 
 }
 
 type CitationsConfig struct {
-	Enabled bool `json:"enabled,required"`
+	Enabled bool `json:"enabled" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Enabled     respjson.Field
@@ -754,8 +1841,8 @@ func (r *CitationsConfigParam) UnmarshalJSON(data []byte) error {
 }
 
 type CitationsDelta struct {
-	Citation CitationsDeltaCitationUnion `json:"citation,required"`
-	Type     constant.CitationsDelta     `json:"type,required"`
+	Citation CitationsDeltaCitationUnion `json:"citation" api:"required"`
+	Type     constant.CitationsDelta     `json:"type" default:"citations_delta"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Citation    respjson.Field
@@ -899,13 +1986,31 @@ func (r *CitationsDeltaCitationUnion) UnmarshalJSON(data []byte) error {
 }
 
 type CitationsSearchResultLocation struct {
-	CitedText         string                        `json:"cited_text,required"`
-	EndBlockIndex     int64                         `json:"end_block_index,required"`
-	SearchResultIndex int64                         `json:"search_result_index,required"`
-	Source            string                        `json:"source,required"`
-	StartBlockIndex   int64                         `json:"start_block_index,required"`
-	Title             string                        `json:"title,required"`
-	Type              constant.SearchResultLocation `json:"type,required"`
+	// The full text of the cited block range, concatenated.
+	//
+	// Always equals the contents of `content[start_block_index:end_block_index]`
+	// joined together. The text block is the minimal citable unit; this field is never
+	// a substring of a single block. Not counted toward output tokens, and not counted
+	// toward input tokens when sent back in subsequent turns.
+	CitedText string `json:"cited_text" api:"required"`
+	// Exclusive 0-based end index of the cited block range in the source's `content`
+	// array.
+	//
+	// Always greater than `start_block_index`; a single-block citation has
+	// `end_block_index = start_block_index + 1`.
+	EndBlockIndex int64 `json:"end_block_index" api:"required"`
+	// 0-based index of the cited search result among all `search_result` content
+	// blocks in the request, in the order they appear across messages and tool
+	// results.
+	//
+	// Counted separately from `document_index`; server-side web search results are not
+	// included in this count.
+	SearchResultIndex int64  `json:"search_result_index" api:"required"`
+	Source            string `json:"source" api:"required"`
+	// 0-based index of the first cited block in the source's `content` array.
+	StartBlockIndex int64                         `json:"start_block_index" api:"required"`
+	Title           string                        `json:"title" api:"required"`
+	Type            constant.SearchResultLocation `json:"type" default:"search_result_location"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		CitedText         respjson.Field
@@ -927,11 +2032,11 @@ func (r *CitationsSearchResultLocation) UnmarshalJSON(data []byte) error {
 }
 
 type CitationsWebSearchResultLocation struct {
-	CitedText      string                           `json:"cited_text,required"`
-	EncryptedIndex string                           `json:"encrypted_index,required"`
-	Title          string                           `json:"title,required"`
-	Type           constant.WebSearchResultLocation `json:"type,required"`
-	URL            string                           `json:"url,required"`
+	CitedText      string                           `json:"cited_text" api:"required"`
+	EncryptedIndex string                           `json:"encrypted_index" api:"required"`
+	Title          string                           `json:"title" api:"required"`
+	Type           constant.WebSearchResultLocation `json:"type" default:"web_search_result_location"`
+	URL            string                           `json:"url" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		CitedText      respjson.Field
@@ -951,8 +2056,8 @@ func (r *CitationsWebSearchResultLocation) UnmarshalJSON(data []byte) error {
 }
 
 type CodeExecutionOutputBlock struct {
-	FileID string                       `json:"file_id,required"`
-	Type   constant.CodeExecutionOutput `json:"type,required"`
+	FileID string                       `json:"file_id" api:"required"`
+	Type   constant.CodeExecutionOutput `json:"type" default:"code_execution_output"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		FileID      respjson.Field
@@ -970,10 +2075,10 @@ func (r *CodeExecutionOutputBlock) UnmarshalJSON(data []byte) error {
 
 // The properties FileID, Type are required.
 type CodeExecutionOutputBlockParam struct {
-	FileID string `json:"file_id,required"`
+	FileID string `json:"file_id" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "code_execution_output".
-	Type constant.CodeExecutionOutput `json:"type,required"`
+	Type constant.CodeExecutionOutput `json:"type" default:"code_execution_output"`
 	paramObj
 }
 
@@ -986,11 +2091,11 @@ func (r *CodeExecutionOutputBlockParam) UnmarshalJSON(data []byte) error {
 }
 
 type CodeExecutionResultBlock struct {
-	Content    []CodeExecutionOutputBlock   `json:"content,required"`
-	ReturnCode int64                        `json:"return_code,required"`
-	Stderr     string                       `json:"stderr,required"`
-	Stdout     string                       `json:"stdout,required"`
-	Type       constant.CodeExecutionResult `json:"type,required"`
+	Content    []CodeExecutionOutputBlock   `json:"content" api:"required"`
+	ReturnCode int64                        `json:"return_code" api:"required"`
+	Stderr     string                       `json:"stderr" api:"required"`
+	Stdout     string                       `json:"stdout" api:"required"`
+	Type       constant.CodeExecutionResult `json:"type" default:"code_execution_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Content     respjson.Field
@@ -1011,13 +2116,13 @@ func (r *CodeExecutionResultBlock) UnmarshalJSON(data []byte) error {
 
 // The properties Content, ReturnCode, Stderr, Stdout, Type are required.
 type CodeExecutionResultBlockParam struct {
-	Content    []CodeExecutionOutputBlockParam `json:"content,omitzero,required"`
-	ReturnCode int64                           `json:"return_code,required"`
-	Stderr     string                          `json:"stderr,required"`
-	Stdout     string                          `json:"stdout,required"`
+	Content    []CodeExecutionOutputBlockParam `json:"content,omitzero" api:"required"`
+	ReturnCode int64                           `json:"return_code" api:"required"`
+	Stderr     string                          `json:"stderr" api:"required"`
+	Stdout     string                          `json:"stdout" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "code_execution_result".
-	Type constant.CodeExecutionResult `json:"type,required"`
+	Type constant.CodeExecutionResult `json:"type" default:"code_execution_result"`
 	paramObj
 }
 
@@ -1036,7 +2141,8 @@ type CodeExecutionTool20250522Param struct {
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// When true, guarantees schema validation on tool names and inputs
 	Strict param.Opt[bool] `json:"strict,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -1045,10 +2151,10 @@ type CodeExecutionTool20250522Param struct {
 	// This is how the tool will be called by the model and in `tool_use` blocks.
 	//
 	// This field can be elided, and will marshal its zero value as "code_execution".
-	Name constant.CodeExecution `json:"name,required"`
+	Name constant.CodeExecution `json:"name" default:"code_execution"`
 	// This field can be elided, and will marshal its zero value as
 	// "code_execution_20250522".
-	Type constant.CodeExecution20250522 `json:"type,required"`
+	Type constant.CodeExecution20250522 `json:"type" default:"code_execution_20250522"`
 	paramObj
 }
 
@@ -1067,7 +2173,8 @@ type CodeExecutionTool20250825Param struct {
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// When true, guarantees schema validation on tool names and inputs
 	Strict param.Opt[bool] `json:"strict,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -1076,10 +2183,10 @@ type CodeExecutionTool20250825Param struct {
 	// This is how the tool will be called by the model and in `tool_use` blocks.
 	//
 	// This field can be elided, and will marshal its zero value as "code_execution".
-	Name constant.CodeExecution `json:"name,required"`
+	Name constant.CodeExecution `json:"name" default:"code_execution"`
 	// This field can be elided, and will marshal its zero value as
 	// "code_execution_20250825".
-	Type constant.CodeExecution20250825 `json:"type,required"`
+	Type constant.CodeExecution20250825 `json:"type" default:"code_execution_20250825"`
 	paramObj
 }
 
@@ -1101,7 +2208,8 @@ type CodeExecutionTool20260120Param struct {
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// When true, guarantees schema validation on tool names and inputs
 	Strict param.Opt[bool] `json:"strict,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -1110,10 +2218,10 @@ type CodeExecutionTool20260120Param struct {
 	// This is how the tool will be called by the model and in `tool_use` blocks.
 	//
 	// This field can be elided, and will marshal its zero value as "code_execution".
-	Name constant.CodeExecution `json:"name,required"`
+	Name constant.CodeExecution `json:"name" default:"code_execution"`
 	// This field can be elided, and will marshal its zero value as
 	// "code_execution_20260120".
-	Type constant.CodeExecution20260120 `json:"type,required"`
+	Type constant.CodeExecution20260120 `json:"type" default:"code_execution_20260120"`
 	paramObj
 }
 
@@ -1125,11 +2233,45 @@ func (r *CodeExecutionTool20260120Param) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Code execution tool with REPL state persistence.
+//
+// The properties Name, Type are required.
+type CodeExecutionTool20260521Param struct {
+	// If true, tool will not be included in initial system prompt. Only loaded when
+	// returned via tool_reference from tool search.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// When true, guarantees schema validation on tool names and inputs
+	Strict param.Opt[bool] `json:"strict,omitzero"`
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
+	AllowedCallers []string `json:"allowed_callers,omitzero"`
+	// Create a cache control breakpoint at this content block.
+	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
+	// Name of the tool.
+	//
+	// This is how the tool will be called by the model and in `tool_use` blocks.
+	//
+	// This field can be elided, and will marshal its zero value as "code_execution".
+	Name constant.CodeExecution `json:"name" default:"code_execution"`
+	// This field can be elided, and will marshal its zero value as
+	// "code_execution_20260521".
+	Type constant.CodeExecution20260521 `json:"type" default:"code_execution_20260521"`
+	paramObj
+}
+
+func (r CodeExecutionTool20260521Param) MarshalJSON() (data []byte, err error) {
+	type shadow CodeExecutionTool20260521Param
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *CodeExecutionTool20260521Param) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 type CodeExecutionToolResultBlock struct {
 	// Code execution result with encrypted stdout for PFC + web_search results.
-	Content   CodeExecutionToolResultBlockContentUnion `json:"content,required"`
-	ToolUseID string                                   `json:"tool_use_id,required"`
-	Type      constant.CodeExecutionToolResult         `json:"type,required"`
+	Content   CodeExecutionToolResultBlockContentUnion `json:"content" api:"required"`
+	ToolUseID string                                   `json:"tool_use_id" api:"required"`
+	Type      constant.CodeExecutionToolResult         `json:"type" default:"code_execution_tool_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Content     respjson.Field
@@ -1199,13 +2341,13 @@ func (r *CodeExecutionToolResultBlockContentUnion) UnmarshalJSON(data []byte) er
 // The properties Content, ToolUseID, Type are required.
 type CodeExecutionToolResultBlockParam struct {
 	// Code execution result with encrypted stdout for PFC + web_search results.
-	Content   CodeExecutionToolResultBlockParamContentUnion `json:"content,omitzero,required"`
-	ToolUseID string                                        `json:"tool_use_id,required"`
+	Content   CodeExecutionToolResultBlockParamContentUnion `json:"content,omitzero" api:"required"`
+	ToolUseID string                                        `json:"tool_use_id" api:"required"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "code_execution_tool_result".
-	Type constant.CodeExecutionToolResult `json:"type,required"`
+	Type constant.CodeExecutionToolResult `json:"type" default:"code_execution_tool_result"`
 	paramObj
 }
 
@@ -1320,8 +2462,8 @@ func (u CodeExecutionToolResultBlockParamContentUnion) GetContent() []CodeExecut
 type CodeExecutionToolResultError struct {
 	// Any of "invalid_tool_input", "unavailable", "too_many_requests",
 	// "execution_time_exceeded".
-	ErrorCode CodeExecutionToolResultErrorCode      `json:"error_code,required"`
-	Type      constant.CodeExecutionToolResultError `json:"type,required"`
+	ErrorCode CodeExecutionToolResultErrorCode      `json:"error_code" api:"required"`
+	Type      constant.CodeExecutionToolResultError `json:"type" default:"code_execution_tool_result_error"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ErrorCode   respjson.Field
@@ -1350,10 +2492,10 @@ const (
 type CodeExecutionToolResultErrorParam struct {
 	// Any of "invalid_tool_input", "unavailable", "too_many_requests",
 	// "execution_time_exceeded".
-	ErrorCode CodeExecutionToolResultErrorCode `json:"error_code,omitzero,required"`
+	ErrorCode CodeExecutionToolResultErrorCode `json:"error_code,omitzero" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "code_execution_tool_result_error".
-	Type constant.CodeExecutionToolResultError `json:"type,required"`
+	Type constant.CodeExecutionToolResultError `json:"type" default:"code_execution_tool_result_error"`
 	paramObj
 }
 
@@ -1365,17 +2507,445 @@ func (r *CodeExecutionToolResultErrorParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// `cursor_position`'s config overrides.
+type ComputerCursorPositionConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerCursorPositionConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerCursorPositionConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerCursorPositionConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `double_click`'s config overrides.
+type ComputerDoubleClickConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerDoubleClickConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerDoubleClickConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerDoubleClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `hold_key`'s config overrides.
+type ComputerHoldKeyConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerHoldKeyConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerHoldKeyConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerHoldKeyConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `key`'s config overrides.
+type ComputerKeyConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerKeyConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerKeyConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerKeyConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `left_click`'s config overrides.
+type ComputerLeftClickConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerLeftClickConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerLeftClickConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerLeftClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `left_click_drag`'s config overrides.
+type ComputerLeftClickDragConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerLeftClickDragConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerLeftClickDragConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerLeftClickDragConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `left_mouse_down`'s config overrides.
+type ComputerLeftMouseDownConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerLeftMouseDownConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerLeftMouseDownConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerLeftMouseDownConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `left_mouse_up`'s config overrides.
+type ComputerLeftMouseUpConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerLeftMouseUpConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerLeftMouseUpConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerLeftMouseUpConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `middle_click`'s config overrides.
+type ComputerMiddleClickConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerMiddleClickConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerMiddleClickConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerMiddleClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `mouse_move`'s config overrides.
+type ComputerMouseMoveConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerMouseMoveConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerMouseMoveConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerMouseMoveConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `right_click`'s config overrides.
+type ComputerRightClickConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerRightClickConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerRightClickConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerRightClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `screenshot`'s config overrides.
+type ComputerScreenshotConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerScreenshotConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerScreenshotConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerScreenshotConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `scroll`'s config overrides.
+type ComputerScrollConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerScrollConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerScrollConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerScrollConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The computer toolset: a single `tools[]` entry (carrying no `name`) that
+// declares the computer tool family. The model is served the family's tool with
+// any members disabled via `configs` removed from its schema. Every member is
+// enabled by default, zoom included. The single-tool options `display_number` and
+// `enable_zoom` are not fields of a toolset entry — it carries only `type`,
+// `configs`, and `cache_control`; zoom is controlled via `configs.zoom.enabled`.
+//
+// The property Type is required.
+type ComputerToolset20260801Param struct {
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
+	AllowedCallers []string `json:"allowed_callers,omitzero"`
+	// Create a cache control breakpoint at this content block.
+	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
+	// Per-member configuration for `computer_toolset_20260801`: one optional field per
+	// member tool, keyed by the member name — the same name the member's `tool_use`
+	// blocks carry. Every member is an accepted key, and a member's defaults apply
+	// wherever its key is absent. Unknown keys are rejected: the field set is this
+	// toolset version's complete member set.
+	Configs ComputerToolsetConfigsParam `json:"configs,omitzero"`
+	// This field can be elided, and will marshal its zero value as
+	// "computer_toolset_20260801".
+	Type constant.ComputerToolset20260801 `json:"type" default:"computer_toolset_20260801"`
+	paramObj
+}
+
+func (r ComputerToolset20260801Param) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerToolset20260801Param
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerToolset20260801Param) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Per-member configuration for `computer_toolset_20260801`: one optional field per
+// member tool, keyed by the member name — the same name the member's `tool_use`
+// blocks carry. Every member is an accepted key, and a member's defaults apply
+// wherever its key is absent. Unknown keys are rejected: the field set is this
+// toolset version's complete member set.
+type ComputerToolsetConfigsParam struct {
+	// `cursor_position`'s config overrides.
+	CursorPosition ComputerCursorPositionConfigParam `json:"cursor_position,omitzero"`
+	// `double_click`'s config overrides.
+	DoubleClick ComputerDoubleClickConfigParam `json:"double_click,omitzero"`
+	// `hold_key`'s config overrides.
+	HoldKey ComputerHoldKeyConfigParam `json:"hold_key,omitzero"`
+	// `key`'s config overrides.
+	Key ComputerKeyConfigParam `json:"key,omitzero"`
+	// `left_click`'s config overrides.
+	LeftClick ComputerLeftClickConfigParam `json:"left_click,omitzero"`
+	// `left_click_drag`'s config overrides.
+	LeftClickDrag ComputerLeftClickDragConfigParam `json:"left_click_drag,omitzero"`
+	// `left_mouse_down`'s config overrides.
+	LeftMouseDown ComputerLeftMouseDownConfigParam `json:"left_mouse_down,omitzero"`
+	// `left_mouse_up`'s config overrides.
+	LeftMouseUp ComputerLeftMouseUpConfigParam `json:"left_mouse_up,omitzero"`
+	// `middle_click`'s config overrides.
+	MiddleClick ComputerMiddleClickConfigParam `json:"middle_click,omitzero"`
+	// `mouse_move`'s config overrides.
+	MouseMove ComputerMouseMoveConfigParam `json:"mouse_move,omitzero"`
+	// `right_click`'s config overrides.
+	RightClick ComputerRightClickConfigParam `json:"right_click,omitzero"`
+	// `screenshot`'s config overrides.
+	Screenshot ComputerScreenshotConfigParam `json:"screenshot,omitzero"`
+	// `scroll`'s config overrides.
+	Scroll ComputerScrollConfigParam `json:"scroll,omitzero"`
+	// `triple_click`'s config overrides.
+	TripleClick ComputerTripleClickConfigParam `json:"triple_click,omitzero"`
+	// `type`'s config overrides.
+	Type ComputerTypeConfigParam `json:"type,omitzero"`
+	// `wait`'s config overrides.
+	Wait ComputerWaitConfigParam `json:"wait,omitzero"`
+	// `zoom`'s config overrides.
+	Zoom ComputerZoomConfigParam `json:"zoom,omitzero"`
+	paramObj
+}
+
+func (r ComputerToolsetConfigsParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerToolsetConfigsParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerToolsetConfigsParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `triple_click`'s config overrides.
+type ComputerTripleClickConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerTripleClickConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerTripleClickConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerTripleClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `type`'s config overrides.
+type ComputerTypeConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerTypeConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerTypeConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerTypeConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `wait`'s config overrides.
+type ComputerWaitConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerWaitConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerWaitConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerWaitConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// `zoom`'s config overrides.
+type ComputerZoomConfigParam struct {
+	// Defer loading for this member. Must resolve to the same value on every enabled
+	// member of the toolset.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Whether this member is offered to the model. Default is per member, per the
+	// toolset's documentation. A member whose enabled resolves false is withheld from
+	// the served schema.
+	Enabled param.Opt[bool] `json:"enabled,omitzero"`
+	paramObj
+}
+
+func (r ComputerZoomConfigParam) MarshalJSON() (data []byte, err error) {
+	type shadow ComputerZoomConfigParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ComputerZoomConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // Information about the container used in the request (for the code execution
 // tool)
 type Container struct {
 	// Identifier for the container used in this request
-	ID string `json:"id,required"`
+	ID string `json:"id" api:"required"`
 	// The time at which the container will expire.
-	ExpiresAt time.Time `json:"expires_at,required" format:"date-time"`
+	ExpiresAt time.Time `json:"expires_at" api:"required" format:"date-time"`
+	// Skills loaded in the container
+	Skills []ContainerSkill `json:"skills" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
 		ExpiresAt   respjson.Field
+		Skills      respjson.Field
 		ExtraFields map[string]respjson.Field
 		raw         string
 	} `json:"-"`
@@ -1387,10 +2957,61 @@ func (r *Container) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Container parameters with skills to be loaded.
+type ContainerParams struct {
+	// Container id
+	ID param.Opt[string] `json:"id,omitzero"`
+	// List of skills to load in the container
+	Skills []SkillParams `json:"skills,omitzero"`
+	paramObj
+}
+
+func (r ContainerParams) MarshalJSON() (data []byte, err error) {
+	type shadow ContainerParams
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ContainerParams) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A skill that was loaded in a container (response model).
+type ContainerSkill struct {
+	// Skill ID
+	SkillID string `json:"skill_id" api:"required"`
+	// Type of skill - either 'anthropic' (built-in) or 'custom' (user-defined)
+	//
+	// Any of "anthropic", "custom".
+	Type ContainerSkillType `json:"type" api:"required"`
+	// The resolved version: a skill version ID for custom skills.
+	Version string `json:"version" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		SkillID     respjson.Field
+		Type        respjson.Field
+		Version     respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ContainerSkill) RawJSON() string { return r.JSON.raw }
+func (r *ContainerSkill) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Type of skill - either 'anthropic' (built-in) or 'custom' (user-defined)
+type ContainerSkillType string
+
+const (
+	ContainerSkillTypeAnthropic ContainerSkillType = "anthropic"
+	ContainerSkillTypeCustom    ContainerSkillType = "custom"
+)
+
 // Response model for a file uploaded to the container.
 type ContainerUploadBlock struct {
-	FileID string                   `json:"file_id,required"`
-	Type   constant.ContainerUpload `json:"type,required"`
+	FileID string                   `json:"file_id" api:"required"`
+	Type   constant.ContainerUpload `json:"type" default:"container_upload"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		FileID      respjson.Field
@@ -1411,11 +3032,11 @@ func (r *ContainerUploadBlock) UnmarshalJSON(data []byte) error {
 //
 // The properties FileID, Type are required.
 type ContainerUploadBlockParam struct {
-	FileID string `json:"file_id,required"`
+	FileID string `json:"file_id" api:"required"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	// This field can be elided, and will marshal its zero value as "container_upload".
-	Type constant.ContainerUpload `json:"type,required"`
+	Type constant.ContainerUpload `json:"type" default:"container_upload"`
 	paramObj
 }
 
@@ -1457,25 +3078,28 @@ type ContentBlockUnion struct {
 	// necessary custom code modification
 	Input json.RawMessage `json:"input"`
 	Name  string          `json:"name"`
+	// This field is from variant [ToolUseBlock].
+	ToolsetName string `json:"toolset_name"`
 	// This field is from variant [WebSearchToolResultBlock].
 	Content WebSearchToolResultBlockContentUnion `json:"content"`
 	// This field is from variant [WebSearchToolResultBlock].
 	ToolUseID string `json:"tool_use_id"`
 	JSON      struct {
-		Citations respjson.Field
-		Text      respjson.Field
-		Type      respjson.Field
-		Signature respjson.Field
-		Thinking  respjson.Field
-		Data      respjson.Field
-		ID        respjson.Field
-		Caller    respjson.Field
-		Input     respjson.Field
-		Name      respjson.Field
-		Content   respjson.Field
-		ToolUseID respjson.Field
-		FileID    respjson.Field
-		raw       string
+		Citations   respjson.Field
+		Text        respjson.Field
+		Type        respjson.Field
+		Signature   respjson.Field
+		Thinking    respjson.Field
+		Data        respjson.Field
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Content     respjson.Field
+		ToolUseID   respjson.Field
+		FileID      respjson.Field
+		raw         string
 	} `json:"-"`
 }
 
@@ -1759,13 +3383,17 @@ func NewTextBlock(text string) ContentBlockParamUnion {
 	return ContentBlockParamUnion{OfText: &variant}
 }
 
-func NewImageBlock[T Base64ImageSourceParam | URLImageSourceParam](source T) ContentBlockParamUnion {
+func NewImageBlock[
+	T Base64ImageSourceParam | URLImageSourceParam | FileImageSourceParam,
+](source T) ContentBlockParamUnion {
 	var image ImageBlockParam
 	switch v := any(source).(type) {
 	case Base64ImageSourceParam:
 		image.Source.OfBase64 = &v
 	case URLImageSourceParam:
 		image.Source.OfURL = &v
+	case FileImageSourceParam:
+		image.Source.OfFile = &v
 	}
 	return ContentBlockParamUnion{OfImage: &image}
 }
@@ -1784,7 +3412,7 @@ func NewImageBlockBase64(mediaType string, encodedData string) ContentBlockParam
 }
 
 func NewDocumentBlock[
-	T Base64PDFSourceParam | PlainTextSourceParam | ContentBlockSourceParam | URLPDFSourceParam,
+	T Base64PDFSourceParam | PlainTextSourceParam | ContentBlockSourceParam | URLPDFSourceParam | FileDocumentSourceParam,
 ](source T) ContentBlockParamUnion {
 	var document DocumentBlockParam
 	switch v := any(source).(type) {
@@ -1796,6 +3424,8 @@ func NewDocumentBlock[
 		document.Source.OfContent = &v
 	case URLPDFSourceParam:
 		document.Source.OfURL = &v
+	case FileDocumentSourceParam:
+		document.Source.OfFile = &v
 	}
 	return ContentBlockParamUnion{OfDocument: &document}
 }
@@ -2035,6 +3665,14 @@ func (u ContentBlockParamUnion) GetText() *string {
 }
 
 // Returns a pointer to the underlying variant's property, if present.
+func (u ContentBlockParamUnion) GetTransformations() *ImageTransformationsParam {
+	if vt := u.OfImage; vt != nil {
+		return &vt.Transformations
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
 func (u ContentBlockParamUnion) GetContext() *string {
 	if vt := u.OfDocument; vt != nil && vt.Context.Valid() {
 		return &vt.Context.Value
@@ -2151,6 +3789,16 @@ func (u ContentBlockParamUnion) GetName() *string {
 }
 
 // Returns a pointer to the underlying variant's property, if present.
+func (u ContentBlockParamUnion) GetToolsetName() *string {
+	if vt := u.OfToolUse; vt != nil && vt.ToolsetName.Valid() {
+		return &vt.ToolsetName.Value
+	} else if vt := u.OfToolResult; vt != nil && vt.ToolsetName.Valid() {
+		return &vt.ToolsetName.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
 func (u ContentBlockParamUnion) GetToolUseID() *string {
 	if vt := u.OfToolResult; vt != nil {
 		return (*string)(&vt.ToolUseID)
@@ -2255,8 +3903,9 @@ func (u ContentBlockParamUnion) GetSource() (res contentBlockParamUnionSource) {
 }
 
 // Can have the runtime types [*Base64ImageSourceParam], [*URLImageSourceParam],
-// [*Base64PDFSourceParam], [*PlainTextSourceParam], [*ContentBlockSourceParam],
-// [*URLPDFSourceParam], [*string]
+// [*FileImageSourceParam], [*Base64PDFSourceParam], [*PlainTextSourceParam],
+// [*ContentBlockSourceParam], [*URLPDFSourceParam], [*FileDocumentSourceParam],
+// [*string]
 type contentBlockParamUnionSource struct{ any }
 
 // Use the following switch statement to get the type of the union:
@@ -2264,10 +3913,12 @@ type contentBlockParamUnionSource struct{ any }
 //	switch u.AsAny().(type) {
 //	case *anthropic.Base64ImageSourceParam:
 //	case *anthropic.URLImageSourceParam:
+//	case *anthropic.FileImageSourceParam:
 //	case *anthropic.Base64PDFSourceParam:
 //	case *anthropic.PlainTextSourceParam:
 //	case *anthropic.ContentBlockSourceParam:
 //	case *anthropic.URLPDFSourceParam:
+//	case *anthropic.FileDocumentSourceParam:
 //	case *string:
 //	default:
 //	    fmt.Errorf("not present")
@@ -2323,6 +3974,17 @@ func (u contentBlockParamUnionSource) GetURL() *string {
 		return vt.GetURL()
 	case *DocumentBlockParamSourceUnion:
 		return vt.GetURL()
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u contentBlockParamUnionSource) GetFileID() *string {
+	switch vt := u.any.(type) {
+	case *ImageBlockParamSourceUnion:
+		return vt.GetFileID()
+	case *DocumentBlockParamSourceUnion:
+		return vt.GetFileID()
 	}
 	return nil
 }
@@ -2411,15 +4073,6 @@ func (u contentBlockParamUnionContent) GetEncryptedStdout() *string {
 	switch vt := u.any.(type) {
 	case *CodeExecutionToolResultBlockParamContentUnion:
 		return vt.GetEncryptedStdout()
-	}
-	return nil
-}
-
-// Returns a pointer to the underlying variant's property, if present.
-func (u contentBlockParamUnionContent) GetErrorMessage() *string {
-	switch vt := u.any.(type) {
-	case *TextEditorCodeExecutionToolResultBlockParamContentUnion:
-		return vt.GetErrorMessage()
 	}
 	return nil
 }
@@ -2598,6 +4251,17 @@ func (u contentBlockParamUnionContent) GetStdout() *string {
 	return nil
 }
 
+// Returns a pointer to the underlying variant's property, if present.
+func (u contentBlockParamUnionContent) GetErrorMessage() *string {
+	switch vt := u.any.(type) {
+	case *TextEditorCodeExecutionToolResultBlockParamContentUnion:
+		return vt.GetErrorMessage()
+	case *ToolSearchToolResultBlockParamContentUnion:
+		return vt.GetErrorMessage()
+	}
+	return nil
+}
+
 // Returns a subunion which exports methods to access subproperties
 //
 // Or use AsAny() to get the underlying value
@@ -2704,6 +4368,34 @@ func (u contentBlockParamUnionCaller) GetToolID() *string {
 }
 
 func init() {
+	apijson.RegisterCustomDecoder[[]ContentBlockParamUnion](func(node gjson.Result, value reflect.Value, defaultDecoder func(gjson.Result, reflect.Value) error) error {
+		if node.Type == gjson.String {
+			textBlock := TextBlockParam{Text: node.String(), Type: "text"}
+			contentUnion := ContentBlockParamUnion{OfText: &textBlock}
+			arrayValue := reflect.MakeSlice(value.Type(), 1, 1)
+			arrayValue.Index(0).Set(reflect.ValueOf(contentUnion))
+			value.Set(arrayValue)
+			return nil
+		}
+		return defaultDecoder(node, value)
+	})
+}
+
+func init() {
+	apijson.RegisterCustomDecoder[[]ToolResultBlockParamContentUnion](func(node gjson.Result, value reflect.Value, defaultDecoder func(gjson.Result, reflect.Value) error) error {
+		if node.Type == gjson.String {
+			textBlock := TextBlockParam{Text: node.String(), Type: "text"}
+			contentUnion := ToolResultBlockParamContentUnion{OfText: &textBlock}
+			arrayValue := reflect.MakeSlice(value.Type(), 1, 1)
+			arrayValue.Index(0).Set(reflect.ValueOf(contentUnion))
+			value.Set(arrayValue)
+			return nil
+		}
+		return defaultDecoder(node, value)
+	})
+}
+
+func init() {
 	apijson.RegisterUnion[ContentBlockParamUnion](
 		"type",
 		apijson.Discriminator[TextBlockParam]("text"),
@@ -2723,119 +4415,13 @@ func init() {
 		apijson.Discriminator[ToolSearchToolResultBlockParam]("tool_search_tool_result"),
 		apijson.Discriminator[ContainerUploadBlockParam]("container_upload"),
 	)
-
-	// Register custom decoder for []ContentBlockParamUnion to handle string content
-	apijson.RegisterCustomDecoder[[]ContentBlockParamUnion](func(node gjson.Result, value reflect.Value, defaultDecoder func(gjson.Result, reflect.Value) error) error {
-		// If it's a string, convert it to a TextBlock automatically
-		if node.Type == gjson.String {
-			textBlock := TextBlockParam{
-				Text: node.String(),
-				Type: "text",
-			}
-			contentUnion := ContentBlockParamUnion{
-				OfText: &textBlock,
-			}
-			arrayValue := reflect.MakeSlice(value.Type(), 1, 1)
-			arrayValue.Index(0).Set(reflect.ValueOf(contentUnion))
-			value.Set(arrayValue)
-			return nil
-		}
-
-		return defaultDecoder(node, value)
-	})
-}
-
-func init() {
-	apijson.RegisterUnion[ContentBlockSourceContentItemUnionParam](
-		"type",
-		apijson.Discriminator[TextBlockParam]("text"),
-		apijson.Discriminator[ImageBlockParam]("image"),
-	)
-}
-
-func init() {
-	apijson.RegisterUnion[DocumentBlockParamSourceUnion](
-		"type",
-		apijson.Discriminator[Base64PDFSourceParam]("base64"),
-		apijson.Discriminator[PlainTextSourceParam]("text"),
-		apijson.Discriminator[ContentBlockSourceParam]("content"),
-		apijson.Discriminator[URLPDFSourceParam]("url"),
-	)
-}
-
-func init() {
-	apijson.RegisterUnion[ImageBlockParamSourceUnion](
-		"type",
-		apijson.Discriminator[Base64ImageSourceParam]("base64"),
-		apijson.Discriminator[URLImageSourceParam]("url"),
-	)
-}
-
-func init() {
-	apijson.RegisterUnion[TextCitationParamUnion](
-		"type",
-		apijson.Discriminator[CitationCharLocationParam]("char_location"),
-		apijson.Discriminator[CitationPageLocationParam]("page_location"),
-		apijson.Discriminator[CitationContentBlockLocationParam]("content_block_location"),
-		apijson.Discriminator[CitationWebSearchResultLocationParam]("web_search_result_location"),
-		apijson.Discriminator[CitationSearchResultLocationParam]("search_result_location"),
-	)
-}
-
-func init() {
-	apijson.RegisterUnion[ThinkingConfigParamUnion](
-		"type",
-		apijson.Discriminator[ThinkingConfigEnabledParam]("enabled"),
-		apijson.Discriminator[ThinkingConfigDisabledParam]("disabled"),
-	)
-}
-
-func init() {
-	apijson.RegisterUnion[ToolChoiceUnionParam](
-		"type",
-		apijson.Discriminator[ToolChoiceAutoParam]("auto"),
-		apijson.Discriminator[ToolChoiceAnyParam]("any"),
-		apijson.Discriminator[ToolChoiceToolParam]("tool"),
-		apijson.Discriminator[ToolChoiceNoneParam]("none"),
-	)
-}
-
-func init() {
-	apijson.RegisterUnion[ToolResultBlockParamContentUnion](
-		"type",
-		apijson.Discriminator[TextBlockParam]("text"),
-		apijson.Discriminator[ImageBlockParam]("image"),
-		apijson.Discriminator[SearchResultBlockParam]("search_result"),
-		apijson.Discriminator[DocumentBlockParam]("document"),
-	)
-
-	// Register custom decoder for []ToolResultBlockParamContentUnion to handle string content
-	apijson.RegisterCustomDecoder[[]ToolResultBlockParamContentUnion](func(node gjson.Result, value reflect.Value, defaultDecoder func(gjson.Result, reflect.Value) error) error {
-		// If it's a string, convert it to a TextBlock automatically
-		if node.Type == gjson.String {
-			textBlock := TextBlockParam{
-				Text: node.String(),
-				Type: "text",
-			}
-			contentUnion := ToolResultBlockParamContentUnion{
-				OfText: &textBlock,
-			}
-			arrayValue := reflect.MakeSlice(value.Type(), 1, 1)
-			arrayValue.Index(0).Set(reflect.ValueOf(contentUnion))
-			value.Set(arrayValue)
-			return nil
-		}
-
-		// If it's already an array, use the default decoder
-		return defaultDecoder(node, value)
-	})
 }
 
 // The properties Content, Type are required.
 type ContentBlockSourceParam struct {
-	Content ContentBlockSourceContentUnionParam `json:"content,omitzero,required"`
+	Content ContentBlockSourceContentUnionParam `json:"content,omitzero" api:"required"`
 	// This field can be elided, and will marshal its zero value as "content".
-	Type constant.Content `json:"type,required"`
+	Type constant.Content `json:"type" default:"content"`
 	paramObj
 }
 
@@ -2878,13 +4464,17 @@ func ContentBlockSourceContentItemParamOfText(text string) ContentBlockSourceCon
 	return ContentBlockSourceContentItemUnionParam{OfText: &variant}
 }
 
-func ContentBlockSourceContentItemParamOfImage[T Base64ImageSourceParam | URLImageSourceParam](source T) ContentBlockSourceContentItemUnionParam {
+func ContentBlockSourceContentItemParamOfImage[
+	T Base64ImageSourceParam | URLImageSourceParam | FileImageSourceParam,
+](source T) ContentBlockSourceContentItemUnionParam {
 	var image ImageBlockParam
 	switch v := any(source).(type) {
 	case Base64ImageSourceParam:
 		image.Source.OfBase64 = &v
 	case URLImageSourceParam:
 		image.Source.OfURL = &v
+	case FileImageSourceParam:
+		image.Source.OfFile = &v
 	}
 	return ContentBlockSourceContentItemUnionParam{OfImage: &image}
 }
@@ -2939,6 +4529,14 @@ func (u ContentBlockSourceContentItemUnionParam) GetSource() *ImageBlockParamSou
 }
 
 // Returns a pointer to the underlying variant's property, if present.
+func (u ContentBlockSourceContentItemUnionParam) GetTransformations() *ImageTransformationsParam {
+	if vt := u.OfImage; vt != nil {
+		return &vt.Transformations
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
 func (u ContentBlockSourceContentItemUnionParam) GetType() *string {
 	if vt := u.OfText; vt != nil {
 		return (*string)(&vt.Type)
@@ -2968,7 +4566,7 @@ func init() {
 
 // Tool invocation directly from the model.
 type DirectCaller struct {
-	Type constant.Direct `json:"type,required"`
+	Type constant.Direct `json:"type" default:"direct"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Type        respjson.Field
@@ -3002,7 +4600,7 @@ func NewDirectCallerParam() DirectCallerParam {
 //
 // This struct has a constant value, construct it with [NewDirectCallerParam].
 type DirectCallerParam struct {
-	Type constant.Direct `json:"type,required"`
+	Type constant.Direct `json:"type" default:"direct"`
 	paramObj
 }
 
@@ -3016,11 +4614,11 @@ func (r *DirectCallerParam) UnmarshalJSON(data []byte) error {
 
 type DocumentBlock struct {
 	// Citation configuration for the document
-	Citations CitationsConfig          `json:"citations,required"`
-	Source    DocumentBlockSourceUnion `json:"source,required"`
+	Citations CitationsConfig          `json:"citations" api:"required"`
+	Source    DocumentBlockSourceUnion `json:"source" api:"required"`
 	// The title of the document
-	Title string            `json:"title,required"`
-	Type  constant.Document `json:"type,required"`
+	Title string            `json:"title" api:"required"`
+	Type  constant.Document `json:"type" default:"document"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Citations   respjson.Field
@@ -3104,14 +4702,14 @@ func (r *DocumentBlockSourceUnion) UnmarshalJSON(data []byte) error {
 
 // The properties Source, Type are required.
 type DocumentBlockParam struct {
-	Source  DocumentBlockParamSourceUnion `json:"source,omitzero,required"`
+	Source  DocumentBlockParamSourceUnion `json:"source,omitzero" api:"required"`
 	Context param.Opt[string]             `json:"context,omitzero"`
 	Title   param.Opt[string]             `json:"title,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	Citations    CitationsConfigParam       `json:"citations,omitzero"`
 	// This field can be elided, and will marshal its zero value as "document".
-	Type constant.Document `json:"type,required"`
+	Type constant.Document `json:"type" default:"document"`
 	paramObj
 }
 
@@ -3131,11 +4729,16 @@ type DocumentBlockParamSourceUnion struct {
 	OfText    *PlainTextSourceParam    `json:",omitzero,inline"`
 	OfContent *ContentBlockSourceParam `json:",omitzero,inline"`
 	OfURL     *URLPDFSourceParam       `json:",omitzero,inline"`
+	OfFile    *FileDocumentSourceParam `json:",omitzero,inline"`
 	paramUnion
 }
 
 func (u DocumentBlockParamSourceUnion) MarshalJSON() ([]byte, error) {
-	return param.MarshalUnion(u, u.OfBase64, u.OfText, u.OfContent, u.OfURL)
+	return param.MarshalUnion(u, u.OfBase64,
+		u.OfText,
+		u.OfContent,
+		u.OfURL,
+		u.OfFile)
 }
 func (u *DocumentBlockParamSourceUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
@@ -3150,6 +4753,8 @@ func (u *DocumentBlockParamSourceUnion) asAny() any {
 		return u.OfContent
 	} else if !param.IsOmitted(u.OfURL) {
 		return u.OfURL
+	} else if !param.IsOmitted(u.OfFile) {
+		return u.OfFile
 	}
 	return nil
 }
@@ -3166,6 +4771,14 @@ func (u DocumentBlockParamSourceUnion) GetContent() *ContentBlockSourceContentUn
 func (u DocumentBlockParamSourceUnion) GetURL() *string {
 	if vt := u.OfURL; vt != nil {
 		return &vt.URL
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u DocumentBlockParamSourceUnion) GetFileID() *string {
+	if vt := u.OfFile; vt != nil {
+		return &vt.FileID
 	}
 	return nil
 }
@@ -3200,6 +4813,8 @@ func (u DocumentBlockParamSourceUnion) GetType() *string {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfURL; vt != nil {
 		return (*string)(&vt.Type)
+	} else if vt := u.OfFile; vt != nil {
+		return (*string)(&vt.Type)
 	}
 	return nil
 }
@@ -3211,16 +4826,17 @@ func init() {
 		apijson.Discriminator[PlainTextSourceParam]("text"),
 		apijson.Discriminator[ContentBlockSourceParam]("content"),
 		apijson.Discriminator[URLPDFSourceParam]("url"),
+		apijson.Discriminator[FileDocumentSourceParam]("file"),
 	)
 }
 
 // Code execution result with encrypted stdout for PFC + web_search results.
 type EncryptedCodeExecutionResultBlock struct {
-	Content         []CodeExecutionOutputBlock            `json:"content,required"`
-	EncryptedStdout string                                `json:"encrypted_stdout,required"`
-	ReturnCode      int64                                 `json:"return_code,required"`
-	Stderr          string                                `json:"stderr,required"`
-	Type            constant.EncryptedCodeExecutionResult `json:"type,required"`
+	Content         []CodeExecutionOutputBlock            `json:"content" api:"required"`
+	EncryptedStdout string                                `json:"encrypted_stdout" api:"required"`
+	ReturnCode      int64                                 `json:"return_code" api:"required"`
+	Stderr          string                                `json:"stderr" api:"required"`
+	Type            constant.EncryptedCodeExecutionResult `json:"type" default:"encrypted_code_execution_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Content         respjson.Field
@@ -3243,13 +4859,13 @@ func (r *EncryptedCodeExecutionResultBlock) UnmarshalJSON(data []byte) error {
 //
 // The properties Content, EncryptedStdout, ReturnCode, Stderr, Type are required.
 type EncryptedCodeExecutionResultBlockParam struct {
-	Content         []CodeExecutionOutputBlockParam `json:"content,omitzero,required"`
-	EncryptedStdout string                          `json:"encrypted_stdout,required"`
-	ReturnCode      int64                           `json:"return_code,required"`
-	Stderr          string                          `json:"stderr,required"`
+	Content         []CodeExecutionOutputBlockParam `json:"content,omitzero" api:"required"`
+	EncryptedStdout string                          `json:"encrypted_stdout" api:"required"`
+	ReturnCode      int64                           `json:"return_code" api:"required"`
+	Stderr          string                          `json:"stderr" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "encrypted_code_execution_result".
-	Type constant.EncryptedCodeExecutionResult `json:"type,required"`
+	Type constant.EncryptedCodeExecutionResult `json:"type" default:"encrypted_code_execution_result"`
 	paramObj
 }
 
@@ -3261,13 +4877,50 @@ func (r *EncryptedCodeExecutionResultBlockParam) UnmarshalJSON(data []byte) erro
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// The properties FileID, Type are required.
+type FileDocumentSourceParam struct {
+	FileID string `json:"file_id" api:"required"`
+	// This field can be elided, and will marshal its zero value as "file".
+	Type constant.File `json:"type" default:"file"`
+	paramObj
+}
+
+func (r FileDocumentSourceParam) MarshalJSON() (data []byte, err error) {
+	type shadow FileDocumentSourceParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *FileDocumentSourceParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The properties FileID, Type are required.
+type FileImageSourceParam struct {
+	FileID string `json:"file_id" api:"required"`
+	// This field can be elided, and will marshal its zero value as "file".
+	Type constant.File `json:"type" default:"file"`
+	paramObj
+}
+
+func (r FileImageSourceParam) MarshalJSON() (data []byte, err error) {
+	type shadow FileImageSourceParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *FileImageSourceParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // The properties Source, Type are required.
 type ImageBlockParam struct {
-	Source ImageBlockParamSourceUnion `json:"source,omitzero,required"`
+	Source ImageBlockParamSourceUnion `json:"source,omitzero" api:"required"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
+	// Configures the transformations the server applies to this image before the model
+	// observes it. Each key names a condition the server transforms images for; its
+	// value selects the transformation applied. Omitted keys keep their default
+	// behavior, and an empty object is equivalent to omitting the field.
+	Transformations ImageTransformationsParam `json:"transformations,omitzero"`
 	// This field can be elided, and will marshal its zero value as "image".
-	Type constant.Image `json:"type,required"`
+	Type constant.Image `json:"type" default:"image"`
 	paramObj
 }
 
@@ -3285,11 +4938,12 @@ func (r *ImageBlockParam) UnmarshalJSON(data []byte) error {
 type ImageBlockParamSourceUnion struct {
 	OfBase64 *Base64ImageSourceParam `json:",omitzero,inline"`
 	OfURL    *URLImageSourceParam    `json:",omitzero,inline"`
+	OfFile   *FileImageSourceParam   `json:",omitzero,inline"`
 	paramUnion
 }
 
 func (u ImageBlockParamSourceUnion) MarshalJSON() ([]byte, error) {
-	return param.MarshalUnion(u, u.OfBase64, u.OfURL)
+	return param.MarshalUnion(u, u.OfBase64, u.OfURL, u.OfFile)
 }
 func (u *ImageBlockParamSourceUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
@@ -3300,6 +4954,8 @@ func (u *ImageBlockParamSourceUnion) asAny() any {
 		return u.OfBase64
 	} else if !param.IsOmitted(u.OfURL) {
 		return u.OfURL
+	} else if !param.IsOmitted(u.OfFile) {
+		return u.OfFile
 	}
 	return nil
 }
@@ -3329,18 +4985,75 @@ func (u ImageBlockParamSourceUnion) GetURL() *string {
 }
 
 // Returns a pointer to the underlying variant's property, if present.
+func (u ImageBlockParamSourceUnion) GetFileID() *string {
+	if vt := u.OfFile; vt != nil {
+		return &vt.FileID
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
 func (u ImageBlockParamSourceUnion) GetType() *string {
 	if vt := u.OfBase64; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfURL; vt != nil {
 		return (*string)(&vt.Type)
+	} else if vt := u.OfFile; vt != nil {
+		return (*string)(&vt.Type)
 	}
 	return nil
 }
 
+func init() {
+	apijson.RegisterUnion[ImageBlockParamSourceUnion](
+		"type",
+		apijson.Discriminator[Base64ImageSourceParam]("base64"),
+		apijson.Discriminator[URLImageSourceParam]("url"),
+		apijson.Discriminator[FileImageSourceParam]("file"),
+	)
+}
+
+// Configures the transformations the server applies to this image before the model
+// observes it. Each key names a condition the server transforms images for; its
+// value selects the transformation applied. Omitted keys keep their default
+// behavior, and an empty object is equivalent to omitting the field.
+type ImageTransformationsParam struct {
+	// What the server does when this image exceeds the model's maximum image size.
+	// `"downsize"` (the default) scales the image down to fit, which changes the
+	// dimensions the model observes without telling you. `"error"` instead rejects the
+	// request with a 400 error naming the image's dimensions and the largest
+	// dimensions that fit, so you can scale the image deliberately — your image is
+	// never silently scaled down.
+	//
+	// Any of "downsize", "error".
+	OversizedImage ImageTransformationsParamOversizedImage `json:"oversized_image,omitzero"`
+	paramObj
+}
+
+func (r ImageTransformationsParam) MarshalJSON() (data []byte, err error) {
+	type shadow ImageTransformationsParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ImageTransformationsParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// What the server does when this image exceeds the model's maximum image size.
+// `"downsize"` (the default) scales the image down to fit, which changes the
+// dimensions the model observes without telling you. `"error"` instead rejects the
+// request with a 400 error naming the image's dimensions and the largest
+// dimensions that fit, so you can scale the image deliberately — your image is
+// never silently scaled down.
+type ImageTransformationsParamOversizedImage string
+
+const (
+	ImageTransformationsParamOversizedImageDownsize ImageTransformationsParamOversizedImage = "downsize"
+	ImageTransformationsParamOversizedImageError    ImageTransformationsParamOversizedImage = "error"
+)
+
 type InputJSONDelta struct {
-	PartialJSON string                  `json:"partial_json,required"`
-	Type        constant.InputJSONDelta `json:"type,required"`
+	PartialJSON string                  `json:"partial_json" api:"required"`
+	Type        constant.InputJSONDelta `json:"type" default:"input_json_delta"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		PartialJSON respjson.Field
@@ -3359,9 +5072,9 @@ func (r *InputJSONDelta) UnmarshalJSON(data []byte) error {
 // The properties Schema, Type are required.
 type JSONOutputFormatParam struct {
 	// The JSON schema of the format
-	Schema map[string]any `json:"schema,omitzero,required"`
+	Schema map[string]any `json:"schema,omitzero" api:"required"`
 	// This field can be elided, and will marshal its zero value as "json_schema".
-	Type constant.JSONSchema `json:"type,required"`
+	Type constant.JSONSchema `json:"type" default:"json_schema"`
 	paramObj
 }
 
@@ -3380,7 +5093,8 @@ type MemoryTool20250818Param struct {
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// When true, guarantees schema validation on tool names and inputs
 	Strict param.Opt[bool] `json:"strict,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl  CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -3390,9 +5104,9 @@ type MemoryTool20250818Param struct {
 	// This is how the tool will be called by the model and in `tool_use` blocks.
 	//
 	// This field can be elided, and will marshal its zero value as "memory".
-	Name constant.Memory `json:"name,required"`
+	Name constant.Memory `json:"name" default:"memory"`
 	// This field can be elided, and will marshal its zero value as "memory_20250818".
-	Type constant.Memory20250818 `json:"type,required"`
+	Type constant.Memory20250818 `json:"type" default:"memory_20250818"`
 	paramObj
 }
 
@@ -3408,10 +5122,10 @@ type Message struct {
 	// Unique object identifier.
 	//
 	// The format and length of IDs may change over time.
-	ID string `json:"id,required"`
+	ID string `json:"id" api:"required"`
 	// Information about the container used in the request (for the code execution
 	// tool)
-	Container Container `json:"container,required"`
+	Container Container `json:"container" api:"required"`
 	// Content generated by the model.
 	//
 	// This is an array of content blocks, each of which has a `type` that determines
@@ -3446,15 +5160,18 @@ type Message struct {
 	// ```json
 	// [{ "type": "text", "text": "B)" }]
 	// ```
-	Content []ContentBlockUnion `json:"content,required"`
-	// The model that will complete your prompt.\n\nSee
-	// [models](https://docs.anthropic.com/en/docs/models-overview) for additional
+	Content []ContentBlockUnion `json:"content" api:"required"`
+	// The model that will complete your prompt.
+	//
+	// See [models](https://docs.anthropic.com/en/docs/models-overview) for additional
 	// details and options.
-	Model Model `json:"model,required"`
+	Model Model `json:"model" api:"required"`
 	// Conversational role of the generated message.
 	//
 	// This will always be `"assistant"`.
-	Role constant.Assistant `json:"role,required"`
+	Role constant.Assistant `json:"role" default:"assistant"`
+	// Structured information about a refusal.
+	StopDetails RefusalStopDetails `json:"stop_details" api:"required"`
 	// The reason that we stopped.
 	//
 	// This may be one the following values:
@@ -3467,22 +5184,23 @@ type Message struct {
 	//     back as-is in a subsequent request to let the model continue.
 	//   - `"refusal"`: when streaming classifiers intervene to handle potential policy
 	//     violations
+	//   - `"model_context_window_exceeded"`: we exceeded the model's context window
 	//
 	// In non-streaming mode this value is always non-null. In streaming mode, it is
 	// null in the `message_start` event and non-null otherwise.
 	//
 	// Any of "end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn",
-	// "refusal".
-	StopReason StopReason `json:"stop_reason,required"`
+	// "refusal", "model_context_window_exceeded".
+	StopReason StopReason `json:"stop_reason" api:"required"`
 	// Which custom stop sequence was generated, if any.
 	//
 	// This value will be a non-null string if one of your custom stop sequences was
 	// generated.
-	StopSequence string `json:"stop_sequence,required"`
+	StopSequence string `json:"stop_sequence" api:"required"`
 	// Object type.
 	//
 	// For Messages, this is always `"message"`.
-	Type constant.Message `json:"type,required"`
+	Type constant.Message `json:"type" default:"message"`
 	// Billing and rate-limit usage.
 	//
 	// Anthropic's API bills and rate-limits by token counts, as tokens represent the
@@ -3498,7 +5216,7 @@ type Message struct {
 	//
 	// Total input tokens in a request is the summation of `input_tokens`,
 	// `cache_creation_input_tokens`, and `cache_read_input_tokens`.
-	Usage Usage `json:"usage,required"`
+	Usage Usage `json:"usage" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID           respjson.Field
@@ -3506,6 +5224,7 @@ type Message struct {
 		Content      respjson.Field
 		Model        respjson.Field
 		Role         respjson.Field
+		StopDetails  respjson.Field
 		StopReason   respjson.Field
 		StopSequence respjson.Field
 		Type         respjson.Field
@@ -3520,26 +5239,6 @@ func (r Message) RawJSON() string { return r.JSON.raw }
 func (r *Message) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
-
-// The reason that we stopped.
-//
-// This may be one the following values:
-//
-// - `"end_turn"`: the model reached a natural stopping point
-// - `"max_tokens"`: we exceeded the requested `max_tokens` or the model's maximum
-// - `"stop_sequence"`: one of your provided custom `stop_sequences` was generated
-// - `"tool_use"`: the model invoked one or more tools
-//
-// In non-streaming mode this value is always non-null. In streaming mode, it is
-// null in the `message_start` event and non-null otherwise.
-type MessageStopReason string
-
-const (
-	MessageStopReasonEndTurn      MessageStopReason = "end_turn"
-	MessageStopReasonMaxTokens    MessageStopReason = "max_tokens"
-	MessageStopReasonStopSequence MessageStopReason = "stop_sequence"
-	MessageStopReasonToolUse      MessageStopReason = "tool_use"
-)
 
 func MessageCountTokensToolParamOfTool(inputSchema ToolInputSchemaParam, name string) MessageCountTokensToolUnionParam {
 	var variant ToolParam
@@ -3569,7 +5268,10 @@ type MessageCountTokensToolUnionParam struct {
 	OfCodeExecutionTool20250522   *CodeExecutionTool20250522Param   `json:",omitzero,inline"`
 	OfCodeExecutionTool20250825   *CodeExecutionTool20250825Param   `json:",omitzero,inline"`
 	OfCodeExecutionTool20260120   *CodeExecutionTool20260120Param   `json:",omitzero,inline"`
+	OfCodeExecutionTool20260521   *CodeExecutionTool20260521Param   `json:",omitzero,inline"`
+	OfBrowserToolset20260801      *BrowserToolset20260801Param      `json:",omitzero,inline"`
 	OfMemoryTool20250818          *MemoryTool20250818Param          `json:",omitzero,inline"`
+	OfComputerToolset20260801     *ComputerToolset20260801Param     `json:",omitzero,inline"`
 	OfTextEditor20250124          *ToolTextEditor20250124Param      `json:",omitzero,inline"`
 	OfTextEditor20250429          *ToolTextEditor20250429Param      `json:",omitzero,inline"`
 	OfTextEditor20250728          *ToolTextEditor20250728Param      `json:",omitzero,inline"`
@@ -3577,6 +5279,9 @@ type MessageCountTokensToolUnionParam struct {
 	OfWebFetchTool20250910        *WebFetchTool20250910Param        `json:",omitzero,inline"`
 	OfWebSearchTool20260209       *WebSearchTool20260209Param       `json:",omitzero,inline"`
 	OfWebFetchTool20260209        *WebFetchTool20260209Param        `json:",omitzero,inline"`
+	OfWebFetchTool20260309        *WebFetchTool20260309Param        `json:",omitzero,inline"`
+	OfWebSearchTool20260318       *WebSearchTool20260318Param       `json:",omitzero,inline"`
+	OfWebFetchTool20260318        *WebFetchTool20260318Param        `json:",omitzero,inline"`
 	OfToolSearchToolBm25_20251119 *ToolSearchToolBm25_20251119Param `json:",omitzero,inline"`
 	OfToolSearchToolRegex20251119 *ToolSearchToolRegex20251119Param `json:",omitzero,inline"`
 	paramUnion
@@ -3588,7 +5293,10 @@ func (u MessageCountTokensToolUnionParam) MarshalJSON() ([]byte, error) {
 		u.OfCodeExecutionTool20250522,
 		u.OfCodeExecutionTool20250825,
 		u.OfCodeExecutionTool20260120,
+		u.OfCodeExecutionTool20260521,
+		u.OfBrowserToolset20260801,
 		u.OfMemoryTool20250818,
+		u.OfComputerToolset20260801,
 		u.OfTextEditor20250124,
 		u.OfTextEditor20250429,
 		u.OfTextEditor20250728,
@@ -3596,6 +5304,9 @@ func (u MessageCountTokensToolUnionParam) MarshalJSON() ([]byte, error) {
 		u.OfWebFetchTool20250910,
 		u.OfWebSearchTool20260209,
 		u.OfWebFetchTool20260209,
+		u.OfWebFetchTool20260309,
+		u.OfWebSearchTool20260318,
+		u.OfWebFetchTool20260318,
 		u.OfToolSearchToolBm25_20251119,
 		u.OfToolSearchToolRegex20251119)
 }
@@ -3614,8 +5325,14 @@ func (u *MessageCountTokensToolUnionParam) asAny() any {
 		return u.OfCodeExecutionTool20250825
 	} else if !param.IsOmitted(u.OfCodeExecutionTool20260120) {
 		return u.OfCodeExecutionTool20260120
+	} else if !param.IsOmitted(u.OfCodeExecutionTool20260521) {
+		return u.OfCodeExecutionTool20260521
+	} else if !param.IsOmitted(u.OfBrowserToolset20260801) {
+		return u.OfBrowserToolset20260801
 	} else if !param.IsOmitted(u.OfMemoryTool20250818) {
 		return u.OfMemoryTool20250818
+	} else if !param.IsOmitted(u.OfComputerToolset20260801) {
+		return u.OfComputerToolset20260801
 	} else if !param.IsOmitted(u.OfTextEditor20250124) {
 		return u.OfTextEditor20250124
 	} else if !param.IsOmitted(u.OfTextEditor20250429) {
@@ -3630,6 +5347,12 @@ func (u *MessageCountTokensToolUnionParam) asAny() any {
 		return u.OfWebSearchTool20260209
 	} else if !param.IsOmitted(u.OfWebFetchTool20260209) {
 		return u.OfWebFetchTool20260209
+	} else if !param.IsOmitted(u.OfWebFetchTool20260309) {
+		return u.OfWebFetchTool20260309
+	} else if !param.IsOmitted(u.OfWebSearchTool20260318) {
+		return u.OfWebSearchTool20260318
+	} else if !param.IsOmitted(u.OfWebFetchTool20260318) {
+		return u.OfWebFetchTool20260318
 	} else if !param.IsOmitted(u.OfToolSearchToolBm25_20251119) {
 		return u.OfToolSearchToolBm25_20251119
 	} else if !param.IsOmitted(u.OfToolSearchToolRegex20251119) {
@@ -3682,6 +5405,8 @@ func (u MessageCountTokensToolUnionParam) GetName() *string {
 		return (*string)(&vt.Name)
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
 		return (*string)(&vt.Name)
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
+		return (*string)(&vt.Name)
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
 		return (*string)(&vt.Name)
 	} else if vt := u.OfTextEditor20250124; vt != nil {
@@ -3697,6 +5422,12 @@ func (u MessageCountTokensToolUnionParam) GetName() *string {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
 		return (*string)(&vt.Name)
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return (*string)(&vt.Name)
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return (*string)(&vt.Name)
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return (*string)(&vt.Name)
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
 		return (*string)(&vt.Name)
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
 		return (*string)(&vt.Name)
@@ -3718,6 +5449,8 @@ func (u MessageCountTokensToolUnionParam) GetDeferLoading() *bool {
 		return &vt.DeferLoading.Value
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
 	} else if vt := u.OfMemoryTool20250818; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
 	} else if vt := u.OfTextEditor20250124; vt != nil && vt.DeferLoading.Valid() {
@@ -3733,6 +5466,12 @@ func (u MessageCountTokensToolUnionParam) GetDeferLoading() *bool {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
 	} else if vt := u.OfWebFetchTool20260209; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
+	} else if vt := u.OfWebFetchTool20260309; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
+	} else if vt := u.OfWebSearchTool20260318; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
+	} else if vt := u.OfWebFetchTool20260318; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
@@ -3754,6 +5493,8 @@ func (u MessageCountTokensToolUnionParam) GetStrict() *bool {
 		return &vt.Strict.Value
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil && vt.Strict.Valid() {
 		return &vt.Strict.Value
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil && vt.Strict.Valid() {
+		return &vt.Strict.Value
 	} else if vt := u.OfMemoryTool20250818; vt != nil && vt.Strict.Valid() {
 		return &vt.Strict.Value
 	} else if vt := u.OfTextEditor20250124; vt != nil && vt.Strict.Valid() {
@@ -3769,6 +5510,12 @@ func (u MessageCountTokensToolUnionParam) GetStrict() *bool {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil && vt.Strict.Valid() {
 		return &vt.Strict.Value
 	} else if vt := u.OfWebFetchTool20260209; vt != nil && vt.Strict.Valid() {
+		return &vt.Strict.Value
+	} else if vt := u.OfWebFetchTool20260309; vt != nil && vt.Strict.Valid() {
+		return &vt.Strict.Value
+	} else if vt := u.OfWebSearchTool20260318; vt != nil && vt.Strict.Valid() {
+		return &vt.Strict.Value
+	} else if vt := u.OfWebFetchTool20260318; vt != nil && vt.Strict.Valid() {
 		return &vt.Strict.Value
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil && vt.Strict.Valid() {
 		return &vt.Strict.Value
@@ -3790,7 +5537,13 @@ func (u MessageCountTokensToolUnionParam) GetType() *string {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
 		return (*string)(&vt.Type)
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfBrowserToolset20260801; vt != nil {
+		return (*string)(&vt.Type)
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfComputerToolset20260801; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfTextEditor20250124; vt != nil {
 		return (*string)(&vt.Type)
@@ -3805,6 +5558,12 @@ func (u MessageCountTokensToolUnionParam) GetType() *string {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
 		return (*string)(&vt.Type)
@@ -3824,6 +5583,12 @@ func (u MessageCountTokensToolUnionParam) GetMaxUses() *int64 {
 		return &vt.MaxUses.Value
 	} else if vt := u.OfWebFetchTool20260209; vt != nil && vt.MaxUses.Valid() {
 		return &vt.MaxUses.Value
+	} else if vt := u.OfWebFetchTool20260309; vt != nil && vt.MaxUses.Valid() {
+		return &vt.MaxUses.Value
+	} else if vt := u.OfWebSearchTool20260318; vt != nil && vt.MaxUses.Valid() {
+		return &vt.MaxUses.Value
+	} else if vt := u.OfWebFetchTool20260318; vt != nil && vt.MaxUses.Valid() {
+		return &vt.MaxUses.Value
 	}
 	return nil
 }
@@ -3834,6 +5599,30 @@ func (u MessageCountTokensToolUnionParam) GetMaxContentTokens() *int64 {
 		return &vt.MaxContentTokens.Value
 	} else if vt := u.OfWebFetchTool20260209; vt != nil && vt.MaxContentTokens.Valid() {
 		return &vt.MaxContentTokens.Value
+	} else if vt := u.OfWebFetchTool20260309; vt != nil && vt.MaxContentTokens.Valid() {
+		return &vt.MaxContentTokens.Value
+	} else if vt := u.OfWebFetchTool20260318; vt != nil && vt.MaxContentTokens.Valid() {
+		return &vt.MaxContentTokens.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u MessageCountTokensToolUnionParam) GetUseCache() *bool {
+	if vt := u.OfWebFetchTool20260309; vt != nil && vt.UseCache.Valid() {
+		return &vt.UseCache.Value
+	} else if vt := u.OfWebFetchTool20260318; vt != nil && vt.UseCache.Valid() {
+		return &vt.UseCache.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u MessageCountTokensToolUnionParam) GetResponseInclusion() *string {
+	if vt := u.OfWebSearchTool20260318; vt != nil {
+		return (*string)(&vt.ResponseInclusion)
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
+		return (*string)(&vt.ResponseInclusion)
 	}
 	return nil
 }
@@ -3851,7 +5640,13 @@ func (u MessageCountTokensToolUnionParam) GetAllowedCallers() []string {
 		return vt.AllowedCallers
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
 		return vt.AllowedCallers
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfBrowserToolset20260801; vt != nil {
+		return vt.AllowedCallers
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfComputerToolset20260801; vt != nil {
 		return vt.AllowedCallers
 	} else if vt := u.OfTextEditor20250124; vt != nil {
 		return vt.AllowedCallers
@@ -3866,6 +5661,12 @@ func (u MessageCountTokensToolUnionParam) GetAllowedCallers() []string {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
 		return vt.AllowedCallers
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
 		return vt.AllowedCallers
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
 		return vt.AllowedCallers
@@ -3887,7 +5688,13 @@ func (u MessageCountTokensToolUnionParam) GetCacheControl() *CacheControlEphemer
 		return &vt.CacheControl
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
 		return &vt.CacheControl
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
+		return &vt.CacheControl
+	} else if vt := u.OfBrowserToolset20260801; vt != nil {
+		return &vt.CacheControl
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
+		return &vt.CacheControl
+	} else if vt := u.OfComputerToolset20260801; vt != nil {
 		return &vt.CacheControl
 	} else if vt := u.OfTextEditor20250124; vt != nil {
 		return &vt.CacheControl
@@ -3902,6 +5709,12 @@ func (u MessageCountTokensToolUnionParam) GetCacheControl() *CacheControlEphemer
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
 		return &vt.CacheControl
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return &vt.CacheControl
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return &vt.CacheControl
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return &vt.CacheControl
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
 		return &vt.CacheControl
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
 		return &vt.CacheControl
@@ -3930,6 +5743,956 @@ func (u MessageCountTokensToolUnionParam) GetInputExamples() []map[string]any {
 	return nil
 }
 
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u MessageCountTokensToolUnionParam) GetConfigs() (res messageCountTokensToolUnionParamConfigs) {
+	if vt := u.OfBrowserToolset20260801; vt != nil {
+		res.any = &vt.Configs
+	} else if vt := u.OfComputerToolset20260801; vt != nil {
+		res.any = &vt.Configs
+	}
+	return
+}
+
+// Can have the runtime types [*BrowserToolsetConfigsParam],
+// [*ComputerToolsetConfigsParam]
+type messageCountTokensToolUnionParamConfigs struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserToolsetConfigsParam:
+//	case *anthropic.ComputerToolsetConfigsParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigs) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetCloseTab() *BrowserCloseTabConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.CloseTab
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetFileUpload() *BrowserFileUploadConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.FileUpload
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetFind() *BrowserFindConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.Find
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetFormInput() *BrowserFormInputConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.FormInput
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetGetPageText() *BrowserGetPageTextConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.GetPageText
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetHover() *BrowserHoverConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.Hover
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetJavascriptExec() *BrowserJavascriptExecConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.JavascriptExec
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetListTabs() *BrowserListTabsConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.ListTabs
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetNavigate() *BrowserNavigateConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.Navigate
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetNewTab() *BrowserNewTabConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.NewTab
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetReadConsole() *BrowserReadConsoleConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.ReadConsole
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetReadNetwork() *BrowserReadNetworkConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.ReadNetwork
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetReadPage() *BrowserReadPageConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.ReadPage
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetScrollTo() *BrowserScrollToConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.ScrollTo
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetSwitchTab() *BrowserSwitchTabConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.SwitchTab
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigs) GetCursorPosition() *ComputerCursorPositionConfigParam {
+	switch vt := u.any.(type) {
+	case *ComputerToolsetConfigsParam:
+		return &vt.CursorPosition
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetDoubleClick() (res messageCountTokensToolUnionParamConfigsDoubleClick) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.DoubleClick
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.DoubleClick
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserDoubleClickConfigParam],
+// [*ComputerDoubleClickConfigParam]
+type messageCountTokensToolUnionParamConfigsDoubleClick struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserDoubleClickConfigParam:
+//	case *anthropic.ComputerDoubleClickConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsDoubleClick) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsDoubleClick) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserDoubleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerDoubleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsDoubleClick) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserDoubleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerDoubleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetHoldKey() (res messageCountTokensToolUnionParamConfigsHoldKey) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.HoldKey
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.HoldKey
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserHoldKeyConfigParam],
+// [*ComputerHoldKeyConfigParam]
+type messageCountTokensToolUnionParamConfigsHoldKey struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserHoldKeyConfigParam:
+//	case *anthropic.ComputerHoldKeyConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsHoldKey) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsHoldKey) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserHoldKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerHoldKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsHoldKey) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserHoldKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerHoldKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetKey() (res messageCountTokensToolUnionParamConfigsKey) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Key
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Key
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserKeyConfigParam], [*ComputerKeyConfigParam]
+type messageCountTokensToolUnionParamConfigsKey struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserKeyConfigParam:
+//	case *anthropic.ComputerKeyConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsKey) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsKey) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsKey) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetLeftClick() (res messageCountTokensToolUnionParamConfigsLeftClick) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.LeftClick
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.LeftClick
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserLeftClickConfigParam],
+// [*ComputerLeftClickConfigParam]
+type messageCountTokensToolUnionParamConfigsLeftClick struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserLeftClickConfigParam:
+//	case *anthropic.ComputerLeftClickConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsLeftClick) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsLeftClick) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerLeftClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsLeftClick) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerLeftClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetLeftClickDrag() (res messageCountTokensToolUnionParamConfigsLeftClickDrag) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.LeftClickDrag
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.LeftClickDrag
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserLeftClickDragConfigParam],
+// [*ComputerLeftClickDragConfigParam]
+type messageCountTokensToolUnionParamConfigsLeftClickDrag struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserLeftClickDragConfigParam:
+//	case *anthropic.ComputerLeftClickDragConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsLeftClickDrag) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsLeftClickDrag) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftClickDragConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerLeftClickDragConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsLeftClickDrag) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftClickDragConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerLeftClickDragConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetLeftMouseDown() (res messageCountTokensToolUnionParamConfigsLeftMouseDown) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.LeftMouseDown
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.LeftMouseDown
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserLeftMouseDownConfigParam],
+// [*ComputerLeftMouseDownConfigParam]
+type messageCountTokensToolUnionParamConfigsLeftMouseDown struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserLeftMouseDownConfigParam:
+//	case *anthropic.ComputerLeftMouseDownConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsLeftMouseDown) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsLeftMouseDown) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftMouseDownConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerLeftMouseDownConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsLeftMouseDown) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftMouseDownConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerLeftMouseDownConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetLeftMouseUp() (res messageCountTokensToolUnionParamConfigsLeftMouseUp) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.LeftMouseUp
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.LeftMouseUp
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserLeftMouseUpConfigParam],
+// [*ComputerLeftMouseUpConfigParam]
+type messageCountTokensToolUnionParamConfigsLeftMouseUp struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserLeftMouseUpConfigParam:
+//	case *anthropic.ComputerLeftMouseUpConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsLeftMouseUp) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsLeftMouseUp) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftMouseUpConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerLeftMouseUpConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsLeftMouseUp) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftMouseUpConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerLeftMouseUpConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetMiddleClick() (res messageCountTokensToolUnionParamConfigsMiddleClick) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.MiddleClick
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.MiddleClick
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserMiddleClickConfigParam],
+// [*ComputerMiddleClickConfigParam]
+type messageCountTokensToolUnionParamConfigsMiddleClick struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserMiddleClickConfigParam:
+//	case *anthropic.ComputerMiddleClickConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsMiddleClick) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsMiddleClick) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserMiddleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerMiddleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsMiddleClick) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserMiddleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerMiddleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetMouseMove() (res messageCountTokensToolUnionParamConfigsMouseMove) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.MouseMove
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.MouseMove
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserMouseMoveConfigParam],
+// [*ComputerMouseMoveConfigParam]
+type messageCountTokensToolUnionParamConfigsMouseMove struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserMouseMoveConfigParam:
+//	case *anthropic.ComputerMouseMoveConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsMouseMove) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsMouseMove) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserMouseMoveConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerMouseMoveConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsMouseMove) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserMouseMoveConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerMouseMoveConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetRightClick() (res messageCountTokensToolUnionParamConfigsRightClick) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.RightClick
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.RightClick
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserRightClickConfigParam],
+// [*ComputerRightClickConfigParam]
+type messageCountTokensToolUnionParamConfigsRightClick struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserRightClickConfigParam:
+//	case *anthropic.ComputerRightClickConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsRightClick) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsRightClick) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserRightClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerRightClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsRightClick) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserRightClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerRightClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetScreenshot() (res messageCountTokensToolUnionParamConfigsScreenshot) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Screenshot
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Screenshot
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserScreenshotConfigParam],
+// [*ComputerScreenshotConfigParam]
+type messageCountTokensToolUnionParamConfigsScreenshot struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserScreenshotConfigParam:
+//	case *anthropic.ComputerScreenshotConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsScreenshot) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsScreenshot) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserScreenshotConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerScreenshotConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsScreenshot) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserScreenshotConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerScreenshotConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetScroll() (res messageCountTokensToolUnionParamConfigsScroll) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Scroll
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Scroll
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserScrollConfigParam],
+// [*ComputerScrollConfigParam]
+type messageCountTokensToolUnionParamConfigsScroll struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserScrollConfigParam:
+//	case *anthropic.ComputerScrollConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsScroll) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsScroll) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserScrollConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerScrollConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsScroll) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserScrollConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerScrollConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetTripleClick() (res messageCountTokensToolUnionParamConfigsTripleClick) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.TripleClick
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.TripleClick
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserTripleClickConfigParam],
+// [*ComputerTripleClickConfigParam]
+type messageCountTokensToolUnionParamConfigsTripleClick struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserTripleClickConfigParam:
+//	case *anthropic.ComputerTripleClickConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsTripleClick) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsTripleClick) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserTripleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerTripleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsTripleClick) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserTripleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerTripleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetType() (res messageCountTokensToolUnionParamConfigsType) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Type
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Type
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserTypeConfigParam], [*ComputerTypeConfigParam]
+type messageCountTokensToolUnionParamConfigsType struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserTypeConfigParam:
+//	case *anthropic.ComputerTypeConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsType) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsType) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserTypeConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerTypeConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsType) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserTypeConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerTypeConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetWait() (res messageCountTokensToolUnionParamConfigsWait) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Wait
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Wait
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserWaitConfigParam], [*ComputerWaitConfigParam]
+type messageCountTokensToolUnionParamConfigsWait struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserWaitConfigParam:
+//	case *anthropic.ComputerWaitConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsWait) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsWait) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserWaitConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerWaitConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsWait) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserWaitConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerWaitConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u messageCountTokensToolUnionParamConfigs) GetZoom() (res messageCountTokensToolUnionParamConfigsZoom) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Zoom
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Zoom
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserZoomConfigParam], [*ComputerZoomConfigParam]
+type messageCountTokensToolUnionParamConfigsZoom struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserZoomConfigParam:
+//	case *anthropic.ComputerZoomConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u messageCountTokensToolUnionParamConfigsZoom) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsZoom) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserZoomConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerZoomConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u messageCountTokensToolUnionParamConfigsZoom) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserZoomConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerZoomConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
 // Returns a pointer to the underlying variant's AllowedDomains property, if
 // present.
 func (u MessageCountTokensToolUnionParam) GetAllowedDomains() []string {
@@ -3940,6 +6703,12 @@ func (u MessageCountTokensToolUnionParam) GetAllowedDomains() []string {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
 		return vt.AllowedDomains
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return vt.AllowedDomains
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return vt.AllowedDomains
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return vt.AllowedDomains
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
 		return vt.AllowedDomains
 	}
 	return nil
@@ -3956,6 +6725,12 @@ func (u MessageCountTokensToolUnionParam) GetBlockedDomains() []string {
 		return vt.BlockedDomains
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
 		return vt.BlockedDomains
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return vt.BlockedDomains
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return vt.BlockedDomains
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
+		return vt.BlockedDomains
 	}
 	return nil
 }
@@ -3965,6 +6740,8 @@ func (u MessageCountTokensToolUnionParam) GetUserLocation() *UserLocationParam {
 	if vt := u.OfWebSearchTool20250305; vt != nil {
 		return &vt.UserLocation
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
+		return &vt.UserLocation
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
 		return &vt.UserLocation
 	}
 	return nil
@@ -3976,27 +6753,64 @@ func (u MessageCountTokensToolUnionParam) GetCitations() *CitationsConfigParam {
 		return &vt.Citations
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
 		return &vt.Citations
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return &vt.Citations
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
+		return &vt.Citations
+	}
+	return nil
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type MessageCreateParamsContainerUnion struct {
+	OfContainers *ContainerParams  `json:",omitzero,inline"`
+	OfString     param.Opt[string] `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u MessageCreateParamsContainerUnion) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfContainers, u.OfString)
+}
+func (u *MessageCreateParamsContainerUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *MessageCreateParamsContainerUnion) asAny() any {
+	if !param.IsOmitted(u.OfContainers) {
+		return u.OfContainers
+	} else if !param.IsOmitted(u.OfString) {
+		return &u.OfString.Value
 	}
 	return nil
 }
 
 type MessageDeltaUsage struct {
 	// The cumulative number of input tokens used to create the cache entry.
-	CacheCreationInputTokens int64 `json:"cache_creation_input_tokens,required"`
+	CacheCreationInputTokens int64 `json:"cache_creation_input_tokens" api:"required"`
 	// The cumulative number of input tokens read from the cache.
-	CacheReadInputTokens int64 `json:"cache_read_input_tokens,required"`
+	CacheReadInputTokens int64 `json:"cache_read_input_tokens" api:"required"`
 	// The cumulative number of input tokens which were used.
-	InputTokens int64 `json:"input_tokens,required"`
+	InputTokens int64 `json:"input_tokens" api:"required"`
 	// The cumulative number of output tokens which were used.
-	OutputTokens int64 `json:"output_tokens,required"`
+	OutputTokens int64 `json:"output_tokens" api:"required"`
+	// Breakdown of output tokens by category.
+	//
+	// `output_tokens` remains the inclusive, authoritative total used for billing.
+	// This object provides a read-only decomposition for observability — for example,
+	// how many of the billed output tokens were spent on internal reasoning that may
+	// have been summarized before being returned to you.
+	OutputTokensDetails OutputTokensDetails `json:"output_tokens_details" api:"required"`
 	// The number of server tool requests.
-	ServerToolUse ServerToolUsage `json:"server_tool_use,required"`
+	ServerToolUse ServerToolUsage `json:"server_tool_use" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		CacheCreationInputTokens respjson.Field
 		CacheReadInputTokens     respjson.Field
 		InputTokens              respjson.Field
 		OutputTokens             respjson.Field
+		OutputTokensDetails      respjson.Field
 		ServerToolUse            respjson.Field
 		ExtraFields              map[string]respjson.Field
 		raw                      string
@@ -4011,9 +6825,9 @@ func (r *MessageDeltaUsage) UnmarshalJSON(data []byte) error {
 
 // The properties Content, Role are required.
 type MessageParam struct {
-	Content []ContentBlockParamUnion `json:"content,omitzero,required"`
-	// Any of "user", "assistant".
-	Role MessageParamRole `json:"role,omitzero,required"`
+	Content []ContentBlockParamUnion `json:"content,omitzero" api:"required"`
+	// Any of "user", "assistant", "system".
+	Role MessageParamRole `json:"role,omitzero" api:"required"`
 	paramObj
 }
 
@@ -4044,12 +6858,13 @@ type MessageParamRole string
 const (
 	MessageParamRoleUser      MessageParamRole = "user"
 	MessageParamRoleAssistant MessageParamRole = "assistant"
+	MessageParamRoleSystem    MessageParamRole = "system"
 )
 
 type MessageTokensCount struct {
 	// The total number of tokens across the provided list of messages, system prompt,
 	// and tools.
-	InputTokens int64 `json:"input_tokens,required"`
+	InputTokens int64 `json:"input_tokens" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		InputTokens respjson.Field
@@ -4082,64 +6897,38 @@ func (r *MetadataParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// The model that will complete your prompt.\n\nSee
-// [models](https://docs.anthropic.com/en/docs/models-overview) for additional
+// The model that will complete your prompt.
+//
+// See [models](https://docs.anthropic.com/en/docs/models-overview) for additional
 // details and options.
-type Model string
+type Model = string
 
 const (
-	ModelClaudeOpus4_6          Model = "claude-opus-4-6"
-	ModelClaudeSonnet4_6        Model = "claude-sonnet-4-6"
-	ModelClaudeOpus4_5_20251101 Model = "claude-opus-4-5-20251101"
-	ModelClaudeOpus4_5          Model = "claude-opus-4-5"
-	// Deprecated: Will reach end-of-life on February 19th, 2026. Please migrate to a
-	// newer model. Visit
+	ModelClaudeSonnet5 Model = "claude-sonnet-5"
+	ModelClaudeFable5  Model = "claude-fable-5"
+	ModelClaudeMythos5 Model = "claude-mythos-5"
+	ModelClaudeOpus5   Model = "claude-opus-5"
+	ModelClaudeOpus4_8 Model = "claude-opus-4-8"
+	ModelClaudeOpus4_7 Model = "claude-opus-4-7"
+	// Deprecated: Will reach end-of-life on June 30, 2026. Please migrate to
+	// claude-mythos-5. Visit
 	// https://docs.anthropic.com/en/docs/resources/model-deprecations for more
 	// information.
-	ModelClaude3_7SonnetLatest Model = "claude-3-7-sonnet-latest"
-	// Deprecated: Will reach end-of-life on February 19th, 2026. Please migrate to a
-	// newer model. Visit
-	// https://docs.anthropic.com/en/docs/resources/model-deprecations for more
-	// information.
-	ModelClaude3_7Sonnet20250219 Model = "claude-3-7-sonnet-20250219"
-	// Deprecated: Will reach end-of-life on February 19th, 2026. Please migrate to a
-	// newer model. Visit
-	// https://docs.anthropic.com/en/docs/resources/model-deprecations for more
-	// information.
-	ModelClaude3_5HaikuLatest Model = "claude-3-5-haiku-latest"
-	// Deprecated: Will reach end-of-life on February 19th, 2026. Please migrate to a
-	// newer model. Visit
-	// https://docs.anthropic.com/en/docs/resources/model-deprecations for more
-	// information.
-	ModelClaude3_5Haiku20241022   Model = "claude-3-5-haiku-20241022"
+	ModelClaudeMythosPreview      Model = "claude-mythos-preview"
+	ModelClaudeOpus4_6            Model = "claude-opus-4-6"
+	ModelClaudeSonnet4_6          Model = "claude-sonnet-4-6"
 	ModelClaudeHaiku4_5           Model = "claude-haiku-4-5"
 	ModelClaudeHaiku4_5_20251001  Model = "claude-haiku-4-5-20251001"
-	ModelClaudeSonnet4_20250514   Model = "claude-sonnet-4-20250514"
-	ModelClaudeSonnet4_0          Model = "claude-sonnet-4-0"
-	ModelClaude4Sonnet20250514    Model = "claude-4-sonnet-20250514"
+	ModelClaudeOpus4_5            Model = "claude-opus-4-5"
+	ModelClaudeOpus4_5_20251101   Model = "claude-opus-4-5-20251101"
 	ModelClaudeSonnet4_5          Model = "claude-sonnet-4-5"
 	ModelClaudeSonnet4_5_20250929 Model = "claude-sonnet-4-5-20250929"
-	ModelClaudeOpus4_0            Model = "claude-opus-4-0"
-	ModelClaudeOpus4_20250514     Model = "claude-opus-4-20250514"
-	ModelClaude4Opus20250514      Model = "claude-4-opus-20250514"
-	ModelClaudeOpus4_1_20250805   Model = "claude-opus-4-1-20250805"
-	// Deprecated: Will reach end-of-life on January 5th, 2026. Please migrate to a
-	// newer model. Visit
-	// https://docs.anthropic.com/en/docs/resources/model-deprecations for more
-	// information.
-	ModelClaude3OpusLatest Model = "claude-3-opus-latest"
-	// Deprecated: Will reach end-of-life on January 5th, 2026. Please migrate to a
-	// newer model. Visit
-	// https://docs.anthropic.com/en/docs/resources/model-deprecations for more
-	// information.
-	ModelClaude_3_Opus_20240229  Model = "claude-3-opus-20240229"
-	ModelClaude_3_Haiku_20240307 Model = "claude-3-haiku-20240307"
 )
 
 type OutputConfigParam struct {
 	// All possible effort levels.
 	//
-	// Any of "low", "medium", "high", "max".
+	// Any of "low", "medium", "high", "xhigh", "max".
 	Effort OutputConfigEffort `json:"effort,omitzero"`
 	// A schema to specify Claude's output format in responses. See
 	// [structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)
@@ -4162,13 +6951,38 @@ const (
 	OutputConfigEffortLow    OutputConfigEffort = "low"
 	OutputConfigEffortMedium OutputConfigEffort = "medium"
 	OutputConfigEffortHigh   OutputConfigEffort = "high"
+	OutputConfigEffortXhigh  OutputConfigEffort = "xhigh"
 	OutputConfigEffortMax    OutputConfigEffort = "max"
 )
 
+type OutputTokensDetails struct {
+	// Number of output tokens the model generated as internal reasoning, including the
+	// thinking-block delimiter tokens.
+	//
+	// Reflects the raw reasoning the model produced, not the (possibly shorter)
+	// summarized thinking text returned in the response body. Computed by
+	// re-tokenizing the raw reasoning text, so it may differ from the model's exact
+	// generation count by a small number of tokens. Always ≤ `output_tokens`;
+	// `output_tokens - thinking_tokens` approximates the non-reasoning output.
+	ThinkingTokens int64 `json:"thinking_tokens" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ThinkingTokens respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r OutputTokensDetails) RawJSON() string { return r.JSON.raw }
+func (r *OutputTokensDetails) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 type PlainTextSource struct {
-	Data      string             `json:"data,required"`
-	MediaType constant.TextPlain `json:"media_type,required"`
-	Type      constant.Text      `json:"type,required"`
+	Data      string             `json:"data" api:"required"`
+	MediaType constant.TextPlain `json:"media_type" default:"text/plain"`
+	Type      constant.Text      `json:"type" default:"text"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Data        respjson.Field
@@ -4196,11 +7010,11 @@ func (r PlainTextSource) ToParam() PlainTextSourceParam {
 
 // The properties Data, MediaType, Type are required.
 type PlainTextSourceParam struct {
-	Data string `json:"data,required"`
+	Data string `json:"data" api:"required"`
 	// This field can be elided, and will marshal its zero value as "text/plain".
-	MediaType constant.TextPlain `json:"media_type,required"`
+	MediaType constant.TextPlain `json:"media_type" default:"text/plain"`
 	// This field can be elided, and will marshal its zero value as "text".
-	Type constant.Text `json:"type,required"`
+	Type constant.Text `json:"type" default:"text"`
 	paramObj
 }
 
@@ -4317,9 +7131,9 @@ func (r *RawContentBlockDeltaUnion) UnmarshalJSON(data []byte) error {
 }
 
 type ContentBlockDeltaEvent struct {
-	Delta RawContentBlockDeltaUnion  `json:"delta,required"`
-	Index int64                      `json:"index,required"`
-	Type  constant.ContentBlockDelta `json:"type,required"`
+	Delta RawContentBlockDeltaUnion  `json:"delta" api:"required"`
+	Index int64                      `json:"index" api:"required"`
+	Type  constant.ContentBlockDelta `json:"type" default:"content_block_delta"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Delta       respjson.Field
@@ -4338,9 +7152,9 @@ func (r *ContentBlockDeltaEvent) UnmarshalJSON(data []byte) error {
 
 type ContentBlockStartEvent struct {
 	// Response model for a file uploaded to the container.
-	ContentBlock ContentBlockStartEventContentBlockUnion `json:"content_block,required"`
-	Index        int64                                   `json:"index,required"`
-	Type         constant.ContentBlockStart              `json:"type,required"`
+	ContentBlock ContentBlockStartEventContentBlockUnion `json:"content_block" api:"required"`
+	Index        int64                                   `json:"index" api:"required"`
+	Type         constant.ContentBlockStart              `json:"type" default:"content_block_start"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ContentBlock respjson.Field
@@ -4391,6 +7205,8 @@ type ContentBlockStartEventContentBlockUnion struct {
 	Caller ContentBlockStartEventContentBlockUnionCaller `json:"caller"`
 	Input  any                                           `json:"input"`
 	Name   string                                        `json:"name"`
+	// This field is from variant [ToolUseBlock].
+	ToolsetName string `json:"toolset_name"`
 	// This field is a union of [WebSearchToolResultBlockContentUnion],
 	// [WebFetchToolResultBlockContentUnion],
 	// [CodeExecutionToolResultBlockContentUnion],
@@ -4402,20 +7218,21 @@ type ContentBlockStartEventContentBlockUnion struct {
 	// This field is from variant [ContainerUploadBlock].
 	FileID string `json:"file_id"`
 	JSON   struct {
-		Citations respjson.Field
-		Text      respjson.Field
-		Type      respjson.Field
-		Signature respjson.Field
-		Thinking  respjson.Field
-		Data      respjson.Field
-		ID        respjson.Field
-		Caller    respjson.Field
-		Input     respjson.Field
-		Name      respjson.Field
-		Content   respjson.Field
-		ToolUseID respjson.Field
-		FileID    respjson.Field
-		raw       string
+		Citations   respjson.Field
+		Text        respjson.Field
+		Type        respjson.Field
+		Signature   respjson.Field
+		Thinking    respjson.Field
+		Data        respjson.Field
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Content     respjson.Field
+		ToolUseID   respjson.Field
+		FileID      respjson.Field
+		raw         string
 	} `json:"-"`
 }
 
@@ -4697,8 +7514,8 @@ func (r *ContentBlockStartEventContentBlockUnionContentContent) UnmarshalJSON(da
 }
 
 type ContentBlockStopEvent struct {
-	Index int64                     `json:"index,required"`
-	Type  constant.ContentBlockStop `json:"type,required"`
+	Index int64                     `json:"index" api:"required"`
+	Type  constant.ContentBlockStop `json:"type" default:"content_block_stop"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Index       respjson.Field
@@ -4715,8 +7532,8 @@ func (r *ContentBlockStopEvent) UnmarshalJSON(data []byte) error {
 }
 
 type MessageDeltaEvent struct {
-	Delta MessageDeltaEventDelta `json:"delta,required"`
-	Type  constant.MessageDelta  `json:"type,required"`
+	Delta MessageDeltaEventDelta `json:"delta" api:"required"`
+	Type  constant.MessageDelta  `json:"type" default:"message_delta"`
 	// Billing and rate-limit usage.
 	//
 	// Anthropic's API bills and rate-limits by token counts, as tokens represent the
@@ -4732,7 +7549,7 @@ type MessageDeltaEvent struct {
 	//
 	// Total input tokens in a request is the summation of `input_tokens`,
 	// `cache_creation_input_tokens`, and `cache_read_input_tokens`.
-	Usage MessageDeltaUsage `json:"usage,required"`
+	Usage MessageDeltaUsage `json:"usage" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Delta       respjson.Field
@@ -4752,14 +7569,17 @@ func (r *MessageDeltaEvent) UnmarshalJSON(data []byte) error {
 type MessageDeltaEventDelta struct {
 	// Information about the container used in the request (for the code execution
 	// tool)
-	Container Container `json:"container,required"`
+	Container Container `json:"container" api:"required"`
+	// Structured information about a refusal.
+	StopDetails RefusalStopDetails `json:"stop_details" api:"required"`
 	// Any of "end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn",
-	// "refusal".
-	StopReason   StopReason `json:"stop_reason,required"`
-	StopSequence string     `json:"stop_sequence,required"`
+	// "refusal", "model_context_window_exceeded".
+	StopReason   StopReason `json:"stop_reason" api:"required"`
+	StopSequence string     `json:"stop_sequence" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Container    respjson.Field
+		StopDetails  respjson.Field
 		StopReason   respjson.Field
 		StopSequence respjson.Field
 		ExtraFields  map[string]respjson.Field
@@ -4774,8 +7594,8 @@ func (r *MessageDeltaEventDelta) UnmarshalJSON(data []byte) error {
 }
 
 type MessageStartEvent struct {
-	Message Message               `json:"message,required"`
-	Type    constant.MessageStart `json:"type,required"`
+	Message Message               `json:"message" api:"required"`
+	Type    constant.MessageStart `json:"type" default:"message_start"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Message     respjson.Field
@@ -4792,7 +7612,7 @@ func (r *MessageStartEvent) UnmarshalJSON(data []byte) error {
 }
 
 type MessageStopEvent struct {
-	Type constant.MessageStop `json:"type,required"`
+	Type constant.MessageStop `json:"type" default:"message_stop"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Type        respjson.Field
@@ -4929,6 +7749,8 @@ type MessageStreamEventUnionDelta struct {
 	// This field is from variant [MessageDeltaEventDelta].
 	Container Container `json:"container"`
 	// This field is from variant [MessageDeltaEventDelta].
+	StopDetails RefusalStopDetails `json:"stop_details"`
+	// This field is from variant [MessageDeltaEventDelta].
 	StopReason StopReason `json:"stop_reason"`
 	// This field is from variant [MessageDeltaEventDelta].
 	StopSequence string `json:"stop_sequence"`
@@ -4945,6 +7767,7 @@ type MessageStreamEventUnionDelta struct {
 	Signature string `json:"signature"`
 	JSON      struct {
 		Container    respjson.Field
+		StopDetails  respjson.Field
 		StopReason   respjson.Field
 		StopSequence respjson.Field
 		Text         respjson.Field
@@ -4962,8 +7785,18 @@ func (r *MessageStreamEventUnionDelta) UnmarshalJSON(data []byte) error {
 }
 
 type RedactedThinkingBlock struct {
-	Data string                    `json:"data,required"`
-	Type constant.RedactedThinking `json:"type,required"`
+	// The contents of this redacted thinking block, returned when portions of the
+	// model's thinking were safety-redacted. This field is opaque and encrypted, with
+	// no readable content.
+	//
+	// Pass `redacted_thinking` blocks back to the API unchanged when continuing a
+	// multi-turn conversation.
+	//
+	// See
+	// [extended thinking](https://platform.claude.com/docs/en/build-with-claude/extended-thinking#redacted-thinking-blocks)
+	// for details.
+	Data string                    `json:"data" api:"required"`
+	Type constant.RedactedThinking `json:"type" default:"redacted_thinking"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Data        respjson.Field
@@ -4981,10 +7814,12 @@ func (r *RedactedThinkingBlock) UnmarshalJSON(data []byte) error {
 
 // The properties Data, Type are required.
 type RedactedThinkingBlockParam struct {
-	Data string `json:"data,required"`
+	// The `data` value of this redacted thinking block, exactly as returned by the API
+	// in a previous response. Opaque and encrypted; pass it back unchanged.
+	Data string `json:"data" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "redacted_thinking".
-	Type constant.RedactedThinking `json:"type,required"`
+	Type constant.RedactedThinking `json:"type" default:"redacted_thinking"`
 	paramObj
 }
 
@@ -4996,16 +7831,55 @@ func (r *RedactedThinkingBlockParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Structured information about a refusal.
+type RefusalStopDetails struct {
+	// The policy category that triggered a refusal.
+	//
+	// Any of "cyber", "bio", "frontier_llm", "reasoning_extraction", "general_harms".
+	Category RefusalStopDetailsCategory `json:"category" api:"required"`
+	// Human-readable explanation of the refusal.
+	//
+	// This text is not guaranteed to be stable. `null` when no explanation is
+	// available for the category.
+	Explanation string           `json:"explanation" api:"required"`
+	Type        constant.Refusal `json:"type" default:"refusal"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Category    respjson.Field
+		Explanation respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r RefusalStopDetails) RawJSON() string { return r.JSON.raw }
+func (r *RefusalStopDetails) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The policy category that triggered a refusal.
+type RefusalStopDetailsCategory string
+
+const (
+	RefusalStopDetailsCategoryCyber               RefusalStopDetailsCategory = "cyber"
+	RefusalStopDetailsCategoryBio                 RefusalStopDetailsCategory = "bio"
+	RefusalStopDetailsCategoryFrontierLLM         RefusalStopDetailsCategory = "frontier_llm"
+	RefusalStopDetailsCategoryReasoningExtraction RefusalStopDetailsCategory = "reasoning_extraction"
+	RefusalStopDetailsCategoryGeneralHarms        RefusalStopDetailsCategory = "general_harms"
+)
+
 // The properties Content, Source, Title, Type are required.
 type SearchResultBlockParam struct {
-	Content []TextBlockParam `json:"content,omitzero,required"`
-	Source  string           `json:"source,required"`
-	Title   string           `json:"title,required"`
+	Content []TextBlockParam `json:"content,omitzero" api:"required"`
+	Source  string           `json:"source" api:"required"`
+	Title   string           `json:"title" api:"required"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	Citations    CitationsConfigParam       `json:"citations,omitzero"`
 	// This field can be elided, and will marshal its zero value as "search_result".
-	Type constant.SearchResult `json:"type,required"`
+	Type constant.SearchResult `json:"type" default:"search_result"`
 	paramObj
 }
 
@@ -5019,8 +7893,8 @@ func (r *SearchResultBlockParam) UnmarshalJSON(data []byte) error {
 
 // Tool invocation generated by a server-side tool.
 type ServerToolCaller struct {
-	ToolID string                         `json:"tool_id,required"`
-	Type   constant.CodeExecution20250825 `json:"type,required"`
+	ToolID string                         `json:"tool_id" api:"required"`
+	Type   constant.CodeExecution20250825 `json:"type" default:"code_execution_20250825"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ToolID      respjson.Field
@@ -5049,10 +7923,10 @@ func (r ServerToolCaller) ToParam() ServerToolCallerParam {
 //
 // The properties ToolID, Type are required.
 type ServerToolCallerParam struct {
-	ToolID string `json:"tool_id,required"`
+	ToolID string `json:"tool_id" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "code_execution_20250825".
-	Type constant.CodeExecution20250825 `json:"type,required"`
+	Type constant.CodeExecution20250825 `json:"type" default:"code_execution_20250825"`
 	paramObj
 }
 
@@ -5065,8 +7939,8 @@ func (r *ServerToolCallerParam) UnmarshalJSON(data []byte) error {
 }
 
 type ServerToolCaller20260120 struct {
-	ToolID string                         `json:"tool_id,required"`
-	Type   constant.CodeExecution20260120 `json:"type,required"`
+	ToolID string                         `json:"tool_id" api:"required"`
+	Type   constant.CodeExecution20260120 `json:"type" default:"code_execution_20260120"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ToolID      respjson.Field
@@ -5094,10 +7968,10 @@ func (r ServerToolCaller20260120) ToParam() ServerToolCaller20260120Param {
 
 // The properties ToolID, Type are required.
 type ServerToolCaller20260120Param struct {
-	ToolID string `json:"tool_id,required"`
+	ToolID string `json:"tool_id" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "code_execution_20260120".
-	Type constant.CodeExecution20260120 `json:"type,required"`
+	Type constant.CodeExecution20260120 `json:"type" default:"code_execution_20260120"`
 	paramObj
 }
 
@@ -5111,9 +7985,9 @@ func (r *ServerToolCaller20260120Param) UnmarshalJSON(data []byte) error {
 
 type ServerToolUsage struct {
 	// The number of web fetch tool requests.
-	WebFetchRequests int64 `json:"web_fetch_requests,required"`
+	WebFetchRequests int64 `json:"web_fetch_requests" api:"required"`
 	// The number of web search tool requests.
-	WebSearchRequests int64 `json:"web_search_requests,required"`
+	WebSearchRequests int64 `json:"web_search_requests" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		WebFetchRequests  respjson.Field
@@ -5130,14 +8004,14 @@ func (r *ServerToolUsage) UnmarshalJSON(data []byte) error {
 }
 
 type ServerToolUseBlock struct {
-	ID string `json:"id,required"`
+	ID string `json:"id" api:"required"`
 	// Tool invocation directly from the model.
-	Caller ServerToolUseBlockCallerUnion `json:"caller,required"`
-	Input  any                           `json:"input,required"`
+	Caller ServerToolUseBlockCallerUnion `json:"caller" api:"required"`
+	Input  any                           `json:"input" api:"required"`
 	// Any of "web_search", "web_fetch", "code_execution", "bash_code_execution",
 	// "text_editor_code_execution", "tool_search_tool_regex", "tool_search_tool_bm25".
-	Name ServerToolUseBlockName `json:"name,required"`
-	Type constant.ServerToolUse `json:"type,required"`
+	Name ServerToolUseBlockName `json:"name" api:"required"`
+	Type constant.ServerToolUse `json:"type" default:"server_tool_use"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -5241,17 +8115,17 @@ const (
 
 // The properties ID, Input, Name, Type are required.
 type ServerToolUseBlockParam struct {
-	ID    string `json:"id,required"`
-	Input any    `json:"input,omitzero,required"`
+	ID    string `json:"id" api:"required"`
+	Input any    `json:"input,omitzero" api:"required"`
+	// Any of "web_search", "web_fetch", "code_execution", "bash_code_execution",
+	// "text_editor_code_execution", "tool_search_tool_regex", "tool_search_tool_bm25".
+	Name ServerToolUseBlockParamName `json:"name,omitzero" api:"required"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	// Tool invocation directly from the model.
 	Caller ServerToolUseBlockParamCallerUnion `json:"caller,omitzero"`
-	// Any of "web_search", "web_fetch", "code_execution", "bash_code_execution",
-	// "text_editor_code_execution", "tool_search_tool_regex", "tool_search_tool_bm25".
-	Name ServerToolUseBlockParamName `json:"name,required"`
 	// This field can be elided, and will marshal its zero value as "server_tool_use".
-	Type constant.ServerToolUse `json:"type,required"`
+	Type constant.ServerToolUse `json:"type" default:"server_tool_use"`
 	paramObj
 }
 
@@ -5335,8 +8209,11 @@ func init() {
 }
 
 type SignatureDelta struct {
-	Signature string                  `json:"signature,required"`
-	Type      constant.SignatureDelta `json:"type,required"`
+	// The `signature` for this thinking block: an opaque value used to verify that the
+	// block was generated by Claude when it is passed back to the API. Delivered in a
+	// `signature_delta` event just before the block's `content_block_stop` event.
+	Signature string                  `json:"signature" api:"required"`
+	Type      constant.SignatureDelta `json:"type" default:"signature_delta"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Signature   respjson.Field
@@ -5352,15 +8229,47 @@ func (r *SignatureDelta) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Specification for a skill to be loaded in a container (request model).
+//
+// The properties SkillID, Type are required.
+type SkillParams struct {
+	// Skill ID
+	SkillID string `json:"skill_id" api:"required"`
+	// Type of skill - either 'anthropic' (built-in) or 'custom' (user-defined)
+	//
+	// Any of "anthropic", "custom".
+	Type SkillParamsType `json:"type,omitzero" api:"required"`
+	// Skill version or 'latest' for most recent version
+	Version param.Opt[string] `json:"version,omitzero"`
+	paramObj
+}
+
+func (r SkillParams) MarshalJSON() (data []byte, err error) {
+	type shadow SkillParams
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *SkillParams) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Type of skill - either 'anthropic' (built-in) or 'custom' (user-defined)
+type SkillParamsType string
+
+const (
+	SkillParamsTypeAnthropic SkillParamsType = "anthropic"
+	SkillParamsTypeCustom    SkillParamsType = "custom"
+)
+
 type StopReason string
 
 const (
-	StopReasonEndTurn      StopReason = "end_turn"
-	StopReasonMaxTokens    StopReason = "max_tokens"
-	StopReasonStopSequence StopReason = "stop_sequence"
-	StopReasonToolUse      StopReason = "tool_use"
-	StopReasonPauseTurn    StopReason = "pause_turn"
-	StopReasonRefusal      StopReason = "refusal"
+	StopReasonEndTurn                    StopReason = "end_turn"
+	StopReasonMaxTokens                  StopReason = "max_tokens"
+	StopReasonStopSequence               StopReason = "stop_sequence"
+	StopReasonToolUse                    StopReason = "tool_use"
+	StopReasonPauseTurn                  StopReason = "pause_turn"
+	StopReasonRefusal                    StopReason = "refusal"
+	StopReasonModelContextWindowExceeded StopReason = "model_context_window_exceeded"
 )
 
 type TextBlock struct {
@@ -5369,9 +8278,9 @@ type TextBlock struct {
 	// The type of citation returned will depend on the type of document being cited.
 	// Citing a PDF results in `page_location`, plain text results in `char_location`,
 	// and content document results in `content_block_location`.
-	Citations []TextCitationUnion `json:"citations,required"`
-	Text      string              `json:"text,required"`
-	Type      constant.Text       `json:"type,required"`
+	Citations []TextCitationUnion `json:"citations" api:"required"`
+	Text      string              `json:"text" api:"required"`
+	Type      constant.Text       `json:"type" default:"text"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Citations   respjson.Field
@@ -5390,12 +8299,12 @@ func (r *TextBlock) UnmarshalJSON(data []byte) error {
 
 // The properties Text, Type are required.
 type TextBlockParam struct {
-	Text      string                   `json:"text,required"`
+	Text      string                   `json:"text" api:"required"`
 	Citations []TextCitationParamUnion `json:"citations,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	// This field can be elided, and will marshal its zero value as "text".
-	Type constant.Text `json:"type,required"`
+	Type constant.Text `json:"type" default:"text"`
 	paramObj
 }
 
@@ -5722,9 +8631,20 @@ func (u TextCitationParamUnion) GetTitle() *string {
 	return nil
 }
 
+func init() {
+	apijson.RegisterUnion[TextCitationParamUnion](
+		"type",
+		apijson.Discriminator[CitationCharLocationParam]("char_location"),
+		apijson.Discriminator[CitationPageLocationParam]("page_location"),
+		apijson.Discriminator[CitationContentBlockLocationParam]("content_block_location"),
+		apijson.Discriminator[CitationWebSearchResultLocationParam]("web_search_result_location"),
+		apijson.Discriminator[CitationSearchResultLocationParam]("search_result_location"),
+	)
+}
+
 type TextDelta struct {
-	Text string             `json:"text,required"`
-	Type constant.TextDelta `json:"type,required"`
+	Text string             `json:"text" api:"required"`
+	Type constant.TextDelta `json:"type" default:"text_delta"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Text        respjson.Field
@@ -5741,8 +8661,8 @@ func (r *TextDelta) UnmarshalJSON(data []byte) error {
 }
 
 type TextEditorCodeExecutionCreateResultBlock struct {
-	IsFileUpdate bool                                         `json:"is_file_update,required"`
-	Type         constant.TextEditorCodeExecutionCreateResult `json:"type,required"`
+	IsFileUpdate bool                                         `json:"is_file_update" api:"required"`
+	Type         constant.TextEditorCodeExecutionCreateResult `json:"type" default:"text_editor_code_execution_create_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		IsFileUpdate respjson.Field
@@ -5760,10 +8680,10 @@ func (r *TextEditorCodeExecutionCreateResultBlock) UnmarshalJSON(data []byte) er
 
 // The properties IsFileUpdate, Type are required.
 type TextEditorCodeExecutionCreateResultBlockParam struct {
-	IsFileUpdate bool `json:"is_file_update,required"`
+	IsFileUpdate bool `json:"is_file_update" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "text_editor_code_execution_create_result".
-	Type constant.TextEditorCodeExecutionCreateResult `json:"type,required"`
+	Type constant.TextEditorCodeExecutionCreateResult `json:"type" default:"text_editor_code_execution_create_result"`
 	paramObj
 }
 
@@ -5776,12 +8696,12 @@ func (r *TextEditorCodeExecutionCreateResultBlockParam) UnmarshalJSON(data []byt
 }
 
 type TextEditorCodeExecutionStrReplaceResultBlock struct {
-	Lines    []string                                         `json:"lines,required"`
-	NewLines int64                                            `json:"new_lines,required"`
-	NewStart int64                                            `json:"new_start,required"`
-	OldLines int64                                            `json:"old_lines,required"`
-	OldStart int64                                            `json:"old_start,required"`
-	Type     constant.TextEditorCodeExecutionStrReplaceResult `json:"type,required"`
+	Lines    []string                                         `json:"lines" api:"required"`
+	NewLines int64                                            `json:"new_lines" api:"required"`
+	NewStart int64                                            `json:"new_start" api:"required"`
+	OldLines int64                                            `json:"old_lines" api:"required"`
+	OldStart int64                                            `json:"old_start" api:"required"`
+	Type     constant.TextEditorCodeExecutionStrReplaceResult `json:"type" default:"text_editor_code_execution_str_replace_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Lines       respjson.Field
@@ -5810,7 +8730,7 @@ type TextEditorCodeExecutionStrReplaceResultBlockParam struct {
 	Lines    []string         `json:"lines,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "text_editor_code_execution_str_replace_result".
-	Type constant.TextEditorCodeExecutionStrReplaceResult `json:"type,required"`
+	Type constant.TextEditorCodeExecutionStrReplaceResult `json:"type" default:"text_editor_code_execution_str_replace_result"`
 	paramObj
 }
 
@@ -5823,9 +8743,9 @@ func (r *TextEditorCodeExecutionStrReplaceResultBlockParam) UnmarshalJSON(data [
 }
 
 type TextEditorCodeExecutionToolResultBlock struct {
-	Content   TextEditorCodeExecutionToolResultBlockContentUnion `json:"content,required"`
-	ToolUseID string                                             `json:"tool_use_id,required"`
-	Type      constant.TextEditorCodeExecutionToolResult         `json:"type,required"`
+	Content   TextEditorCodeExecutionToolResultBlockContentUnion `json:"content" api:"required"`
+	ToolUseID string                                             `json:"tool_use_id" api:"required"`
+	Type      constant.TextEditorCodeExecutionToolResult         `json:"type" default:"text_editor_code_execution_tool_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Content     respjson.Field
@@ -5925,13 +8845,13 @@ func (r *TextEditorCodeExecutionToolResultBlockContentUnion) UnmarshalJSON(data 
 
 // The properties Content, ToolUseID, Type are required.
 type TextEditorCodeExecutionToolResultBlockParam struct {
-	Content   TextEditorCodeExecutionToolResultBlockParamContentUnion `json:"content,omitzero,required"`
-	ToolUseID string                                                  `json:"tool_use_id,required"`
+	Content   TextEditorCodeExecutionToolResultBlockParamContentUnion `json:"content,omitzero" api:"required"`
+	ToolUseID string                                                  `json:"tool_use_id" api:"required"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "text_editor_code_execution_tool_result".
-	Type constant.TextEditorCodeExecutionToolResult `json:"type,required"`
+	Type constant.TextEditorCodeExecutionToolResult `json:"type" default:"text_editor_code_execution_tool_result"`
 	paramObj
 }
 
@@ -6095,9 +9015,9 @@ func (u TextEditorCodeExecutionToolResultBlockParamContentUnion) GetType() *stri
 type TextEditorCodeExecutionToolResultError struct {
 	// Any of "invalid_tool_input", "unavailable", "too_many_requests",
 	// "execution_time_exceeded", "file_not_found".
-	ErrorCode    TextEditorCodeExecutionToolResultErrorCode      `json:"error_code,required"`
-	ErrorMessage string                                          `json:"error_message,required"`
-	Type         constant.TextEditorCodeExecutionToolResultError `json:"type,required"`
+	ErrorCode    TextEditorCodeExecutionToolResultErrorCode      `json:"error_code" api:"required"`
+	ErrorMessage string                                          `json:"error_message" api:"required"`
+	Type         constant.TextEditorCodeExecutionToolResultError `json:"type" default:"text_editor_code_execution_tool_result_error"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ErrorCode    respjson.Field
@@ -6128,11 +9048,11 @@ const (
 type TextEditorCodeExecutionToolResultErrorParam struct {
 	// Any of "invalid_tool_input", "unavailable", "too_many_requests",
 	// "execution_time_exceeded", "file_not_found".
-	ErrorCode    TextEditorCodeExecutionToolResultErrorCode `json:"error_code,omitzero,required"`
+	ErrorCode    TextEditorCodeExecutionToolResultErrorCode `json:"error_code,omitzero" api:"required"`
 	ErrorMessage param.Opt[string]                          `json:"error_message,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "text_editor_code_execution_tool_result_error".
-	Type constant.TextEditorCodeExecutionToolResultError `json:"type,required"`
+	Type constant.TextEditorCodeExecutionToolResultError `json:"type" default:"text_editor_code_execution_tool_result_error"`
 	paramObj
 }
 
@@ -6145,13 +9065,13 @@ func (r *TextEditorCodeExecutionToolResultErrorParam) UnmarshalJSON(data []byte)
 }
 
 type TextEditorCodeExecutionViewResultBlock struct {
-	Content string `json:"content,required"`
+	Content string `json:"content" api:"required"`
 	// Any of "text", "image", "pdf".
-	FileType   TextEditorCodeExecutionViewResultBlockFileType `json:"file_type,required"`
-	NumLines   int64                                          `json:"num_lines,required"`
-	StartLine  int64                                          `json:"start_line,required"`
-	TotalLines int64                                          `json:"total_lines,required"`
-	Type       constant.TextEditorCodeExecutionViewResult     `json:"type,required"`
+	FileType   TextEditorCodeExecutionViewResultBlockFileType `json:"file_type" api:"required"`
+	NumLines   int64                                          `json:"num_lines" api:"required"`
+	StartLine  int64                                          `json:"start_line" api:"required"`
+	TotalLines int64                                          `json:"total_lines" api:"required"`
+	Type       constant.TextEditorCodeExecutionViewResult     `json:"type" default:"text_editor_code_execution_view_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Content     respjson.Field
@@ -6181,15 +9101,15 @@ const (
 
 // The properties Content, FileType, Type are required.
 type TextEditorCodeExecutionViewResultBlockParam struct {
-	Content string `json:"content,required"`
+	Content string `json:"content" api:"required"`
 	// Any of "text", "image", "pdf".
-	FileType   TextEditorCodeExecutionViewResultBlockParamFileType `json:"file_type,omitzero,required"`
+	FileType   TextEditorCodeExecutionViewResultBlockParamFileType `json:"file_type,omitzero" api:"required"`
 	NumLines   param.Opt[int64]                                    `json:"num_lines,omitzero"`
 	StartLine  param.Opt[int64]                                    `json:"start_line,omitzero"`
 	TotalLines param.Opt[int64]                                    `json:"total_lines,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "text_editor_code_execution_view_result".
-	Type constant.TextEditorCodeExecutionViewResult `json:"type,required"`
+	Type constant.TextEditorCodeExecutionViewResult `json:"type" default:"text_editor_code_execution_view_result"`
 	paramObj
 }
 
@@ -6210,9 +9130,20 @@ const (
 )
 
 type ThinkingBlock struct {
-	Signature string            `json:"signature,required"`
-	Thinking  string            `json:"thinking,required"`
-	Type      constant.Thinking `json:"type,required"`
+	// A value used to verify that this thinking block was generated by Claude when it
+	// is passed back to the API.
+	//
+	// This is an opaque field and should not be interpreted or parsed. When passing
+	// thinking blocks back to the API (required when using tools with extended
+	// thinking), pass them back exactly as received, with this field intact.
+	//
+	// See
+	// [extended thinking](https://platform.claude.com/docs/en/build-with-claude/extended-thinking)
+	// for details.
+	Signature string `json:"signature" api:"required"`
+	// The text of Claude's thinking process for this block.
+	Thinking string            `json:"thinking" api:"required"`
+	Type     constant.Thinking `json:"type" default:"thinking"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Signature   respjson.Field
@@ -6231,10 +9162,16 @@ func (r *ThinkingBlock) UnmarshalJSON(data []byte) error {
 
 // The properties Signature, Thinking, Type are required.
 type ThinkingBlockParam struct {
-	Signature string `json:"signature,required"`
-	Thinking  string `json:"thinking,required"`
+	// The `signature` value of this thinking block, exactly as returned by the API in
+	// a previous response. Used to verify that the block was generated by Claude.
+	//
+	// Thinking blocks must be passed back unmodified and in their original order; a
+	// modified block results in a 400 `invalid_request_error`.
+	Signature string `json:"signature" api:"required"`
+	// The `thinking` text of this block as returned by the API.
+	Thinking string `json:"thinking" api:"required"`
 	// This field can be elided, and will marshal its zero value as "thinking".
-	Type constant.Thinking `json:"type,required"`
+	Type constant.Thinking `json:"type" default:"thinking"`
 	paramObj
 }
 
@@ -6246,16 +9183,17 @@ func (r *ThinkingBlockParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
-func NewThinkingConfigAdaptiveParam() ThinkingConfigAdaptiveParam {
-	return ThinkingConfigAdaptiveParam{
-		Type: "adaptive",
-	}
-}
-
-// This struct has a constant value, construct it with
-// [NewThinkingConfigAdaptiveParam].
+// The property Type is required.
 type ThinkingConfigAdaptiveParam struct {
-	Type constant.Adaptive `json:"type,required"`
+	// Controls how thinking content appears in the response. When set to `summarized`,
+	// thinking is returned normally. When set to `omitted`, thinking content is
+	// redacted but a signature is returned for multi-turn continuity. Defaults to
+	// `summarized`.
+	//
+	// Any of "summarized", "omitted".
+	Display ThinkingConfigAdaptiveDisplay `json:"display,omitzero"`
+	// This field can be elided, and will marshal its zero value as "adaptive".
+	Type constant.Adaptive `json:"type" default:"adaptive"`
 	paramObj
 }
 
@@ -6267,6 +9205,17 @@ func (r *ThinkingConfigAdaptiveParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Controls how thinking content appears in the response. When set to `summarized`,
+// thinking is returned normally. When set to `omitted`, thinking content is
+// redacted but a signature is returned for multi-turn continuity. Defaults to
+// `summarized`.
+type ThinkingConfigAdaptiveDisplay string
+
+const (
+	ThinkingConfigAdaptiveDisplaySummarized ThinkingConfigAdaptiveDisplay = "summarized"
+	ThinkingConfigAdaptiveDisplayOmitted    ThinkingConfigAdaptiveDisplay = "omitted"
+)
+
 func NewThinkingConfigDisabledParam() ThinkingConfigDisabledParam {
 	return ThinkingConfigDisabledParam{
 		Type: "disabled",
@@ -6276,7 +9225,7 @@ func NewThinkingConfigDisabledParam() ThinkingConfigDisabledParam {
 // This struct has a constant value, construct it with
 // [NewThinkingConfigDisabledParam].
 type ThinkingConfigDisabledParam struct {
-	Type constant.Disabled `json:"type,required"`
+	Type constant.Disabled `json:"type" default:"disabled"`
 	paramObj
 }
 
@@ -6297,11 +9246,18 @@ type ThinkingConfigEnabledParam struct {
 	// Must be ≥1024 and less than `max_tokens`.
 	//
 	// See
-	// [extended thinking](https://docs.claude.com/en/docs/build-with-claude/extended-thinking)
+	// [extended thinking](https://platform.claude.com/docs/en/build-with-claude/extended-thinking)
 	// for details.
-	BudgetTokens int64 `json:"budget_tokens,required"`
+	BudgetTokens int64 `json:"budget_tokens" api:"required"`
+	// Controls how thinking content appears in the response. When set to `summarized`,
+	// thinking is returned normally. When set to `omitted`, thinking content is
+	// redacted but a signature is returned for multi-turn continuity. Defaults to
+	// `summarized`.
+	//
+	// Any of "summarized", "omitted".
+	Display ThinkingConfigEnabledDisplay `json:"display,omitzero"`
 	// This field can be elided, and will marshal its zero value as "enabled".
-	Type constant.Enabled `json:"type,required"`
+	Type constant.Enabled `json:"type" default:"enabled"`
 	paramObj
 }
 
@@ -6312,6 +9268,17 @@ func (r ThinkingConfigEnabledParam) MarshalJSON() (data []byte, err error) {
 func (r *ThinkingConfigEnabledParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
+
+// Controls how thinking content appears in the response. When set to `summarized`,
+// thinking is returned normally. When set to `omitted`, thinking content is
+// redacted but a signature is returned for multi-turn continuity. Defaults to
+// `summarized`.
+type ThinkingConfigEnabledDisplay string
+
+const (
+	ThinkingConfigEnabledDisplaySummarized ThinkingConfigEnabledDisplay = "summarized"
+	ThinkingConfigEnabledDisplayOmitted    ThinkingConfigEnabledDisplay = "omitted"
+)
 
 func ThinkingConfigParamOfEnabled(budgetTokens int64) ThinkingConfigParamUnion {
 	var enabled ThinkingConfigEnabledParam
@@ -6367,10 +9334,31 @@ func (u ThinkingConfigParamUnion) GetType() *string {
 	return nil
 }
 
+// Returns a pointer to the underlying variant's property, if present.
+func (u ThinkingConfigParamUnion) GetDisplay() *string {
+	if vt := u.OfEnabled; vt != nil {
+		return (*string)(&vt.Display)
+	} else if vt := u.OfAdaptive; vt != nil {
+		return (*string)(&vt.Display)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ThinkingConfigParamUnion](
+		"type",
+		apijson.Discriminator[ThinkingConfigEnabledParam]("enabled"),
+		apijson.Discriminator[ThinkingConfigDisabledParam]("disabled"),
+		apijson.Discriminator[ThinkingConfigAdaptiveParam]("adaptive"),
+	)
+}
 
 type ThinkingDelta struct {
-	Thinking string                 `json:"thinking,required"`
-	Type     constant.ThinkingDelta `json:"type,required"`
+	// The incremental `thinking` text for this content block. Concatenate the
+	// `thinking` values of successive `thinking_delta` events to assemble the block's
+	// full `thinking` value.
+	Thinking string                 `json:"thinking" api:"required"`
+	Type     constant.ThinkingDelta `json:"type" default:"thinking_delta"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Thinking    respjson.Field
@@ -6392,11 +9380,11 @@ type ToolParam struct {
 	//
 	// This defines the shape of the `input` that your tool accepts and that the model
 	// will produce.
-	InputSchema ToolInputSchemaParam `json:"input_schema,omitzero,required"`
+	InputSchema ToolInputSchemaParam `json:"input_schema,omitzero" api:"required"`
 	// Name of the tool.
 	//
 	// This is how the tool will be called by the model and in `tool_use` blocks.
-	Name string `json:"name,required"`
+	Name string `json:"name" api:"required"`
 	// Enable eager input streaming for this tool. When true, tool input parameters
 	// will be streamed incrementally as they are generated, and types will be inferred
 	// on-the-fly rather than buffering the full JSON output. When false, streaming is
@@ -6417,7 +9405,8 @@ type ToolParam struct {
 	Strict param.Opt[bool] `json:"strict,omitzero"`
 	// Any of "custom".
 	Type ToolType `json:"type,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl  CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -6443,7 +9432,7 @@ type ToolInputSchemaParam struct {
 	Properties any      `json:"properties,omitzero"`
 	Required   []string `json:"required,omitzero"`
 	// This field can be elided, and will marshal its zero value as "object".
-	Type        constant.Object `json:"type,required"`
+	Type        constant.Object `json:"type" default:"object"`
 	ExtraFields map[string]any  `json:"-"`
 	paramObj
 }
@@ -6469,7 +9458,8 @@ type ToolBash20250124Param struct {
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// When true, guarantees schema validation on tool names and inputs
 	Strict param.Opt[bool] `json:"strict,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl  CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -6479,9 +9469,9 @@ type ToolBash20250124Param struct {
 	// This is how the tool will be called by the model and in `tool_use` blocks.
 	//
 	// This field can be elided, and will marshal its zero value as "bash".
-	Name constant.Bash `json:"name,required"`
+	Name constant.Bash `json:"name" default:"bash"`
 	// This field can be elided, and will marshal its zero value as "bash_20250124".
-	Type constant.Bash20250124 `json:"type,required"`
+	Type constant.Bash20250124 `json:"type" default:"bash_20250124"`
 	paramObj
 }
 
@@ -6564,6 +9554,16 @@ func (u ToolChoiceUnionParam) GetDisableParallelToolUse() *bool {
 	return nil
 }
 
+func init() {
+	apijson.RegisterUnion[ToolChoiceUnionParam](
+		"type",
+		apijson.Discriminator[ToolChoiceAutoParam]("auto"),
+		apijson.Discriminator[ToolChoiceAnyParam]("any"),
+		apijson.Discriminator[ToolChoiceToolParam]("tool"),
+		apijson.Discriminator[ToolChoiceNoneParam]("none"),
+	)
+}
+
 // The model will use any available tools.
 //
 // The property Type is required.
@@ -6574,7 +9574,7 @@ type ToolChoiceAnyParam struct {
 	// use.
 	DisableParallelToolUse param.Opt[bool] `json:"disable_parallel_tool_use,omitzero"`
 	// This field can be elided, and will marshal its zero value as "any".
-	Type constant.Any `json:"type,required"`
+	Type constant.Any `json:"type" default:"any"`
 	paramObj
 }
 
@@ -6596,7 +9596,7 @@ type ToolChoiceAutoParam struct {
 	// use.
 	DisableParallelToolUse param.Opt[bool] `json:"disable_parallel_tool_use,omitzero"`
 	// This field can be elided, and will marshal its zero value as "auto".
-	Type constant.Auto `json:"type,required"`
+	Type constant.Auto `json:"type" default:"auto"`
 	paramObj
 }
 
@@ -6618,7 +9618,7 @@ func NewToolChoiceNoneParam() ToolChoiceNoneParam {
 //
 // This struct has a constant value, construct it with [NewToolChoiceNoneParam].
 type ToolChoiceNoneParam struct {
-	Type constant.None `json:"type,required"`
+	Type constant.None `json:"type" default:"none"`
 	paramObj
 }
 
@@ -6635,14 +9635,14 @@ func (r *ToolChoiceNoneParam) UnmarshalJSON(data []byte) error {
 // The properties Name, Type are required.
 type ToolChoiceToolParam struct {
 	// The name of the tool to use.
-	Name string `json:"name,required"`
+	Name string `json:"name" api:"required"`
 	// Whether to disable parallel tool use.
 	//
 	// Defaults to `false`. If set to `true`, the model will output exactly one tool
 	// use.
 	DisableParallelToolUse param.Opt[bool] `json:"disable_parallel_tool_use,omitzero"`
 	// This field can be elided, and will marshal its zero value as "tool".
-	Type constant.Tool `json:"type,required"`
+	Type constant.Tool `json:"type" default:"tool"`
 	paramObj
 }
 
@@ -6655,8 +9655,8 @@ func (r *ToolChoiceToolParam) UnmarshalJSON(data []byte) error {
 }
 
 type ToolReferenceBlock struct {
-	ToolName string                 `json:"tool_name,required"`
-	Type     constant.ToolReference `json:"type,required"`
+	ToolName string                 `json:"tool_name" api:"required"`
+	Type     constant.ToolReference `json:"type" default:"tool_reference"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ToolName    respjson.Field
@@ -6676,11 +9676,11 @@ func (r *ToolReferenceBlock) UnmarshalJSON(data []byte) error {
 //
 // The properties ToolName, Type are required.
 type ToolReferenceBlockParam struct {
-	ToolName string `json:"tool_name,required"`
+	ToolName string `json:"tool_name" api:"required"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	// This field can be elided, and will marshal its zero value as "tool_reference".
-	Type constant.ToolReference `json:"type,required"`
+	Type constant.ToolReference `json:"type" default:"tool_reference"`
 	paramObj
 }
 
@@ -6694,13 +9694,15 @@ func (r *ToolReferenceBlockParam) UnmarshalJSON(data []byte) error {
 
 // The properties ToolUseID, Type are required.
 type ToolResultBlockParam struct {
-	ToolUseID string          `json:"tool_use_id,required"`
-	IsError   param.Opt[bool] `json:"is_error,omitzero"`
+	ToolUseID string `json:"tool_use_id" api:"required"`
+	// For a toolset member tool_result, the toolset family of the paired tool_use.
+	ToolsetName param.Opt[string] `json:"toolset_name,omitzero"`
+	IsError     param.Opt[bool]   `json:"is_error,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam         `json:"cache_control,omitzero"`
 	Content      []ToolResultBlockParamContentUnion `json:"content,omitzero"`
 	// This field can be elided, and will marshal its zero value as "tool_result".
-	Type constant.ToolResult `json:"type,required"`
+	Type constant.ToolResult `json:"type" default:"tool_result"`
 	paramObj
 }
 
@@ -6721,6 +9723,7 @@ type ToolResultBlockParamContentUnion struct {
 	OfSearchResult  *SearchResultBlockParam  `json:",omitzero,inline"`
 	OfDocument      *DocumentBlockParam      `json:",omitzero,inline"`
 	OfToolReference *ToolReferenceBlockParam `json:",omitzero,inline"`
+	OfBrowserState  *BrowserStateBlockParam  `json:",omitzero,inline"`
 	paramUnion
 }
 
@@ -6729,7 +9732,8 @@ func (u ToolResultBlockParamContentUnion) MarshalJSON() ([]byte, error) {
 		u.OfImage,
 		u.OfSearchResult,
 		u.OfDocument,
-		u.OfToolReference)
+		u.OfToolReference,
+		u.OfBrowserState)
 }
 func (u *ToolResultBlockParamContentUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
@@ -6746,6 +9750,8 @@ func (u *ToolResultBlockParamContentUnion) asAny() any {
 		return u.OfDocument
 	} else if !param.IsOmitted(u.OfToolReference) {
 		return u.OfToolReference
+	} else if !param.IsOmitted(u.OfBrowserState) {
+		return u.OfBrowserState
 	}
 	return nil
 }
@@ -6754,6 +9760,14 @@ func (u *ToolResultBlockParamContentUnion) asAny() any {
 func (u ToolResultBlockParamContentUnion) GetText() *string {
 	if vt := u.OfText; vt != nil {
 		return &vt.Text
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolResultBlockParamContentUnion) GetTransformations() *ImageTransformationsParam {
+	if vt := u.OfImage; vt != nil {
+		return &vt.Transformations
 	}
 	return nil
 }
@@ -6783,6 +9797,22 @@ func (u ToolResultBlockParamContentUnion) GetToolName() *string {
 }
 
 // Returns a pointer to the underlying variant's property, if present.
+func (u ToolResultBlockParamContentUnion) GetTabs() []BrowserStateTabEntryParam {
+	if vt := u.OfBrowserState; vt != nil {
+		return vt.Tabs
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolResultBlockParamContentUnion) GetStateChanges() []BrowserStateChangeUnionParam {
+	if vt := u.OfBrowserState; vt != nil {
+		return vt.StateChanges
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
 func (u ToolResultBlockParamContentUnion) GetType() *string {
 	if vt := u.OfText; vt != nil {
 		return (*string)(&vt.Type)
@@ -6793,6 +9823,8 @@ func (u ToolResultBlockParamContentUnion) GetType() *string {
 	} else if vt := u.OfDocument; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfToolReference; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfBrowserState; vt != nil {
 		return (*string)(&vt.Type)
 	}
 	return nil
@@ -6819,6 +9851,8 @@ func (u ToolResultBlockParamContentUnion) GetCacheControl() *CacheControlEphemer
 	} else if vt := u.OfDocument; vt != nil {
 		return &vt.CacheControl
 	} else if vt := u.OfToolReference; vt != nil {
+		return &vt.CacheControl
+	} else if vt := u.OfBrowserState; vt != nil {
 		return &vt.CacheControl
 	}
 	return nil
@@ -6875,8 +9909,9 @@ func (u ToolResultBlockParamContentUnion) GetSource() (res toolResultBlockParamC
 }
 
 // Can have the runtime types [*Base64ImageSourceParam], [*URLImageSourceParam],
-// [*string], [*Base64PDFSourceParam], [*PlainTextSourceParam],
-// [*ContentBlockSourceParam], [*URLPDFSourceParam]
+// [*FileImageSourceParam], [*string], [*Base64PDFSourceParam],
+// [*PlainTextSourceParam], [*ContentBlockSourceParam], [*URLPDFSourceParam],
+// [*FileDocumentSourceParam]
 type toolResultBlockParamContentUnionSource struct{ any }
 
 // Use the following switch statement to get the type of the union:
@@ -6884,11 +9919,13 @@ type toolResultBlockParamContentUnionSource struct{ any }
 //	switch u.AsAny().(type) {
 //	case *anthropic.Base64ImageSourceParam:
 //	case *anthropic.URLImageSourceParam:
+//	case *anthropic.FileImageSourceParam:
 //	case *string:
 //	case *anthropic.Base64PDFSourceParam:
 //	case *anthropic.PlainTextSourceParam:
 //	case *anthropic.ContentBlockSourceParam:
 //	case *anthropic.URLPDFSourceParam:
+//	case *anthropic.FileDocumentSourceParam:
 //	default:
 //	    fmt.Errorf("not present")
 //	}
@@ -6947,17 +9984,40 @@ func (u toolResultBlockParamContentUnionSource) GetURL() *string {
 	return nil
 }
 
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolResultBlockParamContentUnionSource) GetFileID() *string {
+	switch vt := u.any.(type) {
+	case *ImageBlockParamSourceUnion:
+		return vt.GetFileID()
+	case *DocumentBlockParamSourceUnion:
+		return vt.GetFileID()
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ToolResultBlockParamContentUnion](
+		"type",
+		apijson.Discriminator[TextBlockParam]("text"),
+		apijson.Discriminator[ImageBlockParam]("image"),
+		apijson.Discriminator[SearchResultBlockParam]("search_result"),
+		apijson.Discriminator[DocumentBlockParam]("document"),
+		apijson.Discriminator[ToolReferenceBlockParam]("tool_reference"),
+		apijson.Discriminator[BrowserStateBlockParam]("browser_state"),
+	)
+}
 
 // The properties Name, Type are required.
 type ToolSearchToolBm25_20251119Param struct {
 	// Any of "tool_search_tool_bm25_20251119", "tool_search_tool_bm25".
-	Type ToolSearchToolBm25_20251119Type `json:"type,omitzero,required"`
+	Type ToolSearchToolBm25_20251119Type `json:"type,omitzero" api:"required"`
 	// If true, tool will not be included in initial system prompt. Only loaded when
 	// returned via tool_reference from tool search.
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// When true, guarantees schema validation on tool names and inputs
 	Strict param.Opt[bool] `json:"strict,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -6967,7 +10027,7 @@ type ToolSearchToolBm25_20251119Param struct {
 	//
 	// This field can be elided, and will marshal its zero value as
 	// "tool_search_tool_bm25".
-	Name constant.ToolSearchToolBm25 `json:"name,required"`
+	Name constant.ToolSearchToolBm25 `json:"name" default:"tool_search_tool_bm25"`
 	paramObj
 }
 
@@ -6989,13 +10049,14 @@ const (
 // The properties Name, Type are required.
 type ToolSearchToolRegex20251119Param struct {
 	// Any of "tool_search_tool_regex_20251119", "tool_search_tool_regex".
-	Type ToolSearchToolRegex20251119Type `json:"type,omitzero,required"`
+	Type ToolSearchToolRegex20251119Type `json:"type,omitzero" api:"required"`
 	// If true, tool will not be included in initial system prompt. Only loaded when
 	// returned via tool_reference from tool search.
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// When true, guarantees schema validation on tool names and inputs
 	Strict param.Opt[bool] `json:"strict,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -7005,7 +10066,7 @@ type ToolSearchToolRegex20251119Param struct {
 	//
 	// This field can be elided, and will marshal its zero value as
 	// "tool_search_tool_regex".
-	Name constant.ToolSearchToolRegex `json:"name,required"`
+	Name constant.ToolSearchToolRegex `json:"name" default:"tool_search_tool_regex"`
 	paramObj
 }
 
@@ -7025,9 +10086,9 @@ const (
 )
 
 type ToolSearchToolResultBlock struct {
-	Content   ToolSearchToolResultBlockContentUnion `json:"content,required"`
-	ToolUseID string                                `json:"tool_use_id,required"`
-	Type      constant.ToolSearchToolResult         `json:"type,required"`
+	Content   ToolSearchToolResultBlockContentUnion `json:"content" api:"required"`
+	ToolUseID string                                `json:"tool_use_id" api:"required"`
+	Type      constant.ToolSearchToolResult         `json:"type" default:"tool_search_tool_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Content     respjson.Field
@@ -7084,13 +10145,13 @@ func (r *ToolSearchToolResultBlockContentUnion) UnmarshalJSON(data []byte) error
 
 // The properties Content, ToolUseID, Type are required.
 type ToolSearchToolResultBlockParam struct {
-	Content   ToolSearchToolResultBlockParamContentUnion `json:"content,omitzero,required"`
-	ToolUseID string                                     `json:"tool_use_id,required"`
+	Content   ToolSearchToolResultBlockParamContentUnion `json:"content,omitzero" api:"required"`
+	ToolUseID string                                     `json:"tool_use_id" api:"required"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "tool_search_tool_result".
-	Type constant.ToolSearchToolResult `json:"type,required"`
+	Type constant.ToolSearchToolResult `json:"type" default:"tool_search_tool_result"`
 	paramObj
 }
 
@@ -7136,6 +10197,14 @@ func (u ToolSearchToolResultBlockParamContentUnion) GetErrorCode() *string {
 }
 
 // Returns a pointer to the underlying variant's property, if present.
+func (u ToolSearchToolResultBlockParamContentUnion) GetErrorMessage() *string {
+	if vt := u.OfRequestToolSearchToolResultError; vt != nil && vt.ErrorMessage.Valid() {
+		return &vt.ErrorMessage.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
 func (u ToolSearchToolResultBlockParamContentUnion) GetToolReferences() []ToolReferenceBlockParam {
 	if vt := u.OfRequestToolSearchToolSearchResultBlock; vt != nil {
 		return vt.ToolReferences
@@ -7156,9 +10225,9 @@ func (u ToolSearchToolResultBlockParamContentUnion) GetType() *string {
 type ToolSearchToolResultError struct {
 	// Any of "invalid_tool_input", "unavailable", "too_many_requests",
 	// "execution_time_exceeded".
-	ErrorCode    ToolSearchToolResultErrorCode      `json:"error_code,required"`
-	ErrorMessage string                             `json:"error_message,required"`
-	Type         constant.ToolSearchToolResultError `json:"type,required"`
+	ErrorCode    ToolSearchToolResultErrorCode      `json:"error_code" api:"required"`
+	ErrorMessage string                             `json:"error_message" api:"required"`
+	Type         constant.ToolSearchToolResultError `json:"type" default:"tool_search_tool_result_error"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ErrorCode    respjson.Field
@@ -7188,10 +10257,11 @@ const (
 type ToolSearchToolResultErrorParam struct {
 	// Any of "invalid_tool_input", "unavailable", "too_many_requests",
 	// "execution_time_exceeded".
-	ErrorCode ToolSearchToolResultErrorCode `json:"error_code,omitzero,required"`
+	ErrorCode    ToolSearchToolResultErrorCode `json:"error_code,omitzero" api:"required"`
+	ErrorMessage param.Opt[string]             `json:"error_message,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "tool_search_tool_result_error".
-	Type constant.ToolSearchToolResultError `json:"type,required"`
+	Type constant.ToolSearchToolResultError `json:"type" default:"tool_search_tool_result_error"`
 	paramObj
 }
 
@@ -7204,8 +10274,8 @@ func (r *ToolSearchToolResultErrorParam) UnmarshalJSON(data []byte) error {
 }
 
 type ToolSearchToolSearchResultBlock struct {
-	ToolReferences []ToolReferenceBlock                `json:"tool_references,required"`
-	Type           constant.ToolSearchToolSearchResult `json:"type,required"`
+	ToolReferences []ToolReferenceBlock                `json:"tool_references" api:"required"`
+	Type           constant.ToolSearchToolSearchResult `json:"type" default:"tool_search_tool_search_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ToolReferences respjson.Field
@@ -7223,10 +10293,10 @@ func (r *ToolSearchToolSearchResultBlock) UnmarshalJSON(data []byte) error {
 
 // The properties ToolReferences, Type are required.
 type ToolSearchToolSearchResultBlockParam struct {
-	ToolReferences []ToolReferenceBlockParam `json:"tool_references,omitzero,required"`
+	ToolReferences []ToolReferenceBlockParam `json:"tool_references,omitzero" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "tool_search_tool_search_result".
-	Type constant.ToolSearchToolSearchResult `json:"type,required"`
+	Type constant.ToolSearchToolSearchResult `json:"type" default:"tool_search_tool_search_result"`
 	paramObj
 }
 
@@ -7245,7 +10315,8 @@ type ToolTextEditor20250124Param struct {
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// When true, guarantees schema validation on tool names and inputs
 	Strict param.Opt[bool] `json:"strict,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl  CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -7256,10 +10327,10 @@ type ToolTextEditor20250124Param struct {
 	//
 	// This field can be elided, and will marshal its zero value as
 	// "str_replace_editor".
-	Name constant.StrReplaceEditor `json:"name,required"`
+	Name constant.StrReplaceEditor `json:"name" default:"str_replace_editor"`
 	// This field can be elided, and will marshal its zero value as
 	// "text_editor_20250124".
-	Type constant.TextEditor20250124 `json:"type,required"`
+	Type constant.TextEditor20250124 `json:"type" default:"text_editor_20250124"`
 	paramObj
 }
 
@@ -7278,7 +10349,8 @@ type ToolTextEditor20250429Param struct {
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// When true, guarantees schema validation on tool names and inputs
 	Strict param.Opt[bool] `json:"strict,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl  CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -7289,10 +10361,10 @@ type ToolTextEditor20250429Param struct {
 	//
 	// This field can be elided, and will marshal its zero value as
 	// "str_replace_based_edit_tool".
-	Name constant.StrReplaceBasedEditTool `json:"name,required"`
+	Name constant.StrReplaceBasedEditTool `json:"name" default:"str_replace_based_edit_tool"`
 	// This field can be elided, and will marshal its zero value as
 	// "text_editor_20250429".
-	Type constant.TextEditor20250429 `json:"type,required"`
+	Type constant.TextEditor20250429 `json:"type" default:"text_editor_20250429"`
 	paramObj
 }
 
@@ -7314,7 +10386,8 @@ type ToolTextEditor20250728Param struct {
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// When true, guarantees schema validation on tool names and inputs
 	Strict param.Opt[bool] `json:"strict,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl  CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -7325,10 +10398,10 @@ type ToolTextEditor20250728Param struct {
 	//
 	// This field can be elided, and will marshal its zero value as
 	// "str_replace_based_edit_tool".
-	Name constant.StrReplaceBasedEditTool `json:"name,required"`
+	Name constant.StrReplaceBasedEditTool `json:"name" default:"str_replace_based_edit_tool"`
 	// This field can be elided, and will marshal its zero value as
 	// "text_editor_20250728".
-	Type constant.TextEditor20250728 `json:"type,required"`
+	Type constant.TextEditor20250728 `json:"type" default:"text_editor_20250728"`
 	paramObj
 }
 
@@ -7368,7 +10441,10 @@ type ToolUnionParam struct {
 	OfCodeExecutionTool20250522   *CodeExecutionTool20250522Param   `json:",omitzero,inline"`
 	OfCodeExecutionTool20250825   *CodeExecutionTool20250825Param   `json:",omitzero,inline"`
 	OfCodeExecutionTool20260120   *CodeExecutionTool20260120Param   `json:",omitzero,inline"`
+	OfCodeExecutionTool20260521   *CodeExecutionTool20260521Param   `json:",omitzero,inline"`
+	OfBrowserToolset20260801      *BrowserToolset20260801Param      `json:",omitzero,inline"`
 	OfMemoryTool20250818          *MemoryTool20250818Param          `json:",omitzero,inline"`
+	OfComputerToolset20260801     *ComputerToolset20260801Param     `json:",omitzero,inline"`
 	OfTextEditor20250124          *ToolTextEditor20250124Param      `json:",omitzero,inline"`
 	OfTextEditor20250429          *ToolTextEditor20250429Param      `json:",omitzero,inline"`
 	OfTextEditor20250728          *ToolTextEditor20250728Param      `json:",omitzero,inline"`
@@ -7376,6 +10452,9 @@ type ToolUnionParam struct {
 	OfWebFetchTool20250910        *WebFetchTool20250910Param        `json:",omitzero,inline"`
 	OfWebSearchTool20260209       *WebSearchTool20260209Param       `json:",omitzero,inline"`
 	OfWebFetchTool20260209        *WebFetchTool20260209Param        `json:",omitzero,inline"`
+	OfWebFetchTool20260309        *WebFetchTool20260309Param        `json:",omitzero,inline"`
+	OfWebSearchTool20260318       *WebSearchTool20260318Param       `json:",omitzero,inline"`
+	OfWebFetchTool20260318        *WebFetchTool20260318Param        `json:",omitzero,inline"`
 	OfToolSearchToolBm25_20251119 *ToolSearchToolBm25_20251119Param `json:",omitzero,inline"`
 	OfToolSearchToolRegex20251119 *ToolSearchToolRegex20251119Param `json:",omitzero,inline"`
 	paramUnion
@@ -7387,7 +10466,10 @@ func (u ToolUnionParam) MarshalJSON() ([]byte, error) {
 		u.OfCodeExecutionTool20250522,
 		u.OfCodeExecutionTool20250825,
 		u.OfCodeExecutionTool20260120,
+		u.OfCodeExecutionTool20260521,
+		u.OfBrowserToolset20260801,
 		u.OfMemoryTool20250818,
+		u.OfComputerToolset20260801,
 		u.OfTextEditor20250124,
 		u.OfTextEditor20250429,
 		u.OfTextEditor20250728,
@@ -7395,6 +10477,9 @@ func (u ToolUnionParam) MarshalJSON() ([]byte, error) {
 		u.OfWebFetchTool20250910,
 		u.OfWebSearchTool20260209,
 		u.OfWebFetchTool20260209,
+		u.OfWebFetchTool20260309,
+		u.OfWebSearchTool20260318,
+		u.OfWebFetchTool20260318,
 		u.OfToolSearchToolBm25_20251119,
 		u.OfToolSearchToolRegex20251119)
 }
@@ -7413,8 +10498,14 @@ func (u *ToolUnionParam) asAny() any {
 		return u.OfCodeExecutionTool20250825
 	} else if !param.IsOmitted(u.OfCodeExecutionTool20260120) {
 		return u.OfCodeExecutionTool20260120
+	} else if !param.IsOmitted(u.OfCodeExecutionTool20260521) {
+		return u.OfCodeExecutionTool20260521
+	} else if !param.IsOmitted(u.OfBrowserToolset20260801) {
+		return u.OfBrowserToolset20260801
 	} else if !param.IsOmitted(u.OfMemoryTool20250818) {
 		return u.OfMemoryTool20250818
+	} else if !param.IsOmitted(u.OfComputerToolset20260801) {
+		return u.OfComputerToolset20260801
 	} else if !param.IsOmitted(u.OfTextEditor20250124) {
 		return u.OfTextEditor20250124
 	} else if !param.IsOmitted(u.OfTextEditor20250429) {
@@ -7429,6 +10520,12 @@ func (u *ToolUnionParam) asAny() any {
 		return u.OfWebSearchTool20260209
 	} else if !param.IsOmitted(u.OfWebFetchTool20260209) {
 		return u.OfWebFetchTool20260209
+	} else if !param.IsOmitted(u.OfWebFetchTool20260309) {
+		return u.OfWebFetchTool20260309
+	} else if !param.IsOmitted(u.OfWebSearchTool20260318) {
+		return u.OfWebSearchTool20260318
+	} else if !param.IsOmitted(u.OfWebFetchTool20260318) {
+		return u.OfWebFetchTool20260318
 	} else if !param.IsOmitted(u.OfToolSearchToolBm25_20251119) {
 		return u.OfToolSearchToolBm25_20251119
 	} else if !param.IsOmitted(u.OfToolSearchToolRegex20251119) {
@@ -7481,6 +10578,8 @@ func (u ToolUnionParam) GetName() *string {
 		return (*string)(&vt.Name)
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
 		return (*string)(&vt.Name)
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
+		return (*string)(&vt.Name)
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
 		return (*string)(&vt.Name)
 	} else if vt := u.OfTextEditor20250124; vt != nil {
@@ -7496,6 +10595,12 @@ func (u ToolUnionParam) GetName() *string {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
 		return (*string)(&vt.Name)
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return (*string)(&vt.Name)
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return (*string)(&vt.Name)
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return (*string)(&vt.Name)
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
 		return (*string)(&vt.Name)
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
 		return (*string)(&vt.Name)
@@ -7517,6 +10622,8 @@ func (u ToolUnionParam) GetDeferLoading() *bool {
 		return &vt.DeferLoading.Value
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
 	} else if vt := u.OfMemoryTool20250818; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
 	} else if vt := u.OfTextEditor20250124; vt != nil && vt.DeferLoading.Valid() {
@@ -7532,6 +10639,12 @@ func (u ToolUnionParam) GetDeferLoading() *bool {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
 	} else if vt := u.OfWebFetchTool20260209; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
+	} else if vt := u.OfWebFetchTool20260309; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
+	} else if vt := u.OfWebSearchTool20260318; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
+	} else if vt := u.OfWebFetchTool20260318; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
@@ -7553,6 +10666,8 @@ func (u ToolUnionParam) GetStrict() *bool {
 		return &vt.Strict.Value
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil && vt.Strict.Valid() {
 		return &vt.Strict.Value
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil && vt.Strict.Valid() {
+		return &vt.Strict.Value
 	} else if vt := u.OfMemoryTool20250818; vt != nil && vt.Strict.Valid() {
 		return &vt.Strict.Value
 	} else if vt := u.OfTextEditor20250124; vt != nil && vt.Strict.Valid() {
@@ -7568,6 +10683,12 @@ func (u ToolUnionParam) GetStrict() *bool {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil && vt.Strict.Valid() {
 		return &vt.Strict.Value
 	} else if vt := u.OfWebFetchTool20260209; vt != nil && vt.Strict.Valid() {
+		return &vt.Strict.Value
+	} else if vt := u.OfWebFetchTool20260309; vt != nil && vt.Strict.Valid() {
+		return &vt.Strict.Value
+	} else if vt := u.OfWebSearchTool20260318; vt != nil && vt.Strict.Valid() {
+		return &vt.Strict.Value
+	} else if vt := u.OfWebFetchTool20260318; vt != nil && vt.Strict.Valid() {
 		return &vt.Strict.Value
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil && vt.Strict.Valid() {
 		return &vt.Strict.Value
@@ -7589,7 +10710,13 @@ func (u ToolUnionParam) GetType() *string {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
 		return (*string)(&vt.Type)
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfBrowserToolset20260801; vt != nil {
+		return (*string)(&vt.Type)
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfComputerToolset20260801; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfTextEditor20250124; vt != nil {
 		return (*string)(&vt.Type)
@@ -7604,6 +10731,12 @@ func (u ToolUnionParam) GetType() *string {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
 		return (*string)(&vt.Type)
@@ -7623,6 +10756,12 @@ func (u ToolUnionParam) GetMaxUses() *int64 {
 		return &vt.MaxUses.Value
 	} else if vt := u.OfWebFetchTool20260209; vt != nil && vt.MaxUses.Valid() {
 		return &vt.MaxUses.Value
+	} else if vt := u.OfWebFetchTool20260309; vt != nil && vt.MaxUses.Valid() {
+		return &vt.MaxUses.Value
+	} else if vt := u.OfWebSearchTool20260318; vt != nil && vt.MaxUses.Valid() {
+		return &vt.MaxUses.Value
+	} else if vt := u.OfWebFetchTool20260318; vt != nil && vt.MaxUses.Valid() {
+		return &vt.MaxUses.Value
 	}
 	return nil
 }
@@ -7633,6 +10772,30 @@ func (u ToolUnionParam) GetMaxContentTokens() *int64 {
 		return &vt.MaxContentTokens.Value
 	} else if vt := u.OfWebFetchTool20260209; vt != nil && vt.MaxContentTokens.Valid() {
 		return &vt.MaxContentTokens.Value
+	} else if vt := u.OfWebFetchTool20260309; vt != nil && vt.MaxContentTokens.Valid() {
+		return &vt.MaxContentTokens.Value
+	} else if vt := u.OfWebFetchTool20260318; vt != nil && vt.MaxContentTokens.Valid() {
+		return &vt.MaxContentTokens.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolUnionParam) GetUseCache() *bool {
+	if vt := u.OfWebFetchTool20260309; vt != nil && vt.UseCache.Valid() {
+		return &vt.UseCache.Value
+	} else if vt := u.OfWebFetchTool20260318; vt != nil && vt.UseCache.Valid() {
+		return &vt.UseCache.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolUnionParam) GetResponseInclusion() *string {
+	if vt := u.OfWebSearchTool20260318; vt != nil {
+		return (*string)(&vt.ResponseInclusion)
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
+		return (*string)(&vt.ResponseInclusion)
 	}
 	return nil
 }
@@ -7650,7 +10813,13 @@ func (u ToolUnionParam) GetAllowedCallers() []string {
 		return vt.AllowedCallers
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
 		return vt.AllowedCallers
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfBrowserToolset20260801; vt != nil {
+		return vt.AllowedCallers
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfComputerToolset20260801; vt != nil {
 		return vt.AllowedCallers
 	} else if vt := u.OfTextEditor20250124; vt != nil {
 		return vt.AllowedCallers
@@ -7665,6 +10834,12 @@ func (u ToolUnionParam) GetAllowedCallers() []string {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
 		return vt.AllowedCallers
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
 		return vt.AllowedCallers
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
 		return vt.AllowedCallers
@@ -7686,7 +10861,13 @@ func (u ToolUnionParam) GetCacheControl() *CacheControlEphemeralParam {
 		return &vt.CacheControl
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
 		return &vt.CacheControl
+	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
+		return &vt.CacheControl
+	} else if vt := u.OfBrowserToolset20260801; vt != nil {
+		return &vt.CacheControl
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
+		return &vt.CacheControl
+	} else if vt := u.OfComputerToolset20260801; vt != nil {
 		return &vt.CacheControl
 	} else if vt := u.OfTextEditor20250124; vt != nil {
 		return &vt.CacheControl
@@ -7701,6 +10882,12 @@ func (u ToolUnionParam) GetCacheControl() *CacheControlEphemeralParam {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
 		return &vt.CacheControl
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return &vt.CacheControl
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return &vt.CacheControl
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return &vt.CacheControl
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
 		return &vt.CacheControl
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
 		return &vt.CacheControl
@@ -7729,6 +10916,956 @@ func (u ToolUnionParam) GetInputExamples() []map[string]any {
 	return nil
 }
 
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u ToolUnionParam) GetConfigs() (res toolUnionParamConfigs) {
+	if vt := u.OfBrowserToolset20260801; vt != nil {
+		res.any = &vt.Configs
+	} else if vt := u.OfComputerToolset20260801; vt != nil {
+		res.any = &vt.Configs
+	}
+	return
+}
+
+// Can have the runtime types [*BrowserToolsetConfigsParam],
+// [*ComputerToolsetConfigsParam]
+type toolUnionParamConfigs struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserToolsetConfigsParam:
+//	case *anthropic.ComputerToolsetConfigsParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigs) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetCloseTab() *BrowserCloseTabConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.CloseTab
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetFileUpload() *BrowserFileUploadConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.FileUpload
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetFind() *BrowserFindConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.Find
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetFormInput() *BrowserFormInputConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.FormInput
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetGetPageText() *BrowserGetPageTextConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.GetPageText
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetHover() *BrowserHoverConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.Hover
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetJavascriptExec() *BrowserJavascriptExecConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.JavascriptExec
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetListTabs() *BrowserListTabsConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.ListTabs
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetNavigate() *BrowserNavigateConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.Navigate
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetNewTab() *BrowserNewTabConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.NewTab
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetReadConsole() *BrowserReadConsoleConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.ReadConsole
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetReadNetwork() *BrowserReadNetworkConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.ReadNetwork
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetReadPage() *BrowserReadPageConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.ReadPage
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetScrollTo() *BrowserScrollToConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.ScrollTo
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetSwitchTab() *BrowserSwitchTabConfigParam {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		return &vt.SwitchTab
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigs) GetCursorPosition() *ComputerCursorPositionConfigParam {
+	switch vt := u.any.(type) {
+	case *ComputerToolsetConfigsParam:
+		return &vt.CursorPosition
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetDoubleClick() (res toolUnionParamConfigsDoubleClick) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.DoubleClick
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.DoubleClick
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserDoubleClickConfigParam],
+// [*ComputerDoubleClickConfigParam]
+type toolUnionParamConfigsDoubleClick struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserDoubleClickConfigParam:
+//	case *anthropic.ComputerDoubleClickConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsDoubleClick) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsDoubleClick) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserDoubleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerDoubleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsDoubleClick) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserDoubleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerDoubleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetHoldKey() (res toolUnionParamConfigsHoldKey) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.HoldKey
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.HoldKey
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserHoldKeyConfigParam],
+// [*ComputerHoldKeyConfigParam]
+type toolUnionParamConfigsHoldKey struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserHoldKeyConfigParam:
+//	case *anthropic.ComputerHoldKeyConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsHoldKey) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsHoldKey) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserHoldKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerHoldKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsHoldKey) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserHoldKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerHoldKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetKey() (res toolUnionParamConfigsKey) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Key
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Key
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserKeyConfigParam], [*ComputerKeyConfigParam]
+type toolUnionParamConfigsKey struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserKeyConfigParam:
+//	case *anthropic.ComputerKeyConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsKey) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsKey) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsKey) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerKeyConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetLeftClick() (res toolUnionParamConfigsLeftClick) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.LeftClick
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.LeftClick
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserLeftClickConfigParam],
+// [*ComputerLeftClickConfigParam]
+type toolUnionParamConfigsLeftClick struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserLeftClickConfigParam:
+//	case *anthropic.ComputerLeftClickConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsLeftClick) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsLeftClick) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerLeftClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsLeftClick) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerLeftClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetLeftClickDrag() (res toolUnionParamConfigsLeftClickDrag) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.LeftClickDrag
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.LeftClickDrag
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserLeftClickDragConfigParam],
+// [*ComputerLeftClickDragConfigParam]
+type toolUnionParamConfigsLeftClickDrag struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserLeftClickDragConfigParam:
+//	case *anthropic.ComputerLeftClickDragConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsLeftClickDrag) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsLeftClickDrag) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftClickDragConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerLeftClickDragConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsLeftClickDrag) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftClickDragConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerLeftClickDragConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetLeftMouseDown() (res toolUnionParamConfigsLeftMouseDown) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.LeftMouseDown
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.LeftMouseDown
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserLeftMouseDownConfigParam],
+// [*ComputerLeftMouseDownConfigParam]
+type toolUnionParamConfigsLeftMouseDown struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserLeftMouseDownConfigParam:
+//	case *anthropic.ComputerLeftMouseDownConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsLeftMouseDown) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsLeftMouseDown) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftMouseDownConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerLeftMouseDownConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsLeftMouseDown) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftMouseDownConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerLeftMouseDownConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetLeftMouseUp() (res toolUnionParamConfigsLeftMouseUp) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.LeftMouseUp
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.LeftMouseUp
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserLeftMouseUpConfigParam],
+// [*ComputerLeftMouseUpConfigParam]
+type toolUnionParamConfigsLeftMouseUp struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserLeftMouseUpConfigParam:
+//	case *anthropic.ComputerLeftMouseUpConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsLeftMouseUp) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsLeftMouseUp) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftMouseUpConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerLeftMouseUpConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsLeftMouseUp) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserLeftMouseUpConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerLeftMouseUpConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetMiddleClick() (res toolUnionParamConfigsMiddleClick) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.MiddleClick
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.MiddleClick
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserMiddleClickConfigParam],
+// [*ComputerMiddleClickConfigParam]
+type toolUnionParamConfigsMiddleClick struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserMiddleClickConfigParam:
+//	case *anthropic.ComputerMiddleClickConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsMiddleClick) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsMiddleClick) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserMiddleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerMiddleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsMiddleClick) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserMiddleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerMiddleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetMouseMove() (res toolUnionParamConfigsMouseMove) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.MouseMove
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.MouseMove
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserMouseMoveConfigParam],
+// [*ComputerMouseMoveConfigParam]
+type toolUnionParamConfigsMouseMove struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserMouseMoveConfigParam:
+//	case *anthropic.ComputerMouseMoveConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsMouseMove) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsMouseMove) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserMouseMoveConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerMouseMoveConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsMouseMove) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserMouseMoveConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerMouseMoveConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetRightClick() (res toolUnionParamConfigsRightClick) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.RightClick
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.RightClick
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserRightClickConfigParam],
+// [*ComputerRightClickConfigParam]
+type toolUnionParamConfigsRightClick struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserRightClickConfigParam:
+//	case *anthropic.ComputerRightClickConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsRightClick) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsRightClick) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserRightClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerRightClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsRightClick) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserRightClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerRightClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetScreenshot() (res toolUnionParamConfigsScreenshot) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Screenshot
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Screenshot
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserScreenshotConfigParam],
+// [*ComputerScreenshotConfigParam]
+type toolUnionParamConfigsScreenshot struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserScreenshotConfigParam:
+//	case *anthropic.ComputerScreenshotConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsScreenshot) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsScreenshot) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserScreenshotConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerScreenshotConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsScreenshot) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserScreenshotConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerScreenshotConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetScroll() (res toolUnionParamConfigsScroll) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Scroll
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Scroll
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserScrollConfigParam],
+// [*ComputerScrollConfigParam]
+type toolUnionParamConfigsScroll struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserScrollConfigParam:
+//	case *anthropic.ComputerScrollConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsScroll) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsScroll) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserScrollConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerScrollConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsScroll) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserScrollConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerScrollConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetTripleClick() (res toolUnionParamConfigsTripleClick) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.TripleClick
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.TripleClick
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserTripleClickConfigParam],
+// [*ComputerTripleClickConfigParam]
+type toolUnionParamConfigsTripleClick struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserTripleClickConfigParam:
+//	case *anthropic.ComputerTripleClickConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsTripleClick) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsTripleClick) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserTripleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerTripleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsTripleClick) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserTripleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerTripleClickConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetType() (res toolUnionParamConfigsType) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Type
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Type
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserTypeConfigParam], [*ComputerTypeConfigParam]
+type toolUnionParamConfigsType struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserTypeConfigParam:
+//	case *anthropic.ComputerTypeConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsType) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsType) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserTypeConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerTypeConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsType) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserTypeConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerTypeConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetWait() (res toolUnionParamConfigsWait) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Wait
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Wait
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserWaitConfigParam], [*ComputerWaitConfigParam]
+type toolUnionParamConfigsWait struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserWaitConfigParam:
+//	case *anthropic.ComputerWaitConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsWait) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsWait) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserWaitConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerWaitConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsWait) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserWaitConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerWaitConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u toolUnionParamConfigs) GetZoom() (res toolUnionParamConfigsZoom) {
+	switch vt := u.any.(type) {
+	case *BrowserToolsetConfigsParam:
+		res.any = &vt.Zoom
+	case *ComputerToolsetConfigsParam:
+		res.any = &vt.Zoom
+	}
+	return res
+}
+
+// Can have the runtime types [*BrowserZoomConfigParam], [*ComputerZoomConfigParam]
+type toolUnionParamConfigsZoom struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *anthropic.BrowserZoomConfigParam:
+//	case *anthropic.ComputerZoomConfigParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u toolUnionParamConfigsZoom) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsZoom) GetDeferLoading() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserZoomConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	case *ComputerZoomConfigParam:
+		return paramutil.AddrIfPresent(vt.DeferLoading)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u toolUnionParamConfigsZoom) GetEnabled() *bool {
+	switch vt := u.any.(type) {
+	case *BrowserZoomConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	case *ComputerZoomConfigParam:
+		return paramutil.AddrIfPresent(vt.Enabled)
+	}
+	return nil
+}
+
 // Returns a pointer to the underlying variant's AllowedDomains property, if
 // present.
 func (u ToolUnionParam) GetAllowedDomains() []string {
@@ -7739,6 +11876,12 @@ func (u ToolUnionParam) GetAllowedDomains() []string {
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
 		return vt.AllowedDomains
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return vt.AllowedDomains
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return vt.AllowedDomains
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return vt.AllowedDomains
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
 		return vt.AllowedDomains
 	}
 	return nil
@@ -7755,6 +11898,12 @@ func (u ToolUnionParam) GetBlockedDomains() []string {
 		return vt.BlockedDomains
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
 		return vt.BlockedDomains
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return vt.BlockedDomains
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
+		return vt.BlockedDomains
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
+		return vt.BlockedDomains
 	}
 	return nil
 }
@@ -7764,6 +11913,8 @@ func (u ToolUnionParam) GetUserLocation() *UserLocationParam {
 	if vt := u.OfWebSearchTool20250305; vt != nil {
 		return &vt.UserLocation
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
+		return &vt.UserLocation
+	} else if vt := u.OfWebSearchTool20260318; vt != nil {
 		return &vt.UserLocation
 	}
 	return nil
@@ -7775,16 +11926,24 @@ func (u ToolUnionParam) GetCitations() *CitationsConfigParam {
 		return &vt.Citations
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
 		return &vt.Citations
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return &vt.Citations
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
+		return &vt.Citations
 	}
 	return nil
 }
 
 type ToolUseBlock struct {
-	ID string `json:"id,required"`
+	ID string `json:"id" api:"required"`
+	// Tool invocation directly from the model.
+	Caller ToolUseBlockCallerUnion `json:"caller" api:"required"`
 	// necessary custom code modification
 	Input json.RawMessage  `json:"input,required"`
-	Name  string           `json:"name,required"`
-	Type  constant.ToolUse `json:"type,required"`
+	Name  string           `json:"name" api:"required"`
+	Type  constant.ToolUse `json:"type" default:"tool_use"`
+	// For a toolset member tool_use, the toolset family.
+	ToolsetName string `json:"toolset_name" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -7792,6 +11951,7 @@ type ToolUseBlock struct {
 		Input       respjson.Field
 		Name        respjson.Field
 		Type        respjson.Field
+		ToolsetName respjson.Field
 		ExtraFields map[string]respjson.Field
 		raw         string
 	} `json:"-"`
@@ -7876,15 +12036,17 @@ func (r *ToolUseBlockCallerUnion) UnmarshalJSON(data []byte) error {
 
 // The properties ID, Input, Name, Type are required.
 type ToolUseBlockParam struct {
-	ID    string `json:"id,required"`
-	Input any    `json:"input,omitzero,required"`
-	Name  string `json:"name,required"`
+	ID    string `json:"id" api:"required"`
+	Input any    `json:"input,omitzero" api:"required"`
+	Name  string `json:"name" api:"required"`
+	// For a toolset member tool_use, the toolset family this member belongs to.
+	ToolsetName param.Opt[string] `json:"toolset_name,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	// Tool invocation directly from the model.
 	Caller ToolUseBlockParamCallerUnion `json:"caller,omitzero"`
 	// This field can be elided, and will marshal its zero value as "tool_use".
-	Type constant.ToolUse `json:"type,required"`
+	Type constant.ToolUse `json:"type" default:"tool_use"`
 	paramObj
 }
 
@@ -7957,9 +12119,9 @@ func init() {
 
 // The properties Type, URL are required.
 type URLImageSourceParam struct {
-	URL string `json:"url,required"`
+	URL string `json:"url" api:"required"`
 	// This field can be elided, and will marshal its zero value as "url".
-	Type constant.URL `json:"type,required"`
+	Type constant.URL `json:"type" default:"url"`
 	paramObj
 }
 
@@ -7973,9 +12135,9 @@ func (r *URLImageSourceParam) UnmarshalJSON(data []byte) error {
 
 // The properties Type, URL are required.
 type URLPDFSourceParam struct {
-	URL string `json:"url,required"`
+	URL string `json:"url" api:"required"`
 	// This field can be elided, and will marshal its zero value as "url".
-	Type constant.URL `json:"type,required"`
+	Type constant.URL `json:"type" default:"url"`
 	paramObj
 }
 
@@ -7989,23 +12151,30 @@ func (r *URLPDFSourceParam) UnmarshalJSON(data []byte) error {
 
 type Usage struct {
 	// Breakdown of cached tokens by TTL
-	CacheCreation CacheCreation `json:"cache_creation,required"`
+	CacheCreation CacheCreation `json:"cache_creation" api:"required"`
 	// The number of input tokens used to create the cache entry.
-	CacheCreationInputTokens int64 `json:"cache_creation_input_tokens,required"`
+	CacheCreationInputTokens int64 `json:"cache_creation_input_tokens" api:"required"`
 	// The number of input tokens read from the cache.
-	CacheReadInputTokens int64 `json:"cache_read_input_tokens,required"`
+	CacheReadInputTokens int64 `json:"cache_read_input_tokens" api:"required"`
 	// The geographic region where inference was performed for this request.
-	InferenceGeo string `json:"inference_geo,required"`
+	InferenceGeo string `json:"inference_geo" api:"required"`
 	// The number of input tokens which were used.
-	InputTokens int64 `json:"input_tokens,required"`
+	InputTokens int64 `json:"input_tokens" api:"required"`
 	// The number of output tokens which were used.
-	OutputTokens int64 `json:"output_tokens,required"`
+	OutputTokens int64 `json:"output_tokens" api:"required"`
+	// Breakdown of output tokens by category.
+	//
+	// `output_tokens` remains the inclusive, authoritative total used for billing.
+	// This object provides a read-only decomposition for observability — for example,
+	// how many of the billed output tokens were spent on internal reasoning that may
+	// have been summarized before being returned to you.
+	OutputTokensDetails OutputTokensDetails `json:"output_tokens_details" api:"required"`
 	// The number of server tool requests.
-	ServerToolUse ServerToolUsage `json:"server_tool_use,required"`
+	ServerToolUse ServerToolUsage `json:"server_tool_use" api:"required"`
 	// If the request used the priority, standard, or batch tier.
 	//
 	// Any of "standard", "priority", "batch".
-	ServiceTier UsageServiceTier `json:"service_tier,required"`
+	ServiceTier UsageServiceTier `json:"service_tier" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		CacheCreation            respjson.Field
@@ -8014,6 +12183,7 @@ type Usage struct {
 		InferenceGeo             respjson.Field
 		InputTokens              respjson.Field
 		OutputTokens             respjson.Field
+		OutputTokensDetails      respjson.Field
 		ServerToolUse            respjson.Field
 		ServiceTier              respjson.Field
 		ExtraFields              map[string]respjson.Field
@@ -8049,7 +12219,7 @@ type UserLocationParam struct {
 	// The [IANA timezone](https://nodatime.org/TimeZones) of the user.
 	Timezone param.Opt[string] `json:"timezone,omitzero"`
 	// This field can be elided, and will marshal its zero value as "approximate".
-	Type constant.Approximate `json:"type,required"`
+	Type constant.Approximate `json:"type" default:"approximate"`
 	paramObj
 }
 
@@ -8062,12 +12232,12 @@ func (r *UserLocationParam) UnmarshalJSON(data []byte) error {
 }
 
 type WebFetchBlock struct {
-	Content DocumentBlock `json:"content,required"`
+	Content DocumentBlock `json:"content" api:"required"`
 	// ISO 8601 timestamp when the content was retrieved
-	RetrievedAt string                  `json:"retrieved_at,required"`
-	Type        constant.WebFetchResult `json:"type,required"`
+	RetrievedAt string                  `json:"retrieved_at" api:"required"`
+	Type        constant.WebFetchResult `json:"type" default:"web_fetch_result"`
 	// Fetched content URL
-	URL string `json:"url,required"`
+	URL string `json:"url" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Content     respjson.Field
@@ -8087,13 +12257,13 @@ func (r *WebFetchBlock) UnmarshalJSON(data []byte) error {
 
 // The properties Content, Type, URL are required.
 type WebFetchBlockParam struct {
-	Content DocumentBlockParam `json:"content,omitzero,required"`
+	Content DocumentBlockParam `json:"content,omitzero" api:"required"`
 	// Fetched content URL
-	URL string `json:"url,required"`
+	URL string `json:"url" api:"required"`
 	// ISO 8601 timestamp when the content was retrieved
 	RetrievedAt param.Opt[string] `json:"retrieved_at,omitzero"`
 	// This field can be elided, and will marshal its zero value as "web_fetch_result".
-	Type constant.WebFetchResult `json:"type,required"`
+	Type constant.WebFetchResult `json:"type" default:"web_fetch_result"`
 	paramObj
 }
 
@@ -8121,7 +12291,8 @@ type WebFetchTool20250910Param struct {
 	AllowedDomains []string `json:"allowed_domains,omitzero"`
 	// List of domains to block fetching from
 	BlockedDomains []string `json:"blocked_domains,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -8133,10 +12304,10 @@ type WebFetchTool20250910Param struct {
 	// This is how the tool will be called by the model and in `tool_use` blocks.
 	//
 	// This field can be elided, and will marshal its zero value as "web_fetch".
-	Name constant.WebFetch `json:"name,required"`
+	Name constant.WebFetch `json:"name" default:"web_fetch"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_fetch_20250910".
-	Type constant.WebFetch20250910 `json:"type,required"`
+	Type constant.WebFetch20250910 `json:"type" default:"web_fetch_20250910"`
 	paramObj
 }
 
@@ -8164,7 +12335,8 @@ type WebFetchTool20260209Param struct {
 	AllowedDomains []string `json:"allowed_domains,omitzero"`
 	// List of domains to block fetching from
 	BlockedDomains []string `json:"blocked_domains,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -8176,10 +12348,10 @@ type WebFetchTool20260209Param struct {
 	// This is how the tool will be called by the model and in `tool_use` blocks.
 	//
 	// This field can be elided, and will marshal its zero value as "web_fetch".
-	Name constant.WebFetch `json:"name,required"`
+	Name constant.WebFetch `json:"name" default:"web_fetch"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_fetch_20260209".
-	Type constant.WebFetch20260209 `json:"type,required"`
+	Type constant.WebFetch20260209 `json:"type" default:"web_fetch_20260209"`
 	paramObj
 }
 
@@ -8191,12 +12363,132 @@ func (r *WebFetchTool20260209Param) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Web fetch tool with use_cache parameter for bypassing cached content.
+//
+// The properties Name, Type are required.
+type WebFetchTool20260309Param struct {
+	// Maximum number of tokens used by including web page text content in the context.
+	// The limit is approximate and does not apply to binary content such as PDFs.
+	MaxContentTokens param.Opt[int64] `json:"max_content_tokens,omitzero"`
+	// Maximum number of times the tool can be used in the API request.
+	MaxUses param.Opt[int64] `json:"max_uses,omitzero"`
+	// If true, tool will not be included in initial system prompt. Only loaded when
+	// returned via tool_reference from tool search.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// When true, guarantees schema validation on tool names and inputs
+	Strict param.Opt[bool] `json:"strict,omitzero"`
+	// Whether to use cached content. Set to false to bypass the cache and fetch fresh
+	// content. Only set to false when the user explicitly requests fresh content or
+	// when fetching rapidly-changing sources.
+	UseCache param.Opt[bool] `json:"use_cache,omitzero"`
+	// List of domains to allow fetching from
+	AllowedDomains []string `json:"allowed_domains,omitzero"`
+	// List of domains to block fetching from
+	BlockedDomains []string `json:"blocked_domains,omitzero"`
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
+	AllowedCallers []string `json:"allowed_callers,omitzero"`
+	// Create a cache control breakpoint at this content block.
+	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
+	// Citations configuration for fetched documents. Citations are disabled by
+	// default.
+	Citations CitationsConfigParam `json:"citations,omitzero"`
+	// Name of the tool.
+	//
+	// This is how the tool will be called by the model and in `tool_use` blocks.
+	//
+	// This field can be elided, and will marshal its zero value as "web_fetch".
+	Name constant.WebFetch `json:"name" default:"web_fetch"`
+	// This field can be elided, and will marshal its zero value as
+	// "web_fetch_20260309".
+	Type constant.WebFetch20260309 `json:"type" default:"web_fetch_20260309"`
+	paramObj
+}
+
+func (r WebFetchTool20260309Param) MarshalJSON() (data []byte, err error) {
+	type shadow WebFetchTool20260309Param
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *WebFetchTool20260309Param) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The properties Name, Type are required.
+type WebFetchTool20260318Param struct {
+	// Maximum number of tokens used by including web page text content in the context.
+	// The limit is approximate and does not apply to binary content such as PDFs.
+	MaxContentTokens param.Opt[int64] `json:"max_content_tokens,omitzero"`
+	// Maximum number of times the tool can be used in the API request.
+	MaxUses param.Opt[int64] `json:"max_uses,omitzero"`
+	// If true, tool will not be included in initial system prompt. Only loaded when
+	// returned via tool_reference from tool search.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// When true, guarantees schema validation on tool names and inputs
+	Strict param.Opt[bool] `json:"strict,omitzero"`
+	// Whether to use cached content. Set to false to bypass the cache and fetch fresh
+	// content. Only set to false when the user explicitly requests fresh content or
+	// when fetching rapidly-changing sources.
+	UseCache param.Opt[bool] `json:"use_cache,omitzero"`
+	// List of domains to allow fetching from
+	AllowedDomains []string `json:"allowed_domains,omitzero"`
+	// List of domains to block fetching from
+	BlockedDomains []string `json:"blocked_domains,omitzero"`
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
+	AllowedCallers []string `json:"allowed_callers,omitzero"`
+	// Create a cache control breakpoint at this content block.
+	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
+	// Citations configuration for fetched documents. Citations are disabled by
+	// default.
+	Citations CitationsConfigParam `json:"citations,omitzero"`
+	// How this tool's result blocks appear in the API response when the result was
+	// consumed by a completed code_execution call in the same turn. 'full' returns the
+	// complete content (default). 'excluded' drops the nested server_tool_use and
+	// result block pair entirely. Results from direct calls, or from code_execution
+	// calls that paused before completing, are always returned in full so they can be
+	// sent back on the next turn.
+	//
+	// Any of "full", "excluded".
+	ResponseInclusion WebFetchTool20260318ResponseInclusion `json:"response_inclusion,omitzero"`
+	// Name of the tool.
+	//
+	// This is how the tool will be called by the model and in `tool_use` blocks.
+	//
+	// This field can be elided, and will marshal its zero value as "web_fetch".
+	Name constant.WebFetch `json:"name" default:"web_fetch"`
+	// This field can be elided, and will marshal its zero value as
+	// "web_fetch_20260318".
+	Type constant.WebFetch20260318 `json:"type" default:"web_fetch_20260318"`
+	paramObj
+}
+
+func (r WebFetchTool20260318Param) MarshalJSON() (data []byte, err error) {
+	type shadow WebFetchTool20260318Param
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *WebFetchTool20260318Param) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// How this tool's result blocks appear in the API response when the result was
+// consumed by a completed code_execution call in the same turn. 'full' returns the
+// complete content (default). 'excluded' drops the nested server_tool_use and
+// result block pair entirely. Results from direct calls, or from code_execution
+// calls that paused before completing, are always returned in full so they can be
+// sent back on the next turn.
+type WebFetchTool20260318ResponseInclusion string
+
+const (
+	WebFetchTool20260318ResponseInclusionFull     WebFetchTool20260318ResponseInclusion = "full"
+	WebFetchTool20260318ResponseInclusionExcluded WebFetchTool20260318ResponseInclusion = "excluded"
+)
+
 type WebFetchToolResultBlock struct {
 	// Tool invocation directly from the model.
-	Caller    WebFetchToolResultBlockCallerUnion  `json:"caller,required"`
-	Content   WebFetchToolResultBlockContentUnion `json:"content,required"`
-	ToolUseID string                              `json:"tool_use_id,required"`
-	Type      constant.WebFetchToolResult         `json:"type,required"`
+	Caller    WebFetchToolResultBlockCallerUnion  `json:"caller" api:"required"`
+	Content   WebFetchToolResultBlockContentUnion `json:"content" api:"required"`
+	ToolUseID string                              `json:"tool_use_id" api:"required"`
+	Type      constant.WebFetchToolResult         `json:"type" default:"web_fetch_tool_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Caller      respjson.Field
@@ -8329,15 +12621,15 @@ func (r *WebFetchToolResultBlockContentUnion) UnmarshalJSON(data []byte) error {
 
 // The properties Content, ToolUseID, Type are required.
 type WebFetchToolResultBlockParam struct {
-	Content   WebFetchToolResultBlockParamContentUnion `json:"content,omitzero,required"`
-	ToolUseID string                                   `json:"tool_use_id,required"`
+	Content   WebFetchToolResultBlockParamContentUnion `json:"content,omitzero" api:"required"`
+	ToolUseID string                                   `json:"tool_use_id" api:"required"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	// Tool invocation directly from the model.
 	Caller WebFetchToolResultBlockParamCallerUnion `json:"caller,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_fetch_tool_result".
-	Type constant.WebFetchToolResult `json:"type,required"`
+	Type constant.WebFetchToolResult `json:"type" default:"web_fetch_tool_result"`
 	paramObj
 }
 
@@ -8477,10 +12769,10 @@ func init() {
 
 type WebFetchToolResultErrorBlock struct {
 	// Any of "invalid_tool_input", "url_too_long", "url_not_allowed",
-	// "url_not_accessible", "unsupported_content_type", "too_many_requests",
-	// "max_uses_exceeded", "unavailable".
-	ErrorCode WebFetchToolResultErrorCode      `json:"error_code,required"`
-	Type      constant.WebFetchToolResultError `json:"type,required"`
+	// "url_not_in_prior_context", "url_not_accessible", "unsupported_content_type",
+	// "too_many_requests", "max_uses_exceeded", "unavailable".
+	ErrorCode WebFetchToolResultErrorCode      `json:"error_code" api:"required"`
+	Type      constant.WebFetchToolResultError `json:"type" default:"web_fetch_tool_result_error"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ErrorCode   respjson.Field
@@ -8499,12 +12791,12 @@ func (r *WebFetchToolResultErrorBlock) UnmarshalJSON(data []byte) error {
 // The properties ErrorCode, Type are required.
 type WebFetchToolResultErrorBlockParam struct {
 	// Any of "invalid_tool_input", "url_too_long", "url_not_allowed",
-	// "url_not_accessible", "unsupported_content_type", "too_many_requests",
-	// "max_uses_exceeded", "unavailable".
-	ErrorCode WebFetchToolResultErrorCode `json:"error_code,omitzero,required"`
+	// "url_not_in_prior_context", "url_not_accessible", "unsupported_content_type",
+	// "too_many_requests", "max_uses_exceeded", "unavailable".
+	ErrorCode WebFetchToolResultErrorCode `json:"error_code,omitzero" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_fetch_tool_result_error".
-	Type constant.WebFetchToolResultError `json:"type,required"`
+	Type constant.WebFetchToolResultError `json:"type" default:"web_fetch_tool_result_error"`
 	paramObj
 }
 
@@ -8522,6 +12814,7 @@ const (
 	WebFetchToolResultErrorCodeInvalidToolInput       WebFetchToolResultErrorCode = "invalid_tool_input"
 	WebFetchToolResultErrorCodeURLTooLong             WebFetchToolResultErrorCode = "url_too_long"
 	WebFetchToolResultErrorCodeURLNotAllowed          WebFetchToolResultErrorCode = "url_not_allowed"
+	WebFetchToolResultErrorCodeURLNotInPriorContext   WebFetchToolResultErrorCode = "url_not_in_prior_context"
 	WebFetchToolResultErrorCodeURLNotAccessible       WebFetchToolResultErrorCode = "url_not_accessible"
 	WebFetchToolResultErrorCodeUnsupportedContentType WebFetchToolResultErrorCode = "unsupported_content_type"
 	WebFetchToolResultErrorCodeTooManyRequests        WebFetchToolResultErrorCode = "too_many_requests"
@@ -8530,11 +12823,11 @@ const (
 )
 
 type WebSearchResultBlock struct {
-	EncryptedContent string                   `json:"encrypted_content,required"`
-	PageAge          string                   `json:"page_age,required"`
-	Title            string                   `json:"title,required"`
-	Type             constant.WebSearchResult `json:"type,required"`
-	URL              string                   `json:"url,required"`
+	EncryptedContent string                   `json:"encrypted_content" api:"required"`
+	PageAge          string                   `json:"page_age" api:"required"`
+	Title            string                   `json:"title" api:"required"`
+	Type             constant.WebSearchResult `json:"type" default:"web_search_result"`
+	URL              string                   `json:"url" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		EncryptedContent respjson.Field
@@ -8555,13 +12848,13 @@ func (r *WebSearchResultBlock) UnmarshalJSON(data []byte) error {
 
 // The properties EncryptedContent, Title, Type, URL are required.
 type WebSearchResultBlockParam struct {
-	EncryptedContent string            `json:"encrypted_content,required"`
-	Title            string            `json:"title,required"`
-	URL              string            `json:"url,required"`
+	EncryptedContent string            `json:"encrypted_content" api:"required"`
+	Title            string            `json:"title" api:"required"`
+	URL              string            `json:"url" api:"required"`
 	PageAge          param.Opt[string] `json:"page_age,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_search_result".
-	Type constant.WebSearchResult `json:"type,required"`
+	Type constant.WebSearchResult `json:"type" default:"web_search_result"`
 	paramObj
 }
 
@@ -8588,7 +12881,8 @@ type WebSearchTool20250305Param struct {
 	// If provided, these domains will never appear in results. Cannot be used
 	// alongside `allowed_domains`.
 	BlockedDomains []string `json:"blocked_domains,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -8600,10 +12894,10 @@ type WebSearchTool20250305Param struct {
 	// This is how the tool will be called by the model and in `tool_use` blocks.
 	//
 	// This field can be elided, and will marshal its zero value as "web_search".
-	Name constant.WebSearch `json:"name,required"`
+	Name constant.WebSearch `json:"name" default:"web_search"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_search_20250305".
-	Type constant.WebSearch20250305 `json:"type,required"`
+	Type constant.WebSearch20250305 `json:"type" default:"web_search_20250305"`
 	paramObj
 }
 
@@ -8630,7 +12924,8 @@ type WebSearchTool20260209Param struct {
 	// If provided, these domains will never appear in results. Cannot be used
 	// alongside `allowed_domains`.
 	BlockedDomains []string `json:"blocked_domains,omitzero"`
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
 	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -8642,10 +12937,10 @@ type WebSearchTool20260209Param struct {
 	// This is how the tool will be called by the model and in `tool_use` blocks.
 	//
 	// This field can be elided, and will marshal its zero value as "web_search".
-	Name constant.WebSearch `json:"name,required"`
+	Name constant.WebSearch `json:"name" default:"web_search"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_search_20260209".
-	Type constant.WebSearch20260209 `json:"type,required"`
+	Type constant.WebSearch20260209 `json:"type" default:"web_search_20260209"`
 	paramObj
 }
 
@@ -8657,14 +12952,79 @@ func (r *WebSearchTool20260209Param) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// The properties Name, Type are required.
+type WebSearchTool20260318Param struct {
+	// Maximum number of times the tool can be used in the API request.
+	MaxUses param.Opt[int64] `json:"max_uses,omitzero"`
+	// If true, tool will not be included in initial system prompt. Only loaded when
+	// returned via tool_reference from tool search.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// When true, guarantees schema validation on tool names and inputs
+	Strict param.Opt[bool] `json:"strict,omitzero"`
+	// If provided, only these domains will be included in results. Cannot be used
+	// alongside `blocked_domains`.
+	AllowedDomains []string `json:"allowed_domains,omitzero"`
+	// If provided, these domains will never appear in results. Cannot be used
+	// alongside `allowed_domains`.
+	BlockedDomains []string `json:"blocked_domains,omitzero"`
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
+	// "code_execution_20260521".
+	AllowedCallers []string `json:"allowed_callers,omitzero"`
+	// Create a cache control breakpoint at this content block.
+	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
+	// How this tool's result blocks appear in the API response when the result was
+	// consumed by a completed code_execution call in the same turn. 'full' returns the
+	// complete content (default). 'excluded' drops the nested server_tool_use and
+	// result block pair entirely. Results from direct calls, or from code_execution
+	// calls that paused before completing, are always returned in full so they can be
+	// sent back on the next turn.
+	//
+	// Any of "full", "excluded".
+	ResponseInclusion WebSearchTool20260318ResponseInclusion `json:"response_inclusion,omitzero"`
+	// Parameters for the user's location. Used to provide more relevant search
+	// results.
+	UserLocation UserLocationParam `json:"user_location,omitzero"`
+	// Name of the tool.
+	//
+	// This is how the tool will be called by the model and in `tool_use` blocks.
+	//
+	// This field can be elided, and will marshal its zero value as "web_search".
+	Name constant.WebSearch `json:"name" default:"web_search"`
+	// This field can be elided, and will marshal its zero value as
+	// "web_search_20260318".
+	Type constant.WebSearch20260318 `json:"type" default:"web_search_20260318"`
+	paramObj
+}
+
+func (r WebSearchTool20260318Param) MarshalJSON() (data []byte, err error) {
+	type shadow WebSearchTool20260318Param
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *WebSearchTool20260318Param) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// How this tool's result blocks appear in the API response when the result was
+// consumed by a completed code_execution call in the same turn. 'full' returns the
+// complete content (default). 'excluded' drops the nested server_tool_use and
+// result block pair entirely. Results from direct calls, or from code_execution
+// calls that paused before completing, are always returned in full so they can be
+// sent back on the next turn.
+type WebSearchTool20260318ResponseInclusion string
+
+const (
+	WebSearchTool20260318ResponseInclusionFull     WebSearchTool20260318ResponseInclusion = "full"
+	WebSearchTool20260318ResponseInclusionExcluded WebSearchTool20260318ResponseInclusion = "excluded"
+)
+
 // The properties ErrorCode, Type are required.
 type WebSearchToolRequestErrorParam struct {
 	// Any of "invalid_tool_input", "unavailable", "max_uses_exceeded",
 	// "too_many_requests", "query_too_long", "request_too_large".
-	ErrorCode WebSearchToolResultErrorCode `json:"error_code,omitzero,required"`
+	ErrorCode WebSearchToolResultErrorCode `json:"error_code,omitzero" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_search_tool_result_error".
-	Type constant.WebSearchToolResultError `json:"type,required"`
+	Type constant.WebSearchToolResultError `json:"type" default:"web_search_tool_result_error"`
 	paramObj
 }
 
@@ -8678,10 +13038,10 @@ func (r *WebSearchToolRequestErrorParam) UnmarshalJSON(data []byte) error {
 
 type WebSearchToolResultBlock struct {
 	// Tool invocation directly from the model.
-	Caller    WebSearchToolResultBlockCallerUnion  `json:"caller,required"`
-	Content   WebSearchToolResultBlockContentUnion `json:"content,required"`
-	ToolUseID string                               `json:"tool_use_id,required"`
-	Type      constant.WebSearchToolResult         `json:"type,required"`
+	Caller    WebSearchToolResultBlockCallerUnion  `json:"caller" api:"required"`
+	Content   WebSearchToolResultBlockContentUnion `json:"content" api:"required"`
+	ToolUseID string                               `json:"tool_use_id" api:"required"`
+	Type      constant.WebSearchToolResult         `json:"type" default:"web_search_tool_result"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		Caller      respjson.Field
@@ -8813,15 +13173,15 @@ func (r *WebSearchToolResultBlockContentUnion) UnmarshalJSON(data []byte) error 
 
 // The properties Content, ToolUseID, Type are required.
 type WebSearchToolResultBlockParam struct {
-	Content   WebSearchToolResultBlockParamContentUnion `json:"content,omitzero,required"`
-	ToolUseID string                                    `json:"tool_use_id,required"`
+	Content   WebSearchToolResultBlockParamContentUnion `json:"content,omitzero" api:"required"`
+	ToolUseID string                                    `json:"tool_use_id" api:"required"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
 	// Tool invocation directly from the model.
 	Caller WebSearchToolResultBlockParamCallerUnion `json:"caller,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_search_tool_result".
-	Type constant.WebSearchToolResult `json:"type,required"`
+	Type constant.WebSearchToolResult `json:"type" default:"web_search_tool_result"`
 	paramObj
 }
 
@@ -8926,8 +13286,8 @@ func (u *WebSearchToolResultBlockParamContentUnion) asAny() any {
 type WebSearchToolResultError struct {
 	// Any of "invalid_tool_input", "unavailable", "max_uses_exceeded",
 	// "too_many_requests", "query_too_long", "request_too_large".
-	ErrorCode WebSearchToolResultErrorCode      `json:"error_code,required"`
-	Type      constant.WebSearchToolResultError `json:"type,required"`
+	ErrorCode WebSearchToolResultErrorCode      `json:"error_code" api:"required"`
+	Type      constant.WebSearchToolResultError `json:"type" default:"web_search_tool_result_error"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ErrorCode   respjson.Field
@@ -8960,9 +13320,14 @@ type MessageNewParams struct {
 	// Note that our models may stop _before_ reaching this maximum. This parameter
 	// only specifies the absolute maximum number of tokens to generate.
 	//
+	// Set to `0` to populate the
+	// [prompt cache](https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pre-warming-the-cache)
+	// without generating a response.
+	//
 	// Different models have different maximum values for this parameter. See
-	// [models](https://docs.claude.com/en/docs/models-overview) for details.
-	MaxTokens int64 `json:"max_tokens,required"`
+	// [models](https://platform.claude.com/docs/en/about-claude/models/overview) for
+	// details.
+	MaxTokens int64 `json:"max_tokens" api:"required"`
 	// Input messages.
 	//
 	// Our models are trained to operate on alternating `user` and `assistant`
@@ -9024,21 +13389,21 @@ type MessageNewParams struct {
 	// { "role": "user", "content": [{ "type": "text", "text": "Hello, Claude" }] }
 	// ```
 	//
-	// See [input examples](https://docs.claude.com/en/api/messages-examples).
+	// See
+	// [input examples](https://platform.claude.com/docs/en/build-with-claude/working-with-messages).
 	//
 	// Note that if you want to include a
-	// [system prompt](https://docs.claude.com/en/docs/system-prompts), you can use the
-	// top-level `system` parameter — there is no `"system"` role for input messages in
-	// the Messages API.
+	// [system prompt](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#give-claude-a-role),
+	// you can use the top-level `system` parameter — there is no `"system"` role for
+	// input messages in the Messages API.
 	//
 	// There is a limit of 100,000 messages in a single request.
-	Messages []MessageParam `json:"messages,omitzero,required"`
-	// The model that will complete your prompt.\n\nSee
-	// [models](https://docs.anthropic.com/en/docs/models-overview) for additional
+	Messages []MessageParam `json:"messages,omitzero" api:"required"`
+	// The model that will complete your prompt.
+	//
+	// See [models](https://docs.anthropic.com/en/docs/models-overview) for additional
 	// details and options.
-	Model Model `json:"model,omitzero,required"`
-	// Container identifier for reuse across requests.
-	Container param.Opt[string] `json:"container,omitzero"`
+	Model Model `json:"model,omitzero" api:"required"`
 	// Specifies the geographic region for inference processing. If not specified, the
 	// workspace's `default_inference_geo` is used.
 	InferenceGeo param.Opt[string] `json:"inference_geo,omitzero"`
@@ -9056,19 +13421,21 @@ type MessageNewParams struct {
 	// Used to remove "long tail" low probability responses.
 	// [Learn more technical details here](https://towardsdatascience.com/how-to-sample-from-language-models-682bceb97277).
 	//
-	// Recommended for advanced use cases only. You usually only need to use
-	// `temperature`.
+	// Recommended for advanced use cases only.
 	TopK param.Opt[int64] `json:"top_k,omitzero"`
 	// Use nucleus sampling.
 	//
 	// In nucleus sampling, we compute the cumulative distribution over all the options
 	// for each subsequent token in decreasing probability order and cut it off once it
-	// reaches a particular probability specified by `top_p`. You should either alter
-	// `temperature` or `top_p`, but not both.
+	// reaches a particular probability specified by `top_p`.
 	//
-	// Recommended for advanced use cases only. You usually only need to use
-	// `temperature`.
+	// Recommended for advanced use cases only.
 	TopP param.Opt[float64] `json:"top_p,omitzero"`
+	// The user profile ID to attribute this request to. Use when acting on behalf of a
+	// party other than your organization. Requires the `user-profiles` beta header.
+	UserProfileID param.Opt[string] `header:"anthropic-user-profile-id,omitzero" json:"-"`
+	// Container identifier for reuse across requests.
+	Container MessageCreateParamsContainerUnion `json:"container,omitzero"`
 	// Top-level cache control automatically applies a cache_control marker to the last
 	// cacheable block in the request.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -9080,7 +13447,8 @@ type MessageNewParams struct {
 	// for this request.
 	//
 	// Anthropic offers different levels of service for your API requests. See
-	// [service-tiers](https://docs.claude.com/en/api/service-tiers) for details.
+	// [service-tiers](https://platform.claude.com/docs/en/api/service-tiers) for
+	// details.
 	//
 	// Any of "auto", "standard_only".
 	ServiceTier MessageNewParamsServiceTier `json:"service_tier,omitzero"`
@@ -9098,7 +13466,7 @@ type MessageNewParams struct {
 	//
 	// A system prompt is a way of providing context and instructions to Claude, such
 	// as specifying a particular goal or role. See our
-	// [guide to system prompts](https://docs.claude.com/en/docs/system-prompts).
+	// [guide to system prompts](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#give-claude-a-role).
 	System []TextBlockParam `json:"system,omitzero"`
 	// Configuration for enabling Claude's extended thinking.
 	//
@@ -9107,7 +13475,7 @@ type MessageNewParams struct {
 	// tokens and counts towards your `max_tokens` limit.
 	//
 	// See
-	// [extended thinking](https://docs.claude.com/en/docs/build-with-claude/extended-thinking)
+	// [extended thinking](https://platform.claude.com/docs/en/build-with-claude/extended-thinking)
 	// for details.
 	Thinking ThinkingConfigParamUnion `json:"thinking,omitzero"`
 	// How the model should use the provided tools. The model can use a specific tool,
@@ -9122,9 +13490,9 @@ type MessageNewParams struct {
 	//
 	// There are two types of tools: **client tools** and **server tools**. The
 	// behavior described below applies to client tools. For
-	// [server tools](https://docs.claude.com/en/docs/agents-and-tools/tool-use/overview#server-tools),
+	// [server tools](https://platform.claude.com/docs/en/agents-and-tools/tool-use/server-tools),
 	// see their individual documentation as each has its own behavior (e.g., the
-	// [web search tool](https://docs.claude.com/en/docs/agents-and-tools/tool-use/web-search-tool)).
+	// [web search tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool)).
 	//
 	// Each tool definition includes:
 	//
@@ -9193,7 +13561,9 @@ type MessageNewParams struct {
 	// functions, or more generally whenever you want the model to produce a particular
 	// JSON structure of output.
 	//
-	// See our [guide](https://docs.claude.com/en/docs/tool-use) for more details.
+	// See our
+	// [guide](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview)
+	// for more details.
 	Tools []ToolUnionParam `json:"tools,omitzero"`
 	paramObj
 }
@@ -9210,7 +13580,8 @@ func (r *MessageNewParams) UnmarshalJSON(data []byte) error {
 // for this request.
 //
 // Anthropic offers different levels of service for your API requests. See
-// [service-tiers](https://docs.claude.com/en/api/service-tiers) for details.
+// [service-tiers](https://platform.claude.com/docs/en/api/service-tiers) for
+// details.
 type MessageNewParamsServiceTier string
 
 const (
@@ -9280,19 +13651,24 @@ type MessageCountTokensParams struct {
 	// { "role": "user", "content": [{ "type": "text", "text": "Hello, Claude" }] }
 	// ```
 	//
-	// See [input examples](https://docs.claude.com/en/api/messages-examples).
+	// See
+	// [input examples](https://platform.claude.com/docs/en/build-with-claude/working-with-messages).
 	//
 	// Note that if you want to include a
-	// [system prompt](https://docs.claude.com/en/docs/system-prompts), you can use the
-	// top-level `system` parameter — there is no `"system"` role for input messages in
-	// the Messages API.
+	// [system prompt](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#give-claude-a-role),
+	// you can use the top-level `system` parameter — there is no `"system"` role for
+	// input messages in the Messages API.
 	//
 	// There is a limit of 100,000 messages in a single request.
-	Messages []MessageParam `json:"messages,omitzero,required"`
-	// The model that will complete your prompt.\n\nSee
-	// [models](https://docs.anthropic.com/en/docs/models-overview) for additional
+	Messages []MessageParam `json:"messages,omitzero" api:"required"`
+	// The model that will complete your prompt.
+	//
+	// See [models](https://docs.anthropic.com/en/docs/models-overview) for additional
 	// details and options.
-	Model Model `json:"model,omitzero,required"`
+	Model Model `json:"model,omitzero" api:"required"`
+	// The user profile ID to attribute this request to. Use when acting on behalf of a
+	// party other than your organization. Requires the `user-profiles` beta header.
+	UserProfileID param.Opt[string] `header:"anthropic-user-profile-id,omitzero" json:"-"`
 	// Top-level cache control automatically applies a cache_control marker to the last
 	// cacheable block in the request.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -9302,7 +13678,7 @@ type MessageCountTokensParams struct {
 	//
 	// A system prompt is a way of providing context and instructions to Claude, such
 	// as specifying a particular goal or role. See our
-	// [guide to system prompts](https://docs.claude.com/en/docs/system-prompts).
+	// [guide to system prompts](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#give-claude-a-role).
 	System MessageCountTokensParamsSystemUnion `json:"system,omitzero"`
 	// Configuration for enabling Claude's extended thinking.
 	//
@@ -9311,7 +13687,7 @@ type MessageCountTokensParams struct {
 	// tokens and counts towards your `max_tokens` limit.
 	//
 	// See
-	// [extended thinking](https://docs.claude.com/en/docs/build-with-claude/extended-thinking)
+	// [extended thinking](https://platform.claude.com/docs/en/build-with-claude/extended-thinking)
 	// for details.
 	Thinking ThinkingConfigParamUnion `json:"thinking,omitzero"`
 	// How the model should use the provided tools. The model can use a specific tool,
@@ -9326,9 +13702,9 @@ type MessageCountTokensParams struct {
 	//
 	// There are two types of tools: **client tools** and **server tools**. The
 	// behavior described below applies to client tools. For
-	// [server tools](https://docs.claude.com/en/docs/agents-and-tools/tool-use/overview#server-tools),
+	// [server tools](https://platform.claude.com/docs/en/agents-and-tools/tool-use/server-tools),
 	// see their individual documentation as each has its own behavior (e.g., the
-	// [web search tool](https://docs.claude.com/en/docs/agents-and-tools/tool-use/web-search-tool)).
+	// [web search tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool)).
 	//
 	// Each tool definition includes:
 	//
@@ -9397,7 +13773,9 @@ type MessageCountTokensParams struct {
 	// functions, or more generally whenever you want the model to produce a particular
 	// JSON structure of output.
 	//
-	// See our [guide](https://docs.claude.com/en/docs/tool-use) for more details.
+	// See our
+	// [guide](https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview)
+	// for more details.
 	Tools []MessageCountTokensToolUnionParam `json:"tools,omitzero"`
 	paramObj
 }

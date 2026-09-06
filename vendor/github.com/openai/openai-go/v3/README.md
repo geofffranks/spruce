@@ -25,19 +25,24 @@ import (
 
 <!-- x-release-please-end -->
 
-Or to pin the version:
+Or to pin an SDK version (see the Go compatibility note below):
 
 <!-- x-release-please-start-version -->
 
 ```sh
-go get -u 'github.com/openai/openai-go/v3@v3.28.0'
+go get -u 'github.com/openai/openai-go/v3@v3.52.0'
 ```
 
 <!-- x-release-please-end -->
 
 ## Requirements
 
-This library requires Go 1.22+.
+SDK v3.45.0 and later require Go 1.25 or later. If your application must
+remain on Go 1.22–1.24, pin SDK v3.44.0, the final compatible release. Older
+SDK releases receive no guaranteed fixes or security backports.
+
+See the [Go version support policy](GO_VERSION_POLICY.md) for the supported
+release window and upgrade guidance.
 
 ## Usage
 
@@ -367,7 +372,7 @@ func main() {
 The openai library uses the [`omitzero`](https://tip.golang.org/doc/go1.24#encodingjsonpkgencodingjson)
 semantics from the Go 1.24+ `encoding/json` release for request fields.
 
-Required primitive fields (`int64`, `string`, etc.) feature the tag <code>\`json:"...,required"\`</code>. These
+Required primitive fields (`int64`, `string`, etc.) feature the tag <code>\`api:"required"\`</code>. These
 fields are always serialized, even their zero values.
 
 Optional primitive types are wrapped in a `param.Opt[T]`. These fields can be set with the provided constructors, `openai.String(string)`, `openai.Int(int64)`, etc.
@@ -953,9 +958,251 @@ You may also replace the default `http.Client` with
 accepted (this overwrites any previous client) and receives requests after any
 middleware has been applied.
 
-## Microsoft Azure OpenAI
+### Mutual TLS with a custom HTTP client
 
-To use this library with [Azure OpenAI]https://learn.microsoft.com/azure/ai-services/openai/overview),
+For API-key authenticated HTTP requests that require mutual TLS, configure a
+native Go `*http.Client` and pass it through `option.WithHTTPClient`. The
+certificate file must contain the client leaf followed by every required
+intermediate. Presenting intermediates requires certificate-chain support to be
+enabled for your organization; otherwise, the client certificate must be
+signed directly by an active uploaded certificate. See the
+[OpenAI mTLS setup requirements](https://help.openai.com/en/articles/10876024):
+
+```go
+certificate, err := tls.LoadX509KeyPair(
+	"/secrets/openai/client-chain.pem",
+	"/secrets/openai/client.key",
+)
+if err != nil {
+	return err
+}
+
+defaultTransport, ok := http.DefaultTransport.(*http.Transport)
+if !ok {
+	return errors.New("http.DefaultTransport is not an *http.Transport")
+}
+transport := defaultTransport.Clone()
+transport.Proxy = nil
+transport.DialTLS = nil
+transport.DialTLSContext = nil
+transport.ResponseHeaderTimeout = 10 * time.Minute
+transport.TLSClientConfig = &tls.Config{
+	Certificates: []tls.Certificate{certificate},
+	GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+		return &certificate, nil
+	},
+}
+
+httpClient := &http.Client{
+	Transport: transport,
+	CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
+
+client := openai.NewClient(
+	option.WithBaseURL("https://mtls.api.openai.com/v1"),
+	option.WithHTTPClient(httpClient),
+)
+
+if _, err := client.Models.List(context.Background()); err != nil {
+	return err
+}
+```
+
+The SDK does not select an mTLS endpoint automatically when a custom HTTP
+client is used. The explicit `option.WithBaseURL` above overrides
+`OPENAI_BASE_URL`; replace it with `https://mtls-eu.api.openai.com/v1` for the
+EU endpoint, or remove it to use `OPENAI_BASE_URL`. Keep server trust separate
+by configuring `RootCAs` on the fresh `tls.Config` when custom roots are
+required.
+
+`tls.LoadX509KeyPair` fails for unreadable files and for malformed or mismatched
+leaf/key material. It loads later `CERTIFICATE` blocks into the presented chain
+without validating those intermediates. Certificate validity, intermediate
+parsing, chain trust, and OpenAI product policy remain TLS-handshake/server
+checks. Rebuild the transport and OpenAI client after rotating a certificate
+because existing TLS connections cannot renegotiate client authentication.
+When overriding the HTTP client, the application also owns redirect, proxy, and
+timeout policy. This dedicated client bypasses proxies, retains the SDK's
+10-minute response-header timeout, replaces inherited client-certificate
+callbacks, TLS dial hooks, and TLS session state with a fresh TLS config, and
+disables redirects so the client certificate is only offered to the configured
+API endpoint. Its callback always returns the configured certificate because
+Go's automatic selection can otherwise suppress it when a server's
+acceptable-CA hint does not match the local chain. If a proxy is required, use
+a transport that keeps the proxy TLS configuration separate from the origin
+client certificate.
+
+The complete tested recipe is in
+[`examples/mutual-tls`](./examples/mutual-tls/main.go).
+
+## Workload Identity Authentication
+
+For cloud workloads (Kubernetes, Azure, Google Cloud Platform), you can use workload identity authentication instead of API keys. This provides short-lived tokens that are automatically refreshed.
+
+### Kubernetes
+
+```go
+import (
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/auth"
+	"github.com/openai/openai-go/v3/option"
+)
+
+client := openai.NewClient(
+	option.WithWorkloadIdentity(auth.WorkloadIdentity{
+		IdentityProviderID: "idp-123",
+		ServiceAccountID:   "sa-456",
+		Provider:           auth.K8sServiceAccountTokenProvider(""),
+	}),
+)
+```
+
+### Azure Managed Identity
+
+```go
+client := openai.NewClient(
+	option.WithWorkloadIdentity(auth.WorkloadIdentity{
+		IdentityProviderID: "idp-123",
+		ServiceAccountID:   "sa-456",
+		Provider:           auth.AzureManagedIdentityTokenProvider(nil),
+	}),
+)
+```
+
+### Google Cloud Compute Engine
+
+```go
+client := openai.NewClient(
+	option.WithWorkloadIdentity(auth.WorkloadIdentity{
+		IdentityProviderID: "idp-123",
+		ServiceAccountID:   "sa-456",
+		Provider:           auth.GCPIDTokenProvider(nil),
+	}),
+)
+```
+
+### Custom Subject Token Provider
+
+You can implement your own subject token provider:
+
+```go
+import (
+	"context"
+
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/auth"
+	"github.com/openai/openai-go/v3/option"
+)
+
+type customTokenProvider struct{}
+
+func (p *customTokenProvider) TokenType() auth.SubjectTokenType {
+	return auth.SubjectTokenTypeJWT
+}
+
+func (p *customTokenProvider) GetToken(ctx context.Context, httpClient auth.HTTPDoer) (string, error) {
+	return "your-token", nil
+}
+
+client := openai.NewClient(
+	option.WithWorkloadIdentity(auth.WorkloadIdentity{
+		IdentityProviderID: "idp-123",
+		ServiceAccountID:   "sa-456",
+		Provider:           &customTokenProvider{},
+	}),
+)
+```
+
+### Customizing Refresh Buffer
+
+By default, tokens are refreshed 20 minutes (1200 seconds) before expiry. You can customize this:
+
+```go
+client := openai.NewClient(
+	option.WithWorkloadIdentity(auth.WorkloadIdentity{
+		IdentityProviderID:   "idp-123",
+		ServiceAccountID:     "sa-456",
+		Provider:             auth.K8sServiceAccountTokenProvider(""),
+		RefreshBufferSeconds: 600,
+	}),
+)
+```
+
+## Amazon Bedrock
+
+Use the `bedrock` package to call OpenAI models through Amazon Bedrock's
+OpenAI-compatible API. The standard AWS SDK credential chain is used by
+default, so existing environment credentials, `~/.aws/credentials`,
+`~/.aws/config`, SSO or assume-role profiles, and workload credentials work
+without custom signing code.
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+
+	"github.com/openai/openai-go/v3/bedrock"
+)
+
+func main() {
+	client, err := bedrock.NewClient(context.Background(), bedrock.Config{
+		AWSRegion: "us-west-2",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_ = client
+}
+```
+
+The region is resolved from `AWSRegion`, `AWS_REGION`, `AWS_DEFAULT_REGION`,
+or the standard AWS config chain. The base URL is resolved from `BaseURL`,
+`AWS_BEDROCK_BASE_URL`, or
+`https://bedrock-mantle.{region}.api.aws/openai/v1`.
+The `/openai/v1` prefix is intentional; Bedrock's generic `/v1` route is a
+different API surface and is not interchangeable with the OpenAI-compatible
+route.
+
+To select a named profile:
+
+```go
+client, err := bedrock.NewClient(context.Background(), bedrock.Config{
+	AWSProfile: "production",
+})
+```
+
+You can also provide temporary static credentials or an AWS SDK v2
+`aws.CredentialsProvider` through `bedrock.Config`. Prefer roles, profiles, and
+other temporary credential sources over long-lived static credentials.
+
+Bedrock bearer credentials remain supported through `APIKey`,
+`BedrockTokenProvider`, or `AWS_BEARER_TOKEN_BEDROCK`:
+
+```go
+client, err := bedrock.NewClient(context.Background(), bedrock.Config{
+	AWSRegion: "us-west-2",
+	APIKey:    "bedrock-bearer-token",
+})
+```
+
+Explicit bearer and AWS credential modes are mutually exclusive. AWS SigV4
+authentication signs the fully serialized request again on every retry using
+the `bedrock-mantle` service name. Request bodies must be replayable; response
+streaming is supported. Authenticated Bedrock requests do not automatically
+follow redirects.
+Ambient `OPENAI_*` credentials, routing, and headers are not inherited by a
+Bedrock client.
+
+See [`examples/bedrock`](examples/bedrock) for a complete Responses API example.
+
+## Azure OpenAI in Azure AI Foundry Models
+
+To use this library with [Azure OpenAI in Azure AI Foundry Models](https://learn.microsoft.com/azure/ai-services/openai/overview),
 use the option.RequestOption functions in the `azure` package.
 
 ```go
@@ -971,7 +1218,7 @@ func main() {
 	const azureOpenAIEndpoint = "https://<azure-openai-resource>.openai.azure.com"
 
 	// The latest API versions, including previews, can be found here:
-	// https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versionng
+	// https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#rest-api-versioning
 	const azureOpenAIAPIVersion = "2024-06-01"
 
 	tokenCredential, err := azidentity.NewDefaultAzureCredential(nil)

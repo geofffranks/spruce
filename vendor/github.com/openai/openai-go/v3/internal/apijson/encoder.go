@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/tidwall/sjson"
+
+	shimjson "github.com/openai/openai-go/v3/internal/encoding/json"
 )
 
 var encoders sync.Map // map[encoderEntry]encoderFunc
@@ -44,7 +46,7 @@ type encoderField struct {
 }
 
 type encoderEntry struct {
-	reflect.Type
+	typ        reflect.Type
 	dateFormat string
 	root       bool
 }
@@ -61,7 +63,7 @@ func (e *encoder) marshal(value any) ([]byte, error) {
 
 func (e *encoder) typeEncoder(t reflect.Type) encoderFunc {
 	entry := encoderEntry{
-		Type:       t,
+		typ:        t,
 		dateFormat: e.dateFormat,
 		root:       e.root,
 	}
@@ -267,9 +269,15 @@ func (e *encoder) newStructTypeEncoder(t reflect.Type) encoderFunc {
 
 		for _, ef := range encoderFields {
 			field := value.FieldByIndex(ef.idx)
-			encoded, err := ef.fn(field)
-			if err != nil {
-				return nil, err
+			encoded, encodeErr := ef.fn(field)
+			if encodeErr != nil {
+				return nil, encodeErr
+			}
+			if ef.tag.defaultValue != nil && (!field.IsValid() || field.IsZero()) {
+				encoded, err = shimjson.Marshal(ef.tag.defaultValue)
+				if err != nil {
+					return nil, err
+				}
 			}
 			if encoded == nil {
 				continue

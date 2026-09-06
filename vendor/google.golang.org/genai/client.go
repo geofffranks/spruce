@@ -66,6 +66,8 @@ const (
 	BackendGeminiAPI
 	// BackendVertexAI is the Vertex AI backend.
 	BackendVertexAI
+	// BackendEnterprise is the Gemini Enterprise Agent Platform backend.
+	BackendEnterprise
 )
 
 // The Stringer interface for Backend.
@@ -78,6 +80,11 @@ func (t Backend) String() string {
 	default:
 		return "BackendUnspecified"
 	}
+}
+
+var multiRegionalLocations = map[string]bool{
+	"us": true,
+	"eu": true,
 }
 
 // ClientConfig is the configuration for the GenAI client.
@@ -120,6 +127,9 @@ type ClientConfig struct {
 
 func defaultEnvVarProvider() map[string]string {
 	vars := make(map[string]string)
+	if v, ok := os.LookupEnv("GOOGLE_GENAI_USE_ENTERPRISE"); ok {
+		vars["GOOGLE_GENAI_USE_ENTERPRISE"] = v
+	}
 	if v, ok := os.LookupEnv("GOOGLE_GENAI_USE_VERTEXAI"); ok {
 		vars["GOOGLE_GENAI_USE_VERTEXAI"] = v
 	}
@@ -195,20 +205,36 @@ func NewInternalAPIClient(ctx context.Context, cc *ClientConfig) (*InternalAPICl
 	}
 	envVars := cc.envVarProvider()
 
-	if cc.Project != "" && cc.APIKey != "" {
-		return nil, fmt.Errorf("project and API key are mutually exclusive in the client initializer. ClientConfig: %#v", cc)
-	}
-	if cc.Location != "" && cc.APIKey != "" {
-		return nil, fmt.Errorf("location and API key are mutually exclusive in the client initializer. ClientConfig: %#v", cc)
-	}
 	if cc.Credentials != nil && cc.APIKey != "" {
 		return nil, fmt.Errorf("credentials and API key are mutually exclusive in the client initializer. ClientConfig: %#v", cc)
 	}
 
+	if cc.Backend == BackendEnterprise {
+		cc.Backend = BackendVertexAI
+	}
+
 	if cc.Backend == BackendUnspecified {
-		if v, ok := envVars["GOOGLE_GENAI_USE_VERTEXAI"]; ok {
-			v = strings.ToLower(v)
-			if v == "1" || v == "true" {
+		vEnterprise, enterpriseOK := envVars["GOOGLE_GENAI_USE_ENTERPRISE"]
+		vVertex, vertexOK := envVars["GOOGLE_GENAI_USE_VERTEXAI"]
+
+		isEnterprise := enterpriseOK && (strings.ToLower(vEnterprise) == "1" || strings.ToLower(vEnterprise) == "true")
+
+		isVertexAI := vertexOK && (strings.ToLower(vVertex) == "1" || strings.ToLower(vVertex) == "true")
+
+		if enterpriseOK && vertexOK {
+			if isEnterprise != isVertexAI {
+				log.Println("Warning: Both GOOGLE_GENAI_USE_ENTERPRISE and GOOGLE_GENAI_USE_VERTEXAI are set with conflicting values. The value of GOOGLE_GENAI_USE_ENTERPRISE will be used.")
+			}
+		}
+
+		if enterpriseOK {
+			if isEnterprise {
+				cc.Backend = BackendVertexAI
+			} else {
+				cc.Backend = BackendGeminiAPI
+			}
+		} else if vertexOK {
+			if isVertexAI {
 				cc.Backend = BackendVertexAI
 			} else {
 				cc.Backend = BackendGeminiAPI
@@ -246,16 +272,16 @@ func NewInternalAPIClient(ctx context.Context, cc *ClientConfig) (*InternalAPICl
 		if cc.Credentials != nil && envAPIKey != "" {
 			log.Println("Warning: The user provided Google Cloud credentials will take precedence over the API key from the environment variable.")
 			cc.APIKey = ""
-		} else if configAPIKey != "" && (envProject != "" || envLocation != "") {
+		} else if configAPIKey != "" && configProject == "" && configLocation == "" && (envProject != "" || envLocation != "") {
 			// Explicit API key takes precedence over implicit project/location.
 			log.Println("Warning: The user provided Vertex AI API key will take precedence over the project/location from the environment variables.")
 			cc.Project = ""
 			cc.Location = ""
-		} else if (configProject != "" || configLocation != "") && envAPIKey != "" {
+		} else if (configProject != "" || configLocation != "") && configAPIKey == "" && envAPIKey != "" {
 			// Explicit project/location takes precedence over implicit API key.
 			log.Println("Warning: The user provided project/location will take precedence over the API key from the environment variable.")
 			cc.APIKey = ""
-		} else if (envProject != "" || envLocation != "") && envAPIKey != "" {
+		} else if configProject == "" && configLocation == "" && configAPIKey == "" && (envProject != "" || envLocation != "") && envAPIKey != "" {
 			// Implicit project/location takes precedence over implicit API key.
 			log.Println("Warning: The project/location from the environment variables will take precedence over the API key from the environment variable.")
 			cc.APIKey = ""
@@ -293,6 +319,8 @@ func NewInternalAPIClient(ctx context.Context, cc *ClientConfig) (*InternalAPICl
 		if cc.HTTPOptions.BaseURL == "" {
 			if cc.Location == "global" || cc.APIKey != "" {
 				cc.HTTPOptions.BaseURL = "https://aiplatform.googleapis.com/"
+			} else if multiRegionalLocations[cc.Location] {
+				cc.HTTPOptions.BaseURL = fmt.Sprintf("https://aiplatform.%s.rep.googleapis.com/", cc.Location)
 			} else {
 				cc.HTTPOptions.BaseURL = fmt.Sprintf("https://%s-aiplatform.googleapis.com/", cc.Location)
 			}
@@ -310,6 +338,9 @@ func NewInternalAPIClient(ctx context.Context, cc *ClientConfig) (*InternalAPICl
 
 		if cc.APIKey == "" {
 			return nil, fmt.Errorf("api key is required for Google AI backend. ClientConfig: %#v.\nYou can get the API key from https://ai.google.dev/gemini-api/docs/api-key", cc)
+		}
+		if configProject != "" || configLocation != "" {
+			return nil, fmt.Errorf("project and location are not supported for Gemini API backend. ClientConfig: %#v", cc)
 		}
 	}
 
