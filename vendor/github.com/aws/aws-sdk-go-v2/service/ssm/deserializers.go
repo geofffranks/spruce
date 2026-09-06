@@ -25748,6 +25748,15 @@ func awsAwsjson11_deserializeDocumentAutomationExecution(v **types.AutomationExe
 				return err
 			}
 
+		case "WarningMessage":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected String to be of type string, got %T instead", value)
+				}
+				sv.WarningMessage = ptr.String(jtv)
+			}
+
 		default:
 			_, _ = key, value
 
@@ -26091,6 +26100,15 @@ func awsAwsjson11_deserializeDocumentAutomationExecutionMetadata(v **types.Autom
 				return err
 			}
 
+		case "WarningMessage":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected String to be of type string, got %T instead", value)
+				}
+				sv.WarningMessage = ptr.String(jtv)
+			}
+
 		default:
 			_, _ = key, value
 
@@ -26340,6 +26358,40 @@ func awsAwsjson11_deserializeDocumentAutomationStepNotFoundException(v **types.A
 		}
 	}
 	*v = sv
+	return nil
+}
+
+func awsAwsjson11_deserializeDocumentAutomationTargets(v *[]types.Target, value interface{}) error {
+	if v == nil {
+		return fmt.Errorf("unexpected nil of type %T", v)
+	}
+	if value == nil {
+		return nil
+	}
+
+	shape, ok := value.([]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected JSON type %v", value)
+	}
+
+	var cv []types.Target
+	if *v == nil {
+		cv = []types.Target{}
+	} else {
+		cv = *v
+	}
+
+	for _, value := range shape {
+		var col types.Target
+		destAddr := &col
+		if err := awsAwsjson11_deserializeDocumentTarget(&destAddr, value); err != nil {
+			return err
+		}
+		col = *destAddr
+		cv = append(cv, col)
+
+	}
+	*v = cv
 	return nil
 }
 
@@ -44427,6 +44479,15 @@ func awsAwsjson11_deserializeDocumentStepExecution(v **types.StepExecution, valu
 				return err
 			}
 
+		case "WarningMessage":
+			if value != nil {
+				jtv, ok := value.(string)
+				if !ok {
+					return fmt.Errorf("expected String to be of type string, got %T instead", value)
+				}
+				sv.WarningMessage = ptr.String(jtv)
+			}
+
 		default:
 			_, _ = key, value
 
@@ -44797,7 +44858,7 @@ func awsAwsjson11_deserializeDocumentTargetLocation(v **types.TargetLocation, va
 			}
 
 		case "Targets":
-			if err := awsAwsjson11_deserializeDocumentTargets(&sv.Targets, value); err != nil {
+			if err := awsAwsjson11_deserializeDocumentAutomationTargets(&sv.Targets, value); err != nil {
 				return err
 			}
 
