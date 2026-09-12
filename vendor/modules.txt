@@ -57,7 +57,7 @@ github.com/anthropics/anthropic-sdk-go/packages/respjson
 github.com/anthropics/anthropic-sdk-go/packages/ssestream
 github.com/anthropics/anthropic-sdk-go/shared
 github.com/anthropics/anthropic-sdk-go/shared/constant
-# github.com/aws/aws-sdk-go-v2 v1.45.1
+# github.com/aws/aws-sdk-go-v2 v1.46.0
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/aws
 github.com/aws/aws-sdk-go-v2/aws/defaults
@@ -101,10 +101,10 @@ github.com/aws/aws-sdk-go-v2/credentials/stscreds
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds/internal/config
-# github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.1
+# github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.2
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/internal/configsources
-# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.1
+# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.2
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2
 # github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.1
@@ -118,7 +118,7 @@ github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding
 # github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.1
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url
-# github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.5
+# github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.48.0
 ## explicit; go 1.24
 github.com/aws/aws-sdk-go-v2/service/secretsmanager
 github.com/aws/aws-sdk-go-v2/service/secretsmanager/internal/endpoints
