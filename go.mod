@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.5
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.73.3
 	github.com/aws/aws-sdk-go-v2/service/sts v1.48.0
-	github.com/cloudfoundry-community/vaultkv v0.7.0
+	github.com/cloudfoundry-community/vaultkv v0.7.2
 	github.com/cppforlife/go-patch v0.2.0
 	github.com/geofffranks/simpleyaml v0.0.0-20161109204137-c9320f076de5
 	github.com/geofffranks/yaml v0.0.0-20161117152608-9f2fe4b6f295
