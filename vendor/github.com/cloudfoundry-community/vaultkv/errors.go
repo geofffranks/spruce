@@ -24,6 +24,17 @@ func IsBadRequest(err error) bool {
 	return is
 }
 
+//IsCASConflict returns true if the error is (or wraps) an ErrBadRequest
+// caused by Vault rejecting a check-and-set write because the given CAS
+// value did not match the current version of the secret. Vault reports that
+// rejection as a plain 400, so the message is the only thing that
+// distinguishes it from any other bad request.
+func IsCASConflict(err error) bool {
+	var badRequest *ErrBadRequest
+	return errors.As(err, &badRequest) &&
+		strings.Contains(badRequest.message, "check-and-set parameter did not match the current version")
+}
+
 //ErrForbidden represents 403 status codes returned from the API. This could be
 // if your auth is wrong or expired, or you simply don't have access to do the
 // particular thing you're trying to do. Check your privilege.
@@ -162,6 +173,26 @@ func IsUninitialized(err error) bool {
 	return is
 }
 
+// ErrTemporarilyUnavailable represents a 503 status code that a follow-up
+// health check could not account for: by the time the Vault was asked, it
+// reported itself healthy, so the 503 was neither a sealed, a standby, nor an
+// uninitialized Vault. The request itself still failed, and retrying it is
+// usually the right response.
+type ErrTemporarilyUnavailable struct {
+	message string
+}
+
+func (e *ErrTemporarilyUnavailable) Error() string {
+	return fmt.Sprintf("503 Temporarily Unavailable: %s", e.message)
+}
+
+// IsTemporarilyUnavailable returns true if the error is an
+// ErrTemporarilyUnavailable
+func IsTemporarilyUnavailable(err error) bool {
+	_, is := err.(*ErrTemporarilyUnavailable)
+	return is
+}
+
 //ErrTransport is returned if an error was encountered trying to reach the API,
 // as opposed to an error from the API, is returned
 type ErrTransport struct {
@@ -231,7 +262,9 @@ func (v *Client) parseError(r *http.Response) (err error) {
 func (v *Client) parse503(message string) (err error) {
 	err = v.Health(true)
 	if err == nil {
-		return nil
+		// The original request still got a 503; a Vault that reports
+		// itself healthy on re-check must not turn that into success.
+		return &ErrTemporarilyUnavailable{message: message}
 	}
 
 	switch e := err.(type) {

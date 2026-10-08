@@ -23,12 +23,12 @@ func mountPathDefault(path string) string {
 	return fmt.Sprintf("%s%s", prefix, strings.Split(path, "/")[0])
 }
 
-//IsKVv2Mount returns true if the mount is a version 2 KV mount and false
-//otherwise. This will also simply return false if no mount exists at the given
-//mount point or if the Vault is too old to have the API endpoint to look for
-//the mount. If a different API error occurs, it will be propagated out.
-func (c *Client) IsKVv2Mount(path string) (mountPath string, isV2 bool, err error) {
-	path = strings.TrimPrefix(path, "/")
+//kvMountVersions fetches the entire mount table visible to the token and
+//reports, for each secret mount keyed by its path without surrounding
+//slashes, whether it is a KV v2 mount. A nil map with a nil error means the
+//Vault is too old to have the endpoint (or hides it from this token), and
+//so cannot have any v2 mounts.
+func (c *Client) kvMountVersions() (versions map[string]bool, err error) {
 	output := struct {
 		Data struct {
 			Secret map[string]struct {
@@ -42,10 +42,9 @@ func (c *Client) IsKVv2Mount(path string) (mountPath string, isV2 bool, err erro
 
 	err = c.doRequest(
 		"GET",
-		fmt.Sprintf("/sys/internal/ui/mounts"),
+		"/sys/internal/ui/mounts",
 		nil, &output)
 
-	mountPath = strings.Trim(mountPathDefault(path), "/")
 	if err != nil {
 		//If we got a 404, this version of Vault is too old to possibly have a v2 backend
 		if _, is404 := err.(*ErrNotFound); is404 {
@@ -62,24 +61,55 @@ func (c *Client) IsKVv2Mount(path string) (mountPath string, isV2 bool, err erro
 			}
 		}
 
-		return
+		return nil, err
 	}
 
 	if output.Data.Secret == nil {
-		return
+		return nil, nil
 	}
 
+	versions = make(map[string]bool, len(output.Data.Secret))
+	for mount, info := range output.Data.Secret {
+		versions[strings.Trim(mount, "/")] = info.Options.Version == "2"
+	}
+
+	return versions, nil
+}
+
+//findKVMount returns the mount in versions that the given path is under,
+//preferring the shortest matching prefix, and whether that mount is KV v2.
+//found is false if no mount in versions is a prefix of the path.
+func findKVMount(path string, versions map[string]bool) (mountPath string, isV2 bool, found bool) {
 	path = strings.Replace(path, "//", "/", -1)
 	path = strings.Trim(path, "/")
 	pathSplit := strings.Split(path, "/")
 
 	for i := 1; i <= len(pathSplit); i++ {
-		thisPath := strings.Join(pathSplit[:i], "/") + "/"
-		if out, found := output.Data.Secret[thisPath]; found {
-			mountPath = strings.TrimRight(thisPath, "/")
-			isV2 = out.Options.Version == "2"
-			break
+		thisPath := strings.Join(pathSplit[:i], "/")
+		if v2, ok := versions[thisPath]; ok {
+			return thisPath, v2, true
 		}
+	}
+
+	return "", false, false
+}
+
+//IsKVv2Mount returns true if the mount is a version 2 KV mount and false
+//otherwise. This will also simply return false if no mount exists at the given
+//mount point or if the Vault is too old to have the API endpoint to look for
+//the mount. If a different API error occurs, it will be propagated out.
+func (c *Client) IsKVv2Mount(path string) (mountPath string, isV2 bool, err error) {
+	path = strings.TrimPrefix(path, "/")
+	versions, err := c.kvMountVersions()
+
+	mountPath = strings.Trim(mountPathDefault(path), "/")
+	if err != nil || versions == nil {
+		return
+	}
+
+	if m, v2, found := findKVMount(path, versions); found {
+		mountPath = m
+		isV2 = v2
 	}
 
 	return
