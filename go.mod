@@ -2,7 +2,7 @@ module github.com/geofffranks/spruce
 
 go 1.26.0
 
-toolchain go1.27.1
+toolchain go1.27.2
 
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
@@ -19,8 +19,8 @@ require (
 	github.com/gonvenience/ytbx v1.5.0
 	github.com/homeport/dyff v1.12.0
 	github.com/mattn/go-isatty v0.0.24
-	github.com/onsi/ginkgo/v2 v2.32.1
-	github.com/onsi/gomega v1.42.1
+	github.com/onsi/ginkgo/v2 v2.33.0
+	github.com/onsi/gomega v1.43.1
 	github.com/starkandwayne/goutils v0.0.0-20190115202530-896b8a6904be
 	github.com/voxelbrain/goptions v0.0.0-20180630082107-58cddc247ea2
 	github.com/ziutek/utils v0.0.0-20190626152656-eb2a3b364d6c
@@ -72,7 +72,7 @@ require (
 	github.com/invopop/jsonschema v0.14.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/mattn/go-ciede2000 v0.0.0-20170301095244-782e8c62fec3 // indirect
-	github.com/maxbrunsfeld/counterfeiter/v6 v6.12.2 // indirect
+	github.com/maxbrunsfeld/counterfeiter/v6 v6.14.0 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/openai/openai-go/v3 v3.52.0 // indirect
@@ -95,15 +95,15 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
-	golang.org/x/crypto v0.55.0 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
-	golang.org/x/mod v0.40.0 // indirect
-	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/term v0.45.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
+	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/term v0.46.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/tools v0.50.0 // indirect
 	google.golang.org/api v0.293.0 // indirect
 	google.golang.org/genai v1.69.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260819154853-08b0e4226688 // indirect
