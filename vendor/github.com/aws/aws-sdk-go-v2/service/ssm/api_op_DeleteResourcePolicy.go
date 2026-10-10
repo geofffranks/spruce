@@ -4,8 +4,8 @@ package ssm
 
 import (
 	"context"
+	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Deletes a Systems Manager resource policy. A resource policy helps you to
@@ -22,7 +22,12 @@ import (
 //     cross-account sharing of parameters, see [Working with shared parameters]in the Amazon Web Services Systems
 //     Manager User Guide.
 //
+//   - Document – Shares the document using Resource Access Manager (RAM). For more
+//     information about sharing documents, see [Sharing Systems Manager documents]in the Amazon Web Services Systems
+//     Manager User Guide.
+//
 // [Working with shared parameters]: https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-shared-parameters.html
+// [Sharing Systems Manager documents]: https://docs.aws.amazon.com/systems-manager/latest/userguide/documents-ssm-sharing.html
 func (c *Client) DeleteResourcePolicy(ctx context.Context, params *DeleteResourcePolicyInput, optFns ...func(*Options)) (*DeleteResourcePolicyOutput, error) {
 	if params == nil {
 		params = &DeleteResourcePolicyInput{}
@@ -56,6 +61,17 @@ type DeleteResourcePolicyInput struct {
 	// This member is required.
 	ResourceArn *string
 
+	// Specifies the intended outcome of the operation. Applies only to the Document
+	// resource type. The operation ignores this parameter for other resource types.
+	// Optional. Defaults to RemoveSharing .
+	//
+	//   - RemoveSharing – Deletes the resource policy and removes sharing of the
+	//   document.
+	//
+	//   - RollbackMigration – Reverts the document to Custom sharing, preserving
+	//   existing consumer access, instead of removing the policy.
+	DeletionMode types.DeletionMode
+
 	noSmithyDocumentSerde
 }
 
@@ -76,12 +92,6 @@ func (c *Client) addOperationDeleteResourcePolicyMiddlewares(stack *middleware.S
 		return err
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addComputeContentLength(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
@@ -91,19 +101,10 @@ func (c *Client) addOperationDeleteResourcePolicyMiddlewares(stack *middleware.S
 	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpDeleteResourcePolicyValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "DeleteResourcePolicy"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
