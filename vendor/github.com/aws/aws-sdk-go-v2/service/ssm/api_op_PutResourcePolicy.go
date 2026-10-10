@@ -5,7 +5,6 @@ package ssm
 import (
 	"context"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Creates or updates a Systems Manager resource policy. A resource policy helps
@@ -43,11 +42,26 @@ import (
 //
 // For more information, see [Sharing a parameter]in the Amazon Web Services Systems Manager User Guide
 //
+//   - Document – Shares the document using Resource Access Manager (RAM). For more
+//     information about sharing documents, see [Sharing Systems Manager documents]in the Amazon Web Services Systems
+//     Manager User Guide.
+//
+// While you can share a document using the Systems Manager PutResourcePolicy
+// operation, we recommend using Resource Access Manager (RAM) instead. Using
+// PutResourcePolicy requires an extra step. You must promote the document to a
+// standard RAM Resource Share using the RAM [PromoteResourceShareCreatedFromPolicy]API operation. Otherwise, the Systems
+// Manager [ListDocuments]API operation won't return the document when filtering for shared
+// documents. The Amazon Web Services Config [PutRemediationConfigurations]API operation also can't use the
+// document.
+//
+// [PromoteResourceShareCreatedFromPolicy]: https://docs.aws.amazon.com/ram/latest/APIReference/API_PromoteResourceShareCreatedFromPolicy.html
 // [Sharing a parameter]: https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-shared-parameters.html#share
+// [Sharing Systems Manager documents]: https://docs.aws.amazon.com/systems-manager/latest/userguide/documents-ssm-sharing.html
+// [PutRemediationConfigurations]: https://docs.aws.amazon.com/config/latest/APIReference/API_PutRemediationConfigurations.html
+// [ListDocuments]: https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_ListDocuments.html
 //
 // [Managing parameter tiers]: https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html
 // [Changing a standard parameter to an advanced parameter]: https://docs.aws.amazon.com/systems-manager/latest/userguide/parameter-store-advanced-parameters.html#parameter-store-advanced-parameters-enabling
-// [PromoteResourceShareCreatedFromPolicy]: https://docs.aws.amazon.com/ram/latest/APIReference/API_PromoteResourceShareCreatedFromPolicy.html
 // [KMS concepts]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html
 // [DescribeParameters]: https://docs.aws.amazon.com/systems-manager/latest/APIReference/API_DescribeParameters.html
 func (c *Client) PutResourcePolicy(ctx context.Context, params *PutResourcePolicyInput, optFns ...func(*Options)) (*PutResourcePolicyOutput, error) {
@@ -112,12 +126,6 @@ func (c *Client) addOperationPutResourcePolicyMiddlewares(stack *middleware.Stac
 		return err
 	}
 
-	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
-		return err
-	}
-	if err = addComputeContentLength(stack); err != nil {
-		return err
-	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
@@ -127,19 +135,10 @@ func (c *Client) addOperationPutResourcePolicyMiddlewares(stack *middleware.Stac
 	if err = addRecordResponseTiming(stack, options); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
-	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPutResourcePolicyValidationMiddleware(stack); err != nil {
-		return err
-	}
-	if err = stack.Initialize.Add(newServiceMetadataMiddleware(options.Region, "PutResourcePolicy"), middleware.Before); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
