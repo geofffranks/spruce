@@ -7,9 +7,6 @@ import (
 )
 
 func serializeAddReplicaRegionListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []ReplicaRegionType) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -20,9 +17,6 @@ func serializeAddReplicaRegionListType(s smithy.ShapeSerializer, schema *smithy.
 }
 
 func serializeAPIErrorListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []APIErrorType) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -33,9 +27,6 @@ func serializeAPIErrorListType(s smithy.ShapeSerializer, schema *smithy.Schema, 
 }
 
 func serializeExternalSecretRotationMetadataType(s smithy.ShapeSerializer, schema *smithy.Schema, v []ExternalSecretRotationMetadataItem) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -46,9 +37,6 @@ func serializeExternalSecretRotationMetadataType(s smithy.ShapeSerializer, schem
 }
 
 func serializeFiltersListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []Filter) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -59,9 +47,6 @@ func serializeFiltersListType(s smithy.ShapeSerializer, schema *smithy.Schema, v
 }
 
 func serializeFilterValuesStringList(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -70,9 +55,6 @@ func serializeFilterValuesStringList(s smithy.ShapeSerializer, schema *smithy.Sc
 }
 
 func serializeKmsKeyIdListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -81,9 +63,6 @@ func serializeKmsKeyIdListType(s smithy.ShapeSerializer, schema *smithy.Schema, 
 }
 
 func serializeRemoveReplicaRegionListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -92,9 +71,6 @@ func serializeRemoveReplicaRegionListType(s smithy.ShapeSerializer, schema *smit
 }
 
 func serializeReplicationStatusListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []ReplicationStatusType) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -105,9 +81,6 @@ func serializeReplicationStatusListType(s smithy.ShapeSerializer, schema *smithy
 }
 
 func serializeSecretIdListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -116,9 +89,6 @@ func serializeSecretIdListType(s smithy.ShapeSerializer, schema *smithy.Schema, 
 }
 
 func serializeSecretListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []SecretListEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -129,9 +99,6 @@ func serializeSecretListType(s smithy.ShapeSerializer, schema *smithy.Schema, v 
 }
 
 func serializeSecretValuesType(s smithy.ShapeSerializer, schema *smithy.Schema, v []SecretValueEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -142,9 +109,6 @@ func serializeSecretValuesType(s smithy.ShapeSerializer, schema *smithy.Schema, 
 }
 
 func serializeSecretVersionsListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []SecretVersionsListEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -155,9 +119,6 @@ func serializeSecretVersionsListType(s smithy.ShapeSerializer, schema *smithy.Sc
 }
 
 func serializeSecretVersionStagesType(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -166,9 +127,6 @@ func serializeSecretVersionStagesType(s smithy.ShapeSerializer, schema *smithy.S
 }
 
 func serializeTagKeyListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []string) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteString(schema.ListMember(), string(vv))
@@ -177,9 +135,6 @@ func serializeTagKeyListType(s smithy.ShapeSerializer, schema *smithy.Schema, v 
 }
 
 func serializeTagListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []Tag) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -190,9 +145,6 @@ func serializeTagListType(s smithy.ShapeSerializer, schema *smithy.Schema, v []T
 }
 
 func serializeValidationErrorsType(s smithy.ShapeSerializer, schema *smithy.Schema, v []ValidationErrorsEntry) {
-	if v == nil {
-		return
-	}
 	s.WriteList(schema)
 	for _, vv := range v {
 		s.WriteStruct(schema.ListMember())
@@ -206,6 +158,14 @@ func deserializeAddReplicaRegionListType(d smithy.ShapeDeserializer, s *smithy.S
 	*v = make([]ReplicaRegionType, 0)
 	var vv ReplicaRegionType
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero ReplicaRegionType
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = ReplicaRegionType{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -220,6 +180,14 @@ func deserializeAPIErrorListType(d smithy.ShapeDeserializer, s *smithy.Schema, v
 	*v = make([]APIErrorType, 0)
 	var vv APIErrorType
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero APIErrorType
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = APIErrorType{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -234,6 +202,14 @@ func deserializeExternalSecretRotationMetadataType(d smithy.ShapeDeserializer, s
 	*v = make([]ExternalSecretRotationMetadataItem, 0)
 	var vv ExternalSecretRotationMetadataItem
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero ExternalSecretRotationMetadataItem
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = ExternalSecretRotationMetadataItem{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -248,6 +224,14 @@ func deserializeFiltersListType(d smithy.ShapeDeserializer, s *smithy.Schema, v 
 	*v = make([]Filter, 0)
 	var vv Filter
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero Filter
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = Filter{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -262,6 +246,13 @@ func deserializeFilterValuesStringList(d smithy.ShapeDeserializer, s *smithy.Sch
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -276,6 +267,13 @@ func deserializeKmsKeyIdListType(d smithy.ShapeDeserializer, s *smithy.Schema, v
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -290,6 +288,13 @@ func deserializeRemoveReplicaRegionListType(d smithy.ShapeDeserializer, s *smith
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -304,6 +309,14 @@ func deserializeReplicationStatusListType(d smithy.ShapeDeserializer, s *smithy.
 	*v = make([]ReplicationStatusType, 0)
 	var vv ReplicationStatusType
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero ReplicationStatusType
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = ReplicationStatusType{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -318,6 +331,13 @@ func deserializeSecretIdListType(d smithy.ShapeDeserializer, s *smithy.Schema, v
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -332,6 +352,14 @@ func deserializeSecretListType(d smithy.ShapeDeserializer, s *smithy.Schema, v *
 	*v = make([]SecretListEntry, 0)
 	var vv SecretListEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero SecretListEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = SecretListEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -346,6 +374,14 @@ func deserializeSecretValuesType(d smithy.ShapeDeserializer, s *smithy.Schema, v
 	*v = make([]SecretValueEntry, 0)
 	var vv SecretValueEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero SecretValueEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = SecretValueEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -360,6 +396,14 @@ func deserializeSecretVersionsListType(d smithy.ShapeDeserializer, s *smithy.Sch
 	*v = make([]SecretVersionsListEntry, 0)
 	var vv SecretVersionsListEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero SecretVersionsListEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = SecretVersionsListEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -374,6 +418,13 @@ func deserializeSecretVersionStagesType(d smithy.ShapeDeserializer, s *smithy.Sc
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -388,6 +439,13 @@ func deserializeTagKeyListType(d smithy.ShapeDeserializer, s *smithy.Schema, v *
 	*v = make([]string, 0)
 	var vv string
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero string
+			*v = append(*v, zero)
+			return nil
+		}
 
 		if err := d.ReadString(s.ListMember(), &vv); err != nil {
 			return err
@@ -402,6 +460,14 @@ func deserializeTagListType(d smithy.ShapeDeserializer, s *smithy.Schema, v *[]T
 	*v = make([]Tag, 0)
 	var vv Tag
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero Tag
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = Tag{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -416,6 +482,14 @@ func deserializeValidationErrorsType(d smithy.ShapeDeserializer, s *smithy.Schem
 	*v = make([]ValidationErrorsEntry, 0)
 	var vv ValidationErrorsEntry
 	return smithy.ReadList(d, s, func() error {
+		if isNil, err := d.ReadNil(s.ListMember()); err != nil {
+			return err
+		} else if isNil {
+			var zero ValidationErrorsEntry
+			*v = append(*v, zero)
+			return nil
+		}
+
 		vv = ValidationErrorsEntry{}
 		if err := vv.Deserialize(d); err != nil {
 			return err
@@ -427,9 +501,6 @@ func deserializeValidationErrorsType(d smithy.ShapeDeserializer, s *smithy.Schem
 }
 
 func serializeSecretVersionsToStagesMapType(s smithy.ShapeSerializer, schema *smithy.Schema, v map[string][]string) {
-	if v == nil {
-		return
-	}
 	s.WriteMap(schema)
 	for k, vv := range v {
 		s.WriteKey(schema.MapKey(), k)
