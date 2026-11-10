@@ -65,6 +65,13 @@ func (acc *BetaMessage) Accumulate(event BetaRawMessageStreamEventUnion) error {
 			acc.ContextManagement = event.ContextManagement
 			acc.JSON.raw, _ = sjson.SetRaw(acc.JSON.raw, "context_management", event.ContextManagement.RawJSON())
 		}
+		// Sent only when a mid-stream model fallback served the response; it then
+		// replaces the list from message_start, even when empty.
+		if event.JSON.InputTransformations.Valid() {
+			acc.InputTransformations = event.InputTransformations
+			acc.JSON.InputTransformations = event.JSON.InputTransformations
+			acc.JSON.raw, _ = sjson.SetRaw(acc.JSON.raw, "input_transformations", event.JSON.InputTransformations.Raw())
+		}
 		acc.JSON.raw = mergeRaw(acc.JSON.raw, "", event.Delta.JSON.raw)
 		acc.JSON.raw = mergeRaw(acc.JSON.raw, "usage", event.Usage.RawJSON())
 	case "content_block_start":
@@ -178,7 +185,12 @@ func (r *BetaMessage) ParseOutput(dest any) error {
 // Param converters
 
 func (r BetaContentBlockUnion) ToParam() BetaContentBlockParamUnion {
-	return r.AsAny().toParamUnion()
+	variant := r.AsAny()
+	if variant == nil {
+		// A block type this SDK version does not model goes back as it came.
+		return param.Override[BetaContentBlockParamUnion](json.RawMessage(r.RawJSON()))
+	}
+	return variant.toParamUnion()
 }
 
 func (variant BetaTextBlock) toParamUnion() BetaContentBlockParamUnion {
@@ -230,6 +242,22 @@ func (r BetaAdvisorToolResultBlock) ToParam() BetaAdvisorToolResultBlockParam {
 	var p BetaAdvisorToolResultBlockParam
 	p.Type = r.Type
 	p.ToolUseID = r.ToolUseID
+	switch {
+	case r.Content.JSON.ErrorCode.Valid():
+		p.Content.OfRequestAdvisorToolResultError = &BetaAdvisorToolResultErrorParam{
+			ErrorCode: BetaAdvisorToolResultErrorParamErrorCode(r.Content.ErrorCode),
+		}
+	case r.Content.JSON.EncryptedContent.Valid():
+		p.Content.OfRequestAdvisorRedactedResultBlock = &BetaAdvisorRedactedResultBlockParam{
+			EncryptedContent: r.Content.EncryptedContent,
+			StopReason:       paramutil.ToOpt(r.Content.StopReason, r.Content.JSON.StopReason),
+		}
+	default:
+		p.Content.OfRequestAdvisorResultBlock = &BetaAdvisorResultBlockParam{
+			Text:       r.Content.Text,
+			StopReason: paramutil.ToOpt(r.Content.StopReason, r.Content.JSON.StopReason),
+		}
+	}
 	return p
 }
 
@@ -273,6 +301,13 @@ func (variant BetaFallbackBlock) toParamUnion() BetaContentBlockParamUnion {
 	return BetaContentBlockParamUnion{OfFallback: &p}
 }
 
+// Echoed as received: rebuilding it from the decoded maps would reorder the
+// keys of each listed tool's input_schema.
+func (variant BetaMCPToolListingBlock) toParamUnion() BetaContentBlockParamUnion {
+	p := param.Override[BetaMCPToolListingBlockParam](json.RawMessage(variant.RawJSON()))
+	return BetaContentBlockParamUnion{OfMCPToolListing: &p}
+}
+
 func (r BetaMessage) ToParam() BetaMessageParam {
 	var p BetaMessageParam
 	p.Role = BetaMessageParamRole(r.Role)
@@ -302,9 +337,17 @@ func (r BetaTextBlock) ToParam() BetaTextBlockParam {
 		p.Citations = make([]BetaTextCitationParamUnion, 0, len(r.Citations))
 	}
 	for _, citation := range r.Citations {
-		p.Citations = append(p.Citations, citation.AsAny().toParamUnion())
+		p.Citations = append(p.Citations, citation.toParam())
 	}
 	return p
+}
+
+func (r BetaTextCitationUnion) toParam() BetaTextCitationParamUnion {
+	variant := r.AsAny()
+	if variant == nil {
+		return param.Override[BetaTextCitationParamUnion](json.RawMessage(r.RawJSON()))
+	}
+	return variant.toParamUnion()
 }
 
 func (r BetaCitationCharLocation) toParamUnion() BetaTextCitationParamUnion {
@@ -377,7 +420,42 @@ func (r BetaToolUseBlock) ToParam() BetaToolUseBlockParam {
 	p.Input = r.Input
 	p.Name = r.Name
 	p.ToolsetName = paramutil.ToOpt(r.ToolsetName, r.JSON.ToolsetName)
+	if r.JSON.Caller.Valid() {
+		p.Caller = r.Caller.toParam()
+	}
 	return p
+}
+
+// toParam converts a caller. The other three caller unions share this layout
+// and convert through it.
+func (r BetaToolUseBlockCallerUnion) toParam() BetaToolUseBlockParamCallerUnion {
+	var p BetaToolUseBlockParamCallerUnion
+	switch v := r.AsAny().(type) {
+	case BetaDirectCaller:
+		c := v.ToParam()
+		p.OfDirect = &c
+	case BetaServerToolCaller:
+		c := v.ToParam()
+		p.OfCodeExecution20250825 = &c
+	case BetaServerToolCaller20260120:
+		c := v.ToParam()
+		p.OfCodeExecution20260120 = &c
+	default:
+		p = param.Override[BetaToolUseBlockParamCallerUnion](json.RawMessage(r.RawJSON()))
+	}
+	return p
+}
+
+func (r BetaServerToolUseBlockCallerUnion) toParam() BetaServerToolUseBlockParamCallerUnion {
+	return BetaServerToolUseBlockParamCallerUnion(BetaToolUseBlockCallerUnion(r).toParam())
+}
+
+func (r BetaWebSearchToolResultBlockCallerUnion) toParam() BetaWebSearchToolResultBlockParamCallerUnion {
+	return BetaWebSearchToolResultBlockParamCallerUnion(BetaToolUseBlockCallerUnion(r).toParam())
+}
+
+func (r BetaWebFetchToolResultBlockCallerUnion) toParam() BetaWebFetchToolResultBlockParamCallerUnion {
+	return BetaWebFetchToolResultBlockParamCallerUnion(BetaToolUseBlockCallerUnion(r).toParam())
 }
 
 func (r BetaWebSearchResultBlock) ToParam() BetaWebSearchResultBlockParam {
@@ -395,7 +473,9 @@ func (r BetaWebSearchToolResultBlock) ToParam() BetaWebSearchToolResultBlockPara
 	p.Type = r.Type
 	p.ToolUseID = r.ToolUseID
 
-	if len(r.Content.OfBetaWebSearchResultBlockArray) > 0 {
+	if r.Content.JSON.OfBetaWebSearchResultBlockArray.Valid() {
+		// content is required, so send [] rather than omitting it.
+		p.Content.OfResultBlock = make([]BetaWebSearchResultBlockParam, 0, len(r.Content.OfBetaWebSearchResultBlockArray))
 		for _, block := range r.Content.OfBetaWebSearchResultBlockArray {
 			p.Content.OfResultBlock = append(p.Content.OfResultBlock, block.ToParam())
 		}
@@ -405,6 +485,9 @@ func (r BetaWebSearchToolResultBlock) ToParam() BetaWebSearchToolResultBlockPara
 			ErrorCode: r.Content.ErrorCode,
 		}
 	}
+	if r.JSON.Caller.Valid() {
+		p.Caller = r.Caller.toParam()
+	}
 	return p
 }
 
@@ -412,6 +495,16 @@ func (r BetaWebFetchToolResultBlock) ToParam() BetaWebFetchToolResultBlockParam 
 	var p BetaWebFetchToolResultBlockParam
 	p.Type = r.Type
 	p.ToolUseID = r.ToolUseID
+	if r.Content.JSON.ErrorCode.Valid() {
+		p.Content.OfRequestWebFetchToolResultError = &BetaWebFetchToolResultErrorBlockParam{
+			ErrorCode: r.Content.ErrorCode,
+		}
+	} else {
+		p.Content = param.Override[BetaWebFetchToolResultBlockParamContentUnion](json.RawMessage(r.Content.RawJSON()))
+	}
+	if r.JSON.Caller.Valid() {
+		p.Caller = r.Caller.toParam()
+	}
 	return p
 }
 
@@ -438,6 +531,9 @@ func (r BetaServerToolUseBlock) ToParam() BetaServerToolUseBlockParam {
 	p.ID = r.ID
 	p.Input = r.Input
 	p.Name = BetaServerToolUseBlockParamName(r.Name)
+	if r.JSON.Caller.Valid() {
+		p.Caller = r.Caller.toParam()
+	}
 	return p
 }
 
@@ -451,7 +547,7 @@ func (r BetaTextEditorCodeExecutionToolResultBlock) ToParam() BetaTextEditorCode
 			ErrorMessage: paramutil.ToOpt(r.Content.ErrorMessage, r.Content.JSON.ErrorMessage),
 		}
 	} else {
-		p.Content = param.Override[BetaTextEditorCodeExecutionToolResultBlockParamContentUnion](r.Content.RawJSON())
+		p.Content = param.Override[BetaTextEditorCodeExecutionToolResultBlockParamContentUnion](json.RawMessage(r.Content.RawJSON()))
 	}
 	return p
 }
@@ -460,9 +556,12 @@ func (r BetaMCPToolResultBlock) ToParam() BetaRequestMCPToolResultBlockParam {
 	var p BetaRequestMCPToolResultBlockParam
 	p.Type = r.Type
 	p.ToolUseID = r.ToolUseID
+	p.IsError = paramutil.ToOpt(r.IsError, r.JSON.IsError)
 	if r.Content.JSON.OfString.Valid() {
 		p.Content.OfString = paramutil.ToOpt(r.Content.OfString, r.Content.JSON.OfString)
-	} else {
+	} else if r.Content.JSON.OfBetaMCPToolResultBlockContent.Valid() {
+		// Send [] for an empty result rather than omitting content.
+		p.Content.OfBetaMCPToolResultBlockContent = make([]BetaTextBlockParam, 0, len(r.Content.OfBetaMCPToolResultBlockContent))
 		for _, block := range r.Content.OfBetaMCPToolResultBlockContent {
 			p.Content.OfBetaMCPToolResultBlockContent = append(p.Content.OfBetaMCPToolResultBlockContent, block.ToParam())
 		}
@@ -481,6 +580,8 @@ func (r BetaBashCodeExecutionToolResultBlock) ToParam() BetaBashCodeExecutionToo
 		}
 	} else {
 		requestBashContentResult := &BetaBashCodeExecutionResultBlockParam{
+			// content is required, so send [] rather than omitting it.
+			Content:    make([]BetaBashCodeExecutionOutputBlockParam, 0, len(r.Content.Content)),
 			ReturnCode: r.Content.ReturnCode,
 			Stderr:     r.Content.Stderr,
 			Stdout:     r.Content.Stdout,
@@ -505,18 +606,29 @@ func (r BetaCodeExecutionToolResultBlock) ToParam() BetaCodeExecutionToolResultB
 	var p BetaCodeExecutionToolResultBlockParam
 	p.Type = r.Type
 	p.ToolUseID = r.ToolUseID
-	if r.Content.JSON.ErrorCode.Valid() {
+	// content is required, so send [] rather than omitting it.
+	files := make([]BetaCodeExecutionOutputBlockParam, 0, len(r.Content.Content))
+	for _, block := range r.Content.Content {
+		files = append(files, block.ToParam())
+	}
+	switch {
+	case r.Content.JSON.ErrorCode.Valid():
 		p.Content.OfError = &BetaCodeExecutionToolResultErrorParam{
 			ErrorCode: r.Content.ErrorCode,
 		}
-	} else {
+	case r.Content.JSON.EncryptedStdout.Valid():
+		p.Content.OfRequestEncryptedCodeExecutionResultBlock = &BetaEncryptedCodeExecutionResultBlockParam{
+			Content:         files,
+			EncryptedStdout: r.Content.EncryptedStdout,
+			ReturnCode:      r.Content.ReturnCode,
+			Stderr:          r.Content.Stderr,
+		}
+	default:
 		p.Content.OfResultBlock = &BetaCodeExecutionResultBlockParam{
+			Content:    files,
 			ReturnCode: r.Content.ReturnCode,
 			Stderr:     r.Content.Stderr,
 			Stdout:     r.Content.Stdout,
-		}
-		for _, block := range r.Content.Content {
-			p.Content.OfResultBlock.Content = append(p.Content.OfResultBlock.Content, block.ToParam())
 		}
 	}
 	return p
@@ -535,10 +647,14 @@ func (r BetaToolSearchToolResultBlock) ToParam() BetaToolSearchToolResultBlockPa
 	p.ToolUseID = r.ToolUseID
 	if r.Content.JSON.ErrorCode.Valid() {
 		p.Content.OfRequestToolSearchToolResultError = &BetaToolSearchToolResultErrorParam{
-			ErrorCode: BetaToolSearchToolResultErrorParamErrorCode(r.Content.ErrorCode),
+			ErrorCode:    BetaToolSearchToolResultErrorParamErrorCode(r.Content.ErrorCode),
+			ErrorMessage: paramutil.ToOpt(r.Content.ErrorMessage, r.Content.JSON.ErrorMessage),
 		}
 	} else {
-		p.Content.OfRequestToolSearchToolSearchResultBlock = &BetaToolSearchToolSearchResultBlockParam{}
+		p.Content.OfRequestToolSearchToolSearchResultBlock = &BetaToolSearchToolSearchResultBlockParam{
+			// tool_references is required, so send [] rather than omitting it.
+			ToolReferences: make([]BetaToolReferenceBlockParam, 0, len(r.Content.ToolReferences)),
+		}
 		for _, block := range r.Content.ToolReferences {
 			p.Content.OfRequestToolSearchToolSearchResultBlock.ToolReferences = append(
 				p.Content.OfRequestToolSearchToolSearchResultBlock.ToolReferences,
@@ -559,8 +675,34 @@ func (r BetaToolReferenceBlock) ToParam() BetaToolReferenceBlockParam {
 func (r BetaCompactionBlock) ToParam() BetaCompactionBlockParam {
 	var p BetaCompactionBlockParam
 	p.Type = r.Type
-	p.Content = param.NewOpt(r.Content)
+	// A failed compaction has null content and signature, which must stay null
+	// rather than become "" or be dropped.
+	p.Content = paramutil.ToOpt(r.Content, r.JSON.Content)
+	p.EncryptedContent = paramutil.ToOpt(r.EncryptedContent, r.JSON.EncryptedContent)
+	p.Signature = paramutil.ToOpt(r.Signature, r.JSON.Signature)
+	// [] is kept distinct from absent.
+	if r.JSON.ToolChanges.Valid() {
+		p.ToolChanges = make([]BetaCompactionBlockParamToolChangeUnion, len(r.ToolChanges))
+		for i, change := range r.ToolChanges {
+			p.ToolChanges[i] = change.ToParam()
+		}
+	}
 	return p
+}
+
+// ToParam echoes the change as received: rebuilding a by-value tool definition
+// from its fields would reorder its input schema's keys.
+func (r BetaCompactionBlockToolChangeUnion) ToParam() BetaCompactionBlockParamToolChangeUnion {
+	raw := json.RawMessage(r.RawJSON())
+	switch r.AsAny().(type) {
+	case BetaResponseToolAdditionBlock:
+		addition := param.Override[BetaRequestToolAdditionBlockParam](raw)
+		return BetaCompactionBlockParamToolChangeUnion{OfToolAddition: &addition}
+	case BetaResponseToolRemovalBlock:
+		removal := param.Override[BetaRequestToolRemovalBlockParam](raw)
+		return BetaCompactionBlockParamToolChangeUnion{OfToolRemoval: &removal}
+	}
+	return param.Override[BetaCompactionBlockParamToolChangeUnion](raw)
 }
 
 func (r BetaFallbackBlock) ToParam() BetaFallbackBlockParam {
@@ -568,5 +710,8 @@ func (r BetaFallbackBlock) ToParam() BetaFallbackBlockParam {
 	p.Type = r.Type
 	p.From = BetaFallbackInfoParam{Model: r.From.Model}
 	p.To = BetaFallbackInfoParam{Model: r.To.Model}
+	if r.JSON.Trigger.Valid() {
+		p.Trigger = json.RawMessage(r.Trigger.RawJSON())
+	}
 	return p
 }

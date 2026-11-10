@@ -33,7 +33,7 @@ type AdminOrganizationUsageService struct {
 // options (if there is one), and before any request-specific options.
 func NewAdminOrganizationUsageService(opts ...option.RequestOption) (r AdminOrganizationUsageService) {
 	r = AdminOrganizationUsageService{}
-	r.Options = opts
+	r.Options = requestconfig.InheritedOptions(opts...)
 	return
 }
 
@@ -78,6 +78,15 @@ func (r *AdminOrganizationUsageService) Costs(ctx context.Context, query AdminOr
 	var preClientOpts = []option.RequestOption{requestconfig.WithAdminAPIKeyAuthSecurity()}
 	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "organization/costs"
+	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, query, &res, opts...)
+	return res, err
+}
+
+// Get Decisions API usage details for the organization.
+func (r *AdminOrganizationUsageService) Decisions(ctx context.Context, query AdminOrganizationUsageDecisionsParams, opts ...option.RequestOption) (res *AdminOrganizationUsageDecisionsResponse, err error) {
+	var preClientOpts = []option.RequestOption{requestconfig.WithAdminAPIKeyAuthSecurity()}
+	opts = slices.Concat(preClientOpts, r.Options, opts)
+	path := "organization/usage/decisions"
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, query, &res, opts...)
 	return res, err
 }
@@ -135,6 +144,21 @@ func (r *AdminOrganizationUsageService) WebSearchCalls(ctx context.Context, quer
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, query, &res, opts...)
 	return res, err
 }
+
+// The unit of the `quantity` value. If no single supported unit applies to the
+// result, this field is `null`.
+type CostQuantityUnit string
+
+const (
+	CostQuantityUnitTokens          CostQuantityUnit = "tokens"
+	CostQuantityUnit1000Tokens      CostQuantityUnit = "1000_tokens"
+	CostQuantityUnitDurationSeconds CostQuantityUnit = "duration_seconds"
+	CostQuantityUnitDurationMinutes CostQuantityUnit = "duration_minutes"
+	CostQuantityUnitDurationHours   CostQuantityUnit = "duration_hours"
+	CostQuantityUnitGibibyteHours   CostQuantityUnit = "gibibyte_hours"
+	CostQuantityUnitImages          CostQuantityUnit = "images"
+	CostQuantityUnitCharacters      CostQuantityUnit = "characters"
+)
 
 type AdminOrganizationUsageAudioSpeechesResponse struct {
 	Data     []AdminOrganizationUsageAudioSpeechesResponseData `json:"data" api:"required"`
@@ -214,12 +238,16 @@ type AdminOrganizationUsageAudioSpeechesResponseDataResultUnion struct {
 	// [AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationUsageCompletionsResult].
 	OutputTokens int64  `json:"output_tokens"`
 	APIKeyID     string `json:"api_key_id"`
+	APISource    string `json:"api_source"`
 	// This field is from variant
 	// [AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationUsageCompletionsResult].
 	Batch bool `json:"batch"`
 	// This field is from variant
 	// [AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationUsageCompletionsResult].
 	InputAudioTokens int64 `json:"input_audio_tokens"`
+	// This field is from variant
+	// [AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationUsageCompletionsResult].
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
 	// This field is from variant
 	// [AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationUsageCompletionsResult].
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
@@ -296,43 +324,49 @@ type AdminOrganizationUsageAudioSpeechesResponseDataResultUnion struct {
 	// This field is from variant
 	// [AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationCostsResult].
 	Quantity float64 `json:"quantity"`
-	JSON     struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		Images                 respjson.Field
-		Size                   respjson.Field
-		Source                 respjson.Field
-		Characters             respjson.Field
-		Seconds                respjson.Field
-		UsageBytes             respjson.Field
-		NumSessions            respjson.Field
-		NumRequests            respjson.Field
-		VectorStoreID          respjson.Field
-		ContextLevel           respjson.Field
-		Amount                 respjson.Field
-		LineItem               respjson.Field
-		Quantity               respjson.Field
-		raw                    string
+	// This field is from variant
+	// [AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationCostsResult].
+	QuantityUnit CostQuantityUnit `json:"quantity_unit"`
+	JSON         struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		Images                   respjson.Field
+		Size                     respjson.Field
+		Source                   respjson.Field
+		Characters               respjson.Field
+		Seconds                  respjson.Field
+		UsageBytes               respjson.Field
+		NumSessions              respjson.Field
+		NumRequests              respjson.Field
+		VectorStoreID            respjson.Field
+		ContextLevel             respjson.Field
+		Amount                   respjson.Field
+		LineItem                 respjson.Field
+		Quantity                 respjson.Field
+		QuantityUnit             respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -492,12 +526,23 @@ type AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationUsageCompl
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=batch`, this field tells whether the grouped usage result is
 	// batch or not.
 	Batch bool `json:"batch" api:"nullable"`
 	// The aggregated number of uncached audio input tokens used.
 	InputAudioTokens int64 `json:"input_audio_tokens"`
-	// The aggregated number of input tokens written to the cache.
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
 	// The aggregated number of cached audio input tokens used.
 	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens"`
@@ -536,30 +581,32 @@ type AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationUsageCompl
 	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		ExtraFields            map[string]respjson.Field
-		raw                    string
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -885,6 +932,13 @@ type AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationUsageWebSe
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=context_level`, this field provides the search context size of
 	// the grouped usage result.
 	ContextLevel string `json:"context_level" api:"nullable"`
@@ -903,6 +957,7 @@ type AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationUsageWebSe
 		NumRequests      respjson.Field
 		Object           respjson.Field
 		APIKeyID         respjson.Field
+		APISource        respjson.Field
 		ContextLevel     respjson.Field
 		Model            respjson.Field
 		ProjectID        respjson.Field
@@ -928,6 +983,13 @@ type AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationCostsResul
 	// When `group_by=api_key_id`, this field provides the API Key ID of the grouped
 	// costs result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=line_item`, this field provides the line item of the grouped
 	// costs result.
 	LineItem string `json:"line_item" api:"nullable"`
@@ -937,16 +999,25 @@ type AdminOrganizationUsageAudioSpeechesResponseDataResultOrganizationCostsResul
 	// When `group_by=line_item`, this field provides the quantity of the grouped costs
 	// result.
 	Quantity float64 `json:"quantity" api:"nullable"`
+	// The unit of the `quantity` value. If no single supported unit applies to the
+	// result, this field is `null`.
+	QuantityUnit CostQuantityUnit `json:"quantity_unit" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped costs
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Object      respjson.Field
-		Amount      respjson.Field
-		APIKeyID    respjson.Field
-		LineItem    respjson.Field
-		ProjectID   respjson.Field
-		Quantity    respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Object       respjson.Field
+		Amount       respjson.Field
+		APIKeyID     respjson.Field
+		APISource    respjson.Field
+		LineItem     respjson.Field
+		ProjectID    respjson.Field
+		Quantity     respjson.Field
+		QuantityUnit respjson.Field
+		UserID       respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -1059,12 +1130,16 @@ type AdminOrganizationUsageAudioTranscriptionsResponseDataResultUnion struct {
 	// [AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationUsageCompletionsResult].
 	OutputTokens int64  `json:"output_tokens"`
 	APIKeyID     string `json:"api_key_id"`
+	APISource    string `json:"api_source"`
 	// This field is from variant
 	// [AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationUsageCompletionsResult].
 	Batch bool `json:"batch"`
 	// This field is from variant
 	// [AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationUsageCompletionsResult].
 	InputAudioTokens int64 `json:"input_audio_tokens"`
+	// This field is from variant
+	// [AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationUsageCompletionsResult].
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
 	// This field is from variant
 	// [AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationUsageCompletionsResult].
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
@@ -1141,43 +1216,49 @@ type AdminOrganizationUsageAudioTranscriptionsResponseDataResultUnion struct {
 	// This field is from variant
 	// [AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationCostsResult].
 	Quantity float64 `json:"quantity"`
-	JSON     struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		Images                 respjson.Field
-		Size                   respjson.Field
-		Source                 respjson.Field
-		Characters             respjson.Field
-		Seconds                respjson.Field
-		UsageBytes             respjson.Field
-		NumSessions            respjson.Field
-		NumRequests            respjson.Field
-		VectorStoreID          respjson.Field
-		ContextLevel           respjson.Field
-		Amount                 respjson.Field
-		LineItem               respjson.Field
-		Quantity               respjson.Field
-		raw                    string
+	// This field is from variant
+	// [AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationCostsResult].
+	QuantityUnit CostQuantityUnit `json:"quantity_unit"`
+	JSON         struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		Images                   respjson.Field
+		Size                     respjson.Field
+		Source                   respjson.Field
+		Characters               respjson.Field
+		Seconds                  respjson.Field
+		UsageBytes               respjson.Field
+		NumSessions              respjson.Field
+		NumRequests              respjson.Field
+		VectorStoreID            respjson.Field
+		ContextLevel             respjson.Field
+		Amount                   respjson.Field
+		LineItem                 respjson.Field
+		Quantity                 respjson.Field
+		QuantityUnit             respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -1338,12 +1419,23 @@ type AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationUsag
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=batch`, this field tells whether the grouped usage result is
 	// batch or not.
 	Batch bool `json:"batch" api:"nullable"`
 	// The aggregated number of uncached audio input tokens used.
 	InputAudioTokens int64 `json:"input_audio_tokens"`
-	// The aggregated number of input tokens written to the cache.
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
 	// The aggregated number of cached audio input tokens used.
 	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens"`
@@ -1382,30 +1474,32 @@ type AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationUsag
 	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		ExtraFields            map[string]respjson.Field
-		raw                    string
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -1731,6 +1825,13 @@ type AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationUsag
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=context_level`, this field provides the search context size of
 	// the grouped usage result.
 	ContextLevel string `json:"context_level" api:"nullable"`
@@ -1749,6 +1850,7 @@ type AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationUsag
 		NumRequests      respjson.Field
 		Object           respjson.Field
 		APIKeyID         respjson.Field
+		APISource        respjson.Field
 		ContextLevel     respjson.Field
 		Model            respjson.Field
 		ProjectID        respjson.Field
@@ -1774,6 +1876,13 @@ type AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationCost
 	// When `group_by=api_key_id`, this field provides the API Key ID of the grouped
 	// costs result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=line_item`, this field provides the line item of the grouped
 	// costs result.
 	LineItem string `json:"line_item" api:"nullable"`
@@ -1783,16 +1892,25 @@ type AdminOrganizationUsageAudioTranscriptionsResponseDataResultOrganizationCost
 	// When `group_by=line_item`, this field provides the quantity of the grouped costs
 	// result.
 	Quantity float64 `json:"quantity" api:"nullable"`
+	// The unit of the `quantity` value. If no single supported unit applies to the
+	// result, this field is `null`.
+	QuantityUnit CostQuantityUnit `json:"quantity_unit" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped costs
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Object      respjson.Field
-		Amount      respjson.Field
-		APIKeyID    respjson.Field
-		LineItem    respjson.Field
-		ProjectID   respjson.Field
-		Quantity    respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Object       respjson.Field
+		Amount       respjson.Field
+		APIKeyID     respjson.Field
+		APISource    respjson.Field
+		LineItem     respjson.Field
+		ProjectID    respjson.Field
+		Quantity     respjson.Field
+		QuantityUnit respjson.Field
+		UserID       respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -1908,12 +2026,16 @@ type AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultUnion struct
 	// [AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganizationUsageCompletionsResult].
 	OutputTokens int64  `json:"output_tokens"`
 	APIKeyID     string `json:"api_key_id"`
+	APISource    string `json:"api_source"`
 	// This field is from variant
 	// [AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganizationUsageCompletionsResult].
 	Batch bool `json:"batch"`
 	// This field is from variant
 	// [AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganizationUsageCompletionsResult].
 	InputAudioTokens int64 `json:"input_audio_tokens"`
+	// This field is from variant
+	// [AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganizationUsageCompletionsResult].
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
 	// This field is from variant
 	// [AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganizationUsageCompletionsResult].
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
@@ -1990,43 +2112,49 @@ type AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultUnion struct
 	// This field is from variant
 	// [AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganizationCostsResult].
 	Quantity float64 `json:"quantity"`
-	JSON     struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		Images                 respjson.Field
-		Size                   respjson.Field
-		Source                 respjson.Field
-		Characters             respjson.Field
-		Seconds                respjson.Field
-		UsageBytes             respjson.Field
-		NumSessions            respjson.Field
-		NumRequests            respjson.Field
-		VectorStoreID          respjson.Field
-		ContextLevel           respjson.Field
-		Amount                 respjson.Field
-		LineItem               respjson.Field
-		Quantity               respjson.Field
-		raw                    string
+	// This field is from variant
+	// [AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganizationCostsResult].
+	QuantityUnit CostQuantityUnit `json:"quantity_unit"`
+	JSON         struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		Images                   respjson.Field
+		Size                     respjson.Field
+		Source                   respjson.Field
+		Characters               respjson.Field
+		Seconds                  respjson.Field
+		UsageBytes               respjson.Field
+		NumSessions              respjson.Field
+		NumRequests              respjson.Field
+		VectorStoreID            respjson.Field
+		ContextLevel             respjson.Field
+		Amount                   respjson.Field
+		LineItem                 respjson.Field
+		Quantity                 respjson.Field
+		QuantityUnit             respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -2187,12 +2315,23 @@ type AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganization
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=batch`, this field tells whether the grouped usage result is
 	// batch or not.
 	Batch bool `json:"batch" api:"nullable"`
 	// The aggregated number of uncached audio input tokens used.
 	InputAudioTokens int64 `json:"input_audio_tokens"`
-	// The aggregated number of input tokens written to the cache.
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
 	// The aggregated number of cached audio input tokens used.
 	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens"`
@@ -2231,30 +2370,32 @@ type AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganization
 	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		ExtraFields            map[string]respjson.Field
-		raw                    string
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -2580,6 +2721,13 @@ type AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganization
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=context_level`, this field provides the search context size of
 	// the grouped usage result.
 	ContextLevel string `json:"context_level" api:"nullable"`
@@ -2598,6 +2746,7 @@ type AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganization
 		NumRequests      respjson.Field
 		Object           respjson.Field
 		APIKeyID         respjson.Field
+		APISource        respjson.Field
 		ContextLevel     respjson.Field
 		Model            respjson.Field
 		ProjectID        respjson.Field
@@ -2623,6 +2772,13 @@ type AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganization
 	// When `group_by=api_key_id`, this field provides the API Key ID of the grouped
 	// costs result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=line_item`, this field provides the line item of the grouped
 	// costs result.
 	LineItem string `json:"line_item" api:"nullable"`
@@ -2632,16 +2788,25 @@ type AdminOrganizationUsageCodeInterpreterSessionsResponseDataResultOrganization
 	// When `group_by=line_item`, this field provides the quantity of the grouped costs
 	// result.
 	Quantity float64 `json:"quantity" api:"nullable"`
+	// The unit of the `quantity` value. If no single supported unit applies to the
+	// result, this field is `null`.
+	QuantityUnit CostQuantityUnit `json:"quantity_unit" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped costs
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Object      respjson.Field
-		Amount      respjson.Field
-		APIKeyID    respjson.Field
-		LineItem    respjson.Field
-		ProjectID   respjson.Field
-		Quantity    respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Object       respjson.Field
+		Amount       respjson.Field
+		APIKeyID     respjson.Field
+		APISource    respjson.Field
+		LineItem     respjson.Field
+		ProjectID    respjson.Field
+		Quantity     respjson.Field
+		QuantityUnit respjson.Field
+		UserID       respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -2754,12 +2919,16 @@ type AdminOrganizationUsageCompletionsResponseDataResultUnion struct {
 	// [AdminOrganizationUsageCompletionsResponseDataResultOrganizationUsageCompletionsResult].
 	OutputTokens int64  `json:"output_tokens"`
 	APIKeyID     string `json:"api_key_id"`
+	APISource    string `json:"api_source"`
 	// This field is from variant
 	// [AdminOrganizationUsageCompletionsResponseDataResultOrganizationUsageCompletionsResult].
 	Batch bool `json:"batch"`
 	// This field is from variant
 	// [AdminOrganizationUsageCompletionsResponseDataResultOrganizationUsageCompletionsResult].
 	InputAudioTokens int64 `json:"input_audio_tokens"`
+	// This field is from variant
+	// [AdminOrganizationUsageCompletionsResponseDataResultOrganizationUsageCompletionsResult].
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
 	// This field is from variant
 	// [AdminOrganizationUsageCompletionsResponseDataResultOrganizationUsageCompletionsResult].
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
@@ -2836,43 +3005,49 @@ type AdminOrganizationUsageCompletionsResponseDataResultUnion struct {
 	// This field is from variant
 	// [AdminOrganizationUsageCompletionsResponseDataResultOrganizationCostsResult].
 	Quantity float64 `json:"quantity"`
-	JSON     struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		Images                 respjson.Field
-		Size                   respjson.Field
-		Source                 respjson.Field
-		Characters             respjson.Field
-		Seconds                respjson.Field
-		UsageBytes             respjson.Field
-		NumSessions            respjson.Field
-		NumRequests            respjson.Field
-		VectorStoreID          respjson.Field
-		ContextLevel           respjson.Field
-		Amount                 respjson.Field
-		LineItem               respjson.Field
-		Quantity               respjson.Field
-		raw                    string
+	// This field is from variant
+	// [AdminOrganizationUsageCompletionsResponseDataResultOrganizationCostsResult].
+	QuantityUnit CostQuantityUnit `json:"quantity_unit"`
+	JSON         struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		Images                   respjson.Field
+		Size                     respjson.Field
+		Source                   respjson.Field
+		Characters               respjson.Field
+		Seconds                  respjson.Field
+		UsageBytes               respjson.Field
+		NumSessions              respjson.Field
+		NumRequests              respjson.Field
+		VectorStoreID            respjson.Field
+		ContextLevel             respjson.Field
+		Amount                   respjson.Field
+		LineItem                 respjson.Field
+		Quantity                 respjson.Field
+		QuantityUnit             respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -3030,12 +3205,23 @@ type AdminOrganizationUsageCompletionsResponseDataResultOrganizationUsageComplet
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=batch`, this field tells whether the grouped usage result is
 	// batch or not.
 	Batch bool `json:"batch" api:"nullable"`
 	// The aggregated number of uncached audio input tokens used.
 	InputAudioTokens int64 `json:"input_audio_tokens"`
-	// The aggregated number of input tokens written to the cache.
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
 	// The aggregated number of cached audio input tokens used.
 	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens"`
@@ -3074,30 +3260,32 @@ type AdminOrganizationUsageCompletionsResponseDataResultOrganizationUsageComplet
 	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		ExtraFields            map[string]respjson.Field
-		raw                    string
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -3423,6 +3611,13 @@ type AdminOrganizationUsageCompletionsResponseDataResultOrganizationUsageWebSear
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=context_level`, this field provides the search context size of
 	// the grouped usage result.
 	ContextLevel string `json:"context_level" api:"nullable"`
@@ -3441,6 +3636,7 @@ type AdminOrganizationUsageCompletionsResponseDataResultOrganizationUsageWebSear
 		NumRequests      respjson.Field
 		Object           respjson.Field
 		APIKeyID         respjson.Field
+		APISource        respjson.Field
 		ContextLevel     respjson.Field
 		Model            respjson.Field
 		ProjectID        respjson.Field
@@ -3466,6 +3662,13 @@ type AdminOrganizationUsageCompletionsResponseDataResultOrganizationCostsResult 
 	// When `group_by=api_key_id`, this field provides the API Key ID of the grouped
 	// costs result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=line_item`, this field provides the line item of the grouped
 	// costs result.
 	LineItem string `json:"line_item" api:"nullable"`
@@ -3475,16 +3678,25 @@ type AdminOrganizationUsageCompletionsResponseDataResultOrganizationCostsResult 
 	// When `group_by=line_item`, this field provides the quantity of the grouped costs
 	// result.
 	Quantity float64 `json:"quantity" api:"nullable"`
+	// The unit of the `quantity` value. If no single supported unit applies to the
+	// result, this field is `null`.
+	QuantityUnit CostQuantityUnit `json:"quantity_unit" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped costs
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Object      respjson.Field
-		Amount      respjson.Field
-		APIKeyID    respjson.Field
-		LineItem    respjson.Field
-		ProjectID   respjson.Field
-		Quantity    respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Object       respjson.Field
+		Amount       respjson.Field
+		APIKeyID     respjson.Field
+		APISource    respjson.Field
+		LineItem     respjson.Field
+		ProjectID    respjson.Field
+		Quantity     respjson.Field
+		QuantityUnit respjson.Field
+		UserID       respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -3597,12 +3809,16 @@ type AdminOrganizationUsageCostsResponseDataResultUnion struct {
 	// [AdminOrganizationUsageCostsResponseDataResultOrganizationUsageCompletionsResult].
 	OutputTokens int64  `json:"output_tokens"`
 	APIKeyID     string `json:"api_key_id"`
+	APISource    string `json:"api_source"`
 	// This field is from variant
 	// [AdminOrganizationUsageCostsResponseDataResultOrganizationUsageCompletionsResult].
 	Batch bool `json:"batch"`
 	// This field is from variant
 	// [AdminOrganizationUsageCostsResponseDataResultOrganizationUsageCompletionsResult].
 	InputAudioTokens int64 `json:"input_audio_tokens"`
+	// This field is from variant
+	// [AdminOrganizationUsageCostsResponseDataResultOrganizationUsageCompletionsResult].
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
 	// This field is from variant
 	// [AdminOrganizationUsageCostsResponseDataResultOrganizationUsageCompletionsResult].
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
@@ -3679,43 +3895,49 @@ type AdminOrganizationUsageCostsResponseDataResultUnion struct {
 	// This field is from variant
 	// [AdminOrganizationUsageCostsResponseDataResultOrganizationCostsResult].
 	Quantity float64 `json:"quantity"`
-	JSON     struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		Images                 respjson.Field
-		Size                   respjson.Field
-		Source                 respjson.Field
-		Characters             respjson.Field
-		Seconds                respjson.Field
-		UsageBytes             respjson.Field
-		NumSessions            respjson.Field
-		NumRequests            respjson.Field
-		VectorStoreID          respjson.Field
-		ContextLevel           respjson.Field
-		Amount                 respjson.Field
-		LineItem               respjson.Field
-		Quantity               respjson.Field
-		raw                    string
+	// This field is from variant
+	// [AdminOrganizationUsageCostsResponseDataResultOrganizationCostsResult].
+	QuantityUnit CostQuantityUnit `json:"quantity_unit"`
+	JSON         struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		Images                   respjson.Field
+		Size                     respjson.Field
+		Source                   respjson.Field
+		Characters               respjson.Field
+		Seconds                  respjson.Field
+		UsageBytes               respjson.Field
+		NumSessions              respjson.Field
+		NumRequests              respjson.Field
+		VectorStoreID            respjson.Field
+		ContextLevel             respjson.Field
+		Amount                   respjson.Field
+		LineItem                 respjson.Field
+		Quantity                 respjson.Field
+		QuantityUnit             respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -3872,12 +4094,23 @@ type AdminOrganizationUsageCostsResponseDataResultOrganizationUsageCompletionsRe
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=batch`, this field tells whether the grouped usage result is
 	// batch or not.
 	Batch bool `json:"batch" api:"nullable"`
 	// The aggregated number of uncached audio input tokens used.
 	InputAudioTokens int64 `json:"input_audio_tokens"`
-	// The aggregated number of input tokens written to the cache.
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
 	// The aggregated number of cached audio input tokens used.
 	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens"`
@@ -3916,30 +4149,32 @@ type AdminOrganizationUsageCostsResponseDataResultOrganizationUsageCompletionsRe
 	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		ExtraFields            map[string]respjson.Field
-		raw                    string
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -4265,6 +4500,13 @@ type AdminOrganizationUsageCostsResponseDataResultOrganizationUsageWebSearchesRe
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=context_level`, this field provides the search context size of
 	// the grouped usage result.
 	ContextLevel string `json:"context_level" api:"nullable"`
@@ -4283,6 +4525,7 @@ type AdminOrganizationUsageCostsResponseDataResultOrganizationUsageWebSearchesRe
 		NumRequests      respjson.Field
 		Object           respjson.Field
 		APIKeyID         respjson.Field
+		APISource        respjson.Field
 		ContextLevel     respjson.Field
 		Model            respjson.Field
 		ProjectID        respjson.Field
@@ -4308,6 +4551,13 @@ type AdminOrganizationUsageCostsResponseDataResultOrganizationCostsResult struct
 	// When `group_by=api_key_id`, this field provides the API Key ID of the grouped
 	// costs result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=line_item`, this field provides the line item of the grouped
 	// costs result.
 	LineItem string `json:"line_item" api:"nullable"`
@@ -4317,16 +4567,25 @@ type AdminOrganizationUsageCostsResponseDataResultOrganizationCostsResult struct
 	// When `group_by=line_item`, this field provides the quantity of the grouped costs
 	// result.
 	Quantity float64 `json:"quantity" api:"nullable"`
+	// The unit of the `quantity` value. If no single supported unit applies to the
+	// result, this field is `null`.
+	QuantityUnit CostQuantityUnit `json:"quantity_unit" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped costs
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Object      respjson.Field
-		Amount      respjson.Field
-		APIKeyID    respjson.Field
-		LineItem    respjson.Field
-		ProjectID   respjson.Field
-		Quantity    respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Object       respjson.Field
+		Amount       respjson.Field
+		APIKeyID     respjson.Field
+		APISource    respjson.Field
+		LineItem     respjson.Field
+		ProjectID    respjson.Field
+		Quantity     respjson.Field
+		QuantityUnit respjson.Field
+		UserID       respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -4358,6 +4617,156 @@ func (r AdminOrganizationUsageCostsResponseDataResultOrganizationCostsResultAmou
 	return r.JSON.raw
 }
 func (r *AdminOrganizationUsageCostsResponseDataResultOrganizationCostsResultAmount) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type AdminOrganizationUsageDecisionsResponse struct {
+	Data     []AdminOrganizationUsageDecisionsResponseData `json:"data" api:"required"`
+	HasMore  bool                                          `json:"has_more" api:"required"`
+	NextPage string                                        `json:"next_page" api:"required"`
+	Object   constant.Page                                 `json:"object" default:"page"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Data        respjson.Field
+		HasMore     respjson.Field
+		NextPage    respjson.Field
+		Object      respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r AdminOrganizationUsageDecisionsResponse) RawJSON() string { return r.JSON.raw }
+func (r *AdminOrganizationUsageDecisionsResponse) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type AdminOrganizationUsageDecisionsResponseData struct {
+	EndTime   int64                                               `json:"end_time" api:"required"`
+	Object    constant.Bucket                                     `json:"object" default:"bucket"`
+	Results   []AdminOrganizationUsageDecisionsResponseDataResult `json:"results" api:"required"`
+	StartTime int64                                               `json:"start_time" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		EndTime     respjson.Field
+		Object      respjson.Field
+		Results     respjson.Field
+		StartTime   respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r AdminOrganizationUsageDecisionsResponseData) RawJSON() string { return r.JSON.raw }
+func (r *AdminOrganizationUsageDecisionsResponseData) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The aggregated Decisions API usage details of the specific time bucket.
+type AdminOrganizationUsageDecisionsResponseDataResult struct {
+	// The aggregated number of input tokens used, including cached and cache-write
+	// tokens. This includes text, audio, and image tokens. For customers subscribed to
+	// Scale Tier, this includes Scale Tier tokens.
+	InputTokens int64 `json:"input_tokens" api:"required"`
+	// The count of requests made to the model.
+	NumModelRequests int64                                     `json:"num_model_requests" api:"required"`
+	Object           constant.OrganizationUsageDecisionsResult `json:"object" default:"organization.usage.decisions.result"`
+	// The aggregated number of output tokens used across text, audio, and image
+	// outputs. For customers subscribed to Scale Tier, this includes Scale Tier
+	// tokens.
+	OutputTokens int64 `json:"output_tokens" api:"required"`
+	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
+	// usage result.
+	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
+	// When `group_by=batch`, this field tells whether the grouped usage result is
+	// batch or not.
+	Batch bool `json:"batch" api:"nullable"`
+	// The aggregated number of uncached audio input tokens used.
+	InputAudioTokens int64 `json:"input_audio_tokens" api:"nullable"`
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens" api:"nullable"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
+	InputCacheWriteTokens int64 `json:"input_cache_write_tokens" api:"nullable"`
+	// The aggregated number of cached audio input tokens used.
+	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens" api:"nullable"`
+	// The aggregated number of cached image input tokens used.
+	InputCachedImageTokens int64 `json:"input_cached_image_tokens" api:"nullable"`
+	// The aggregated number of cached text input tokens used.
+	InputCachedTextTokens int64 `json:"input_cached_text_tokens" api:"nullable"`
+	// The aggregated number of cached input tokens used across text, audio, and image
+	// inputs. For customers subscribed to Scale Tier, this includes Scale Tier tokens.
+	InputCachedTokens int64 `json:"input_cached_tokens" api:"nullable"`
+	// The aggregated number of uncached image input tokens used.
+	InputImageTokens int64 `json:"input_image_tokens" api:"nullable"`
+	// The aggregated number of uncached text input tokens used, excluding cache-write
+	// tokens.
+	InputTextTokens int64 `json:"input_text_tokens" api:"nullable"`
+	// The aggregated number of uncached input tokens used across text, audio, and
+	// image inputs, excluding cache-write tokens.
+	InputUncachedTokens int64 `json:"input_uncached_tokens" api:"nullable"`
+	// When `group_by=model`, this field provides the model name of the grouped usage
+	// result.
+	Model string `json:"model" api:"nullable"`
+	// The aggregated number of audio output tokens used.
+	OutputAudioTokens int64 `json:"output_audio_tokens" api:"nullable"`
+	// The aggregated number of image output tokens used.
+	OutputImageTokens int64 `json:"output_image_tokens" api:"nullable"`
+	// The aggregated number of text output tokens used.
+	OutputTextTokens int64 `json:"output_text_tokens" api:"nullable"`
+	// When `group_by=project_id`, this field provides the project ID of the grouped
+	// usage result.
+	ProjectID string `json:"project_id" api:"nullable"`
+	// When `group_by=service_tier`, this field provides the service tier of the
+	// grouped usage result.
+	ServiceTier string `json:"service_tier" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped usage
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r AdminOrganizationUsageDecisionsResponseDataResult) RawJSON() string { return r.JSON.raw }
+func (r *AdminOrganizationUsageDecisionsResponseDataResult) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -4439,12 +4848,16 @@ type AdminOrganizationUsageEmbeddingsResponseDataResultUnion struct {
 	// [AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationUsageCompletionsResult].
 	OutputTokens int64  `json:"output_tokens"`
 	APIKeyID     string `json:"api_key_id"`
+	APISource    string `json:"api_source"`
 	// This field is from variant
 	// [AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationUsageCompletionsResult].
 	Batch bool `json:"batch"`
 	// This field is from variant
 	// [AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationUsageCompletionsResult].
 	InputAudioTokens int64 `json:"input_audio_tokens"`
+	// This field is from variant
+	// [AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationUsageCompletionsResult].
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
 	// This field is from variant
 	// [AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationUsageCompletionsResult].
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
@@ -4521,43 +4934,49 @@ type AdminOrganizationUsageEmbeddingsResponseDataResultUnion struct {
 	// This field is from variant
 	// [AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationCostsResult].
 	Quantity float64 `json:"quantity"`
-	JSON     struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		Images                 respjson.Field
-		Size                   respjson.Field
-		Source                 respjson.Field
-		Characters             respjson.Field
-		Seconds                respjson.Field
-		UsageBytes             respjson.Field
-		NumSessions            respjson.Field
-		NumRequests            respjson.Field
-		VectorStoreID          respjson.Field
-		ContextLevel           respjson.Field
-		Amount                 respjson.Field
-		LineItem               respjson.Field
-		Quantity               respjson.Field
-		raw                    string
+	// This field is from variant
+	// [AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationCostsResult].
+	QuantityUnit CostQuantityUnit `json:"quantity_unit"`
+	JSON         struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		Images                   respjson.Field
+		Size                     respjson.Field
+		Source                   respjson.Field
+		Characters               respjson.Field
+		Seconds                  respjson.Field
+		UsageBytes               respjson.Field
+		NumSessions              respjson.Field
+		NumRequests              respjson.Field
+		VectorStoreID            respjson.Field
+		ContextLevel             respjson.Field
+		Amount                   respjson.Field
+		LineItem                 respjson.Field
+		Quantity                 respjson.Field
+		QuantityUnit             respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -4715,12 +5134,23 @@ type AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationUsageCompleti
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=batch`, this field tells whether the grouped usage result is
 	// batch or not.
 	Batch bool `json:"batch" api:"nullable"`
 	// The aggregated number of uncached audio input tokens used.
 	InputAudioTokens int64 `json:"input_audio_tokens"`
-	// The aggregated number of input tokens written to the cache.
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
 	// The aggregated number of cached audio input tokens used.
 	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens"`
@@ -4759,30 +5189,32 @@ type AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationUsageCompleti
 	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		ExtraFields            map[string]respjson.Field
-		raw                    string
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -5108,6 +5540,13 @@ type AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationUsageWebSearc
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=context_level`, this field provides the search context size of
 	// the grouped usage result.
 	ContextLevel string `json:"context_level" api:"nullable"`
@@ -5126,6 +5565,7 @@ type AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationUsageWebSearc
 		NumRequests      respjson.Field
 		Object           respjson.Field
 		APIKeyID         respjson.Field
+		APISource        respjson.Field
 		ContextLevel     respjson.Field
 		Model            respjson.Field
 		ProjectID        respjson.Field
@@ -5151,6 +5591,13 @@ type AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationCostsResult s
 	// When `group_by=api_key_id`, this field provides the API Key ID of the grouped
 	// costs result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=line_item`, this field provides the line item of the grouped
 	// costs result.
 	LineItem string `json:"line_item" api:"nullable"`
@@ -5160,16 +5607,25 @@ type AdminOrganizationUsageEmbeddingsResponseDataResultOrganizationCostsResult s
 	// When `group_by=line_item`, this field provides the quantity of the grouped costs
 	// result.
 	Quantity float64 `json:"quantity" api:"nullable"`
+	// The unit of the `quantity` value. If no single supported unit applies to the
+	// result, this field is `null`.
+	QuantityUnit CostQuantityUnit `json:"quantity_unit" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped costs
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Object      respjson.Field
-		Amount      respjson.Field
-		APIKeyID    respjson.Field
-		LineItem    respjson.Field
-		ProjectID   respjson.Field
-		Quantity    respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Object       respjson.Field
+		Amount       respjson.Field
+		APIKeyID     respjson.Field
+		APISource    respjson.Field
+		LineItem     respjson.Field
+		ProjectID    respjson.Field
+		Quantity     respjson.Field
+		QuantityUnit respjson.Field
+		UserID       respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -5282,12 +5738,16 @@ type AdminOrganizationUsageFileSearchCallsResponseDataResultUnion struct {
 	// [AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationUsageCompletionsResult].
 	OutputTokens int64  `json:"output_tokens"`
 	APIKeyID     string `json:"api_key_id"`
+	APISource    string `json:"api_source"`
 	// This field is from variant
 	// [AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationUsageCompletionsResult].
 	Batch bool `json:"batch"`
 	// This field is from variant
 	// [AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationUsageCompletionsResult].
 	InputAudioTokens int64 `json:"input_audio_tokens"`
+	// This field is from variant
+	// [AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationUsageCompletionsResult].
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
 	// This field is from variant
 	// [AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationUsageCompletionsResult].
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
@@ -5364,43 +5824,49 @@ type AdminOrganizationUsageFileSearchCallsResponseDataResultUnion struct {
 	// This field is from variant
 	// [AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationCostsResult].
 	Quantity float64 `json:"quantity"`
-	JSON     struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		Images                 respjson.Field
-		Size                   respjson.Field
-		Source                 respjson.Field
-		Characters             respjson.Field
-		Seconds                respjson.Field
-		UsageBytes             respjson.Field
-		NumSessions            respjson.Field
-		NumRequests            respjson.Field
-		VectorStoreID          respjson.Field
-		ContextLevel           respjson.Field
-		Amount                 respjson.Field
-		LineItem               respjson.Field
-		Quantity               respjson.Field
-		raw                    string
+	// This field is from variant
+	// [AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationCostsResult].
+	QuantityUnit CostQuantityUnit `json:"quantity_unit"`
+	JSON         struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		Images                   respjson.Field
+		Size                     respjson.Field
+		Source                   respjson.Field
+		Characters               respjson.Field
+		Seconds                  respjson.Field
+		UsageBytes               respjson.Field
+		NumSessions              respjson.Field
+		NumRequests              respjson.Field
+		VectorStoreID            respjson.Field
+		ContextLevel             respjson.Field
+		Amount                   respjson.Field
+		LineItem                 respjson.Field
+		Quantity                 respjson.Field
+		QuantityUnit             respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -5560,12 +6026,23 @@ type AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationUsageCom
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=batch`, this field tells whether the grouped usage result is
 	// batch or not.
 	Batch bool `json:"batch" api:"nullable"`
 	// The aggregated number of uncached audio input tokens used.
 	InputAudioTokens int64 `json:"input_audio_tokens"`
-	// The aggregated number of input tokens written to the cache.
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
 	// The aggregated number of cached audio input tokens used.
 	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens"`
@@ -5604,30 +6081,32 @@ type AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationUsageCom
 	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		ExtraFields            map[string]respjson.Field
-		raw                    string
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -5953,6 +6432,13 @@ type AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationUsageWeb
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=context_level`, this field provides the search context size of
 	// the grouped usage result.
 	ContextLevel string `json:"context_level" api:"nullable"`
@@ -5971,6 +6457,7 @@ type AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationUsageWeb
 		NumRequests      respjson.Field
 		Object           respjson.Field
 		APIKeyID         respjson.Field
+		APISource        respjson.Field
 		ContextLevel     respjson.Field
 		Model            respjson.Field
 		ProjectID        respjson.Field
@@ -5996,6 +6483,13 @@ type AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationCostsRes
 	// When `group_by=api_key_id`, this field provides the API Key ID of the grouped
 	// costs result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=line_item`, this field provides the line item of the grouped
 	// costs result.
 	LineItem string `json:"line_item" api:"nullable"`
@@ -6005,16 +6499,25 @@ type AdminOrganizationUsageFileSearchCallsResponseDataResultOrganizationCostsRes
 	// When `group_by=line_item`, this field provides the quantity of the grouped costs
 	// result.
 	Quantity float64 `json:"quantity" api:"nullable"`
+	// The unit of the `quantity` value. If no single supported unit applies to the
+	// result, this field is `null`.
+	QuantityUnit CostQuantityUnit `json:"quantity_unit" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped costs
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Object      respjson.Field
-		Amount      respjson.Field
-		APIKeyID    respjson.Field
-		LineItem    respjson.Field
-		ProjectID   respjson.Field
-		Quantity    respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Object       respjson.Field
+		Amount       respjson.Field
+		APIKeyID     respjson.Field
+		APISource    respjson.Field
+		LineItem     respjson.Field
+		ProjectID    respjson.Field
+		Quantity     respjson.Field
+		QuantityUnit respjson.Field
+		UserID       respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -6127,12 +6630,16 @@ type AdminOrganizationUsageImagesResponseDataResultUnion struct {
 	// [AdminOrganizationUsageImagesResponseDataResultOrganizationUsageCompletionsResult].
 	OutputTokens int64  `json:"output_tokens"`
 	APIKeyID     string `json:"api_key_id"`
+	APISource    string `json:"api_source"`
 	// This field is from variant
 	// [AdminOrganizationUsageImagesResponseDataResultOrganizationUsageCompletionsResult].
 	Batch bool `json:"batch"`
 	// This field is from variant
 	// [AdminOrganizationUsageImagesResponseDataResultOrganizationUsageCompletionsResult].
 	InputAudioTokens int64 `json:"input_audio_tokens"`
+	// This field is from variant
+	// [AdminOrganizationUsageImagesResponseDataResultOrganizationUsageCompletionsResult].
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
 	// This field is from variant
 	// [AdminOrganizationUsageImagesResponseDataResultOrganizationUsageCompletionsResult].
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
@@ -6209,43 +6716,49 @@ type AdminOrganizationUsageImagesResponseDataResultUnion struct {
 	// This field is from variant
 	// [AdminOrganizationUsageImagesResponseDataResultOrganizationCostsResult].
 	Quantity float64 `json:"quantity"`
-	JSON     struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		Images                 respjson.Field
-		Size                   respjson.Field
-		Source                 respjson.Field
-		Characters             respjson.Field
-		Seconds                respjson.Field
-		UsageBytes             respjson.Field
-		NumSessions            respjson.Field
-		NumRequests            respjson.Field
-		VectorStoreID          respjson.Field
-		ContextLevel           respjson.Field
-		Amount                 respjson.Field
-		LineItem               respjson.Field
-		Quantity               respjson.Field
-		raw                    string
+	// This field is from variant
+	// [AdminOrganizationUsageImagesResponseDataResultOrganizationCostsResult].
+	QuantityUnit CostQuantityUnit `json:"quantity_unit"`
+	JSON         struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		Images                   respjson.Field
+		Size                     respjson.Field
+		Source                   respjson.Field
+		Characters               respjson.Field
+		Seconds                  respjson.Field
+		UsageBytes               respjson.Field
+		NumSessions              respjson.Field
+		NumRequests              respjson.Field
+		VectorStoreID            respjson.Field
+		ContextLevel             respjson.Field
+		Amount                   respjson.Field
+		LineItem                 respjson.Field
+		Quantity                 respjson.Field
+		QuantityUnit             respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -6402,12 +6915,23 @@ type AdminOrganizationUsageImagesResponseDataResultOrganizationUsageCompletionsR
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=batch`, this field tells whether the grouped usage result is
 	// batch or not.
 	Batch bool `json:"batch" api:"nullable"`
 	// The aggregated number of uncached audio input tokens used.
 	InputAudioTokens int64 `json:"input_audio_tokens"`
-	// The aggregated number of input tokens written to the cache.
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
 	// The aggregated number of cached audio input tokens used.
 	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens"`
@@ -6446,30 +6970,32 @@ type AdminOrganizationUsageImagesResponseDataResultOrganizationUsageCompletionsR
 	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		ExtraFields            map[string]respjson.Field
-		raw                    string
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -6795,6 +7321,13 @@ type AdminOrganizationUsageImagesResponseDataResultOrganizationUsageWebSearchesR
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=context_level`, this field provides the search context size of
 	// the grouped usage result.
 	ContextLevel string `json:"context_level" api:"nullable"`
@@ -6813,6 +7346,7 @@ type AdminOrganizationUsageImagesResponseDataResultOrganizationUsageWebSearchesR
 		NumRequests      respjson.Field
 		Object           respjson.Field
 		APIKeyID         respjson.Field
+		APISource        respjson.Field
 		ContextLevel     respjson.Field
 		Model            respjson.Field
 		ProjectID        respjson.Field
@@ -6838,6 +7372,13 @@ type AdminOrganizationUsageImagesResponseDataResultOrganizationCostsResult struc
 	// When `group_by=api_key_id`, this field provides the API Key ID of the grouped
 	// costs result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=line_item`, this field provides the line item of the grouped
 	// costs result.
 	LineItem string `json:"line_item" api:"nullable"`
@@ -6847,16 +7388,25 @@ type AdminOrganizationUsageImagesResponseDataResultOrganizationCostsResult struc
 	// When `group_by=line_item`, this field provides the quantity of the grouped costs
 	// result.
 	Quantity float64 `json:"quantity" api:"nullable"`
+	// The unit of the `quantity` value. If no single supported unit applies to the
+	// result, this field is `null`.
+	QuantityUnit CostQuantityUnit `json:"quantity_unit" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped costs
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Object      respjson.Field
-		Amount      respjson.Field
-		APIKeyID    respjson.Field
-		LineItem    respjson.Field
-		ProjectID   respjson.Field
-		Quantity    respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Object       respjson.Field
+		Amount       respjson.Field
+		APIKeyID     respjson.Field
+		APISource    respjson.Field
+		LineItem     respjson.Field
+		ProjectID    respjson.Field
+		Quantity     respjson.Field
+		QuantityUnit respjson.Field
+		UserID       respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -6969,12 +7519,16 @@ type AdminOrganizationUsageModerationsResponseDataResultUnion struct {
 	// [AdminOrganizationUsageModerationsResponseDataResultOrganizationUsageCompletionsResult].
 	OutputTokens int64  `json:"output_tokens"`
 	APIKeyID     string `json:"api_key_id"`
+	APISource    string `json:"api_source"`
 	// This field is from variant
 	// [AdminOrganizationUsageModerationsResponseDataResultOrganizationUsageCompletionsResult].
 	Batch bool `json:"batch"`
 	// This field is from variant
 	// [AdminOrganizationUsageModerationsResponseDataResultOrganizationUsageCompletionsResult].
 	InputAudioTokens int64 `json:"input_audio_tokens"`
+	// This field is from variant
+	// [AdminOrganizationUsageModerationsResponseDataResultOrganizationUsageCompletionsResult].
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
 	// This field is from variant
 	// [AdminOrganizationUsageModerationsResponseDataResultOrganizationUsageCompletionsResult].
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
@@ -7051,43 +7605,49 @@ type AdminOrganizationUsageModerationsResponseDataResultUnion struct {
 	// This field is from variant
 	// [AdminOrganizationUsageModerationsResponseDataResultOrganizationCostsResult].
 	Quantity float64 `json:"quantity"`
-	JSON     struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		Images                 respjson.Field
-		Size                   respjson.Field
-		Source                 respjson.Field
-		Characters             respjson.Field
-		Seconds                respjson.Field
-		UsageBytes             respjson.Field
-		NumSessions            respjson.Field
-		NumRequests            respjson.Field
-		VectorStoreID          respjson.Field
-		ContextLevel           respjson.Field
-		Amount                 respjson.Field
-		LineItem               respjson.Field
-		Quantity               respjson.Field
-		raw                    string
+	// This field is from variant
+	// [AdminOrganizationUsageModerationsResponseDataResultOrganizationCostsResult].
+	QuantityUnit CostQuantityUnit `json:"quantity_unit"`
+	JSON         struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		Images                   respjson.Field
+		Size                     respjson.Field
+		Source                   respjson.Field
+		Characters               respjson.Field
+		Seconds                  respjson.Field
+		UsageBytes               respjson.Field
+		NumSessions              respjson.Field
+		NumRequests              respjson.Field
+		VectorStoreID            respjson.Field
+		ContextLevel             respjson.Field
+		Amount                   respjson.Field
+		LineItem                 respjson.Field
+		Quantity                 respjson.Field
+		QuantityUnit             respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -7245,12 +7805,23 @@ type AdminOrganizationUsageModerationsResponseDataResultOrganizationUsageComplet
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=batch`, this field tells whether the grouped usage result is
 	// batch or not.
 	Batch bool `json:"batch" api:"nullable"`
 	// The aggregated number of uncached audio input tokens used.
 	InputAudioTokens int64 `json:"input_audio_tokens"`
-	// The aggregated number of input tokens written to the cache.
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
 	// The aggregated number of cached audio input tokens used.
 	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens"`
@@ -7289,30 +7860,32 @@ type AdminOrganizationUsageModerationsResponseDataResultOrganizationUsageComplet
 	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		ExtraFields            map[string]respjson.Field
-		raw                    string
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -7638,6 +8211,13 @@ type AdminOrganizationUsageModerationsResponseDataResultOrganizationUsageWebSear
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=context_level`, this field provides the search context size of
 	// the grouped usage result.
 	ContextLevel string `json:"context_level" api:"nullable"`
@@ -7656,6 +8236,7 @@ type AdminOrganizationUsageModerationsResponseDataResultOrganizationUsageWebSear
 		NumRequests      respjson.Field
 		Object           respjson.Field
 		APIKeyID         respjson.Field
+		APISource        respjson.Field
 		ContextLevel     respjson.Field
 		Model            respjson.Field
 		ProjectID        respjson.Field
@@ -7681,6 +8262,13 @@ type AdminOrganizationUsageModerationsResponseDataResultOrganizationCostsResult 
 	// When `group_by=api_key_id`, this field provides the API Key ID of the grouped
 	// costs result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=line_item`, this field provides the line item of the grouped
 	// costs result.
 	LineItem string `json:"line_item" api:"nullable"`
@@ -7690,16 +8278,25 @@ type AdminOrganizationUsageModerationsResponseDataResultOrganizationCostsResult 
 	// When `group_by=line_item`, this field provides the quantity of the grouped costs
 	// result.
 	Quantity float64 `json:"quantity" api:"nullable"`
+	// The unit of the `quantity` value. If no single supported unit applies to the
+	// result, this field is `null`.
+	QuantityUnit CostQuantityUnit `json:"quantity_unit" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped costs
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Object      respjson.Field
-		Amount      respjson.Field
-		APIKeyID    respjson.Field
-		LineItem    respjson.Field
-		ProjectID   respjson.Field
-		Quantity    respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Object       respjson.Field
+		Amount       respjson.Field
+		APIKeyID     respjson.Field
+		APISource    respjson.Field
+		LineItem     respjson.Field
+		ProjectID    respjson.Field
+		Quantity     respjson.Field
+		QuantityUnit respjson.Field
+		UserID       respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -7812,12 +8409,16 @@ type AdminOrganizationUsageVectorStoresResponseDataResultUnion struct {
 	// [AdminOrganizationUsageVectorStoresResponseDataResultOrganizationUsageCompletionsResult].
 	OutputTokens int64  `json:"output_tokens"`
 	APIKeyID     string `json:"api_key_id"`
+	APISource    string `json:"api_source"`
 	// This field is from variant
 	// [AdminOrganizationUsageVectorStoresResponseDataResultOrganizationUsageCompletionsResult].
 	Batch bool `json:"batch"`
 	// This field is from variant
 	// [AdminOrganizationUsageVectorStoresResponseDataResultOrganizationUsageCompletionsResult].
 	InputAudioTokens int64 `json:"input_audio_tokens"`
+	// This field is from variant
+	// [AdminOrganizationUsageVectorStoresResponseDataResultOrganizationUsageCompletionsResult].
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
 	// This field is from variant
 	// [AdminOrganizationUsageVectorStoresResponseDataResultOrganizationUsageCompletionsResult].
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
@@ -7894,43 +8495,49 @@ type AdminOrganizationUsageVectorStoresResponseDataResultUnion struct {
 	// This field is from variant
 	// [AdminOrganizationUsageVectorStoresResponseDataResultOrganizationCostsResult].
 	Quantity float64 `json:"quantity"`
-	JSON     struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		Images                 respjson.Field
-		Size                   respjson.Field
-		Source                 respjson.Field
-		Characters             respjson.Field
-		Seconds                respjson.Field
-		UsageBytes             respjson.Field
-		NumSessions            respjson.Field
-		NumRequests            respjson.Field
-		VectorStoreID          respjson.Field
-		ContextLevel           respjson.Field
-		Amount                 respjson.Field
-		LineItem               respjson.Field
-		Quantity               respjson.Field
-		raw                    string
+	// This field is from variant
+	// [AdminOrganizationUsageVectorStoresResponseDataResultOrganizationCostsResult].
+	QuantityUnit CostQuantityUnit `json:"quantity_unit"`
+	JSON         struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		Images                   respjson.Field
+		Size                     respjson.Field
+		Source                   respjson.Field
+		Characters               respjson.Field
+		Seconds                  respjson.Field
+		UsageBytes               respjson.Field
+		NumSessions              respjson.Field
+		NumRequests              respjson.Field
+		VectorStoreID            respjson.Field
+		ContextLevel             respjson.Field
+		Amount                   respjson.Field
+		LineItem                 respjson.Field
+		Quantity                 respjson.Field
+		QuantityUnit             respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -8090,12 +8697,23 @@ type AdminOrganizationUsageVectorStoresResponseDataResultOrganizationUsageComple
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=batch`, this field tells whether the grouped usage result is
 	// batch or not.
 	Batch bool `json:"batch" api:"nullable"`
 	// The aggregated number of uncached audio input tokens used.
 	InputAudioTokens int64 `json:"input_audio_tokens"`
-	// The aggregated number of input tokens written to the cache.
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
 	// The aggregated number of cached audio input tokens used.
 	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens"`
@@ -8134,30 +8752,32 @@ type AdminOrganizationUsageVectorStoresResponseDataResultOrganizationUsageComple
 	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		ExtraFields            map[string]respjson.Field
-		raw                    string
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -8483,6 +9103,13 @@ type AdminOrganizationUsageVectorStoresResponseDataResultOrganizationUsageWebSea
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=context_level`, this field provides the search context size of
 	// the grouped usage result.
 	ContextLevel string `json:"context_level" api:"nullable"`
@@ -8501,6 +9128,7 @@ type AdminOrganizationUsageVectorStoresResponseDataResultOrganizationUsageWebSea
 		NumRequests      respjson.Field
 		Object           respjson.Field
 		APIKeyID         respjson.Field
+		APISource        respjson.Field
 		ContextLevel     respjson.Field
 		Model            respjson.Field
 		ProjectID        respjson.Field
@@ -8526,6 +9154,13 @@ type AdminOrganizationUsageVectorStoresResponseDataResultOrganizationCostsResult
 	// When `group_by=api_key_id`, this field provides the API Key ID of the grouped
 	// costs result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=line_item`, this field provides the line item of the grouped
 	// costs result.
 	LineItem string `json:"line_item" api:"nullable"`
@@ -8535,16 +9170,25 @@ type AdminOrganizationUsageVectorStoresResponseDataResultOrganizationCostsResult
 	// When `group_by=line_item`, this field provides the quantity of the grouped costs
 	// result.
 	Quantity float64 `json:"quantity" api:"nullable"`
+	// The unit of the `quantity` value. If no single supported unit applies to the
+	// result, this field is `null`.
+	QuantityUnit CostQuantityUnit `json:"quantity_unit" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped costs
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Object      respjson.Field
-		Amount      respjson.Field
-		APIKeyID    respjson.Field
-		LineItem    respjson.Field
-		ProjectID   respjson.Field
-		Quantity    respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Object       respjson.Field
+		Amount       respjson.Field
+		APIKeyID     respjson.Field
+		APISource    respjson.Field
+		LineItem     respjson.Field
+		ProjectID    respjson.Field
+		Quantity     respjson.Field
+		QuantityUnit respjson.Field
+		UserID       respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -8657,12 +9301,16 @@ type AdminOrganizationUsageWebSearchCallsResponseDataResultUnion struct {
 	// [AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationUsageCompletionsResult].
 	OutputTokens int64  `json:"output_tokens"`
 	APIKeyID     string `json:"api_key_id"`
+	APISource    string `json:"api_source"`
 	// This field is from variant
 	// [AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationUsageCompletionsResult].
 	Batch bool `json:"batch"`
 	// This field is from variant
 	// [AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationUsageCompletionsResult].
 	InputAudioTokens int64 `json:"input_audio_tokens"`
+	// This field is from variant
+	// [AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationUsageCompletionsResult].
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
 	// This field is from variant
 	// [AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationUsageCompletionsResult].
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
@@ -8739,43 +9387,49 @@ type AdminOrganizationUsageWebSearchCallsResponseDataResultUnion struct {
 	// This field is from variant
 	// [AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationCostsResult].
 	Quantity float64 `json:"quantity"`
-	JSON     struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		Images                 respjson.Field
-		Size                   respjson.Field
-		Source                 respjson.Field
-		Characters             respjson.Field
-		Seconds                respjson.Field
-		UsageBytes             respjson.Field
-		NumSessions            respjson.Field
-		NumRequests            respjson.Field
-		VectorStoreID          respjson.Field
-		ContextLevel           respjson.Field
-		Amount                 respjson.Field
-		LineItem               respjson.Field
-		Quantity               respjson.Field
-		raw                    string
+	// This field is from variant
+	// [AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationCostsResult].
+	QuantityUnit CostQuantityUnit `json:"quantity_unit"`
+	JSON         struct {
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		Images                   respjson.Field
+		Size                     respjson.Field
+		Source                   respjson.Field
+		Characters               respjson.Field
+		Seconds                  respjson.Field
+		UsageBytes               respjson.Field
+		NumSessions              respjson.Field
+		NumRequests              respjson.Field
+		VectorStoreID            respjson.Field
+		ContextLevel             respjson.Field
+		Amount                   respjson.Field
+		LineItem                 respjson.Field
+		Quantity                 respjson.Field
+		QuantityUnit             respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -8935,12 +9589,23 @@ type AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationUsageComp
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=batch`, this field tells whether the grouped usage result is
 	// batch or not.
 	Batch bool `json:"batch" api:"nullable"`
 	// The aggregated number of uncached audio input tokens used.
 	InputAudioTokens int64 `json:"input_audio_tokens"`
-	// The aggregated number of input tokens written to the cache.
+	// The aggregated number of input tokens written to the cache with a 12-hour
+	// retention period.
+	InputCacheWrite12hTokens int64 `json:"input_cache_write_12h_tokens"`
+	// The aggregated number of input tokens written to the cache with a 30-minute
+	// retention period.
 	InputCacheWriteTokens int64 `json:"input_cache_write_tokens"`
 	// The aggregated number of cached audio input tokens used.
 	InputCachedAudioTokens int64 `json:"input_cached_audio_tokens"`
@@ -8979,30 +9644,32 @@ type AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationUsageComp
 	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		InputTokens            respjson.Field
-		NumModelRequests       respjson.Field
-		Object                 respjson.Field
-		OutputTokens           respjson.Field
-		APIKeyID               respjson.Field
-		Batch                  respjson.Field
-		InputAudioTokens       respjson.Field
-		InputCacheWriteTokens  respjson.Field
-		InputCachedAudioTokens respjson.Field
-		InputCachedImageTokens respjson.Field
-		InputCachedTextTokens  respjson.Field
-		InputCachedTokens      respjson.Field
-		InputImageTokens       respjson.Field
-		InputTextTokens        respjson.Field
-		InputUncachedTokens    respjson.Field
-		Model                  respjson.Field
-		OutputAudioTokens      respjson.Field
-		OutputImageTokens      respjson.Field
-		OutputTextTokens       respjson.Field
-		ProjectID              respjson.Field
-		ServiceTier            respjson.Field
-		UserID                 respjson.Field
-		ExtraFields            map[string]respjson.Field
-		raw                    string
+		InputTokens              respjson.Field
+		NumModelRequests         respjson.Field
+		Object                   respjson.Field
+		OutputTokens             respjson.Field
+		APIKeyID                 respjson.Field
+		APISource                respjson.Field
+		Batch                    respjson.Field
+		InputAudioTokens         respjson.Field
+		InputCacheWrite12hTokens respjson.Field
+		InputCacheWriteTokens    respjson.Field
+		InputCachedAudioTokens   respjson.Field
+		InputCachedImageTokens   respjson.Field
+		InputCachedTextTokens    respjson.Field
+		InputCachedTokens        respjson.Field
+		InputImageTokens         respjson.Field
+		InputTextTokens          respjson.Field
+		InputUncachedTokens      respjson.Field
+		Model                    respjson.Field
+		OutputAudioTokens        respjson.Field
+		OutputImageTokens        respjson.Field
+		OutputTextTokens         respjson.Field
+		ProjectID                respjson.Field
+		ServiceTier              respjson.Field
+		UserID                   respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
 	} `json:"-"`
 }
 
@@ -9328,6 +9995,13 @@ type AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationUsageWebS
 	// When `group_by=api_key_id`, this field provides the API key ID of the grouped
 	// usage result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=context_level`, this field provides the search context size of
 	// the grouped usage result.
 	ContextLevel string `json:"context_level" api:"nullable"`
@@ -9346,6 +10020,7 @@ type AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationUsageWebS
 		NumRequests      respjson.Field
 		Object           respjson.Field
 		APIKeyID         respjson.Field
+		APISource        respjson.Field
 		ContextLevel     respjson.Field
 		Model            respjson.Field
 		ProjectID        respjson.Field
@@ -9371,6 +10046,13 @@ type AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationCostsResu
 	// When `group_by=api_key_id`, this field provides the API Key ID of the grouped
 	// costs result.
 	APIKeyID string `json:"api_key_id" api:"nullable"`
+	// When grouped by `api_source`, `agents_api` identifies attributed Agents API
+	// activity and `unlabeled` includes all records without published source
+	// attribution, including historical and unknown origins. Unlabeled does not imply
+	// direct API usage. Without source grouping, this field is null.
+	//
+	// Any of "agents_api", "unlabeled".
+	APISource string `json:"api_source" api:"nullable"`
 	// When `group_by=line_item`, this field provides the line item of the grouped
 	// costs result.
 	LineItem string `json:"line_item" api:"nullable"`
@@ -9380,16 +10062,25 @@ type AdminOrganizationUsageWebSearchCallsResponseDataResultOrganizationCostsResu
 	// When `group_by=line_item`, this field provides the quantity of the grouped costs
 	// result.
 	Quantity float64 `json:"quantity" api:"nullable"`
+	// The unit of the `quantity` value. If no single supported unit applies to the
+	// result, this field is `null`.
+	QuantityUnit CostQuantityUnit `json:"quantity_unit" api:"nullable"`
+	// When `group_by=user_id`, this field provides the user ID of the grouped costs
+	// result.
+	UserID string `json:"user_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Object      respjson.Field
-		Amount      respjson.Field
-		APIKeyID    respjson.Field
-		LineItem    respjson.Field
-		ProjectID   respjson.Field
-		Quantity    respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Object       respjson.Field
+		Amount       respjson.Field
+		APIKeyID     respjson.Field
+		APISource    respjson.Field
+		LineItem     respjson.Field
+		ProjectID    respjson.Field
+		Quantity     respjson.Field
+		QuantityUnit respjson.Field
+		UserID       respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -9605,10 +10296,13 @@ type AdminOrganizationUsageCompletionsParams struct {
 	// Any of "1m", "1h", "1d".
 	BucketWidth AdminOrganizationUsageCompletionsParamsBucketWidth `query:"bucket_width,omitzero" json:"-"`
 	// Group the usage data by the specified fields. Support fields include
-	// `project_id`, `user_id`, `api_key_id`, `model`, `batch`, `service_tier` or any
-	// combination of them.
+	// `project_id`, `user_id`, `api_key_id`, `model`, `batch`, `service_tier`,
+	// `api_source` or any combination of them. When grouped by `api_source`, results
+	// use `agents_api` for attributed Agents API activity and `unlabeled` for all
+	// other activity. Without source grouping, `api_source` is null.
 	//
-	// Any of "project_id", "user_id", "api_key_id", "model", "batch", "service_tier".
+	// Any of "project_id", "user_id", "api_key_id", "model", "batch", "service_tier",
+	// "api_source".
 	GroupBy []string `query:"group_by,omitzero" json:"-"`
 	// Return only usage for these models.
 	Models []string `query:"models,omitzero" json:"-"`
@@ -9656,11 +10350,19 @@ type AdminOrganizationUsageCostsParams struct {
 	//
 	// Any of "1d".
 	BucketWidth AdminOrganizationUsageCostsParamsBucketWidth `query:"bucket_width,omitzero" json:"-"`
-	// Group the costs by the specified fields. Support fields include `project_id`,
-	// `line_item`, `api_key_id` and any combination of them.
+	// Group the costs by the specified fields. Supported fields include `project_id`,
+	// `user_id`, `line_item`, `api_key_id`, and `api_source`. Support for combining
+	// `user_id` with `project_id` grouping or the `project_ids` filter depends on the
+	// organization and requested time range. Unsupported combinations return HTTP 400.
+	// When grouped by `api_source`, results use `agents_api` for attributed Agents API
+	// activity and `unlabeled` for all other activity. Without source grouping,
+	// `api_source` is null.
 	//
-	// Any of "project_id", "line_item", "api_key_id".
+	// Any of "project_id", "user_id", "line_item", "api_key_id", "api_source".
 	GroupBy []string `query:"group_by,omitzero" json:"-"`
+	// Return only costs for these exact line item names. Each value must match the
+	// complete `line_item` value, for example `gpt-6-astra, input_tokens`.
+	LineItems []string `query:"line_items,omitzero" json:"-"`
 	// Return only costs for these projects.
 	ProjectIDs []string `query:"project_ids,omitzero" json:"-"`
 	paramObj
@@ -9681,6 +10383,67 @@ type AdminOrganizationUsageCostsParamsBucketWidth string
 
 const (
 	AdminOrganizationUsageCostsParamsBucketWidth1d AdminOrganizationUsageCostsParamsBucketWidth = "1d"
+)
+
+type AdminOrganizationUsageDecisionsParams struct {
+	// Start time (Unix seconds) of the query time range, inclusive.
+	StartTime int64 `query:"start_time" api:"required" json:"-"`
+	// If `true`, return batch jobs only. If `false`, return non-batch jobs only. By
+	// default, return both.
+	Batch param.Opt[bool] `query:"batch,omitzero" json:"-"`
+	// End time (Unix seconds) of the query time range, exclusive.
+	EndTime param.Opt[int64] `query:"end_time,omitzero" json:"-"`
+	// Specifies the number of buckets to return.
+	//
+	// - `bucket_width=1d`: default: 7, max: 31
+	// - `bucket_width=1h`: default: 24, max: 168
+	// - `bucket_width=1m`: default: 60, max: 1440
+	Limit param.Opt[int64] `query:"limit,omitzero" json:"-"`
+	// A cursor for use in pagination. Corresponding to the `next_page` field from the
+	// previous response.
+	Page param.Opt[string] `query:"page,omitzero" json:"-"`
+	// Return only usage for these API keys.
+	APIKeyIDs []string `query:"api_key_ids,omitzero" json:"-"`
+	// Width of each time bucket in response. Currently `1m`, `1h` and `1d` are
+	// supported, default to `1d`.
+	//
+	// Any of "1m", "1h", "1d".
+	BucketWidth AdminOrganizationUsageDecisionsParamsBucketWidth `query:"bucket_width,omitzero" json:"-"`
+	// Group the usage data by the specified fields. Support fields include
+	// `project_id`, `user_id`, `api_key_id`, `model`, `batch`, `service_tier`,
+	// `api_source` or any combination of them. When grouped by `api_source`, results
+	// use `agents_api` for attributed Agents API activity and `unlabeled` for all
+	// other activity. Without source grouping, `api_source` is null.
+	//
+	// Any of "project_id", "user_id", "api_key_id", "model", "batch", "service_tier",
+	// "api_source".
+	GroupBy []string `query:"group_by,omitzero" json:"-"`
+	// Return only usage for these models.
+	Models []string `query:"models,omitzero" json:"-"`
+	// Return only usage for these projects.
+	ProjectIDs []string `query:"project_ids,omitzero" json:"-"`
+	// Return only usage for these users.
+	UserIDs []string `query:"user_ids,omitzero" json:"-"`
+	paramObj
+}
+
+// URLQuery serializes [AdminOrganizationUsageDecisionsParams]'s query parameters
+// as `url.Values`.
+func (r AdminOrganizationUsageDecisionsParams) URLQuery() (v url.Values, err error) {
+	return apiquery.MarshalWithSettings(r, apiquery.QuerySettings{
+		ArrayFormat:  apiquery.ArrayQueryFormatBrackets,
+		NestedFormat: apiquery.NestedQueryFormatBrackets,
+	})
+}
+
+// Width of each time bucket in response. Currently `1m`, `1h` and `1d` are
+// supported, default to `1d`.
+type AdminOrganizationUsageDecisionsParamsBucketWidth string
+
+const (
+	AdminOrganizationUsageDecisionsParamsBucketWidth1m AdminOrganizationUsageDecisionsParamsBucketWidth = "1m"
+	AdminOrganizationUsageDecisionsParamsBucketWidth1h AdminOrganizationUsageDecisionsParamsBucketWidth = "1h"
+	AdminOrganizationUsageDecisionsParamsBucketWidth1d AdminOrganizationUsageDecisionsParamsBucketWidth = "1d"
 )
 
 type AdminOrganizationUsageEmbeddingsParams struct {
@@ -9985,10 +10748,13 @@ type AdminOrganizationUsageWebSearchCallsParams struct {
 	// Any of "low", "medium", "high".
 	ContextLevels []string `query:"context_levels,omitzero" json:"-"`
 	// Group the usage data by the specified fields. Support fields include
-	// `project_id`, `user_id`, `api_key_id`, `model`, `context_level` or any
-	// combination of them.
+	// `project_id`, `user_id`, `api_key_id`, `model`, `context_level`, `api_source` or
+	// any combination of them. When grouped by `api_source`, results use `agents_api`
+	// for attributed Agents API activity and `unlabeled` for all other activity.
+	// Without source grouping, `api_source` is null.
 	//
-	// Any of "project_id", "user_id", "api_key_id", "model", "context_level".
+	// Any of "project_id", "user_id", "api_key_id", "model", "context_level",
+	// "api_source".
 	GroupBy []string `query:"group_by,omitzero" json:"-"`
 	// Return only usage for these models.
 	Models []string `query:"models,omitzero" json:"-"`

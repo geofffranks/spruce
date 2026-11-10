@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 
 	"github.com/openai/openai-go/v3/internal/apijson"
+	"github.com/openai/openai-go/v3/internal/requestconfig"
 	"github.com/openai/openai-go/v3/option"
 	"github.com/openai/openai-go/v3/packages/param"
 	"github.com/openai/openai-go/v3/packages/respjson"
@@ -29,7 +30,7 @@ type GraderGraderModelService struct {
 // options (if there is one), and before any request-specific options.
 func NewGraderGraderModelService(opts ...option.RequestOption) (r GraderGraderModelService) {
 	r = GraderGraderModelService{}
-	r.Options = opts
+	r.Options = requestconfig.InheritedOptions(opts...)
 	return
 }
 
@@ -169,21 +170,6 @@ func (u GraderInputUnionParam) MarshalJSON() ([]byte, error) {
 }
 func (u *GraderInputUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *GraderInputUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfString) {
-		return &u.OfString.Value
-	} else if !param.IsOmitted(u.OfInputText) {
-		return u.OfInputText
-	} else if !param.IsOmitted(u.OfOutputText) {
-		return u.OfOutputText
-	} else if !param.IsOmitted(u.OfInputImage) {
-		return u.OfInputImage
-	} else if !param.IsOmitted(u.OfInputAudio) {
-		return u.OfInputAudio
-	}
-	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
@@ -579,23 +565,6 @@ func (u *LabelModelGraderInputContentUnionParam) UnmarshalJSON(data []byte) erro
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *LabelModelGraderInputContentUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfString) {
-		return &u.OfString.Value
-	} else if !param.IsOmitted(u.OfInputText) {
-		return u.OfInputText
-	} else if !param.IsOmitted(u.OfOutputText) {
-		return u.OfOutputText
-	} else if !param.IsOmitted(u.OfInputImage) {
-		return u.OfInputImage
-	} else if !param.IsOmitted(u.OfInputAudio) {
-		return u.OfInputAudio
-	} else if !param.IsOmitted(u.OfAnArrayOfInputTextOutputTextInputImageAndInputAudio) {
-		return &u.OfAnArrayOfInputTextOutputTextInputImageAndInputAudio
-	}
-	return nil
-}
-
 // Returns a pointer to the underlying variant's property, if present.
 func (u LabelModelGraderInputContentUnionParam) GetPromptCacheBreakpoint() *responses.ResponseInputTextPromptCacheBreakpointParam {
 	if vt := u.OfInputText; vt != nil {
@@ -895,21 +864,6 @@ func (u *MultiGraderGradersUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *MultiGraderGradersUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfStringCheckGrader) {
-		return u.OfStringCheckGrader
-	} else if !param.IsOmitted(u.OfTextSimilarityGrader) {
-		return u.OfTextSimilarityGrader
-	} else if !param.IsOmitted(u.OfPythonGrader) {
-		return u.OfPythonGrader
-	} else if !param.IsOmitted(u.OfScoreModelGrader) {
-		return u.OfScoreModelGrader
-	} else if !param.IsOmitted(u.OfLabelModelGrader) {
-		return u.OfLabelModelGrader
-	}
-	return nil
-}
-
 // Returns a pointer to the underlying variant's property, if present.
 func (u MultiGraderGradersUnionParam) GetOperation() *string {
 	if vt := u.OfStringCheckGrader; vt != nil {
@@ -1129,7 +1083,7 @@ type ScoreModelGrader struct {
 	Name string `json:"name" api:"required"`
 	// The object type, which is always `score_model`.
 	Type constant.ScoreModel `json:"type" default:"score_model"`
-	// The range of the score. Defaults to `[0, 1]`.
+	// The service requires two numbers for the score range. Defaults to `[0, 1]`.
 	Range []float64 `json:"range"`
 	// The sampling parameters for the model.
 	SamplingParams ScoreModelGraderSamplingParams `json:"sampling_params"`
@@ -1325,7 +1279,7 @@ type ScoreModelGraderSamplingParams struct {
 	// are `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`. Reducing
 	// reasoning effort can result in faster responses and fewer tokens used on
 	// reasoning in a response. Not all reasoning models support every value. See the
-	// [reasoning guide](https://platform.openai.com/docs/guides/reasoning) for
+	// [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning) for
 	// model-specific support.
 	//
 	// Any of "none", "minimal", "low", "medium", "high", "xhigh", "max".
@@ -1365,7 +1319,7 @@ type ScoreModelGraderParam struct {
 	Model string `json:"model" api:"required"`
 	// The name of the grader.
 	Name string `json:"name" api:"required"`
-	// The range of the score. Defaults to `[0, 1]`.
+	// The service requires two numbers for the score range. Defaults to `[0, 1]`.
 	Range []float64 `json:"range,omitzero"`
 	// The sampling parameters for the model.
 	SamplingParams ScoreModelGraderSamplingParamsParam `json:"sampling_params,omitzero"`
@@ -1447,23 +1401,6 @@ func (u ScoreModelGraderInputContentUnionParam) MarshalJSON() ([]byte, error) {
 }
 func (u *ScoreModelGraderInputContentUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ScoreModelGraderInputContentUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfString) {
-		return &u.OfString.Value
-	} else if !param.IsOmitted(u.OfInputText) {
-		return u.OfInputText
-	} else if !param.IsOmitted(u.OfOutputText) {
-		return u.OfOutputText
-	} else if !param.IsOmitted(u.OfInputImage) {
-		return u.OfInputImage
-	} else if !param.IsOmitted(u.OfInputAudio) {
-		return u.OfInputAudio
-	} else if !param.IsOmitted(u.OfAnArrayOfInputTextOutputTextInputImageAndInputAudio) {
-		return &u.OfAnArrayOfInputTextOutputTextInputImageAndInputAudio
-	}
-	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
@@ -1581,7 +1518,7 @@ type ScoreModelGraderSamplingParamsParam struct {
 	// are `none`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`. Reducing
 	// reasoning effort can result in faster responses and fewer tokens used on
 	// reasoning in a response. Not all reasoning models support every value. See the
-	// [reasoning guide](https://platform.openai.com/docs/guides/reasoning) for
+	// [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning) for
 	// model-specific support.
 	//
 	// Any of "none", "minimal", "low", "medium", "high", "xhigh", "max".

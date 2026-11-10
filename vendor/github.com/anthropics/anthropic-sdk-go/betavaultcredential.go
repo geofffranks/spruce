@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package anthropic
 
 import (
@@ -10,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go/internal/apijson"
@@ -42,8 +41,18 @@ func NewBetaVaultCredentialService(opts ...option.RequestOption) (r BetaVaultCre
 
 // Create Credential
 func (r *BetaVaultCredentialService) New(ctx context.Context, vaultID string, params BetaVaultCredentialNewParams, opts ...option.RequestOption) (res *BetaManagedAgentsCredential, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
@@ -51,15 +60,26 @@ func (r *BetaVaultCredentialService) New(ctx context.Context, vaultID string, pa
 		err = errors.New("missing required vault_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/vaults/%s/credentials?beta=true", vaultID)
+	path := fmt.Sprintf("v1/vaults/%s/credentials?beta=true", url.PathEscape(vaultID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.vaults.credentials.create", "/v1/vaults/{vault_id}/credentials"), requestconfig.WithSpanAttribute("anthropic.vault.id", vaultID), requestconfig.WithSpanCreatedID("anthropic.vault.credential.id", &res, func(created *BetaManagedAgentsCredential) string { return created.ID }))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
 
 // Get Credential
 func (r *BetaVaultCredentialService) Get(ctx context.Context, credentialID string, params BetaVaultCredentialGetParams, opts ...option.RequestOption) (res *BetaManagedAgentsCredential, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
@@ -71,15 +91,26 @@ func (r *BetaVaultCredentialService) Get(ctx context.Context, credentialID strin
 		err = errors.New("missing required credential_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/vaults/%s/credentials/%s?beta=true", params.VaultID, credentialID)
+	path := fmt.Sprintf("v1/vaults/%s/credentials/%s?beta=true", url.PathEscape(params.VaultID), url.PathEscape(credentialID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.vaults.credentials.retrieve", "/v1/vaults/{vault_id}/credentials/{credential_id}"), requestconfig.WithSpanAttribute("anthropic.vault.id", params.VaultID), requestconfig.WithSpanAttribute("anthropic.vault.credential.id", credentialID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
 
 // Update Credential
 func (r *BetaVaultCredentialService) Update(ctx context.Context, credentialID string, params BetaVaultCredentialUpdateParams, opts ...option.RequestOption) (res *BetaManagedAgentsCredential, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
@@ -91,7 +122,8 @@ func (r *BetaVaultCredentialService) Update(ctx context.Context, credentialID st
 		err = errors.New("missing required credential_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/vaults/%s/credentials/%s?beta=true", params.VaultID, credentialID)
+	path := fmt.Sprintf("v1/vaults/%s/credentials/%s?beta=true", url.PathEscape(params.VaultID), url.PathEscape(credentialID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.vaults.credentials.update", "/v1/vaults/{vault_id}/credentials/{credential_id}"), requestconfig.WithSpanAttribute("anthropic.vault.id", params.VaultID), requestconfig.WithSpanAttribute("anthropic.vault.credential.id", credentialID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
@@ -99,8 +131,18 @@ func (r *BetaVaultCredentialService) Update(ctx context.Context, credentialID st
 // List Credentials
 func (r *BetaVaultCredentialService) List(ctx context.Context, vaultID string, params BetaVaultCredentialListParams, opts ...option.RequestOption) (res *pagination.PageCursor[BetaManagedAgentsCredential], err error) {
 	var raw *http.Response
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01"), option.WithResponseInto(&raw)}, opts...)
@@ -108,7 +150,8 @@ func (r *BetaVaultCredentialService) List(ctx context.Context, vaultID string, p
 		err = errors.New("missing required vault_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/vaults/%s/credentials?beta=true", vaultID)
+	path := fmt.Sprintf("v1/vaults/%s/credentials?beta=true", url.PathEscape(vaultID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.vaults.credentials.list", "/v1/vaults/{vault_id}/credentials", "include_archived", "limit", "page"), requestconfig.WithSpanAttribute("anthropic.vault.id", vaultID))
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, params, &res, opts...)
 	if err != nil {
 		return nil, err
@@ -128,8 +171,18 @@ func (r *BetaVaultCredentialService) ListAutoPaging(ctx context.Context, vaultID
 
 // Delete Credential
 func (r *BetaVaultCredentialService) Delete(ctx context.Context, credentialID string, params BetaVaultCredentialDeleteParams, opts ...option.RequestOption) (res *BetaManagedAgentsDeletedCredential, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
@@ -141,15 +194,26 @@ func (r *BetaVaultCredentialService) Delete(ctx context.Context, credentialID st
 		err = errors.New("missing required credential_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/vaults/%s/credentials/%s?beta=true", params.VaultID, credentialID)
+	path := fmt.Sprintf("v1/vaults/%s/credentials/%s?beta=true", url.PathEscape(params.VaultID), url.PathEscape(credentialID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.vaults.credentials.delete", "/v1/vaults/{vault_id}/credentials/{credential_id}"), requestconfig.WithSpanAttribute("anthropic.vault.id", params.VaultID), requestconfig.WithSpanAttribute("anthropic.vault.credential.id", credentialID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, &res, opts...)
 	return res, err
 }
 
 // Archive Credential
 func (r *BetaVaultCredentialService) Archive(ctx context.Context, credentialID string, params BetaVaultCredentialArchiveParams, opts ...option.RequestOption) (res *BetaManagedAgentsCredential, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
@@ -161,15 +225,26 @@ func (r *BetaVaultCredentialService) Archive(ctx context.Context, credentialID s
 		err = errors.New("missing required credential_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/vaults/%s/credentials/%s/archive?beta=true", params.VaultID, credentialID)
+	path := fmt.Sprintf("v1/vaults/%s/credentials/%s/archive?beta=true", url.PathEscape(params.VaultID), url.PathEscape(credentialID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.vaults.credentials.archive", "/v1/vaults/{vault_id}/credentials/{credential_id}/archive"), requestconfig.WithSpanAttribute("anthropic.vault.id", params.VaultID), requestconfig.WithSpanAttribute("anthropic.vault.credential.id", credentialID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, nil, &res, opts...)
 	return res, err
 }
 
 // Validate Credential
 func (r *BetaVaultCredentialService) MCPOAuthValidate(ctx context.Context, credentialID string, params BetaVaultCredentialMCPOAuthValidateParams, opts ...option.RequestOption) (res *BetaManagedAgentsCredentialValidation, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
@@ -181,7 +256,8 @@ func (r *BetaVaultCredentialService) MCPOAuthValidate(ctx context.Context, crede
 		err = errors.New("missing required credential_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/vaults/%s/credentials/%s/mcp_oauth_validate?beta=true", params.VaultID, credentialID)
+	path := fmt.Sprintf("v1/vaults/%s/credentials/%s/mcp_oauth_validate?beta=true", url.PathEscape(params.VaultID), url.PathEscape(credentialID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.vaults.credentials.mcp_oauth_validate", "/v1/vaults/{vault_id}/credentials/{credential_id}/mcp_oauth_validate"), requestconfig.WithSpanAttribute("anthropic.vault.id", params.VaultID), requestconfig.WithSpanAttribute("anthropic.vault.credential.id", credentialID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, nil, &res, opts...)
 	return res, err
 }
@@ -191,9 +267,9 @@ func (r *BetaVaultCredentialService) MCPOAuthValidate(ctx context.Context, crede
 type BetaManagedAgentsCredential struct {
 	// Unique identifier for the credential.
 	ID string `json:"id" api:"required"`
-	// A timestamp in RFC 3339 format
+	// When the credential was archived. Null if not archived.
 	ArchivedAt time.Time `json:"archived_at" api:"required" format:"date-time"`
-	// Authentication details for a credential.
+	// Authentication configuration for this credential.
 	Auth BetaManagedAgentsCredentialAuthUnion `json:"auth" api:"required"`
 	// A timestamp in RFC 3339 format
 	CreatedAt time.Time `json:"created_at" api:"required" format:"date-time"`
@@ -333,6 +409,7 @@ func BetaManagedAgentsCredentialNetworkingParamsOfUnrestricted(type_ BetaManaged
 func BetaManagedAgentsCredentialNetworkingParamsOfLimited(allowedHosts []string) BetaManagedAgentsCredentialNetworkingParamsUnion {
 	var limited BetaManagedAgentsLimitedCredentialNetworkingParams
 	limited.AllowedHosts = allowedHosts
+	limited.Type = BetaManagedAgentsLimitedCredentialNetworkingParamsTypeLimited
 	return BetaManagedAgentsCredentialNetworkingParamsUnion{OfLimited: &limited}
 }
 
@@ -393,17 +470,18 @@ type BetaManagedAgentsCredentialValidation struct {
 	CredentialID string `json:"credential_id" api:"required"`
 	// Whether the credential has a refresh token configured.
 	HasRefreshToken bool `json:"has_refresh_token" api:"required"`
-	// The failing step of an MCP validation probe.
+	// Details of the failing MCP probe step. Null when the probe succeeded.
 	MCPProbe BetaManagedAgentsMCPProbe `json:"mcp_probe" api:"required"`
-	// Outcome of a refresh-token exchange attempted during credential validation.
+	// Details of the refresh-token exchange attempted on a 401. Null when no refresh
+	// was attempted.
 	Refresh BetaManagedAgentsRefreshObject `json:"refresh" api:"required"`
-	// Overall verdict of a credential validation probe.
+	// Overall verdict of the validation probe.
 	//
 	// Any of "valid", "invalid", "unknown".
 	Status BetaManagedAgentsCredentialValidationStatus `json:"status" api:"required"`
 	// Any of "vault_credential_validation".
 	Type BetaManagedAgentsCredentialValidationType `json:"type" api:"required"`
-	// A timestamp in RFC 3339 format
+	// When the validation probe was performed.
 	ValidatedAt time.Time `json:"validated_at" api:"required" format:"date-time"`
 	// Identifier of the vault containing the credential.
 	VaultID string `json:"vault_id" api:"required"`
@@ -438,8 +516,13 @@ const (
 type BetaManagedAgentsCredentialValidationStatus string
 
 const (
-	BetaManagedAgentsCredentialValidationStatusValid   BetaManagedAgentsCredentialValidationStatus = "valid"
+	// The credential successfully authenticated against its MCP server.
+	BetaManagedAgentsCredentialValidationStatusValid BetaManagedAgentsCredentialValidationStatus = "valid"
+	// The probe reached the MCP server and was rejected, and a refresh (if attempted)
+	// did not recover it.
 	BetaManagedAgentsCredentialValidationStatusInvalid BetaManagedAgentsCredentialValidationStatus = "invalid"
+	// The probe could not determine validity — for example, a transport error or a
+	// successful refresh that was not re-probed.
 	BetaManagedAgentsCredentialValidationStatusUnknown BetaManagedAgentsCredentialValidationStatus = "unknown"
 )
 
@@ -757,7 +840,7 @@ type BetaManagedAgentsMCPOAuthAuthResponse struct {
 	Type BetaManagedAgentsMCPOAuthAuthResponseType `json:"type" api:"required"`
 	// A timestamp in RFC 3339 format
 	ExpiresAt time.Time `json:"expires_at" api:"nullable" format:"date-time"`
-	// OAuth refresh token configuration returned in credential responses.
+	// Refresh token configuration, if the credential supports token refresh.
 	Refresh BetaManagedAgentsMCPOAuthRefreshResponse `json:"refresh" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
@@ -794,7 +877,7 @@ type BetaManagedAgentsMCPOAuthCreateParams struct {
 	Type BetaManagedAgentsMCPOAuthCreateParamsType `json:"type,omitzero" api:"required"`
 	// A timestamp in RFC 3339 format
 	ExpiresAt param.Opt[time.Time] `json:"expires_at,omitzero" format:"date-time"`
-	// OAuth refresh token parameters for creating a credential with refresh support.
+	// Refresh token configuration, if the credential supports token refresh.
 	Refresh BetaManagedAgentsMCPOAuthRefreshParams `json:"refresh,omitzero"`
 	paramObj
 }
@@ -823,8 +906,7 @@ type BetaManagedAgentsMCPOAuthRefreshParams struct {
 	// OAuth refresh token.
 	RefreshToken string `json:"refresh_token" api:"required"`
 	// Token endpoint URL used to refresh the access token.
-	TokenEndpoint string `json:"token_endpoint" api:"required"`
-	// Token endpoint requires no client authentication.
+	TokenEndpoint     string                                                       `json:"token_endpoint" api:"required"`
 	TokenEndpointAuth BetaManagedAgentsMCPOAuthRefreshParamsTokenEndpointAuthUnion `json:"token_endpoint_auth,omitzero" api:"required"`
 	// OAuth resource indicator.
 	Resource param.Opt[string] `json:"resource,omitzero"`
@@ -905,8 +987,7 @@ type BetaManagedAgentsMCPOAuthRefreshResponse struct {
 	// OAuth client ID.
 	ClientID string `json:"client_id" api:"required"`
 	// Token endpoint URL used to refresh the access token.
-	TokenEndpoint string `json:"token_endpoint" api:"required"`
-	// Token endpoint requires no client authentication.
+	TokenEndpoint     string                                                         `json:"token_endpoint" api:"required"`
 	TokenEndpointAuth BetaManagedAgentsMCPOAuthRefreshResponseTokenEndpointAuthUnion `json:"token_endpoint_auth" api:"required"`
 	// OAuth resource indicator.
 	Resource string `json:"resource" api:"nullable"`
@@ -1014,8 +1095,7 @@ type BetaManagedAgentsMCPOAuthRefreshUpdateParams struct {
 	// Updated OAuth refresh token.
 	RefreshToken param.Opt[string] `json:"refresh_token,omitzero"`
 	// Updated OAuth scope for the refresh request.
-	Scope param.Opt[string] `json:"scope,omitzero"`
-	// Updated HTTP Basic authentication parameters for the token endpoint.
+	Scope             param.Opt[string]                                                  `json:"scope,omitzero"`
 	TokenEndpointAuth BetaManagedAgentsMCPOAuthRefreshUpdateParamsTokenEndpointAuthUnion `json:"token_endpoint_auth,omitzero"`
 	paramObj
 }
@@ -1092,7 +1172,7 @@ type BetaManagedAgentsMCPOAuthUpdateParams struct {
 	AccessToken param.Opt[string] `json:"access_token,omitzero"`
 	// A timestamp in RFC 3339 format
 	ExpiresAt param.Opt[time.Time] `json:"expires_at,omitzero" format:"date-time"`
-	// Parameters for updating OAuth refresh token configuration.
+	// Updated refresh token configuration.
 	Refresh BetaManagedAgentsMCPOAuthRefreshUpdateParams `json:"refresh,omitzero"`
 	paramObj
 }
@@ -1113,7 +1193,8 @@ const (
 
 // The failing step of an MCP validation probe.
 type BetaManagedAgentsMCPProbe struct {
-	// An HTTP response captured during a credential validation probe.
+	// The captured HTTP error response. Null when no HTTP response was received
+	// (timeout, DNS, TLS).
 	HTTPResponse BetaManagedAgentsRefreshHTTPResponse `json:"http_response" api:"required"`
 	// The MCP method that failed (for example `initialize` or `tools/list`).
 	Method string `json:"method" api:"required"`
@@ -1161,9 +1242,10 @@ func (r *BetaManagedAgentsRefreshHTTPResponse) UnmarshalJSON(data []byte) error 
 
 // Outcome of a refresh-token exchange attempted during credential validation.
 type BetaManagedAgentsRefreshObject struct {
-	// An HTTP response captured during a credential validation probe.
+	// The captured HTTP error response from the token endpoint. Populated only when
+	// `status` is `failed`.
 	HTTPResponse BetaManagedAgentsRefreshHTTPResponse `json:"http_response" api:"required"`
-	// Outcome of a refresh-token exchange attempted during credential validation.
+	// Outcome of the refresh attempt.
 	//
 	// Any of "succeeded", "failed", "connect_error", "no_refresh_token".
 	Status BetaManagedAgentsRefreshObjectStatus `json:"status" api:"required"`
@@ -1182,13 +1264,17 @@ func (r *BetaManagedAgentsRefreshObject) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// Outcome of a refresh-token exchange attempted during credential validation.
+// Outcome of the refresh attempt.
 type BetaManagedAgentsRefreshObjectStatus string
 
 const (
-	BetaManagedAgentsRefreshObjectStatusSucceeded      BetaManagedAgentsRefreshObjectStatus = "succeeded"
-	BetaManagedAgentsRefreshObjectStatusFailed         BetaManagedAgentsRefreshObjectStatus = "failed"
-	BetaManagedAgentsRefreshObjectStatusConnectError   BetaManagedAgentsRefreshObjectStatus = "connect_error"
+	// The token endpoint returned a new access token.
+	BetaManagedAgentsRefreshObjectStatusSucceeded BetaManagedAgentsRefreshObjectStatus = "succeeded"
+	// The token endpoint returned an error response. See `http_response` for detail.
+	BetaManagedAgentsRefreshObjectStatusFailed BetaManagedAgentsRefreshObjectStatus = "failed"
+	// The token endpoint could not be reached (DNS, TLS, or connection error).
+	BetaManagedAgentsRefreshObjectStatusConnectError BetaManagedAgentsRefreshObjectStatus = "connect_error"
+	// No refresh token is stored for the credential, so no exchange was attempted.
 	BetaManagedAgentsRefreshObjectStatusNoRefreshToken BetaManagedAgentsRefreshObjectStatus = "no_refresh_token"
 )
 
@@ -1520,14 +1606,22 @@ const (
 )
 
 type BetaVaultCredentialNewParams struct {
-	// Authentication details for creating a credential.
+	// Authentication configuration for the credential.
 	Auth BetaVaultCredentialNewParamsAuthUnion `json:"auth,omitzero" api:"required"`
 	// Human-readable name for the credential. Up to 255 characters.
 	DisplayName param.Opt[string] `json:"display_name,omitzero"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Arbitrary key-value metadata to attach to the credential. Maximum 16 pairs, keys
 	// up to 64 chars, values up to 512 chars.
 	Metadata map[string]string `json:"metadata,omitzero"`
-	// Optional header to specify the beta version(s) you want to use.
+	// This endpoint is in beta: requests must send `managed-agents-2026-04-01` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
@@ -1664,22 +1758,41 @@ func init() {
 }
 
 type BetaVaultCredentialGetParams struct {
+	// Identifier of the vault containing the credential.
 	VaultID string `path:"vault_id" api:"required" json:"-"`
-	// Optional header to specify the beta version(s) you want to use.
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `managed-agents-2026-04-01` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
 
 type BetaVaultCredentialUpdateParams struct {
+	// Identifier of the vault containing the credential.
 	VaultID string `path:"vault_id" api:"required" json:"-"`
 	// Updated human-readable name for the credential. 1-255 characters.
 	DisplayName param.Opt[string] `json:"display_name,omitzero"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Metadata patch. Set a key to a string to upsert it, or to null to delete it.
 	// Omitted keys are preserved.
 	Metadata map[string]string `json:"metadata,omitzero"`
-	// Updated authentication details for a credential.
+	// Updated authentication configuration. The `type` is immutable; the variant sent
+	// must match the stored credential's type.
 	Auth BetaVaultCredentialUpdateParamsAuthUnion `json:"auth,omitzero"`
-	// Optional header to specify the beta version(s) you want to use.
+	// This endpoint is in beta: requests must send `managed-agents-2026-04-01` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
@@ -1804,7 +1917,15 @@ type BetaVaultCredentialListParams struct {
 	Limit param.Opt[int64] `query:"limit,omitzero" json:"-"`
 	// Opaque pagination token from a previous `list_credentials` response.
 	Page param.Opt[string] `query:"page,omitzero" json:"-"`
-	// Optional header to specify the beta version(s) you want to use.
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `managed-agents-2026-04-01` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
@@ -1819,22 +1940,49 @@ func (r BetaVaultCredentialListParams) URLQuery() (v url.Values, err error) {
 }
 
 type BetaVaultCredentialDeleteParams struct {
+	// Identifier of the vault containing the credential.
 	VaultID string `path:"vault_id" api:"required" json:"-"`
-	// Optional header to specify the beta version(s) you want to use.
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `managed-agents-2026-04-01` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
 
 type BetaVaultCredentialArchiveParams struct {
+	// Identifier of the vault containing the credential.
 	VaultID string `path:"vault_id" api:"required" json:"-"`
-	// Optional header to specify the beta version(s) you want to use.
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `managed-agents-2026-04-01` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
 
 type BetaVaultCredentialMCPOAuthValidateParams struct {
+	// Identifier of the vault containing the credential.
 	VaultID string `path:"vault_id" api:"required" json:"-"`
-	// Optional header to specify the beta version(s) you want to use.
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `managed-agents-2026-04-01` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }

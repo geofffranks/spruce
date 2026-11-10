@@ -3,11 +3,23 @@ package anthropic
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"iter"
+	"net/http"
+	"os"
+	"runtime"
+	"slices"
+	"sync"
 
+	"github.com/anthropics/anthropic-sdk-go/internal/requestconfig"
 	"github.com/anthropics/anthropic-sdk-go/internal/stainlessheader"
+	"github.com/anthropics/anthropic-sdk-go/internal/telemetry"
+	"github.com/anthropics/anthropic-sdk-go/internal/tracing"
 	"github.com/anthropics/anthropic-sdk-go/option"
+	"github.com/anthropics/anthropic-sdk-go/packages/param"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -28,6 +40,7 @@ type BetaToolRunnerParams struct {
 	BetaMessageNewParams
 	// MaxIterations limits the number of API calls. When set to 0 (the default),
 	// there is no limit and the runner continues until the model stops using tools.
+	// Compaction requests sent for CompactBeforeNextTurn are not counted.
 	MaxIterations int
 }
 
@@ -43,6 +56,71 @@ type betaToolRunnerBase struct {
 	completed      bool
 	opts           []option.RequestOption
 	err            error
+
+	pendingCompaction *BetaCompactionConfigUnionParam
+	// compacting is set from sending a compaction request until the next request
+	// is built, or until that request fails. CompactBeforeNextTurn does nothing
+	// meanwhile: there is nothing new to summarize.
+	compacting         bool
+	pendingToolChanges []BetaContentBlockParamUnion
+
+	// telemetry configures the OpenTelemetry spans of the current loop.
+	telemetry tracing.Options
+	loopSpan  *toolRunnerLoopSpan
+}
+
+// toolRunnerLoopSpan is the span of the current loop. It is the argument of the
+// runner's cleanup, which runs on another goroutine, hence mu, and never runs if
+// this type points back to the runner.
+type toolRunnerLoopSpan struct {
+	mu sync.Mutex
+	// span is anthropic.messages.tool_runner, or nil when no loop is running.
+	span trace.Span
+	// off is whether the current loop found the spans off: its steps do not look again.
+	off bool
+}
+
+// take returns the open span, or nil, and leaves the loop without one. mu is not held
+// while the span ends: a span processor may block, and the cleanup would wait for mu.
+func (s *toolRunnerLoopSpan) take() trace.Span {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.off = false
+	span := s.span
+	s.span = nil
+	return span
+}
+
+// end ends the span of a loop that ended with err, or with no error. A canceled
+// context is not a failure, so it leaves the status unset.
+func (s *toolRunnerLoopSpan) end(err error) {
+	span := s.take()
+	if span == nil {
+		return
+	}
+	tracing.Guard(func() {
+		defer span.End()
+		if err != nil {
+			tracing.SetErrorStatus(span, err, "")
+		} else {
+			span.SetStatus(codes.Ok, "")
+		}
+	})
+}
+
+// stop ends the span of a loop that the application stopped. The status stays unset.
+func (s *toolRunnerLoopSpan) stop() {
+	if span := s.take(); span != nil {
+		tracing.Guard(func() { span.End() })
+	}
+}
+
+// stopDropped is the runner's cleanup. An open span ends on a goroutine of its own: a span
+// processor may block, and other cleanups would wait for it.
+func (s *toolRunnerLoopSpan) stopDropped() {
+	if span := s.take(); span != nil {
+		go tracing.Guard(func() { span.End() })
+	}
 }
 
 func newBetaToolRunnerBase(messageService *BetaMessageService, tools []BetaTool, params BetaToolRunnerParams, opts []option.RequestOption) betaToolRunnerBase {
@@ -51,13 +129,7 @@ func newBetaToolRunnerBase(messageService *BetaMessageService, tools []BetaTool,
 
 	for i, tool := range tools {
 		toolMap[tool.Name()] = tool
-		apiTools[i] = BetaToolUnionParam{
-			OfTool: &BetaToolParam{
-				Name:        tool.Name(),
-				Description: String(tool.Description()),
-				InputSchema: tool.InputSchema(),
-			},
-		}
+		apiTools[i] = betaToolDefinition(tool)
 	}
 
 	// Add tools to the API params
@@ -71,7 +143,79 @@ func newBetaToolRunnerBase(messageService *BetaMessageService, tools []BetaTool,
 		Params:         params,
 		toolMap:        toolMap,
 		opts:           opts,
+		loopSpan:       &toolRunnerLoopSpan{},
 	}
+}
+
+func betaToolDefinition(tool BetaTool) BetaToolUnionParam {
+	return BetaToolUnionParam{
+		OfTool: &BetaToolParam{
+			Name:        tool.Name(),
+			Description: String(tool.Description()),
+			InputSchema: tool.InputSchema(),
+		},
+	}
+}
+
+// AddTools gives the model more tools without changing Params.Tools, which
+// keeps the prompt cache. Each definition goes out with the next request. The
+// runner runs the tool at once, in place of any earlier tool of the same name,
+// even for a call in the message it last returned. Requests must include the
+// [AnthropicBetaInlineTools2026_09_15] beta.
+func (b *betaToolRunnerBase) AddTools(tools ...BetaTool) {
+	for _, tool := range tools {
+		b.toolMap[tool.Name()] = tool
+		b.queueToolAddition(betaToolDefinition(tool))
+	}
+}
+
+// AddToolParams is like AddTools for definitions the runner has nothing to
+// execute, such as server tools. Each is sent as given, and a registered tool
+// of the same name stops running at once; a call to a client tool added this
+// way gets the unknown-tool error result.
+func (b *betaToolRunnerBase) AddToolParams(tools ...BetaToolUnionParam) {
+	for _, definition := range tools {
+		// An mcp_toolset has no name and takes nothing over.
+		if name := definitionName(definition); name != "" {
+			delete(b.toolMap, name)
+		}
+		b.queueToolAddition(definition)
+	}
+}
+
+func (b *betaToolRunnerBase) queueToolAddition(definition BetaToolUnionParam) {
+	b.pendingToolChanges = append(b.pendingToolChanges, NewBetaToolAdditionBlock(BetaToolChangeToolDefinitionParam{Definition: definition}))
+}
+
+// RemoveTools takes tools away from the model without changing Params.Tools.
+// The runner stops running them at once, even for a call in the message it
+// last returned, and the model is told with the next request. A removed tool
+// stays removed until it is passed to AddTools again.
+func (b *betaToolRunnerBase) RemoveTools(tools ...BetaTool) {
+	names := make([]string, len(tools))
+	for i, tool := range tools {
+		names[i] = tool.Name()
+	}
+	b.RemoveToolsByNames(names...)
+}
+
+// RemoveToolsByNames is like RemoveTools for a caller that has names rather
+// than tools, as with a definition added through AddToolParams.
+func (b *betaToolRunnerBase) RemoveToolsByNames(names ...string) {
+	for _, name := range names {
+		delete(b.toolMap, name)
+		b.pendingToolChanges = append(b.pendingToolChanges, NewBetaToolRemovalBlock(BetaToolChangeToolReferenceParam{Name: name}))
+	}
+}
+
+// flushToolChanges sends the queued tool changes as one system message. The API
+// refuses one directly after a paused turn, so they wait a request.
+func (b *betaToolRunnerBase) flushToolChanges() {
+	if len(b.pendingToolChanges) == 0 || (b.lastMessage != nil && b.lastMessage.StopReason == BetaStopReasonPauseTurn) {
+		return
+	}
+	b.Params.Messages = append(b.Params.Messages, BetaMessageParam{Role: BetaMessageParamRoleSystem, Content: b.pendingToolChanges})
+	b.pendingToolChanges = nil
 }
 
 // LastMessage returns the most recent assistant message, or nil if no messages have been received yet.
@@ -95,7 +239,24 @@ func (b *betaToolRunnerBase) Messages() []BetaMessageParam {
 	return result
 }
 
-// IterationCount returns the number of API calls made so far.
+// CompactBeforeNextTurn compacts the conversation before the model's next turn.
+// Once the current turn has finished, including any tool calls, the runner
+// requests a summary, replaces the message history with the compaction response
+// and returns that response like any other message. Calling this again before
+// the compaction runs replaces the earlier call. compaction is the same config
+// as [BetaMessageNewParams.Compaction]; its zero value means {"type": "summarize"}.
+func (b *betaToolRunnerBase) CompactBeforeNextTurn(compaction BetaCompactionConfigUnionParam) {
+	if b.compacting {
+		return
+	}
+	if param.IsOmitted(compaction) {
+		compaction.OfSummarize = &BetaSummarizeCompactionParam{}
+	}
+	b.pendingCompaction = &compaction
+}
+
+// IterationCount returns the number of API calls made so far, not counting
+// compaction requests sent for CompactBeforeNextTurn.
 // This is incremented each time a turn makes an API call.
 func (b *betaToolRunnerBase) IterationCount() int {
 	return b.iterationCount
@@ -135,43 +296,99 @@ func (b *betaToolRunnerBase) adoptContainer(message *BetaMessage) {
 	}
 }
 
+// toolRunnerStep is what the runner does with a turn, decided by its stop reason.
+type toolRunnerStep int
+
+const (
+	// stepRunTools answers the turn's client tool calls and continues, or stops
+	// when there are none.
+	stepRunTools toolRunnerStep = iota
+	// stepResume sends the unfinished turn back unchanged, without executing
+	// any tool calls it carries, so the server continues it.
+	stepResume
+	// stepStop ends the conversation with the turn as the final message,
+	// without executing its tool calls.
+	stepStop
+)
+
+// determineNextStepFromStopReason classifies every generated stop reason
+// explicitly so a new one has to be placed in a bucket here; values unknown at
+// runtime stop like end_turn rather than erroring.
+func determineNextStepFromStopReason(reason BetaStopReason) toolRunnerStep {
+	switch reason {
+	case BetaStopReasonToolUse:
+		return stepRunTools
+	case BetaStopReasonPauseTurn:
+		// A long-running server tool paused the turn; sending it back unchanged
+		// resumes it.
+		return stepResume
+	case BetaStopReasonCompaction:
+		// pause_after_compaction hands the turn back before the model answers;
+		// sending it back unchanged continues it.
+		return stepResume
+	case BetaStopReasonRefusal:
+		// A refusal-terminated turn is terminal: its tool calls belong to a dead
+		// conversation — executing them fires side effects the caller never
+		// confirmed and produces tool_results that cannot be coherently replayed.
+		return stepStop
+	case BetaStopReasonMaxTokens, BetaStopReasonModelContextWindowExceeded:
+		// A cut-off turn left its last call's arguments incomplete.
+		return stepStop
+	case BetaStopReasonEndTurn, BetaStopReasonStopSequence:
+		return stepStop
+	default:
+		// An unrecognized stop reason stops like end_turn.
+		return stepStop
+	}
+}
+
+// openTelemetryOptions returns the OpenTelemetry options of the requests that a
+// tool runner sends with opts, for the runner's own spans.
+func openTelemetryOptions(ctx context.Context, opts []option.RequestOption) tracing.Options {
+	// The options apply to an empty JSON request as they do to the runner's requests.
+	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodPost, "", []byte("{}"), nil, opts...)
+	if err != nil {
+		off := false
+		return tracing.Options{Traces: tracing.TracesOptions{Enabled: &off}}
+	}
+	return cfg.OpenTelemetry.Options
+}
+
+// startToolRunnerSpan starts the tool runner span of a loop, when no loop is
+// running, and returns runnerCtx: ctx, the context that the application passed
+// to the step, with the tool runner span. A loop whose first step found the
+// spans off starts none: its later steps cost that check alone.
+//
+// A step derives runnerCtx once and passes it to everything that the runner
+// does until it hands control back to the application: its bookkeeping, its
+// requests, and its tools. So whatever other instrumentation runs in between is
+// inside the tool runner span, whichever context the step was called with. The
+// application's own context is never changed.
+func (b *betaToolRunnerBase) startToolRunnerSpan(ctx context.Context) context.Context {
+	b.loopSpan.mu.Lock()
+	defer b.loopSpan.mu.Unlock()
+	if b.completed || b.loopSpan.off {
+		return ctx
+	}
+	if b.loopSpan.span == nil {
+		b.telemetry = openTelemetryOptions(ctx, slices.Concat(b.messageService.Options, b.opts))
+		hasOutputFormat := !param.IsOmitted(b.Params.OutputConfig.Format) || !param.IsOmitted(b.Params.OutputFormat)
+		b.loopSpan.span = telemetry.StartToolRunnerSpan(ctx, b.telemetry, string(b.Params.Model), hasOutputFormat)
+		b.loopSpan.off = b.loopSpan.span == nil
+	}
+	if b.loopSpan.span == nil {
+		return ctx
+	}
+	return trace.ContextWithSpan(ctx, b.loopSpan.span)
+}
+
 // executeTools processes any tool use blocks in the given message and returns a tool result message.
 // Returns:
 //   - (result, nil) if tools executed successfully
-//   - (nil, nil) if no tools to execute or the turn ended in a refusal
+//   - (nil, nil) if the turn did not stop for tool use or has no client tool calls
 //   - (nil, ctx.Err()) if context was cancelled
 func (b *betaToolRunnerBase) executeTools(ctx context.Context, message *BetaMessage) (*BetaMessageParam, error) {
-	// A refusal-terminated turn is terminal: its tool calls belong to a dead
-	// conversation — executing them fires side effects the caller never
-	// confirmed and produces tool_results that cannot be coherently replayed.
-	if message.StopReason == BetaStopReasonRefusal {
-		return nil, nil
-	}
-
-	// A cut-off turn left its last call's arguments incomplete.
-	if message.StopReason == BetaStopReasonMaxTokens || message.StopReason == BetaStopReasonModelContextWindowExceeded {
-		return nil, nil
-	}
-
-	// Tool calls before the last fallback block belong to the attempt that
-	// refused; the fallback middleware strips them from replayed history, so
-	// answering them would orphan the tool_result.
-	seam := -1
-	for i, block := range message.Content {
-		if block.Type == "fallback" {
-			seam = i
-		}
-	}
-
-	var toolUseBlocks []BetaToolUseBlock
-
-	// Find all tool use blocks in the message
-	for i, block := range message.Content {
-		if i > seam && block.Type == "tool_use" {
-			toolUseBlocks = append(toolUseBlocks, block.AsToolUse())
-		}
-	}
-
+	toolUseBlocks := clientToolCalls(message)
 	if len(toolUseBlocks) == 0 {
 		return nil, nil
 	}
@@ -204,6 +421,39 @@ func (b *betaToolRunnerBase) executeTools(ctx context.Context, message *BetaMess
 	return &userMessage, nil
 }
 
+// clientToolCalls returns the tool calls the runner answers for the given
+// message: none unless the turn stopped for tool use.
+func clientToolCalls(message *BetaMessage) []BetaToolUseBlock {
+	if determineNextStepFromStopReason(message.StopReason) != stepRunTools {
+		return nil
+	}
+	return unansweredToolCalls(message)
+}
+
+// unansweredToolCalls returns the message's client tool calls that a
+// tool_result can still answer.
+func unansweredToolCalls(message *BetaMessage) []BetaToolUseBlock {
+	// Tool calls before the last fallback block belong to the attempt that
+	// refused; the fallback middleware strips them from replayed history, so
+	// answering them would orphan the tool_result.
+	seam := -1
+	for i, block := range message.Content {
+		if block.Type == "fallback" {
+			seam = i
+		}
+	}
+
+	var toolUseBlocks []BetaToolUseBlock
+
+	// Find all tool use blocks in the message
+	for i, block := range message.Content {
+		if i > seam && block.Type == "tool_use" {
+			toolUseBlocks = append(toolUseBlocks, block.AsToolUse())
+		}
+	}
+	return toolUseBlocks
+}
+
 func newBetaToolResultErrorBlockParam(toolUseID string, errorText string) BetaToolResultBlockParam {
 	return NewBetaToolResultTextBlockParam(toolUseID, errorText, true)
 }
@@ -211,9 +461,9 @@ func newBetaToolResultErrorBlockParam(toolUseID string, errorText string) BetaTo
 // availableToolNames returns the tool names currently offered to the model:
 // every registered tool, minus names dropped by tool_removal blocks in
 // role "system" messages, plus names re-enabled by later tool_addition
-// blocks. Removal is only a hint — the model can still call a removed tool —
-// so a removed tool must resolve to the same not-found result as one that
-// was never registered.
+// blocks, with the queued changes read as the last such message. Removal is
+// only a hint — the model can still call a removed tool — so a removed tool
+// must resolve to the same not-found result as one that was never registered.
 func (b *betaToolRunnerBase) availableToolNames() map[string]struct{} {
 	available := make(map[string]struct{}, len(b.toolMap))
 	for name := range b.toolMap {
@@ -226,6 +476,9 @@ func (b *betaToolRunnerBase) availableToolNames() map[string]struct{} {
 		for _, block := range message.Content {
 			applyToolChange(block, available)
 		}
+	}
+	for _, block := range b.pendingToolChanges {
+		applyToolChange(block, available)
 	}
 	return available
 }
@@ -248,13 +501,17 @@ func applyToolChange(block BetaContentBlockParamUnion, available map[string]stru
 }
 
 // additionRefName and removalRefName resolve the referenced tool's name across
-// the generated addition/removal tool unions. Only a tool_reference names a
-// locally runnable tool; MCP references run server-side and unknown variants
+// the generated addition/removal tool unions. A tool_reference names a locally
+// runnable tool, as does a tool_definition whose definition has a name (an
+// mcp_toolset has none); MCP references run server-side and unknown variants
 // are ignored.
 func additionRefName(u BetaRequestToolAdditionBlockToolUnionParam) (string, bool) {
 	switch {
 	case u.OfToolReference != nil:
 		return u.OfToolReference.Name, u.OfToolReference.Name != ""
+	case u.OfToolDefinition != nil:
+		name := definitionName(u.OfToolDefinition.Definition)
+		return name, name != ""
 	default:
 		return "", false
 	}
@@ -267,6 +524,23 @@ func removalRefName(u BetaRequestToolRemovalBlockToolUnionParam) (string, bool) 
 	default:
 		return "", false
 	}
+}
+
+// definitionName returns the name a tool definition carries on the wire, which
+// for a server tool with its constant Name elided exists only once marshaled.
+func definitionName(definition BetaToolUnionParam) string {
+	if name := definition.GetName(); name != nil && *name != "" {
+		return *name
+	}
+	data, err := json.Marshal(definition)
+	if err != nil {
+		return ""
+	}
+	var wire struct {
+		Name string `json:"name"`
+	}
+	_ = json.Unmarshal(data, &wire)
+	return wire.Name
 }
 
 // executeToolUse executes a single tool use block and returns the result.
@@ -290,18 +564,193 @@ func (b *betaToolRunnerBase) executeToolUse(ctx context.Context, toolUse BetaToo
 		)
 	}
 
+	ctx, span := telemetry.StartToolUseSpan(ctx, b.telemetry, toolSpanName(tool, false), toolUse.Name, toolUse.ToolsetName, tool.Description, toolUse.ID)
 	content, err := tool.Execute(ctx, inputBytes)
+	result := BetaToolResultBlockParam{ToolUseID: toolUse.ID, Content: content}
 	if err != nil {
-		return newBetaToolResultErrorBlockParam(
-			toolUse.ID,
-			fmt.Sprintf("Error: %v", err),
-		)
+		result = newBetaToolResultErrorBlockParam(toolUse.ID, fmt.Sprintf("Error: %v", err))
+	}
+	telemetry.EndToolUseSpan(ctx, span, b.telemetry, inputBytes, result.Content, err)
+	return result
+}
+
+// toolSpanName returns the name that the OpenTelemetry span of a run of tool
+// starts with, which says where tool comes from. agentTool is whether an
+// agent.tool_use Session event calls it.
+func toolSpanName(tool BetaTool, agentTool bool) string {
+	if agentTool {
+		return "anthropic.tool_use"
+	}
+	if _, ok := tool.(telemetry.MCPHelperTool); ok {
+		return "anthropic.mcp_tool_use"
+	}
+	return "anthropic.custom_tool_use"
+}
+
+// toolRunnerRequest is the next request the runner sends.
+type toolRunnerRequest struct {
+	params BetaMessageNewParams
+}
+
+// nextRequest answers the last turn's tool calls and works out what to send
+// next. It returns nil once the run is over.
+func (b *betaToolRunnerBase) nextRequest(ctx context.Context) (*toolRunnerRequest, error) {
+	if b.completed {
+		return nil, nil
+	}
+	if !param.IsOmitted(b.Params.Compaction) {
+		// Unset it so the refusal is reported once; left set, it would block
+		// every later turn.
+		b.Params.Compaction = BetaCompactionConfigUnionParam{}
+		return nil, errors.New("anthropic: Params.Compaction cannot be set on a tool runner because every request in the loop would compact again, so it was cleared; call CompactBeforeNextTurn when the conversation should be compacted instead")
+	}
+	if b.pendingCompaction != nil {
+		if err := b.checkCanCompact(); err != nil {
+			b.pendingCompaction = nil
+			return nil, err
+		}
 	}
 
-	return BetaToolResultBlockParam{
-		ToolUseID: toolUse.ID,
-		Content:   content,
+	// The response to a compaction request has nothing to answer or resume,
+	// whatever it stopped for.
+	turn := b.lastMessage
+	if b.compacting {
+		turn = nil
 	}
+	b.compacting = false
+
+	paused := false
+	if turn != nil {
+		paused = determineNextStepFromStopReason(turn.StopReason) == stepResume
+		if !paused && len(clientToolCalls(turn)) == 0 {
+			return b.finalTurnRequest(turn), nil
+		}
+	}
+	if b.Params.MaxIterations > 0 && b.iterationCount >= b.Params.MaxIterations {
+		b.completed = true
+		return nil, nil
+	}
+	if turn != nil && !paused {
+		toolMessage, err := b.executeTools(ctx, turn)
+		if err != nil {
+			return nil, err
+		}
+		if toolMessage != nil {
+			b.Params.Messages = append(b.Params.Messages, *toolMessage)
+		}
+	}
+
+	// Ahead of the params copy: a message appended after it would miss the request.
+	b.flushToolChanges()
+
+	// The API cannot compact a conversation that stops mid-turn, so a paused
+	// turn is resumed first.
+	if b.pendingCompaction != nil && !paused {
+		return b.compactionRequest(), nil
+	}
+	b.iterationCount++
+	return &toolRunnerRequest{params: b.Params.BetaMessageNewParams}, nil
+}
+
+// finalTurnRequest ends the run. It returns one last request when a compaction
+// is pending and the API can accept it after turn.
+func (b *betaToolRunnerBase) finalTurnRequest(turn *BetaMessage) *toolRunnerRequest {
+	b.completed = true
+	if b.pendingCompaction == nil {
+		return nil
+	}
+	// A turn that was cut short can end with tool calls that are never run, and
+	// the API cannot compact a conversation whose last turn has an unanswered
+	// tool call.
+	if len(unansweredToolCalls(turn)) > 0 {
+		fmt.Fprintf(os.Stderr, "Warning: The tool runner skipped the pending compaction because the last turn (stop_reason %q) ended with tool calls that were not run. Call CompactBeforeNextTurn again if you continue the conversation.\n", turn.StopReason)
+		b.pendingCompaction = nil
+		return nil
+	}
+	return b.compactionRequest()
+}
+
+func (b *betaToolRunnerBase) checkCanCompact() error {
+	// The compaction request goes out without context_management, so the API
+	// cannot reject this pairing there: it would run and bill the compaction,
+	// then reject the next request.
+	for _, edit := range b.Params.ContextManagement.Edits {
+		if edit.OfCompact20260112 != nil {
+			return errors.New("anthropic: CompactBeforeNextTurn cannot be used while Params.ContextManagement has a compaction edit because the API does not accept a compaction block together with one; remove the edit and call it again")
+		}
+	}
+	return nil
+}
+
+func (b *betaToolRunnerBase) compactionRequest() *toolRunnerRequest {
+	compaction := *b.pendingCompaction
+	b.pendingCompaction = nil
+	b.compacting = true
+	params := withoutCompactionIncompatibleParams(b.Params.BetaMessageNewParams)
+	params.Compaction = compaction
+	return &toolRunnerRequest{params: params}
+}
+
+// withoutCompactionIncompatibleParams returns params without the ones that only
+// shape a reply. A compaction request returns only the compaction block, never
+// a reply, so the API rejects them. The runner's later requests keep them.
+func withoutCompactionIncompatibleParams(params BetaMessageNewParams) BetaMessageNewParams {
+	params.ContextManagement = BetaContextManagementConfigParam{}
+	params.StopSequences = nil
+	params.OutputFormat = BetaJSONOutputFormatParam{}
+	if params.ToolChoice.OfAny != nil || params.ToolChoice.OfTool != nil {
+		params.ToolChoice = BetaToolChoiceUnionParam{}
+	}
+	params.OutputConfig.Format = BetaJSONOutputFormatParam{}
+	// Cloned because the value copy shares the slice's backing array with the caller's params.
+	params.Fallbacks.OfBetaFallbackArray = slices.Clone(params.Fallbacks.OfBetaFallbackArray)
+	for i := range params.Fallbacks.OfBetaFallbackArray {
+		params.Fallbacks.OfBetaFallbackArray[i].OutputConfig.Format = BetaJSONOutputFormatParam{}
+	}
+	return params
+}
+
+// handleResponse records the response to request and carries it into the
+// conversation history.
+func (b *betaToolRunnerBase) handleResponse(request *toolRunnerRequest, message *BetaMessage) error {
+	if b.compacting {
+		return b.finishCompaction(request, message)
+	}
+	b.lastMessage = message
+	b.Params.Messages = append(b.Params.Messages, message.ToParam())
+	b.adoptContainer(message)
+	return nil
+}
+
+func (b *betaToolRunnerBase) finishCompaction(request *toolRunnerRequest, message *BetaMessage) error {
+	// Params is an exported field, so a change made while the response was
+	// streaming can only be noticed here: appending changes the length and
+	// assigning a new slice changes the first element's address.
+	sent, current := request.params.Messages, b.Params.Messages
+	if len(current) != len(sent) || (len(sent) > 0 && &current[0] != &sent[0]) {
+		return errors.New("anthropic: the tool runner's messages were changed while the conversation was being compacted, so the compaction response did not replace them; change Params.Messages once the compaction response has been read")
+	}
+	// A failed compaction comes back as a block with null content, or as no
+	// block at all.
+	for _, block := range message.Content {
+		if block.Type == "compaction" && block.Content.OfString != "" {
+			// The replaced messages' tool changes go with them, so what they made
+			// unavailable leaves toolMap now.
+			available := b.availableToolNames()
+			for name := range b.toolMap {
+				if _, ok := available[name]; !ok {
+					delete(b.toolMap, name)
+				}
+			}
+			// The response has to be sent back as it came, first, replacing the
+			// messages it summarizes.
+			b.lastMessage = message
+			b.Params.Messages = []BetaMessageParam{message.ToParam()}
+			return nil
+		}
+	}
+	fmt.Fprint(os.Stderr, "Warning: Compaction produced no summary, so the tool runner kept the conversation as it is.\n")
+	return nil
 }
 
 // BetaToolRunner manages the automatic conversation loop between the assistant and tools
@@ -321,9 +770,11 @@ type BetaToolRunner struct {
 // results back to the model until a final answer is produced or the maximum
 // number of iterations is reached.
 func (r *BetaMessageService) NewToolRunner(tools []BetaTool, params BetaToolRunnerParams, opts ...option.RequestOption) *BetaToolRunner {
-	return &BetaToolRunner{
+	runner := &BetaToolRunner{
 		betaToolRunnerBase: newBetaToolRunnerBase(r, tools, params, opts),
 	}
+	runtime.AddCleanup(runner, (*toolRunnerLoopSpan).stopDropped, runner.loopSpan)
+	return runner
 }
 
 // NextMessage advances the conversation by one turn. It executes any pending tool calls
@@ -333,46 +784,51 @@ func (r *BetaMessageService) NewToolRunner(tools []BetaTool, params BetaToolRunn
 //   - (message, nil) on success with the assistant's response
 //   - (nil, nil) when the conversation is complete (no more tool calls or max iterations reached)
 //   - (nil, error) if an error occurred during tool execution or API call
+//
+// A caller that stops stepping before the conversation is complete has nothing to
+// release: the tool runner span of the loop, anthropic.messages.tool_runner, ends with
+// no status once the runner is garbage collected.
 func (r *BetaToolRunner) NextMessage(ctx context.Context) (*BetaMessage, error) {
+	runnerCtx := r.startToolRunnerSpan(ctx)
+	message, err := r.nextMessage(runnerCtx)
+	if message == nil {
+		// The loop has ended: it is complete, or it failed.
+		r.loopSpan.end(err)
+		// The cleanup of a runner that nothing else refers to would end the span first, with no status.
+		runtime.KeepAlive(r)
+	}
+	return message, err
+}
+
+// nextMessage runs one step of the loop inside the tool runner span, which
+// runnerCtx carries.
+func (r *BetaToolRunner) nextMessage(runnerCtx context.Context) (*BetaMessage, error) {
 	if r.completed {
 		return nil, nil
 	}
 
-	// Check iteration limit
-	if r.Params.MaxIterations > 0 && r.iterationCount >= r.Params.MaxIterations {
-		r.completed = true
+	// Execute any pending tool calls from the last message
+	request, err := r.nextRequest(runnerCtx)
+	if err != nil {
+		r.err = err
+		return nil, err
+	}
+	if request == nil {
 		return nil, nil
 	}
 
-	// Execute any pending tool calls from the last message
-	if r.lastMessage != nil {
-		toolMessage, err := r.executeTools(ctx, r.lastMessage)
-		if err != nil {
-			r.err = err
-			return nil, err
-		}
-		if toolMessage == nil {
-			// No tools to execute, conversation is complete
-			r.completed = true
-			return nil, nil
-		}
-		r.Params.Messages = append(r.Params.Messages, *toolMessage)
-	}
-
 	// Make API call
-	r.iterationCount++
-	messageParams := r.Params.BetaMessageNewParams
-	messageParams.Messages = r.Params.Messages
-
-	message, err := r.messageService.New(ctx, messageParams, r.opts...)
+	message, err := r.messageService.New(runnerCtx, request.params, r.opts...)
 	if err != nil {
+		r.compacting = false
 		r.err = err
 		return nil, fmt.Errorf("failed to get next message: %w", err)
 	}
 
-	r.lastMessage = message
-	r.Params.Messages = append(r.Params.Messages, message.ToParam())
-	r.adoptContainer(message)
+	if err := r.handleResponse(request, message); err != nil {
+		r.err = err
+		return nil, err
+	}
 
 	return message, nil
 }
@@ -406,6 +862,7 @@ func (r *BetaToolRunner) RunToCompletion(ctx context.Context) (*BetaMessage, err
 //	}
 func (r *BetaToolRunner) All(ctx context.Context) iter.Seq2[*BetaMessage, error] {
 	return func(yield func(*BetaMessage, error) bool) {
+		defer r.loopSpan.stop()
 		for {
 			message, err := r.NextMessage(ctx)
 			r.err = err
@@ -439,9 +896,11 @@ type BetaToolRunnerStreaming struct {
 // sending the results back to the model using streaming API calls until a final answer
 // is produced or the maximum number of iterations is reached.
 func (r *BetaMessageService) NewToolRunnerStreaming(tools []BetaTool, params BetaToolRunnerParams, opts ...option.RequestOption) *BetaToolRunnerStreaming {
-	return &BetaToolRunnerStreaming{
+	runner := &BetaToolRunnerStreaming{
 		betaToolRunnerBase: newBetaToolRunnerBase(r, tools, params, opts),
 	}
+	runtime.AddCleanup(runner, (*toolRunnerLoopSpan).stopDropped, runner.loopSpan)
+	return runner
 }
 
 // NextStreaming advances the conversation by one turn with streaming. It executes any
@@ -452,69 +911,87 @@ func (r *BetaMessageService) NewToolRunnerStreaming(tools []BetaTool, params Bet
 //
 // If an error occurs, it will be yielded as the second value in the iterator pair.
 // Check IsCompleted() after consuming the iterator to determine if the conversation
-// has finished.
+// has finished. A caller that stops stepping before it has, has nothing to release:
+// the tool runner span of the loop ends with no status once the runner is garbage
+// collected.
 func (r *BetaToolRunnerStreaming) NextStreaming(ctx context.Context) iter.Seq2[BetaRawMessageStreamEventUnion, error] {
 	return func(yield func(BetaRawMessageStreamEventUnion, error) bool) {
 		if r.completed {
 			return
 		}
-
-		// Check iteration limit
-		if r.Params.MaxIterations > 0 && r.iterationCount >= r.Params.MaxIterations {
-			r.completed = true
-			return
-		}
-
-		// Execute any pending tool calls from the last message
-		if r.lastMessage != nil {
-			toolMessage, err := r.executeTools(ctx, r.lastMessage)
+		var failed error
+		stopped := false
+		runnerCtx := r.startToolRunnerSpan(ctx)
+		r.nextStreaming(runnerCtx, func(event BetaRawMessageStreamEventUnion, err error) bool {
 			if err != nil {
-				r.err = err
-				yield(BetaRawMessageStreamEventUnion{}, err)
-				return
+				failed = err
 			}
-			if toolMessage == nil {
-				// No tools to execute, conversation is complete
-				r.completed = true
-				return
-			}
-			r.Params.Messages = append(r.Params.Messages, *toolMessage)
+			stopped = !yield(event, err)
+			return !stopped
+		})
+		switch {
+		case failed != nil:
+			r.loopSpan.end(failed)
+		case stopped:
+			r.loopSpan.stop()
+		case r.completed:
+			r.loopSpan.end(nil)
 		}
+		// The cleanup of a runner that nothing else refers to would end the span first, with no status.
+		runtime.KeepAlive(r)
+	}
+}
 
-		// Make streaming API call
-		r.iterationCount++
-		streamParams := r.Params.BetaMessageNewParams
-		streamParams.Messages = r.Params.Messages
+// nextStreaming runs one streamed step of the loop inside the tool runner span,
+// which runnerCtx carries, yielding each event; yield returns false when the application stops.
+func (r *BetaToolRunnerStreaming) nextStreaming(runnerCtx context.Context, yield func(BetaRawMessageStreamEventUnion, error) bool) {
+	// Execute any pending tool calls from the last message
+	request, err := r.nextRequest(runnerCtx)
+	if err != nil {
+		r.err = err
+		yield(BetaRawMessageStreamEventUnion{}, err)
+		return
+	}
+	if request == nil {
+		return
+	}
 
-		stream := r.messageService.NewStreaming(ctx, streamParams, r.opts...)
-		defer stream.Close()
-
-		// We need to collect the final message from the stream for the next iteration
-		finalMessage := &BetaMessage{}
-		for stream.Next() {
-			event := stream.Current()
-			err := finalMessage.Accumulate(event)
-			if err != nil {
-				r.err = fmt.Errorf("failed to accumulate streaming event: %w", err)
-				yield(BetaRawMessageStreamEventUnion{}, r.err)
-				return
-			}
-
-			if !yield(event, nil) {
-				return
-			}
+	// Make streaming API call
+	stream := r.messageService.NewStreaming(runnerCtx, request.params, r.opts...)
+	defer stream.Close()
+	responded := false
+	defer func() {
+		if !responded {
+			r.compacting = false
 		}
+	}()
 
-		// Check for stream errors after the loop exits
-		if stream.Err() != nil {
-			r.err = stream.Err()
+	// We need to collect the final message from the stream for the next iteration
+	finalMessage := &BetaMessage{}
+	for stream.Next() {
+		event := stream.Current()
+		err := finalMessage.Accumulate(event)
+		if err != nil {
+			r.err = fmt.Errorf("failed to accumulate streaming event: %w", err)
 			yield(BetaRawMessageStreamEventUnion{}, r.err)
 			return
 		}
+		if !yield(event, nil) {
+			return
+		}
+	}
 
-		r.lastMessage = finalMessage
-		r.Params.Messages = append(r.Params.Messages, finalMessage.ToParam())
-		r.adoptContainer(finalMessage)
+	// Check for stream errors after the loop exits
+	if stream.Err() != nil {
+		r.err = stream.Err()
+		yield(BetaRawMessageStreamEventUnion{}, r.err)
+		return
+	}
+
+	responded = true
+	if err := r.handleResponse(request, finalMessage); err != nil {
+		r.err = err
+		yield(BetaRawMessageStreamEventUnion{}, err)
 	}
 }
 
@@ -537,6 +1014,7 @@ func (r *BetaToolRunnerStreaming) NextStreaming(ctx context.Context) iter.Seq2[B
 //	}
 func (r *BetaToolRunnerStreaming) AllStreaming(ctx context.Context) iter.Seq2[iter.Seq2[BetaRawMessageStreamEventUnion, error], error] {
 	return func(yield func(iter.Seq2[BetaRawMessageStreamEventUnion, error], error) bool) {
+		defer r.loopSpan.stop()
 		for !r.completed {
 			eventSeq := r.NextStreaming(ctx)
 			if !yield(eventSeq, nil) {

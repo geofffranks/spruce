@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package anthropic
 
 import (
@@ -9,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go/internal/apijson"
@@ -51,12 +50,23 @@ func NewBetaTunnelService(opts ...option.RequestOption) (r BetaTunnelService) {
 // it is not idempotent. The new tunnel rejects MCP traffic until at least one CA
 // certificate is added.
 func (r *BetaTunnelService) New(ctx context.Context, params BetaTunnelNewParams, opts ...option.RequestOption) (res *BetaTunnel, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "mcp-tunnels-2026-06-22")}, opts...)
 	path := "v1/tunnels?beta=true"
+	opts = append(opts, requestconfig.WithSpan("anthropic.tunnels.create", "/v1/tunnels"), requestconfig.WithSpanCreatedID("anthropic.tunnel.id", &res, func(created *BetaTunnel) string { return created.ID }))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
@@ -68,8 +78,18 @@ func (r *BetaTunnelService) New(ctx context.Context, params BetaTunnelNewParams,
 //
 // Fetches a tunnel by ID.
 func (r *BetaTunnelService) Get(ctx context.Context, tunnelID string, query BetaTunnelGetParams, opts ...option.RequestOption) (res *BetaTunnel, err error) {
-	for _, v := range query.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(query.Betas) > 0 {
+		headerValues := make([]string, len(query.Betas))
+		for i, v := range query.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(query.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", query.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "mcp-tunnels-2026-06-22")}, opts...)
@@ -77,7 +97,8 @@ func (r *BetaTunnelService) Get(ctx context.Context, tunnelID string, query Beta
 		err = errors.New("missing required tunnel_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/tunnels/%s?beta=true", tunnelID)
+	path := fmt.Sprintf("v1/tunnels/%s?beta=true", url.PathEscape(tunnelID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.tunnels.retrieve", "/v1/tunnels/{tunnel_id}"), requestconfig.WithSpanAttribute("anthropic.tunnel.id", tunnelID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
@@ -91,12 +112,23 @@ func (r *BetaTunnelService) Get(ctx context.Context, tunnelID string, query Beta
 // tunnels are excluded unless include_archived is set.
 func (r *BetaTunnelService) List(ctx context.Context, params BetaTunnelListParams, opts ...option.RequestOption) (res *pagination.PageCursor[BetaTunnel], err error) {
 	var raw *http.Response
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "mcp-tunnels-2026-06-22"), option.WithResponseInto(&raw)}, opts...)
 	path := "v1/tunnels?beta=true"
+	opts = append(opts, requestconfig.WithSpan("anthropic.tunnels.list", "/v1/tunnels", "include_archived", "limit", "page"))
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, params, &res, opts...)
 	if err != nil {
 		return nil, err
@@ -130,8 +162,18 @@ func (r *BetaTunnelService) ListAutoPaging(ctx context.Context, params BetaTunne
 // re-allocated, and the tunnel token is invalidated. Retrying against an
 // already-archived tunnel returns the existing record unchanged.
 func (r *BetaTunnelService) Archive(ctx context.Context, tunnelID string, body BetaTunnelArchiveParams, opts ...option.RequestOption) (res *BetaTunnel, err error) {
-	for _, v := range body.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(body.Betas) > 0 {
+		headerValues := make([]string, len(body.Betas))
+		for i, v := range body.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(body.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", body.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "mcp-tunnels-2026-06-22")}, opts...)
@@ -139,7 +181,8 @@ func (r *BetaTunnelService) Archive(ctx context.Context, tunnelID string, body B
 		err = errors.New("missing required tunnel_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/tunnels/%s/archive?beta=true", tunnelID)
+	path := fmt.Sprintf("v1/tunnels/%s/archive?beta=true", url.PathEscape(tunnelID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.tunnels.archive", "/v1/tunnels/{tunnel_id}/archive"), requestconfig.WithSpanAttribute("anthropic.tunnel.id", tunnelID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, nil, &res, opts...)
 	return res, err
 }
@@ -154,8 +197,18 @@ func (r *BetaTunnelService) Archive(ctx context.Context, tunnelID string, body B
 // token is rotated. Exposed as POST so the token does not appear in intermediary
 // access logs.
 func (r *BetaTunnelService) RevealToken(ctx context.Context, tunnelID string, body BetaTunnelRevealTokenParams, opts ...option.RequestOption) (res *BetaTunnelToken, err error) {
-	for _, v := range body.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(body.Betas) > 0 {
+		headerValues := make([]string, len(body.Betas))
+		for i, v := range body.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(body.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", body.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "mcp-tunnels-2026-06-22")}, opts...)
@@ -163,7 +216,8 @@ func (r *BetaTunnelService) RevealToken(ctx context.Context, tunnelID string, bo
 		err = errors.New("missing required tunnel_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/tunnels/%s/reveal_token?beta=true", tunnelID)
+	path := fmt.Sprintf("v1/tunnels/%s/reveal_token?beta=true", url.PathEscape(tunnelID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.tunnels.reveal_token", "/v1/tunnels/{tunnel_id}/reveal_token"), requestconfig.WithSpanAttribute("anthropic.tunnel.id", tunnelID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, nil, &res, opts...)
 	return res, err
 }
@@ -177,8 +231,18 @@ func (r *BetaTunnelService) RevealToken(ctx context.Context, tunnelID string, bo
 // new connections and returns a fresh value; established connections are not
 // severed. A connector restarted after rotation must use the new value.
 func (r *BetaTunnelService) RotateToken(ctx context.Context, tunnelID string, params BetaTunnelRotateTokenParams, opts ...option.RequestOption) (res *BetaTunnelToken, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "mcp-tunnels-2026-06-22")}, opts...)
@@ -186,7 +250,8 @@ func (r *BetaTunnelService) RotateToken(ctx context.Context, tunnelID string, pa
 		err = errors.New("missing required tunnel_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/tunnels/%s/rotate_token?beta=true", tunnelID)
+	path := fmt.Sprintf("v1/tunnels/%s/rotate_token?beta=true", url.PathEscape(tunnelID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.tunnels.rotate_token", "/v1/tunnels/{tunnel_id}/rotate_token"), requestconfig.WithSpanAttribute("anthropic.tunnel.id", tunnelID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
@@ -195,9 +260,10 @@ func (r *BetaTunnelService) RotateToken(ctx context.Context, tunnelID string, pa
 type BetaTunnel struct {
 	// Unique identifier for the tunnel, prefixed with `tnl_`.
 	ID string `json:"id" api:"required"`
-	// A timestamp in RFC 3339 format
+	// RFC 3339 datetime string indicating when the tunnel was archived. Null if it is
+	// not archived.
 	ArchivedAt time.Time `json:"archived_at" api:"required" format:"date-time"`
-	// A timestamp in RFC 3339 format
+	// RFC 3339 datetime string indicating when the tunnel was created.
 	CreatedAt time.Time `json:"created_at" api:"required" format:"date-time"`
 	// Human-readable name for the tunnel (1-255 characters). Null if unset.
 	DisplayName string `json:"display_name" api:"required"`
@@ -252,7 +318,15 @@ func (r *BetaTunnelToken) UnmarshalJSON(data []byte) error {
 type BetaTunnelNewParams struct {
 	// Optional human-readable name for the tunnel (1-255 characters).
 	DisplayName param.Opt[string] `json:"display_name,omitzero"`
-	// Optional header to specify the beta version(s) you want to use.
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `mcp-tunnels-2026-06-22` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
@@ -266,7 +340,15 @@ func (r *BetaTunnelNewParams) UnmarshalJSON(data []byte) error {
 }
 
 type BetaTunnelGetParams struct {
-	// Optional header to specify the beta version(s) you want to use.
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `mcp-tunnels-2026-06-22` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
@@ -278,7 +360,15 @@ type BetaTunnelListParams struct {
 	Limit param.Opt[int64] `query:"limit,omitzero" json:"-"`
 	// Opaque pagination cursor from a previous `list_tunnels` response.
 	Page param.Opt[string] `query:"page,omitzero" json:"-"`
-	// Optional header to specify the beta version(s) you want to use.
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `mcp-tunnels-2026-06-22` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
@@ -292,13 +382,29 @@ func (r BetaTunnelListParams) URLQuery() (v url.Values, err error) {
 }
 
 type BetaTunnelArchiveParams struct {
-	// Optional header to specify the beta version(s) you want to use.
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `mcp-tunnels-2026-06-22` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
 
 type BetaTunnelRevealTokenParams struct {
-	// Optional header to specify the beta version(s) you want to use.
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `mcp-tunnels-2026-06-22` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
@@ -306,7 +412,15 @@ type BetaTunnelRevealTokenParams struct {
 type BetaTunnelRotateTokenParams struct {
 	// Optional free-text reason for the rotation, recorded for audit.
 	Reason param.Opt[string] `json:"reason,omitzero"`
-	// Optional header to specify the beta version(s) you want to use.
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `mcp-tunnels-2026-06-22` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }

@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package anthropic
 
 import (
@@ -57,6 +55,9 @@ func (r *MessageService) New(ctx context.Context, params MessageNewParams, opts 
 	if !param.IsOmitted(params.UserProfileID) {
 		opts = append(opts, option.WithHeader("anthropic-user-profile-id", fmt.Sprintf("%v", params.UserProfileID.Value)))
 	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
+	}
 	opts = slices.Concat(r.Options, opts)
 	warnIfThinkingEnabled(params.Model, params.Thinking.OfEnabled != nil)
 
@@ -69,6 +70,7 @@ func (r *MessageService) New(ctx context.Context, params MessageNewParams, opts 
 	opts = append(opts, option.WithRequestTimeout(timeout))
 
 	path := "v1/messages"
+	opts = append(opts, requestconfig.WithSpan("anthropic.messages.create", "/v1/messages"), messagesCreateSpan(params, &res))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
@@ -91,10 +93,14 @@ func (r *MessageService) NewStreaming(ctx context.Context, params MessageNewPara
 	if !param.IsOmitted(params.UserProfileID) {
 		opts = append(opts, option.WithHeader("anthropic-user-profile-id", fmt.Sprintf("%v", params.UserProfileID.Value)))
 	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
+	}
 	opts = slices.Concat(r.Options, opts)
 	warnIfThinkingEnabled(params.Model, params.Thinking.OfEnabled != nil)
 	opts = append(opts, option.WithJSONSet("stream", true))
 	path := "v1/messages"
+	opts = append(opts, requestconfig.WithSpan("anthropic.messages.create", "/v1/messages"), messagesCreateSpan(params, nil))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &raw, opts...)
 	return ssestream.NewStream[MessageStreamEventUnion](ssestream.NewDecoder(raw), err)
 }
@@ -110,8 +116,12 @@ func (r *MessageService) CountTokens(ctx context.Context, params MessageCountTok
 	if !param.IsOmitted(params.UserProfileID) {
 		opts = append(opts, option.WithHeader("anthropic-user-profile-id", fmt.Sprintf("%v", params.UserProfileID.Value)))
 	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
+	}
 	opts = slices.Concat(r.Options, opts)
 	path := "v1/messages/count_tokens"
+	opts = append(opts, requestconfig.WithSpan("anthropic.messages.count_tokens", "/v1/messages/count_tokens"), countTokensSpan(string(params.Model), &res, func(count *MessageTokensCount) int64 { return count.InputTokens }))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
@@ -422,9 +432,9 @@ func (u BashCodeExecutionToolResultBlockParamContentUnion) GetStdout() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u BashCodeExecutionToolResultBlockParamContentUnion) GetType() *string {
 	if vt := u.OfRequestBashCodeExecutionToolResultError; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfRequestBashCodeExecutionResultBlock; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -478,6 +488,75 @@ func (r *BashCodeExecutionToolResultErrorParam) UnmarshalJSON(data []byte) error
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// BrowserClickTargetUnion contains all possible properties and values from
+// [BrowserCoordinateTarget], [BrowserRefTarget].
+//
+// Use the [BrowserClickTargetUnion.AsAny] method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type BrowserClickTargetUnion struct {
+	// Any of "coordinate", "ref".
+	Type string `json:"type"`
+	// This field is from variant [BrowserCoordinateTarget].
+	X int64 `json:"x"`
+	// This field is from variant [BrowserCoordinateTarget].
+	Y int64 `json:"y"`
+	// This field is from variant [BrowserRefTarget].
+	Ref  string `json:"ref"`
+	JSON struct {
+		Type respjson.Field
+		X    respjson.Field
+		Y    respjson.Field
+		Ref  respjson.Field
+		raw  string
+	} `json:"-"`
+}
+
+// anyBrowserClickTarget is implemented by each variant of
+// [BrowserClickTargetUnion] to add type safety for the return type of
+// [BrowserClickTargetUnion.AsAny]
+type anyBrowserClickTarget interface {
+	implBrowserClickTargetUnion()
+}
+
+func (BrowserCoordinateTarget) implBrowserClickTargetUnion() {}
+func (BrowserRefTarget) implBrowserClickTargetUnion()        {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := BrowserClickTargetUnion.AsAny().(type) {
+//	case anthropic.BrowserCoordinateTarget:
+//	case anthropic.BrowserRefTarget:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u BrowserClickTargetUnion) AsAny() anyBrowserClickTarget {
+	switch u.Type {
+	case "coordinate":
+		return u.AsCoordinate()
+	case "ref":
+		return u.AsRef()
+	}
+	return nil
+}
+
+func (u BrowserClickTargetUnion) AsCoordinate() (v BrowserCoordinateTarget) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserClickTargetUnion) AsRef() (v BrowserRefTarget) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u BrowserClickTargetUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *BrowserClickTargetUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `close_tab`'s config overrides.
 type BrowserCloseTabConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -495,6 +574,77 @@ func (r BrowserCloseTabConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserCloseTabConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Close the tab with the given tab_id.
+type BrowserCloseTabInput struct {
+	// The tab to close.
+	TabID string `json:"tab_id" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserCloseTabInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserCloseTabInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserCloseTabToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Close the tab with the given tab_id.
+	Input       BrowserCloseTabInput `json:"input" api:"required"`
+	Name        constant.CloseTab    `json:"name" default:"close_tab"`
+	ToolsetName constant.Browser     `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse     `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserCloseTabToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserCloseTabToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A point in the browser viewport, in viewport pixels (the same frame as a
+// full-viewport screenshot).
+type BrowserCoordinateTarget struct {
+	Type constant.Coordinate `json:"type" default:"coordinate"`
+	// Pixels from the left edge of the viewport.
+	X int64 `json:"x" api:"required"`
+	// Pixels from the top edge of the viewport.
+	Y int64 `json:"y" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		X           respjson.Field
+		Y           respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserCoordinateTarget) RawJSON() string { return r.JSON.raw }
+func (r *BrowserCoordinateTarget) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -518,6 +668,60 @@ func (r *BrowserDoubleClickConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Double left-click at a viewport coordinate or on an element by reference.
+type BrowserDoubleClickInput struct {
+	// Where to act: either a viewport coordinate or an element reference.
+	Target BrowserClickTargetUnion `json:"target" api:"required"`
+	// Optional modifier key chord to hold for the duration of this action (e.g.
+	// "shift", "ctrl+shift", "cmd+alt").
+	Modifiers string `json:"modifiers" api:"nullable"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		Modifiers   respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserDoubleClickInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserDoubleClickInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserDoubleClickToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Double left-click at a viewport coordinate or on an element by reference.
+	Input       BrowserDoubleClickInput `json:"input" api:"required"`
+	Name        constant.DoubleClick    `json:"name" default:"double_click"`
+	ToolsetName constant.Browser        `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse        `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserDoubleClickToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserDoubleClickToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `file_upload`'s config overrides.
 type BrowserFileUploadConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -535,6 +739,67 @@ func (r BrowserFileUploadConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserFileUploadConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Set the value of a file-input element to one or more files. The target must be
+// an element reference; at least one of paths or document_ids is required.
+type BrowserFileUploadInput struct {
+	// An element on the page, identified by a reference from a prior `read_page` or
+	// `find` result. References are scoped to the tab that produced them and become
+	// stale after navigation or a major re-render.
+	Target BrowserRefTarget `json:"target" api:"required"`
+	// References to files the harness has staged, for deployments where the browser
+	// executor cannot read the caller's filesystem.
+	DocumentIDs []string `json:"document_ids" api:"nullable"`
+	// File paths on the browser executor's filesystem.
+	Paths []string `json:"paths" api:"nullable"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		DocumentIDs respjson.Field
+		Paths       respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserFileUploadInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserFileUploadInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserFileUploadToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Set the value of a file-input element to one or more files. The target must be
+	// an element reference; at least one of paths or document_ids is required.
+	Input       BrowserFileUploadInput `json:"input" api:"required"`
+	Name        constant.FileUpload    `json:"name" default:"file_upload"`
+	ToolsetName constant.Browser       `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse       `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserFileUploadToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserFileUploadToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -558,6 +823,58 @@ func (r *BrowserFindConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Find elements matching a natural-language description (e.g. "search bar", "add
+// to cart button") and return up to 20 matches with element references.
+type BrowserFindInput struct {
+	// Natural-language description of the element(s) to find.
+	Query string `json:"query" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Query       respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserFindInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserFindInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserFindToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Find elements matching a natural-language description (e.g. "search bar", "add
+	// to cart button") and return up to 20 matches with element references.
+	Input       BrowserFindInput `json:"input" api:"required"`
+	Name        constant.Find    `json:"name" default:"find"`
+	ToolsetName constant.Browser `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserFindToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserFindToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `form_input`'s config overrides.
 type BrowserFormInputConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -575,6 +892,107 @@ func (r BrowserFormInputConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserFormInputConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Set the value of a form element (input, textarea, select, checkbox). Use a
+// boolean for checkboxes, an option value or text for selects.
+type BrowserFormInputInput struct {
+	// An element on the page, identified by a reference from a prior `read_page` or
+	// `find` result. References are scoped to the tab that produced them and become
+	// stale after navigation or a major re-render.
+	Target BrowserRefTarget `json:"target" api:"required"`
+	// The value to set.
+	Value BrowserFormInputValueUnion `json:"value" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		Value       respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserFormInputInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserFormInputInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserFormInputToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Set the value of a form element (input, textarea, select, checkbox). Use a
+	// boolean for checkboxes, an option value or text for selects.
+	Input       BrowserFormInputInput `json:"input" api:"required"`
+	Name        constant.FormInput    `json:"name" default:"form_input"`
+	ToolsetName constant.Browser      `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse      `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserFormInputToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserFormInputToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// BrowserFormInputValueUnion contains all possible properties and values from
+// [string], [float64], [bool].
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfString OfFloat OfBool]
+type BrowserFormInputValueUnion struct {
+	// This field will be present if the value is a [string] instead of an object.
+	OfString string `json:",inline"`
+	// This field will be present if the value is a [float64] instead of an object.
+	OfFloat float64 `json:",inline"`
+	// This field will be present if the value is a [bool] instead of an object.
+	OfBool bool `json:",inline"`
+	JSON   struct {
+		OfString respjson.Field
+		OfFloat  respjson.Field
+		OfBool   respjson.Field
+		raw      string
+	} `json:"-"`
+}
+
+func (u BrowserFormInputValueUnion) AsString() (v string) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserFormInputValueUnion) AsFloat() (v float64) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserFormInputValueUnion) AsBool() (v bool) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u BrowserFormInputValueUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *BrowserFormInputValueUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -598,6 +1016,55 @@ func (r *BrowserGetPageTextConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Return the page's visible text content as plain text, prioritizing article
+// content. Suited to articles, documentation, and other text-heavy pages.
+type BrowserGetPageTextInput struct {
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserGetPageTextInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserGetPageTextInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserGetPageTextToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Return the page's visible text content as plain text, prioritizing article
+	// content. Suited to articles, documentation, and other text-heavy pages.
+	Input       BrowserGetPageTextInput `json:"input" api:"required"`
+	Name        constant.GetPageText    `json:"name" default:"get_page_text"`
+	ToolsetName constant.Browser        `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse        `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserGetPageTextToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserGetPageTextToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `hold_key`'s config overrides.
 type BrowserHoldKeyConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -615,6 +1082,61 @@ func (r BrowserHoldKeyConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserHoldKeyConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Hold a key or key chord down for a duration, then release it. Uses the same key
+// names and "+" chord syntax as the key action.
+type BrowserHoldKeyInput struct {
+	// Seconds to hold the key down (maximum 30).
+	Duration float64 `json:"duration" api:"required"`
+	// The key or chord to hold.
+	Text string `json:"text" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Duration    respjson.Field
+		Text        respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserHoldKeyInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserHoldKeyInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserHoldKeyToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Hold a key or key chord down for a duration, then release it. Uses the same key
+	// names and "+" chord syntax as the key action.
+	Input       BrowserHoldKeyInput `json:"input" api:"required"`
+	Name        constant.HoldKey    `json:"name" default:"hold_key"`
+	ToolsetName constant.Browser    `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse    `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserHoldKeyToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserHoldKeyToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -638,6 +1160,56 @@ func (r *BrowserHoverConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Move the cursor to a coordinate or element without clicking.
+type BrowserHoverInput struct {
+	// Where to act: either a viewport coordinate or an element reference.
+	Target BrowserClickTargetUnion `json:"target" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserHoverInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserHoverInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserHoverToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Move the cursor to a coordinate or element without clicking.
+	Input       BrowserHoverInput `json:"input" api:"required"`
+	Name        constant.Hover    `json:"name" default:"hover"`
+	ToolsetName constant.Browser  `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse  `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserHoverToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserHoverToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `javascript_exec`'s config overrides.
 type BrowserJavascriptExecConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -658,6 +1230,60 @@ func (r *BrowserJavascriptExecConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Execute JavaScript in the page context and return the value of the last
+// expression. The code runs with access to the DOM, `window`, and page variables.
+// Write the expression you want evaluated — do NOT use `return`.
+type BrowserJavascriptExecInput struct {
+	// JavaScript to execute in the page context.
+	Text string `json:"text" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Text        respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserJavascriptExecInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserJavascriptExecInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserJavascriptExecToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Execute JavaScript in the page context and return the value of the last
+	// expression. The code runs with access to the DOM, `window`, and page variables.
+	// Write the expression you want evaluated — do NOT use `return`.
+	Input       BrowserJavascriptExecInput `json:"input" api:"required"`
+	Name        constant.JavascriptExec    `json:"name" default:"javascript_exec"`
+	ToolsetName constant.Browser           `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse           `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserJavascriptExecToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserJavascriptExecToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `key`'s config overrides.
 type BrowserKeyConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -675,6 +1301,65 @@ func (r BrowserKeyConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserKeyConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Press a key or key chord. Use "+" to combine modifiers with a key (e.g.
+// "ctrl+a", "cmd+shift+p") and space to sequence presses (e.g. "Backspace
+// Backspace Delete"). Common names like "Return", "Tab", "Escape", "BackSpace" are
+// supported.
+type BrowserKeyInput struct {
+	// The key, chord, or space-separated sequence to press.
+	Text string `json:"text" api:"required"`
+	// Number of times to repeat. Default 1.
+	Repeat int64 `json:"repeat" api:"nullable"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Text        respjson.Field
+		Repeat      respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserKeyInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserKeyInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserKeyToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Press a key or key chord. Use "+" to combine modifiers with a key (e.g.
+	// "ctrl+a", "cmd+shift+p") and space to sequence presses (e.g. "Backspace
+	// Backspace Delete"). Common names like "Return", "Tab", "Escape", "BackSpace" are
+	// supported.
+	Input       BrowserKeyInput  `json:"input" api:"required"`
+	Name        constant.Key     `json:"name" default:"key"`
+	ToolsetName constant.Browser `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserKeyToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserKeyToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -718,6 +1403,115 @@ func (r *BrowserLeftClickDragConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Press at `from`, drag to `target`, release. Both must be coordinate targets.
+type BrowserLeftClickDragInput struct {
+	// A point in the browser viewport, in viewport pixels (the same frame as a
+	// full-viewport screenshot).
+	From BrowserCoordinateTarget `json:"from" api:"required"`
+	// A point in the browser viewport, in viewport pixels (the same frame as a
+	// full-viewport screenshot).
+	Target BrowserCoordinateTarget `json:"target" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		From        respjson.Field
+		Target      respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserLeftClickDragInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserLeftClickDragInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserLeftClickDragToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Press at `from`, drag to `target`, release. Both must be coordinate targets.
+	Input       BrowserLeftClickDragInput `json:"input" api:"required"`
+	Name        constant.LeftClickDrag    `json:"name" default:"left_click_drag"`
+	ToolsetName constant.Browser          `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse          `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserLeftClickDragToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserLeftClickDragToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Left-click at a viewport coordinate or on an element by reference.
+type BrowserLeftClickInput struct {
+	// Where to act: either a viewport coordinate or an element reference.
+	Target BrowserClickTargetUnion `json:"target" api:"required"`
+	// Optional modifier key chord to hold for the duration of this action (e.g.
+	// "shift", "ctrl+shift", "cmd+alt").
+	Modifiers string `json:"modifiers" api:"nullable"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		Modifiers   respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserLeftClickInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserLeftClickInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserLeftClickToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Left-click at a viewport coordinate or on an element by reference.
+	Input       BrowserLeftClickInput `json:"input" api:"required"`
+	Name        constant.LeftClick    `json:"name" default:"left_click"`
+	ToolsetName constant.Browser      `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse      `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserLeftClickToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserLeftClickToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `left_mouse_down`'s config overrides.
 type BrowserLeftMouseDownConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -735,6 +1529,59 @@ func (r BrowserLeftMouseDownConfigParam) MarshalJSON() (data []byte, err error) 
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserLeftMouseDownConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Press and hold the left mouse button at a viewport coordinate. Pair with
+// left_mouse_up to perform a custom drag.
+type BrowserLeftMouseDownInput struct {
+	// A point in the browser viewport, in viewport pixels (the same frame as a
+	// full-viewport screenshot).
+	Target BrowserCoordinateTarget `json:"target" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserLeftMouseDownInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserLeftMouseDownInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserLeftMouseDownToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Press and hold the left mouse button at a viewport coordinate. Pair with
+	// left_mouse_up to perform a custom drag.
+	Input       BrowserLeftMouseDownInput `json:"input" api:"required"`
+	Name        constant.LeftMouseDown    `json:"name" default:"left_mouse_down"`
+	ToolsetName constant.Browser          `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse          `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserLeftMouseDownToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserLeftMouseDownToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -758,6 +1605,57 @@ func (r *BrowserLeftMouseUpConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Release the left mouse button at a viewport coordinate.
+type BrowserLeftMouseUpInput struct {
+	// A point in the browser viewport, in viewport pixels (the same frame as a
+	// full-viewport screenshot).
+	Target BrowserCoordinateTarget `json:"target" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserLeftMouseUpInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserLeftMouseUpInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserLeftMouseUpToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Release the left mouse button at a viewport coordinate.
+	Input       BrowserLeftMouseUpInput `json:"input" api:"required"`
+	Name        constant.LeftMouseUp    `json:"name" default:"left_mouse_up"`
+	ToolsetName constant.Browser        `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse        `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserLeftMouseUpToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserLeftMouseUpToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `list_tabs`'s config overrides.
 type BrowserListTabsConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -775,6 +1673,50 @@ func (r BrowserListTabsConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserListTabsConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// List all open tabs with each tab's tab_id, title, and URL.
+type BrowserListTabsInput struct {
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserListTabsInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserListTabsInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserListTabsToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// List all open tabs with each tab's tab_id, title, and URL.
+	Input       BrowserListTabsInput `json:"input" api:"required"`
+	Name        constant.ListTabs    `json:"name" default:"list_tabs"`
+	ToolsetName constant.Browser     `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse     `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserListTabsToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserListTabsToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -798,6 +1740,60 @@ func (r *BrowserMiddleClickConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Middle-click at a viewport coordinate or on an element by reference.
+type BrowserMiddleClickInput struct {
+	// Where to act: either a viewport coordinate or an element reference.
+	Target BrowserClickTargetUnion `json:"target" api:"required"`
+	// Optional modifier key chord to hold for the duration of this action (e.g.
+	// "shift", "ctrl+shift", "cmd+alt").
+	Modifiers string `json:"modifiers" api:"nullable"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		Modifiers   respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserMiddleClickInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserMiddleClickInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserMiddleClickToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Middle-click at a viewport coordinate or on an element by reference.
+	Input       BrowserMiddleClickInput `json:"input" api:"required"`
+	Name        constant.MiddleClick    `json:"name" default:"middle_click"`
+	ToolsetName constant.Browser        `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse        `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserMiddleClickToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserMiddleClickToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `mouse_move`'s config overrides.
 type BrowserMouseMoveConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -815,6 +1811,57 @@ func (r BrowserMouseMoveConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserMouseMoveConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Move the pointer to a viewport coordinate without clicking.
+type BrowserMouseMoveInput struct {
+	// A point in the browser viewport, in viewport pixels (the same frame as a
+	// full-viewport screenshot).
+	Target BrowserCoordinateTarget `json:"target" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserMouseMoveInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserMouseMoveInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserMouseMoveToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Move the pointer to a viewport coordinate without clicking.
+	Input       BrowserMouseMoveInput `json:"input" api:"required"`
+	Name        constant.MouseMove    `json:"name" default:"mouse_move"`
+	ToolsetName constant.Browser      `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse      `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserMouseMoveToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserMouseMoveToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -838,6 +1885,58 @@ func (r *BrowserNavigateConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Navigate to a URL, or go back/forward/reload in history. The protocol may be
+// omitted (defaults to https://).
+type BrowserNavigateInput struct {
+	// The URL to navigate to, or "back" / "forward" / "reload" for history navigation.
+	URL string `json:"url" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		URL         respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserNavigateInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserNavigateInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserNavigateToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Navigate to a URL, or go back/forward/reload in history. The protocol may be
+	// omitted (defaults to https://).
+	Input       BrowserNavigateInput `json:"input" api:"required"`
+	Name        constant.Navigate    `json:"name" default:"navigate"`
+	ToolsetName constant.Browser     `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse     `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserNavigateToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserNavigateToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `new_tab`'s config overrides.
 type BrowserNewTabConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -855,6 +1954,50 @@ func (r BrowserNewTabConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserNewTabConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Open a new empty tab and return its tab_id.
+type BrowserNewTabInput struct {
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserNewTabInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserNewTabInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserNewTabToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Open a new empty tab and return its tab_id.
+	Input       BrowserNewTabInput `json:"input" api:"required"`
+	Name        constant.NewTab    `json:"name" default:"new_tab"`
+	ToolsetName constant.Browser   `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse   `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserNewTabToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserNewTabToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -878,6 +2021,57 @@ func (r *BrowserReadConsoleConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Return console output (log entries, errors, warnings) accumulated since the
+// driver attached to the tab and since the last read, one line per entry. An empty
+// result does not mean no traffic for a tab that predates attach.
+type BrowserReadConsoleInput struct {
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserReadConsoleInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserReadConsoleInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserReadConsoleToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Return console output (log entries, errors, warnings) accumulated since the
+	// driver attached to the tab and since the last read, one line per entry. An empty
+	// result does not mean no traffic for a tab that predates attach.
+	Input       BrowserReadConsoleInput `json:"input" api:"required"`
+	Name        constant.ReadConsole    `json:"name" default:"read_console"`
+	ToolsetName constant.Browser        `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse        `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserReadConsoleToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserReadConsoleToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `read_network`'s config overrides.
 type BrowserReadNetworkConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -895,6 +2089,57 @@ func (r BrowserReadNetworkConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserReadNetworkConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Return the network requests (method, URL, status, MIME type, timing) recorded
+// since the driver attached to the tab and since the last read, one line per
+// entry. An empty result does not mean no traffic for a tab that predates attach.
+type BrowserReadNetworkInput struct {
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserReadNetworkInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserReadNetworkInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserReadNetworkToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Return the network requests (method, URL, status, MIME type, timing) recorded
+	// since the driver attached to the tab and since the last read, one line per
+	// entry. An empty result does not mean no traffic for a tab that predates attach.
+	Input       BrowserReadNetworkInput `json:"input" api:"required"`
+	Name        constant.ReadNetwork    `json:"name" default:"read_network"`
+	ToolsetName constant.Browser        `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse        `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserReadNetworkToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserReadNetworkToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -918,6 +2163,101 @@ func (r *BrowserReadPageConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+type BrowserReadPageFilter string
+
+const (
+	BrowserReadPageFilterAll         BrowserReadPageFilter = "all"
+	BrowserReadPageFilterInteractive BrowserReadPageFilter = "interactive"
+)
+
+// Return a structured accessibility tree of the page (or the subtree rooted at
+// `ref`), with element references like [ref_7] that can be used as targets on
+// later actions. Output is capped at 50,000 characters — narrow with `ref` or a
+// smaller `depth` when exceeded.
+type BrowserReadPageInput struct {
+	// Maximum tree depth. Default 15.
+	Depth int64 `json:"depth" api:"nullable"`
+	// Which elements to include. Omitted: every visible element. "interactive":
+	// interactive elements only. "all": additionally includes off-viewport elements.
+	//
+	// Any of "all", "interactive".
+	Filter BrowserReadPageFilter `json:"filter" api:"nullable"`
+	// Element reference to read a subtree from. Omit to read from the page root.
+	Ref string `json:"ref" api:"nullable"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Depth       respjson.Field
+		Filter      respjson.Field
+		Ref         respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserReadPageInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserReadPageInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserReadPageToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Return a structured accessibility tree of the page (or the subtree rooted at
+	// `ref`), with element references like [ref_7] that can be used as targets on
+	// later actions. Output is capped at 50,000 characters — narrow with `ref` or a
+	// smaller `depth` when exceeded.
+	Input       BrowserReadPageInput `json:"input" api:"required"`
+	Name        constant.ReadPage    `json:"name" default:"read_page"`
+	ToolsetName constant.Browser     `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse     `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserReadPageToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserReadPageToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// An element on the page, identified by a reference from a prior `read_page` or
+// `find` result. References are scoped to the tab that produced them and become
+// stale after navigation or a major re-render.
+type BrowserRefTarget struct {
+	// An element reference (e.g. "ref_7") returned by a prior `read_page` or `find`
+	// result.
+	Ref  string       `json:"ref" api:"required"`
+	Type constant.Ref `json:"type" default:"ref"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Ref         respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserRefTarget) RawJSON() string { return r.JSON.raw }
+func (r *BrowserRefTarget) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `right_click`'s config overrides.
 type BrowserRightClickConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -935,6 +2275,60 @@ func (r BrowserRightClickConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserRightClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Right-click at a viewport coordinate or on an element by reference.
+type BrowserRightClickInput struct {
+	// Where to act: either a viewport coordinate or an element reference.
+	Target BrowserClickTargetUnion `json:"target" api:"required"`
+	// Optional modifier key chord to hold for the duration of this action (e.g.
+	// "shift", "ctrl+shift", "cmd+alt").
+	Modifiers string `json:"modifiers" api:"nullable"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		Modifiers   respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserRightClickInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserRightClickInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserRightClickToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Right-click at a viewport coordinate or on an element by reference.
+	Input       BrowserRightClickInput `json:"input" api:"required"`
+	Name        constant.RightClick    `json:"name" default:"right_click"`
+	ToolsetName constant.Browser       `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse       `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserRightClickToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserRightClickToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -958,6 +2352,53 @@ func (r *BrowserScreenshotConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Capture the current browser viewport.
+type BrowserScreenshotInput struct {
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserScreenshotInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserScreenshotInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserScreenshotToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Capture the current browser viewport.
+	Input       BrowserScreenshotInput `json:"input" api:"required"`
+	Name        constant.Screenshot    `json:"name" default:"screenshot"`
+	ToolsetName constant.Browser       `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse       `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserScreenshotToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserScreenshotToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `scroll`'s config overrides.
 type BrowserScrollConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -978,6 +2419,43 @@ func (r *BrowserScrollConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+type BrowserScrollDirection string
+
+const (
+	BrowserScrollDirectionUp    BrowserScrollDirection = "up"
+	BrowserScrollDirectionDown  BrowserScrollDirection = "down"
+	BrowserScrollDirectionLeft  BrowserScrollDirection = "left"
+	BrowserScrollDirectionRight BrowserScrollDirection = "right"
+)
+
+// Scroll at a viewport position. `target` must be a coordinate target.
+type BrowserScrollInput struct {
+	// Any of "up", "down", "left", "right".
+	ScrollDirection BrowserScrollDirection `json:"scroll_direction" api:"required"`
+	// A point in the browser viewport, in viewport pixels (the same frame as a
+	// full-viewport screenshot).
+	Target BrowserCoordinateTarget `json:"target" api:"required"`
+	// Scroll-wheel notches (1–10). Default 3.
+	ScrollAmount int64 `json:"scroll_amount" api:"nullable"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ScrollDirection respjson.Field
+		Target          respjson.Field
+		ScrollAmount    respjson.Field
+		TabID           respjson.Field
+		ExtraFields     map[string]respjson.Field
+		raw             string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserScrollInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserScrollInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `scroll_to`'s config overrides.
 type BrowserScrollToConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -995,6 +2473,87 @@ func (r BrowserScrollToConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserScrollToConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Scroll an element into view.
+type BrowserScrollToInput struct {
+	// An element on the page, identified by a reference from a prior `read_page` or
+	// `find` result. References are scoped to the tab that produced them and become
+	// stale after navigation or a major re-render.
+	Target BrowserRefTarget `json:"target" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserScrollToInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserScrollToInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserScrollToToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Scroll an element into view.
+	Input       BrowserScrollToInput `json:"input" api:"required"`
+	Name        constant.ScrollTo    `json:"name" default:"scroll_to"`
+	ToolsetName constant.Browser     `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse     `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserScrollToToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserScrollToToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserScrollToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Scroll at a viewport position. `target` must be a coordinate target.
+	Input       BrowserScrollInput `json:"input" api:"required"`
+	Name        constant.Scroll    `json:"name" default:"scroll"`
+	ToolsetName constant.Browser   `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse   `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserScrollToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserScrollToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -1122,13 +2681,13 @@ func (u BrowserStateChangeUnionParam) GetError() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u BrowserStateChangeUnionParam) GetType() *string {
 	if vt := u.OfTabOpened; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfDownloadStarted; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfDownloadCompleted; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfDownloadFailed; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -1317,22 +2876,524 @@ func (r *BrowserSwitchTabConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Make the tab with the given tab_id the active tab — the tab that actions without
+// a tab_id apply to.
+type BrowserSwitchTabInput struct {
+	// The tab to switch to.
+	TabID string `json:"tab_id" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserSwitchTabInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserSwitchTabInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserSwitchTabToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Make the tab with the given tab_id the active tab — the tab that actions without
+	// a tab_id apply to.
+	Input       BrowserSwitchTabInput `json:"input" api:"required"`
+	Name        constant.SwitchTab    `json:"name" default:"switch_tab"`
+	ToolsetName constant.Browser      `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse      `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserSwitchTabToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserSwitchTabToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// BrowserToolUseBlockUnion contains all possible properties and values from
+// [BrowserNavigateToolUseBlock], [BrowserListTabsToolUseBlock],
+// [BrowserNewTabToolUseBlock], [BrowserSwitchTabToolUseBlock],
+// [BrowserCloseTabToolUseBlock], [BrowserReadPageToolUseBlock],
+// [BrowserGetPageTextToolUseBlock], [BrowserReadConsoleToolUseBlock],
+// [BrowserReadNetworkToolUseBlock], [BrowserFindToolUseBlock],
+// [BrowserFormInputToolUseBlock], [BrowserFileUploadToolUseBlock],
+// [BrowserScrollToToolUseBlock], [BrowserScreenshotToolUseBlock],
+// [BrowserZoomToolUseBlock], [BrowserLeftClickToolUseBlock],
+// [BrowserRightClickToolUseBlock], [BrowserMiddleClickToolUseBlock],
+// [BrowserDoubleClickToolUseBlock], [BrowserTripleClickToolUseBlock],
+// [BrowserHoverToolUseBlock], [BrowserLeftClickDragToolUseBlock],
+// [BrowserLeftMouseDownToolUseBlock], [BrowserLeftMouseUpToolUseBlock],
+// [BrowserMouseMoveToolUseBlock], [BrowserScrollToolUseBlock],
+// [BrowserTypeToolUseBlock], [BrowserKeyToolUseBlock],
+// [BrowserHoldKeyToolUseBlock], [BrowserWaitToolUseBlock],
+// [BrowserJavascriptExecToolUseBlock].
+//
+// Use the [BrowserToolUseBlockUnion.AsAny] method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type BrowserToolUseBlockUnion struct {
+	ID string `json:"id"`
+	// This field is from variant [BrowserNavigateToolUseBlock].
+	Caller ToolUseCallerUnion `json:"caller"`
+	// This field is a union of [BrowserNavigateInput], [BrowserListTabsInput],
+	// [BrowserNewTabInput], [BrowserSwitchTabInput], [BrowserCloseTabInput],
+	// [BrowserReadPageInput], [BrowserGetPageTextInput], [BrowserReadConsoleInput],
+	// [BrowserReadNetworkInput], [BrowserFindInput], [BrowserFormInputInput],
+	// [BrowserFileUploadInput], [BrowserScrollToInput], [BrowserScreenshotInput],
+	// [BrowserZoomInput], [BrowserLeftClickInput], [BrowserRightClickInput],
+	// [BrowserMiddleClickInput], [BrowserDoubleClickInput], [BrowserTripleClickInput],
+	// [BrowserHoverInput], [BrowserLeftClickDragInput], [BrowserLeftMouseDownInput],
+	// [BrowserLeftMouseUpInput], [BrowserMouseMoveInput], [BrowserScrollInput],
+	// [BrowserTypeInput], [BrowserKeyInput], [BrowserHoldKeyInput],
+	// [BrowserWaitInput], [BrowserJavascriptExecInput]
+	Input BrowserToolUseBlockUnionInput `json:"input"`
+	// Any of "navigate", "list_tabs", "new_tab", "switch_tab", "close_tab",
+	// "read_page", "get_page_text", "read_console", "read_network", "find",
+	// "form_input", "file_upload", "scroll_to", "screenshot", "zoom", "left_click",
+	// "right_click", "middle_click", "double_click", "triple_click", "hover",
+	// "left_click_drag", "left_mouse_down", "left_mouse_up", "mouse_move", "scroll",
+	// "type", "key", "hold_key", "wait", "javascript_exec".
+	Name string `json:"name"`
+	// This field is from variant [BrowserNavigateToolUseBlock].
+	ToolsetName constant.Browser `json:"toolset_name"`
+	// This field is from variant [BrowserNavigateToolUseBlock].
+	Type constant.ToolUse `json:"type"`
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// anyBrowserToolUseBlock is implemented by each variant of
+// [BrowserToolUseBlockUnion] to add type safety for the return type of
+// [BrowserToolUseBlockUnion.AsAny]
+type anyBrowserToolUseBlock interface {
+	implBrowserToolUseBlockUnion()
+}
+
+func (BrowserNavigateToolUseBlock) implBrowserToolUseBlockUnion()       {}
+func (BrowserListTabsToolUseBlock) implBrowserToolUseBlockUnion()       {}
+func (BrowserNewTabToolUseBlock) implBrowserToolUseBlockUnion()         {}
+func (BrowserSwitchTabToolUseBlock) implBrowserToolUseBlockUnion()      {}
+func (BrowserCloseTabToolUseBlock) implBrowserToolUseBlockUnion()       {}
+func (BrowserReadPageToolUseBlock) implBrowserToolUseBlockUnion()       {}
+func (BrowserGetPageTextToolUseBlock) implBrowserToolUseBlockUnion()    {}
+func (BrowserReadConsoleToolUseBlock) implBrowserToolUseBlockUnion()    {}
+func (BrowserReadNetworkToolUseBlock) implBrowserToolUseBlockUnion()    {}
+func (BrowserFindToolUseBlock) implBrowserToolUseBlockUnion()           {}
+func (BrowserFormInputToolUseBlock) implBrowserToolUseBlockUnion()      {}
+func (BrowserFileUploadToolUseBlock) implBrowserToolUseBlockUnion()     {}
+func (BrowserScrollToToolUseBlock) implBrowserToolUseBlockUnion()       {}
+func (BrowserScreenshotToolUseBlock) implBrowserToolUseBlockUnion()     {}
+func (BrowserZoomToolUseBlock) implBrowserToolUseBlockUnion()           {}
+func (BrowserLeftClickToolUseBlock) implBrowserToolUseBlockUnion()      {}
+func (BrowserRightClickToolUseBlock) implBrowserToolUseBlockUnion()     {}
+func (BrowserMiddleClickToolUseBlock) implBrowserToolUseBlockUnion()    {}
+func (BrowserDoubleClickToolUseBlock) implBrowserToolUseBlockUnion()    {}
+func (BrowserTripleClickToolUseBlock) implBrowserToolUseBlockUnion()    {}
+func (BrowserHoverToolUseBlock) implBrowserToolUseBlockUnion()          {}
+func (BrowserLeftClickDragToolUseBlock) implBrowserToolUseBlockUnion()  {}
+func (BrowserLeftMouseDownToolUseBlock) implBrowserToolUseBlockUnion()  {}
+func (BrowserLeftMouseUpToolUseBlock) implBrowserToolUseBlockUnion()    {}
+func (BrowserMouseMoveToolUseBlock) implBrowserToolUseBlockUnion()      {}
+func (BrowserScrollToolUseBlock) implBrowserToolUseBlockUnion()         {}
+func (BrowserTypeToolUseBlock) implBrowserToolUseBlockUnion()           {}
+func (BrowserKeyToolUseBlock) implBrowserToolUseBlockUnion()            {}
+func (BrowserHoldKeyToolUseBlock) implBrowserToolUseBlockUnion()        {}
+func (BrowserWaitToolUseBlock) implBrowserToolUseBlockUnion()           {}
+func (BrowserJavascriptExecToolUseBlock) implBrowserToolUseBlockUnion() {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := BrowserToolUseBlockUnion.AsAny().(type) {
+//	case anthropic.BrowserNavigateToolUseBlock:
+//	case anthropic.BrowserListTabsToolUseBlock:
+//	case anthropic.BrowserNewTabToolUseBlock:
+//	case anthropic.BrowserSwitchTabToolUseBlock:
+//	case anthropic.BrowserCloseTabToolUseBlock:
+//	case anthropic.BrowserReadPageToolUseBlock:
+//	case anthropic.BrowserGetPageTextToolUseBlock:
+//	case anthropic.BrowserReadConsoleToolUseBlock:
+//	case anthropic.BrowserReadNetworkToolUseBlock:
+//	case anthropic.BrowserFindToolUseBlock:
+//	case anthropic.BrowserFormInputToolUseBlock:
+//	case anthropic.BrowserFileUploadToolUseBlock:
+//	case anthropic.BrowserScrollToToolUseBlock:
+//	case anthropic.BrowserScreenshotToolUseBlock:
+//	case anthropic.BrowserZoomToolUseBlock:
+//	case anthropic.BrowserLeftClickToolUseBlock:
+//	case anthropic.BrowserRightClickToolUseBlock:
+//	case anthropic.BrowserMiddleClickToolUseBlock:
+//	case anthropic.BrowserDoubleClickToolUseBlock:
+//	case anthropic.BrowserTripleClickToolUseBlock:
+//	case anthropic.BrowserHoverToolUseBlock:
+//	case anthropic.BrowserLeftClickDragToolUseBlock:
+//	case anthropic.BrowserLeftMouseDownToolUseBlock:
+//	case anthropic.BrowserLeftMouseUpToolUseBlock:
+//	case anthropic.BrowserMouseMoveToolUseBlock:
+//	case anthropic.BrowserScrollToolUseBlock:
+//	case anthropic.BrowserTypeToolUseBlock:
+//	case anthropic.BrowserKeyToolUseBlock:
+//	case anthropic.BrowserHoldKeyToolUseBlock:
+//	case anthropic.BrowserWaitToolUseBlock:
+//	case anthropic.BrowserJavascriptExecToolUseBlock:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u BrowserToolUseBlockUnion) AsAny() anyBrowserToolUseBlock {
+	switch u.Name {
+	case "navigate":
+		return u.AsNavigate()
+	case "list_tabs":
+		return u.AsListTabs()
+	case "new_tab":
+		return u.AsNewTab()
+	case "switch_tab":
+		return u.AsSwitchTab()
+	case "close_tab":
+		return u.AsCloseTab()
+	case "read_page":
+		return u.AsReadPage()
+	case "get_page_text":
+		return u.AsGetPageText()
+	case "read_console":
+		return u.AsReadConsole()
+	case "read_network":
+		return u.AsReadNetwork()
+	case "find":
+		return u.AsFind()
+	case "form_input":
+		return u.AsFormInput()
+	case "file_upload":
+		return u.AsFileUpload()
+	case "scroll_to":
+		return u.AsScrollTo()
+	case "screenshot":
+		return u.AsScreenshot()
+	case "zoom":
+		return u.AsZoom()
+	case "left_click":
+		return u.AsLeftClick()
+	case "right_click":
+		return u.AsRightClick()
+	case "middle_click":
+		return u.AsMiddleClick()
+	case "double_click":
+		return u.AsDoubleClick()
+	case "triple_click":
+		return u.AsTripleClick()
+	case "hover":
+		return u.AsHover()
+	case "left_click_drag":
+		return u.AsLeftClickDrag()
+	case "left_mouse_down":
+		return u.AsLeftMouseDown()
+	case "left_mouse_up":
+		return u.AsLeftMouseUp()
+	case "mouse_move":
+		return u.AsMouseMove()
+	case "scroll":
+		return u.AsScroll()
+	case "type":
+		return u.AsType()
+	case "key":
+		return u.AsKey()
+	case "hold_key":
+		return u.AsHoldKey()
+	case "wait":
+		return u.AsWait()
+	case "javascript_exec":
+		return u.AsJavascriptExec()
+	}
+	return nil
+}
+
+func (u BrowserToolUseBlockUnion) AsNavigate() (v BrowserNavigateToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsListTabs() (v BrowserListTabsToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsNewTab() (v BrowserNewTabToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsSwitchTab() (v BrowserSwitchTabToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsCloseTab() (v BrowserCloseTabToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsReadPage() (v BrowserReadPageToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsGetPageText() (v BrowserGetPageTextToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsReadConsole() (v BrowserReadConsoleToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsReadNetwork() (v BrowserReadNetworkToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsFind() (v BrowserFindToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsFormInput() (v BrowserFormInputToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsFileUpload() (v BrowserFileUploadToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsScrollTo() (v BrowserScrollToToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsScreenshot() (v BrowserScreenshotToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsZoom() (v BrowserZoomToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsLeftClick() (v BrowserLeftClickToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsRightClick() (v BrowserRightClickToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsMiddleClick() (v BrowserMiddleClickToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsDoubleClick() (v BrowserDoubleClickToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsTripleClick() (v BrowserTripleClickToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsHover() (v BrowserHoverToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsLeftClickDrag() (v BrowserLeftClickDragToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsLeftMouseDown() (v BrowserLeftMouseDownToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsLeftMouseUp() (v BrowserLeftMouseUpToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsMouseMove() (v BrowserMouseMoveToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsScroll() (v BrowserScrollToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsType() (v BrowserTypeToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsKey() (v BrowserKeyToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsHoldKey() (v BrowserHoldKeyToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsWait() (v BrowserWaitToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u BrowserToolUseBlockUnion) AsJavascriptExec() (v BrowserJavascriptExecToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u BrowserToolUseBlockUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *BrowserToolUseBlockUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// BrowserToolUseBlockUnionInput is an implicit subunion of
+// [BrowserToolUseBlockUnion]. BrowserToolUseBlockUnionInput provides convenient
+// access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [BrowserToolUseBlockUnion].
+type BrowserToolUseBlockUnionInput struct {
+	// This field is from variant [BrowserNavigateInput].
+	URL   string `json:"url"`
+	TabID string `json:"tab_id"`
+	// This field is from variant [BrowserReadPageInput].
+	Depth int64 `json:"depth"`
+	// This field is from variant [BrowserReadPageInput].
+	Filter BrowserReadPageFilter `json:"filter"`
+	// This field is from variant [BrowserReadPageInput].
+	Ref string `json:"ref"`
+	// This field is from variant [BrowserFindInput].
+	Query string `json:"query"`
+	// This field is a union of [BrowserRefTarget], [BrowserClickTargetUnion],
+	// [BrowserCoordinateTarget]
+	Target BrowserToolUseBlockUnionInputTarget `json:"target"`
+	// This field is from variant [BrowserFormInputInput].
+	Value BrowserFormInputValueUnion `json:"value"`
+	// This field is from variant [BrowserFileUploadInput].
+	DocumentIDs []string `json:"document_ids"`
+	// This field is from variant [BrowserFileUploadInput].
+	Paths []string `json:"paths"`
+	// This field is from variant [BrowserZoomInput].
+	Region    []int64 `json:"region"`
+	Modifiers string  `json:"modifiers"`
+	// This field is from variant [BrowserLeftClickDragInput].
+	From BrowserCoordinateTarget `json:"from"`
+	// This field is from variant [BrowserScrollInput].
+	ScrollDirection BrowserScrollDirection `json:"scroll_direction"`
+	// This field is from variant [BrowserScrollInput].
+	ScrollAmount int64  `json:"scroll_amount"`
+	Text         string `json:"text"`
+	// This field is from variant [BrowserKeyInput].
+	Repeat   int64   `json:"repeat"`
+	Duration float64 `json:"duration"`
+	JSON     struct {
+		URL             respjson.Field
+		TabID           respjson.Field
+		Depth           respjson.Field
+		Filter          respjson.Field
+		Ref             respjson.Field
+		Query           respjson.Field
+		Target          respjson.Field
+		Value           respjson.Field
+		DocumentIDs     respjson.Field
+		Paths           respjson.Field
+		Region          respjson.Field
+		Modifiers       respjson.Field
+		From            respjson.Field
+		ScrollDirection respjson.Field
+		ScrollAmount    respjson.Field
+		Text            respjson.Field
+		Repeat          respjson.Field
+		Duration        respjson.Field
+		raw             string
+	} `json:"-"`
+}
+
+func (r *BrowserToolUseBlockUnionInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// BrowserToolUseBlockUnionInputTarget is an implicit subunion of
+// [BrowserToolUseBlockUnion]. BrowserToolUseBlockUnionInputTarget provides
+// convenient access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [BrowserToolUseBlockUnion].
+type BrowserToolUseBlockUnionInputTarget struct {
+	// This field is from variant [BrowserRefTarget], [BrowserClickTargetUnion].
+	Ref  string `json:"ref"`
+	Type string `json:"type"`
+	// This field is from variant [BrowserClickTargetUnion], [BrowserCoordinateTarget].
+	X int64 `json:"x"`
+	// This field is from variant [BrowserClickTargetUnion], [BrowserCoordinateTarget].
+	Y    int64 `json:"y"`
+	JSON struct {
+		Ref  respjson.Field
+		Type respjson.Field
+		X    respjson.Field
+		Y    respjson.Field
+		raw  string
+	} `json:"-"`
+}
+
+func (r *BrowserToolUseBlockUnionInputTarget) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // The browser toolset: a single `tools[]` entry (carrying no `name`) that declares
 // the browser tool family. The model is served the family's tool with any members
 // disabled via `configs` removed from its schema.
 //
 // The property Type is required.
 type BrowserToolset20260801Param struct {
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
-	// "code_execution_20260521".
-	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
-	// Per-member configuration for `browser_toolset_20260801`: one optional field per
-	// member tool, keyed by the member name — the same name the member's `tool_use`
-	// blocks carry. Every member is an accepted key, and a member's defaults apply
-	// wherever its key is absent. Unknown keys are rejected: the field set is this
-	// toolset version's complete member set.
+	// Sparse per-member overrides, keyed by member name. Absent, null, and {} are
+	// equivalent; a member's defaults apply wherever its key is absent.
 	Configs BrowserToolsetConfigsParam `json:"configs,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "browser_toolset_20260801".
@@ -1447,6 +3508,62 @@ func (r *BrowserTripleClickConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Triple left-click at a viewport coordinate or on an element by reference
+// (typically selects a line or paragraph).
+type BrowserTripleClickInput struct {
+	// Where to act: either a viewport coordinate or an element reference.
+	Target BrowserClickTargetUnion `json:"target" api:"required"`
+	// Optional modifier key chord to hold for the duration of this action (e.g.
+	// "shift", "ctrl+shift", "cmd+alt").
+	Modifiers string `json:"modifiers" api:"nullable"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Target      respjson.Field
+		Modifiers   respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserTripleClickInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserTripleClickInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserTripleClickToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Triple left-click at a viewport coordinate or on an element by reference
+	// (typically selects a line or paragraph).
+	Input       BrowserTripleClickInput `json:"input" api:"required"`
+	Name        constant.TripleClick    `json:"name" default:"triple_click"`
+	ToolsetName constant.Browser        `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse        `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserTripleClickToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserTripleClickToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `type`'s config overrides.
 type BrowserTypeConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -1464,6 +3581,56 @@ func (r BrowserTypeConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserTypeConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Type a literal string at the current focus.
+type BrowserTypeInput struct {
+	// The text to type.
+	Text string `json:"text" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Text        respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserTypeInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserTypeInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserTypeToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Type a literal string at the current focus.
+	Input       BrowserTypeInput `json:"input" api:"required"`
+	Name        constant.Type    `json:"name" default:"type"`
+	ToolsetName constant.Browser `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserTypeToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserTypeToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -1487,6 +3654,56 @@ func (r *BrowserWaitConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Pause for the given duration.
+type BrowserWaitInput struct {
+	// Seconds to wait (maximum 30).
+	Duration float64 `json:"duration" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Duration    respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserWaitInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserWaitInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserWaitToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Pause for the given duration.
+	Input       BrowserWaitInput `json:"input" api:"required"`
+	Name        constant.Wait    `json:"name" default:"wait"`
+	ToolsetName constant.Browser `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserWaitToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserWaitToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `zoom`'s config overrides.
 type BrowserZoomConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -1504,6 +3721,60 @@ func (r BrowserZoomConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *BrowserZoomConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Return a cropped screenshot of the given viewport region, scaled up for closer
+// inspection — useful for small icons, buttons, or text. Coordinates are in the
+// same viewport-pixel space as a full screenshot.
+type BrowserZoomInput struct {
+	// [x0, y0, x1, y1] in viewport pixels.
+	Region []int64 `json:"region" api:"required"`
+	// Tab to act on. Defaults to the active tab when omitted.
+	TabID string `json:"tab_id" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Region      respjson.Field
+		TabID       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserZoomInput) RawJSON() string { return r.JSON.raw }
+func (r *BrowserZoomInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BrowserZoomToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Return a cropped screenshot of the given viewport region, scaled up for closer
+	// inspection — useful for small icons, buttons, or text. Coordinates are in the
+	// same viewport-pixel space as a full screenshot.
+	Input       BrowserZoomInput `json:"input" api:"required"`
+	Name        constant.Zoom    `json:"name" default:"zoom"`
+	ToolsetName constant.Browser `json:"toolset_name" default:"browser"`
+	Type        constant.ToolUse `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BrowserZoomToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *BrowserZoomToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -1575,6 +3846,218 @@ type CacheCreation struct {
 // Returns the unmodified JSON received from the API
 func (r CacheCreation) RawJSON() string { return r.JSON.raw }
 func (r *CacheCreation) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type CacheMissMessagesChanged struct {
+	// Approximate number of input tokens that would have been read from cache had the
+	// prefix matched the previous request.
+	CacheMissedInputTokens int64                    `json:"cache_missed_input_tokens" api:"required"`
+	Type                   constant.MessagesChanged `json:"type" default:"messages_changed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CacheMissedInputTokens respjson.Field
+		Type                   respjson.Field
+		ExtraFields            map[string]respjson.Field
+		raw                    string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r CacheMissMessagesChanged) RawJSON() string { return r.JSON.raw }
+func (r *CacheMissMessagesChanged) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type CacheMissModelChanged struct {
+	// Approximate number of input tokens that would have been read from cache had the
+	// prefix matched the previous request.
+	CacheMissedInputTokens int64                 `json:"cache_missed_input_tokens" api:"required"`
+	Type                   constant.ModelChanged `json:"type" default:"model_changed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CacheMissedInputTokens respjson.Field
+		Type                   respjson.Field
+		ExtraFields            map[string]respjson.Field
+		raw                    string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r CacheMissModelChanged) RawJSON() string { return r.JSON.raw }
+func (r *CacheMissModelChanged) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type CacheMissPreviousMessageNotFound struct {
+	Type constant.PreviousMessageNotFound `json:"type" default:"previous_message_not_found"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r CacheMissPreviousMessageNotFound) RawJSON() string { return r.JSON.raw }
+func (r *CacheMissPreviousMessageNotFound) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// CacheMissReasonUnion contains all possible properties and values from
+// [CacheMissModelChanged], [CacheMissSystemChanged], [CacheMissToolsChanged],
+// [CacheMissMessagesChanged], [CacheMissPreviousMessageNotFound],
+// [CacheMissUnavailable].
+//
+// Use the [CacheMissReasonUnion.AsAny] method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type CacheMissReasonUnion struct {
+	CacheMissedInputTokens int64 `json:"cache_missed_input_tokens"`
+	// Any of "model_changed", "system_changed", "tools_changed", "messages_changed",
+	// "previous_message_not_found", "unavailable".
+	Type string `json:"type"`
+	JSON struct {
+		CacheMissedInputTokens respjson.Field
+		Type                   respjson.Field
+		raw                    string
+	} `json:"-"`
+}
+
+// anyCacheMissReason is implemented by each variant of [CacheMissReasonUnion] to
+// add type safety for the return type of [CacheMissReasonUnion.AsAny]
+type anyCacheMissReason interface {
+	implCacheMissReasonUnion()
+}
+
+func (CacheMissModelChanged) implCacheMissReasonUnion()            {}
+func (CacheMissSystemChanged) implCacheMissReasonUnion()           {}
+func (CacheMissToolsChanged) implCacheMissReasonUnion()            {}
+func (CacheMissMessagesChanged) implCacheMissReasonUnion()         {}
+func (CacheMissPreviousMessageNotFound) implCacheMissReasonUnion() {}
+func (CacheMissUnavailable) implCacheMissReasonUnion()             {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := CacheMissReasonUnion.AsAny().(type) {
+//	case anthropic.CacheMissModelChanged:
+//	case anthropic.CacheMissSystemChanged:
+//	case anthropic.CacheMissToolsChanged:
+//	case anthropic.CacheMissMessagesChanged:
+//	case anthropic.CacheMissPreviousMessageNotFound:
+//	case anthropic.CacheMissUnavailable:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u CacheMissReasonUnion) AsAny() anyCacheMissReason {
+	switch u.Type {
+	case "model_changed":
+		return u.AsModelChanged()
+	case "system_changed":
+		return u.AsSystemChanged()
+	case "tools_changed":
+		return u.AsToolsChanged()
+	case "messages_changed":
+		return u.AsMessagesChanged()
+	case "previous_message_not_found":
+		return u.AsPreviousMessageNotFound()
+	case "unavailable":
+		return u.AsUnavailable()
+	}
+	return nil
+}
+
+func (u CacheMissReasonUnion) AsModelChanged() (v CacheMissModelChanged) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u CacheMissReasonUnion) AsSystemChanged() (v CacheMissSystemChanged) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u CacheMissReasonUnion) AsToolsChanged() (v CacheMissToolsChanged) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u CacheMissReasonUnion) AsMessagesChanged() (v CacheMissMessagesChanged) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u CacheMissReasonUnion) AsPreviousMessageNotFound() (v CacheMissPreviousMessageNotFound) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u CacheMissReasonUnion) AsUnavailable() (v CacheMissUnavailable) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u CacheMissReasonUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *CacheMissReasonUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type CacheMissSystemChanged struct {
+	// Approximate number of input tokens that would have been read from cache had the
+	// prefix matched the previous request.
+	CacheMissedInputTokens int64                  `json:"cache_missed_input_tokens" api:"required"`
+	Type                   constant.SystemChanged `json:"type" default:"system_changed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CacheMissedInputTokens respjson.Field
+		Type                   respjson.Field
+		ExtraFields            map[string]respjson.Field
+		raw                    string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r CacheMissSystemChanged) RawJSON() string { return r.JSON.raw }
+func (r *CacheMissSystemChanged) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type CacheMissToolsChanged struct {
+	// Approximate number of input tokens that would have been read from cache had the
+	// prefix matched the previous request.
+	CacheMissedInputTokens int64                 `json:"cache_missed_input_tokens" api:"required"`
+	Type                   constant.ToolsChanged `json:"type" default:"tools_changed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CacheMissedInputTokens respjson.Field
+		Type                   respjson.Field
+		ExtraFields            map[string]respjson.Field
+		raw                    string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r CacheMissToolsChanged) RawJSON() string { return r.JSON.raw }
+func (r *CacheMissToolsChanged) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type CacheMissUnavailable struct {
+	Type constant.Unavailable `json:"type" default:"unavailable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r CacheMissUnavailable) RawJSON() string { return r.JSON.raw }
+func (r *CacheMissUnavailable) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -2268,7 +4751,6 @@ func (r *CodeExecutionTool20260521Param) UnmarshalJSON(data []byte) error {
 }
 
 type CodeExecutionToolResultBlock struct {
-	// Code execution result with encrypted stdout for PFC + web_search results.
 	Content   CodeExecutionToolResultBlockContentUnion `json:"content" api:"required"`
 	ToolUseID string                                   `json:"tool_use_id" api:"required"`
 	Type      constant.CodeExecutionToolResult         `json:"type" default:"code_execution_tool_result"`
@@ -2340,7 +4822,6 @@ func (r *CodeExecutionToolResultBlockContentUnion) UnmarshalJSON(data []byte) er
 
 // The properties Content, ToolUseID, Type are required.
 type CodeExecutionToolResultBlockParam struct {
-	// Code execution result with encrypted stdout for PFC + web_search results.
 	Content   CodeExecutionToolResultBlockParamContentUnion `json:"content,omitzero" api:"required"`
 	ToolUseID string                                        `json:"tool_use_id" api:"required"`
 	// Create a cache control breakpoint at this content block.
@@ -2420,11 +4901,11 @@ func (u CodeExecutionToolResultBlockParamContentUnion) GetEncryptedStdout() *str
 // Returns a pointer to the underlying variant's property, if present.
 func (u CodeExecutionToolResultBlockParamContentUnion) GetType() *string {
 	if vt := u.OfRequestCodeExecutionToolResultError; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfRequestCodeExecutionResultBlock; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfRequestEncryptedCodeExecutionResultBlock; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -2527,6 +5008,50 @@ func (r *ComputerCursorPositionConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Get the current (x, y) pixel coordinate of the cursor.
+type ComputerCursorPositionInput struct {
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerCursorPositionInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerCursorPositionInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerCursorPositionToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Get the current (x, y) pixel coordinate of the cursor.
+	Input       ComputerCursorPositionInput `json:"input" api:"required"`
+	Name        constant.CursorPosition     `json:"name" default:"cursor_position"`
+	ToolsetName constant.Computer           `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse            `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerCursorPositionToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerCursorPositionToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `double_click`'s config overrides.
 type ComputerDoubleClickConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -2544,6 +5069,59 @@ func (r ComputerDoubleClickConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ComputerDoubleClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Double-click the left mouse button at the specified (x, y) pixel coordinate, or
+// the current cursor position if `coordinate` is omitted.
+type ComputerDoubleClickInput struct {
+	// (x, y): x pixels from the left edge, y pixels from the top edge.
+	Coordinate []int64 `json:"coordinate" api:"nullable"`
+	// Optional key combination to hold down during this action (e.g. "ctrl", "shift",
+	// "ctrl+shift").
+	Text string `json:"text" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Coordinate  respjson.Field
+		Text        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerDoubleClickInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerDoubleClickInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerDoubleClickToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Double-click the left mouse button at the specified (x, y) pixel coordinate, or
+	// the current cursor position if `coordinate` is omitted.
+	Input       ComputerDoubleClickInput `json:"input" api:"required"`
+	Name        constant.DoubleClick     `json:"name" default:"double_click"`
+	ToolsetName constant.Computer        `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse         `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerDoubleClickToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerDoubleClickToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -2567,6 +5145,58 @@ func (r *ComputerHoldKeyConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Hold down a key or key-combination for a specified duration. Uses the same key
+// syntax as `key`.
+type ComputerHoldKeyInput struct {
+	// Duration to hold the key, in seconds.
+	Duration int64 `json:"duration" api:"required"`
+	// The key or key-combination to hold.
+	Text string `json:"text" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Duration    respjson.Field
+		Text        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerHoldKeyInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerHoldKeyInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerHoldKeyToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Hold down a key or key-combination for a specified duration. Uses the same key
+	// syntax as `key`.
+	Input       ComputerHoldKeyInput `json:"input" api:"required"`
+	Name        constant.HoldKey     `json:"name" default:"hold_key"`
+	ToolsetName constant.Computer    `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse     `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerHoldKeyToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerHoldKeyToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `key`'s config overrides.
 type ComputerKeyConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -2584,6 +5214,64 @@ func (r ComputerKeyConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ComputerKeyConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Press a key or key-combination on the keyboard. Use "+" to combine modifiers
+// with a key (e.g. "ctrl+s", "alt+Tab", "ctrl+shift+Escape"). Key names are
+// case-insensitive; common names like "Return", "Tab", "Escape", "Up", "Down",
+// "Left", "Right", "Home", "End", "Page_Up", "Page_Down", "Delete", "BackSpace"
+// are supported.
+type ComputerKeyInput struct {
+	// The key or key-combination to press.
+	Text string `json:"text" api:"required"`
+	// Number of times to repeat the key press. Default is 1.
+	Repeat int64 `json:"repeat" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Text        respjson.Field
+		Repeat      respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerKeyInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerKeyInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerKeyToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Press a key or key-combination on the keyboard. Use "+" to combine modifiers
+	// with a key (e.g. "ctrl+s", "alt+Tab", "ctrl+shift+Escape"). Key names are
+	// case-insensitive; common names like "Return", "Tab", "Escape", "Up", "Down",
+	// "Left", "Right", "Home", "End", "Page_Up", "Page_Down", "Delete", "BackSpace"
+	// are supported.
+	Input       ComputerKeyInput  `json:"input" api:"required"`
+	Name        constant.Key      `json:"name" default:"key"`
+	ToolsetName constant.Computer `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse  `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerKeyToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerKeyToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -2627,6 +5315,113 @@ func (r *ComputerLeftClickDragConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Click and drag the cursor from `start_coordinate` to `coordinate`.
+type ComputerLeftClickDragInput struct {
+	// (x, y): x pixels from the left edge, y pixels from the top edge.
+	Coordinate []int64 `json:"coordinate" api:"required"`
+	// (x, y): x pixels from the left edge, y pixels from the top edge.
+	StartCoordinate []int64 `json:"start_coordinate" api:"required"`
+	// Optional key combination to hold down during this action (e.g. "ctrl", "shift",
+	// "ctrl+shift").
+	Text string `json:"text" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Coordinate      respjson.Field
+		StartCoordinate respjson.Field
+		Text            respjson.Field
+		ExtraFields     map[string]respjson.Field
+		raw             string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerLeftClickDragInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerLeftClickDragInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerLeftClickDragToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Click and drag the cursor from `start_coordinate` to `coordinate`.
+	Input       ComputerLeftClickDragInput `json:"input" api:"required"`
+	Name        constant.LeftClickDrag     `json:"name" default:"left_click_drag"`
+	ToolsetName constant.Computer          `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse           `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerLeftClickDragToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerLeftClickDragToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Click the left mouse button at the specified (x, y) pixel coordinate, or the
+// current cursor position if `coordinate` is omitted.
+type ComputerLeftClickInput struct {
+	// (x, y): x pixels from the left edge, y pixels from the top edge.
+	Coordinate []int64 `json:"coordinate" api:"nullable"`
+	// Optional key combination to hold down during this action (e.g. "ctrl", "shift",
+	// "ctrl+shift").
+	Text string `json:"text" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Coordinate  respjson.Field
+		Text        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerLeftClickInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerLeftClickInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerLeftClickToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Click the left mouse button at the specified (x, y) pixel coordinate, or the
+	// current cursor position if `coordinate` is omitted.
+	Input       ComputerLeftClickInput `json:"input" api:"required"`
+	Name        constant.LeftClick     `json:"name" default:"left_click"`
+	ToolsetName constant.Computer      `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse       `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerLeftClickToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerLeftClickToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `left_mouse_down`'s config overrides.
 type ComputerLeftMouseDownConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -2644,6 +5439,50 @@ func (r ComputerLeftMouseDownConfigParam) MarshalJSON() (data []byte, err error)
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ComputerLeftMouseDownConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Press and hold the left mouse button at the current cursor position.
+type ComputerLeftMouseDownInput struct {
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerLeftMouseDownInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerLeftMouseDownInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerLeftMouseDownToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Press and hold the left mouse button at the current cursor position.
+	Input       ComputerLeftMouseDownInput `json:"input" api:"required"`
+	Name        constant.LeftMouseDown     `json:"name" default:"left_mouse_down"`
+	ToolsetName constant.Computer          `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse           `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerLeftMouseDownToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerLeftMouseDownToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -2667,6 +5506,50 @@ func (r *ComputerLeftMouseUpConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Release the left mouse button.
+type ComputerLeftMouseUpInput struct {
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerLeftMouseUpInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerLeftMouseUpInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerLeftMouseUpToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Release the left mouse button.
+	Input       ComputerLeftMouseUpInput `json:"input" api:"required"`
+	Name        constant.LeftMouseUp     `json:"name" default:"left_mouse_up"`
+	ToolsetName constant.Computer        `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse         `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerLeftMouseUpToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerLeftMouseUpToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `middle_click`'s config overrides.
 type ComputerMiddleClickConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -2684,6 +5567,59 @@ func (r ComputerMiddleClickConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ComputerMiddleClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Click the middle mouse button at the specified (x, y) pixel coordinate, or the
+// current cursor position if `coordinate` is omitted.
+type ComputerMiddleClickInput struct {
+	// (x, y): x pixels from the left edge, y pixels from the top edge.
+	Coordinate []int64 `json:"coordinate" api:"nullable"`
+	// Optional key combination to hold down during this action (e.g. "ctrl", "shift",
+	// "ctrl+shift").
+	Text string `json:"text" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Coordinate  respjson.Field
+		Text        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerMiddleClickInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerMiddleClickInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerMiddleClickToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Click the middle mouse button at the specified (x, y) pixel coordinate, or the
+	// current cursor position if `coordinate` is omitted.
+	Input       ComputerMiddleClickInput `json:"input" api:"required"`
+	Name        constant.MiddleClick     `json:"name" default:"middle_click"`
+	ToolsetName constant.Computer        `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse         `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerMiddleClickToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerMiddleClickToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -2707,6 +5643,55 @@ func (r *ComputerMouseMoveConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Move the cursor to a specified (x, y) pixel coordinate. Use this ONLY to hover
+// without clicking; otherwise use a click action directly.
+type ComputerMouseMoveInput struct {
+	// (x, y): x pixels from the left edge, y pixels from the top edge.
+	Coordinate []int64 `json:"coordinate" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Coordinate  respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerMouseMoveInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerMouseMoveInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerMouseMoveToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Move the cursor to a specified (x, y) pixel coordinate. Use this ONLY to hover
+	// without clicking; otherwise use a click action directly.
+	Input       ComputerMouseMoveInput `json:"input" api:"required"`
+	Name        constant.MouseMove     `json:"name" default:"mouse_move"`
+	ToolsetName constant.Computer      `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse       `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerMouseMoveToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerMouseMoveToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `right_click`'s config overrides.
 type ComputerRightClickConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -2724,6 +5709,59 @@ func (r ComputerRightClickConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ComputerRightClickConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Click the right mouse button at the specified (x, y) pixel coordinate, or the
+// current cursor position if `coordinate` is omitted.
+type ComputerRightClickInput struct {
+	// (x, y): x pixels from the left edge, y pixels from the top edge.
+	Coordinate []int64 `json:"coordinate" api:"nullable"`
+	// Optional key combination to hold down during this action (e.g. "ctrl", "shift",
+	// "ctrl+shift").
+	Text string `json:"text" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Coordinate  respjson.Field
+		Text        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerRightClickInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerRightClickInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerRightClickToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Click the right mouse button at the specified (x, y) pixel coordinate, or the
+	// current cursor position if `coordinate` is omitted.
+	Input       ComputerRightClickInput `json:"input" api:"required"`
+	Name        constant.RightClick     `json:"name" default:"right_click"`
+	ToolsetName constant.Computer       `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse        `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerRightClickToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerRightClickToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -2747,6 +5785,50 @@ func (r *ComputerScreenshotConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Take a screenshot of the screen.
+type ComputerScreenshotInput struct {
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerScreenshotInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerScreenshotInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerScreenshotToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Take a screenshot of the screen.
+	Input       ComputerScreenshotInput `json:"input" api:"required"`
+	Name        constant.Screenshot     `json:"name" default:"screenshot"`
+	ToolsetName constant.Computer       `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse        `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerScreenshotToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerScreenshotToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `scroll`'s config overrides.
 type ComputerScrollConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -2767,6 +5849,339 @@ func (r *ComputerScrollConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+type ComputerScrollDirection string
+
+const (
+	ComputerScrollDirectionUp    ComputerScrollDirection = "up"
+	ComputerScrollDirectionDown  ComputerScrollDirection = "down"
+	ComputerScrollDirectionLeft  ComputerScrollDirection = "left"
+	ComputerScrollDirectionRight ComputerScrollDirection = "right"
+)
+
+// Scroll the screen at the specified (x, y) pixel coordinate, or the current
+// cursor position if `coordinate` is omitted. Do NOT use PageUp/PageDown to
+// scroll.
+type ComputerScrollInput struct {
+	// Number of 'clicks' of the scroll wheel.
+	ScrollAmount int64 `json:"scroll_amount" api:"required"`
+	// Any of "up", "down", "left", "right".
+	ScrollDirection ComputerScrollDirection `json:"scroll_direction" api:"required"`
+	// (x, y): x pixels from the left edge, y pixels from the top edge.
+	Coordinate []int64 `json:"coordinate" api:"nullable"`
+	// Optional key combination to hold down during this action (e.g. "ctrl", "shift",
+	// "ctrl+shift").
+	Text string `json:"text" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ScrollAmount    respjson.Field
+		ScrollDirection respjson.Field
+		Coordinate      respjson.Field
+		Text            respjson.Field
+		ExtraFields     map[string]respjson.Field
+		raw             string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerScrollInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerScrollInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerScrollToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Scroll the screen at the specified (x, y) pixel coordinate, or the current
+	// cursor position if `coordinate` is omitted. Do NOT use PageUp/PageDown to
+	// scroll.
+	Input       ComputerScrollInput `json:"input" api:"required"`
+	Name        constant.Scroll     `json:"name" default:"scroll"`
+	ToolsetName constant.Computer   `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse    `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerScrollToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerScrollToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ComputerToolUseBlockUnion contains all possible properties and values from
+// [ComputerKeyToolUseBlock], [ComputerHoldKeyToolUseBlock],
+// [ComputerTypeToolUseBlock], [ComputerCursorPositionToolUseBlock],
+// [ComputerMouseMoveToolUseBlock], [ComputerLeftMouseDownToolUseBlock],
+// [ComputerLeftMouseUpToolUseBlock], [ComputerLeftClickToolUseBlock],
+// [ComputerLeftClickDragToolUseBlock], [ComputerRightClickToolUseBlock],
+// [ComputerMiddleClickToolUseBlock], [ComputerDoubleClickToolUseBlock],
+// [ComputerTripleClickToolUseBlock], [ComputerScrollToolUseBlock],
+// [ComputerWaitToolUseBlock], [ComputerScreenshotToolUseBlock],
+// [ComputerZoomToolUseBlock].
+//
+// Use the [ComputerToolUseBlockUnion.AsAny] method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ComputerToolUseBlockUnion struct {
+	ID string `json:"id"`
+	// This field is from variant [ComputerKeyToolUseBlock].
+	Caller ToolUseCallerUnion `json:"caller"`
+	// This field is a union of [ComputerKeyInput], [ComputerHoldKeyInput],
+	// [ComputerTypeInput], [ComputerCursorPositionInput], [ComputerMouseMoveInput],
+	// [ComputerLeftMouseDownInput], [ComputerLeftMouseUpInput],
+	// [ComputerLeftClickInput], [ComputerLeftClickDragInput],
+	// [ComputerRightClickInput], [ComputerMiddleClickInput],
+	// [ComputerDoubleClickInput], [ComputerTripleClickInput], [ComputerScrollInput],
+	// [ComputerWaitInput], [ComputerScreenshotInput], [ComputerZoomInput]
+	Input ComputerToolUseBlockUnionInput `json:"input"`
+	// Any of "key", "hold_key", "type", "cursor_position", "mouse_move",
+	// "left_mouse_down", "left_mouse_up", "left_click", "left_click_drag",
+	// "right_click", "middle_click", "double_click", "triple_click", "scroll", "wait",
+	// "screenshot", "zoom".
+	Name string `json:"name"`
+	// This field is from variant [ComputerKeyToolUseBlock].
+	ToolsetName constant.Computer `json:"toolset_name"`
+	// This field is from variant [ComputerKeyToolUseBlock].
+	Type constant.ToolUse `json:"type"`
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// anyComputerToolUseBlock is implemented by each variant of
+// [ComputerToolUseBlockUnion] to add type safety for the return type of
+// [ComputerToolUseBlockUnion.AsAny]
+type anyComputerToolUseBlock interface {
+	implComputerToolUseBlockUnion()
+}
+
+func (ComputerKeyToolUseBlock) implComputerToolUseBlockUnion()            {}
+func (ComputerHoldKeyToolUseBlock) implComputerToolUseBlockUnion()        {}
+func (ComputerTypeToolUseBlock) implComputerToolUseBlockUnion()           {}
+func (ComputerCursorPositionToolUseBlock) implComputerToolUseBlockUnion() {}
+func (ComputerMouseMoveToolUseBlock) implComputerToolUseBlockUnion()      {}
+func (ComputerLeftMouseDownToolUseBlock) implComputerToolUseBlockUnion()  {}
+func (ComputerLeftMouseUpToolUseBlock) implComputerToolUseBlockUnion()    {}
+func (ComputerLeftClickToolUseBlock) implComputerToolUseBlockUnion()      {}
+func (ComputerLeftClickDragToolUseBlock) implComputerToolUseBlockUnion()  {}
+func (ComputerRightClickToolUseBlock) implComputerToolUseBlockUnion()     {}
+func (ComputerMiddleClickToolUseBlock) implComputerToolUseBlockUnion()    {}
+func (ComputerDoubleClickToolUseBlock) implComputerToolUseBlockUnion()    {}
+func (ComputerTripleClickToolUseBlock) implComputerToolUseBlockUnion()    {}
+func (ComputerScrollToolUseBlock) implComputerToolUseBlockUnion()         {}
+func (ComputerWaitToolUseBlock) implComputerToolUseBlockUnion()           {}
+func (ComputerScreenshotToolUseBlock) implComputerToolUseBlockUnion()     {}
+func (ComputerZoomToolUseBlock) implComputerToolUseBlockUnion()           {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ComputerToolUseBlockUnion.AsAny().(type) {
+//	case anthropic.ComputerKeyToolUseBlock:
+//	case anthropic.ComputerHoldKeyToolUseBlock:
+//	case anthropic.ComputerTypeToolUseBlock:
+//	case anthropic.ComputerCursorPositionToolUseBlock:
+//	case anthropic.ComputerMouseMoveToolUseBlock:
+//	case anthropic.ComputerLeftMouseDownToolUseBlock:
+//	case anthropic.ComputerLeftMouseUpToolUseBlock:
+//	case anthropic.ComputerLeftClickToolUseBlock:
+//	case anthropic.ComputerLeftClickDragToolUseBlock:
+//	case anthropic.ComputerRightClickToolUseBlock:
+//	case anthropic.ComputerMiddleClickToolUseBlock:
+//	case anthropic.ComputerDoubleClickToolUseBlock:
+//	case anthropic.ComputerTripleClickToolUseBlock:
+//	case anthropic.ComputerScrollToolUseBlock:
+//	case anthropic.ComputerWaitToolUseBlock:
+//	case anthropic.ComputerScreenshotToolUseBlock:
+//	case anthropic.ComputerZoomToolUseBlock:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ComputerToolUseBlockUnion) AsAny() anyComputerToolUseBlock {
+	switch u.Name {
+	case "key":
+		return u.AsKey()
+	case "hold_key":
+		return u.AsHoldKey()
+	case "type":
+		return u.AsType()
+	case "cursor_position":
+		return u.AsCursorPosition()
+	case "mouse_move":
+		return u.AsMouseMove()
+	case "left_mouse_down":
+		return u.AsLeftMouseDown()
+	case "left_mouse_up":
+		return u.AsLeftMouseUp()
+	case "left_click":
+		return u.AsLeftClick()
+	case "left_click_drag":
+		return u.AsLeftClickDrag()
+	case "right_click":
+		return u.AsRightClick()
+	case "middle_click":
+		return u.AsMiddleClick()
+	case "double_click":
+		return u.AsDoubleClick()
+	case "triple_click":
+		return u.AsTripleClick()
+	case "scroll":
+		return u.AsScroll()
+	case "wait":
+		return u.AsWait()
+	case "screenshot":
+		return u.AsScreenshot()
+	case "zoom":
+		return u.AsZoom()
+	}
+	return nil
+}
+
+func (u ComputerToolUseBlockUnion) AsKey() (v ComputerKeyToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsHoldKey() (v ComputerHoldKeyToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsType() (v ComputerTypeToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsCursorPosition() (v ComputerCursorPositionToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsMouseMove() (v ComputerMouseMoveToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsLeftMouseDown() (v ComputerLeftMouseDownToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsLeftMouseUp() (v ComputerLeftMouseUpToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsLeftClick() (v ComputerLeftClickToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsLeftClickDrag() (v ComputerLeftClickDragToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsRightClick() (v ComputerRightClickToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsMiddleClick() (v ComputerMiddleClickToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsDoubleClick() (v ComputerDoubleClickToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsTripleClick() (v ComputerTripleClickToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsScroll() (v ComputerScrollToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsWait() (v ComputerWaitToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsScreenshot() (v ComputerScreenshotToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ComputerToolUseBlockUnion) AsZoom() (v ComputerZoomToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ComputerToolUseBlockUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ComputerToolUseBlockUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ComputerToolUseBlockUnionInput is an implicit subunion of
+// [ComputerToolUseBlockUnion]. ComputerToolUseBlockUnionInput provides convenient
+// access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [ComputerToolUseBlockUnion].
+type ComputerToolUseBlockUnionInput struct {
+	Text string `json:"text"`
+	// This field is from variant [ComputerKeyInput].
+	Repeat     int64   `json:"repeat"`
+	Duration   int64   `json:"duration"`
+	Coordinate []int64 `json:"coordinate"`
+	// This field is from variant [ComputerLeftClickDragInput].
+	StartCoordinate []int64 `json:"start_coordinate"`
+	// This field is from variant [ComputerScrollInput].
+	ScrollAmount int64 `json:"scroll_amount"`
+	// This field is from variant [ComputerScrollInput].
+	ScrollDirection ComputerScrollDirection `json:"scroll_direction"`
+	// This field is from variant [ComputerZoomInput].
+	Region []int64 `json:"region"`
+	JSON   struct {
+		Text            respjson.Field
+		Repeat          respjson.Field
+		Duration        respjson.Field
+		Coordinate      respjson.Field
+		StartCoordinate respjson.Field
+		ScrollAmount    respjson.Field
+		ScrollDirection respjson.Field
+		Region          respjson.Field
+		raw             string
+	} `json:"-"`
+}
+
+func (r *ComputerToolUseBlockUnionInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // The computer toolset: a single `tools[]` entry (carrying no `name`) that
 // declares the computer tool family. The model is served the family's tool with
 // any members disabled via `configs` removed from its schema. Every member is
@@ -2776,16 +6191,10 @@ func (r *ComputerScrollConfigParam) UnmarshalJSON(data []byte) error {
 //
 // The property Type is required.
 type ComputerToolset20260801Param struct {
-	// Any of "direct", "code_execution_20250825", "code_execution_20260120",
-	// "code_execution_20260521".
-	AllowedCallers []string `json:"allowed_callers,omitzero"`
 	// Create a cache control breakpoint at this content block.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
-	// Per-member configuration for `computer_toolset_20260801`: one optional field per
-	// member tool, keyed by the member name — the same name the member's `tool_use`
-	// blocks carry. Every member is an accepted key, and a member's defaults apply
-	// wherever its key is absent. Unknown keys are rejected: the field set is this
-	// toolset version's complete member set.
+	// Sparse per-member overrides, keyed by member name. Absent, null, and {} are
+	// equivalent; a member's defaults apply wherever its key is absent.
 	Configs ComputerToolsetConfigsParam `json:"configs,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "computer_toolset_20260801".
@@ -2872,6 +6281,59 @@ func (r *ComputerTripleClickConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Triple-click the left mouse button at the specified (x, y) pixel coordinate, or
+// the current cursor position if `coordinate` is omitted.
+type ComputerTripleClickInput struct {
+	// (x, y): x pixels from the left edge, y pixels from the top edge.
+	Coordinate []int64 `json:"coordinate" api:"nullable"`
+	// Optional key combination to hold down during this action (e.g. "ctrl", "shift",
+	// "ctrl+shift").
+	Text string `json:"text" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Coordinate  respjson.Field
+		Text        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerTripleClickInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerTripleClickInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerTripleClickToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Triple-click the left mouse button at the specified (x, y) pixel coordinate, or
+	// the current cursor position if `coordinate` is omitted.
+	Input       ComputerTripleClickInput `json:"input" api:"required"`
+	Name        constant.TripleClick     `json:"name" default:"triple_click"`
+	ToolsetName constant.Computer        `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse         `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerTripleClickToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerTripleClickToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `type`'s config overrides.
 type ComputerTypeConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -2889,6 +6351,53 @@ func (r ComputerTypeConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ComputerTypeConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Type a string of text on the keyboard.
+type ComputerTypeInput struct {
+	// The text to type.
+	Text string `json:"text" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Text        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerTypeInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerTypeInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerTypeToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Type a string of text on the keyboard.
+	Input       ComputerTypeInput `json:"input" api:"required"`
+	Name        constant.Type     `json:"name" default:"type"`
+	ToolsetName constant.Computer `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse  `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerTypeToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerTypeToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -2912,6 +6421,53 @@ func (r *ComputerWaitConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Wait for a specified duration.
+type ComputerWaitInput struct {
+	// Duration to wait, in seconds.
+	Duration int64 `json:"duration" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Duration    respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerWaitInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerWaitInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerWaitToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Wait for a specified duration.
+	Input       ComputerWaitInput `json:"input" api:"required"`
+	Name        constant.Wait     `json:"name" default:"wait"`
+	ToolsetName constant.Computer `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse  `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerWaitToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerWaitToolUseBlock) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // `zoom`'s config overrides.
 type ComputerZoomConfigParam struct {
 	// Defer loading for this member. Must resolve to the same value on every enabled
@@ -2929,6 +6485,57 @@ func (r ComputerZoomConfigParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ComputerZoomConfigParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Take a screenshot of a rectangular region. Region coordinates are in the
+// full-screenshot space (not physical display pixels). The crop is scaled up to
+// fill the image budget so fine details become legible.
+type ComputerZoomInput struct {
+	// (x0, y0, x1, y1): The region to capture.
+	Region []int64 `json:"region" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Region      respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerZoomInput) RawJSON() string { return r.JSON.raw }
+func (r *ComputerZoomInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ComputerZoomToolUseBlock struct {
+	ID string `json:"id" api:"required"`
+	// Which party invoked the tool call: the model directly, or a server tool on its
+	// behalf.
+	Caller ToolUseCallerUnion `json:"caller" api:"required"`
+	// Take a screenshot of a rectangular region. Region coordinates are in the
+	// full-screenshot space (not physical display pixels). The crop is scaled up to
+	// fill the image budget so fine details become legible.
+	Input       ComputerZoomInput `json:"input" api:"required"`
+	Name        constant.Zoom     `json:"name" default:"zoom"`
+	ToolsetName constant.Computer `json:"toolset_name" default:"computer"`
+	Type        constant.ToolUse  `json:"type" default:"tool_use"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ComputerZoomToolUseBlock) RawJSON() string { return r.JSON.raw }
+func (r *ComputerZoomToolUseBlock) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -3723,37 +7330,37 @@ func (u ContentBlockParamUnion) GetFileID() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u ContentBlockParamUnion) GetType() *string {
 	if vt := u.OfText; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfImage; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfDocument; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfSearchResult; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfThinking; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfRedactedThinking; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfToolUse; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfToolResult; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfServerToolUse; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebSearchToolResult; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebFetchToolResult; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecutionToolResult; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfBashCodeExecutionToolResult; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfTextEditorCodeExecutionToolResult; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfToolSearchToolResult; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfContainerUpload; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -4202,7 +7809,7 @@ func (u contentBlockParamUnionContent) GetType() *string {
 	switch vt := u.any.(type) {
 	case *WebSearchToolResultBlockParamContentUnion:
 		if vt.OfRequestWebSearchToolResultError != nil {
-			return (*string)(&vt.OfRequestWebSearchToolResultError.Type)
+			return paramutil.AddrOrDefault(vt.OfRequestWebSearchToolResultError.Type)
 		}
 	case *WebFetchToolResultBlockParamContentUnion:
 		return vt.GetType()
@@ -4539,9 +8146,9 @@ func (u ContentBlockSourceContentItemUnionParam) GetTransformations() *ImageTran
 // Returns a pointer to the underlying variant's property, if present.
 func (u ContentBlockSourceContentItemUnionParam) GetType() *string {
 	if vt := u.OfText; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfImage; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -4562,6 +8169,48 @@ func init() {
 		apijson.Discriminator[TextBlockParam]("text"),
 		apijson.Discriminator[ImageBlockParam]("image"),
 	)
+}
+
+// Request-level diagnostics: why the prompt cache could not fully reuse the prefix
+// of the request named by `diagnostics.previous_message_id`.
+type Diagnostics struct {
+	// Explains why the prompt cache could not fully reuse the prefix from the request
+	// identified by `diagnostics.previous_message_id`. `null` means diagnosis is still
+	// pending — the response was serialized before the background comparison
+	// completed.
+	CacheMissReason CacheMissReasonUnion `json:"cache_miss_reason" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CacheMissReason respjson.Field
+		ExtraFields     map[string]respjson.Field
+		raw             string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r Diagnostics) RawJSON() string { return r.JSON.raw }
+func (r *Diagnostics) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Request-level diagnostics. Currently carries the previous response id for
+// prompt-cache divergence reporting.
+type DiagnosticsParam struct {
+	// The `id` (`msg_...`) from this client's previous /v1/messages response. The
+	// server compares that request's prompt fingerprint against this one and returns
+	// `diagnostics.cache_miss_reason` when the prompt-cache prefix could not be
+	// reused. Pass `null` on the first turn to opt in without a prior message to
+	// compare.
+	PreviousMessageID param.Opt[string] `json:"previous_message_id,omitzero"`
+	paramObj
+}
+
+func (r DiagnosticsParam) MarshalJSON() (data []byte, err error) {
+	type shadow DiagnosticsParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *DiagnosticsParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
 }
 
 // Tool invocation directly from the model.
@@ -4796,9 +8445,9 @@ func (u DocumentBlockParamSourceUnion) GetData() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u DocumentBlockParamSourceUnion) GetMediaType() *string {
 	if vt := u.OfBase64; vt != nil {
-		return (*string)(&vt.MediaType)
+		return paramutil.AddrOrDefault(vt.MediaType)
 	} else if vt := u.OfText; vt != nil {
-		return (*string)(&vt.MediaType)
+		return paramutil.AddrOrDefault(vt.MediaType)
 	}
 	return nil
 }
@@ -4806,15 +8455,15 @@ func (u DocumentBlockParamSourceUnion) GetMediaType() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u DocumentBlockParamSourceUnion) GetType() *string {
 	if vt := u.OfBase64; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfText; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfContent; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfURL; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfFile; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -4995,11 +8644,11 @@ func (u ImageBlockParamSourceUnion) GetFileID() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u ImageBlockParamSourceUnion) GetType() *string {
 	if vt := u.OfBase64; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfURL; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfFile; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -5123,8 +8772,9 @@ type Message struct {
 	//
 	// The format and length of IDs may change over time.
 	ID string `json:"id" api:"required"`
-	// Information about the container used in the request (for the code execution
-	// tool)
+	// Information about the container used in this request.
+	//
+	// This will be non-null if a container tool (e.g. code execution) was used.
 	Container Container `json:"container" api:"required"`
 	// Content generated by the model.
 	//
@@ -5145,13 +8795,11 @@ type Message struct {
 	//
 	// ```json
 	// [
-	//
-	//	{
-	//	  "role": "user",
-	//	  "content": "What's the Greek name for Sun? (A) Sol (B) Helios (C) Sun"
-	//	},
-	//	{ "role": "assistant", "content": "The best answer is (" }
-	//
+	//   {
+	//     "role": "user",
+	//     "content": "What's the Greek name for Sun? (A) Sol (B) Helios (C) Sun"
+	//   },
+	//   { "role": "assistant", "content": "The best answer is (" }
 	// ]
 	// ```
 	//
@@ -5161,6 +8809,9 @@ type Message struct {
 	// [{ "type": "text", "text": "B)" }]
 	// ```
 	Content []ContentBlockUnion `json:"content" api:"required"`
+	// Request-level diagnostics. `null` when the request did not supply `diagnostics`,
+	// or when it did and no prompt-cache divergence was detected.
+	Diagnostics Diagnostics `json:"diagnostics" api:"required"`
 	// The model that will complete your prompt.
 	//
 	// See [models](https://docs.anthropic.com/en/docs/models-overview) for additional
@@ -5170,21 +8821,23 @@ type Message struct {
 	//
 	// This will always be `"assistant"`.
 	Role constant.Assistant `json:"role" default:"assistant"`
-	// Structured information about a refusal.
+	// Structured information about why model output stopped.
+	//
+	// This is `null` when the `stop_reason` has no additional detail to report.
 	StopDetails RefusalStopDetails `json:"stop_details" api:"required"`
 	// The reason that we stopped.
 	//
 	// This may be one the following values:
 	//
-	//   - `"end_turn"`: the model reached a natural stopping point
-	//   - `"max_tokens"`: we exceeded the requested `max_tokens` or the model's maximum
-	//   - `"stop_sequence"`: one of your provided custom `stop_sequences` was generated
-	//   - `"tool_use"`: the model invoked one or more tools
-	//   - `"pause_turn"`: we paused a long-running turn. You may provide the response
-	//     back as-is in a subsequent request to let the model continue.
-	//   - `"refusal"`: when streaming classifiers intervene to handle potential policy
-	//     violations
-	//   - `"model_context_window_exceeded"`: we exceeded the model's context window
+	// - `"end_turn"`: the model reached a natural stopping point
+	// - `"max_tokens"`: we exceeded the requested `max_tokens` or the model's maximum
+	// - `"stop_sequence"`: one of your provided custom `stop_sequences` was generated
+	// - `"tool_use"`: the model invoked one or more tools
+	// - `"pause_turn"`: we paused a long-running turn. You may provide the response
+	//   back as-is in a subsequent request to let the model continue.
+	// - `"refusal"`: when streaming classifiers intervene to handle potential policy
+	//   violations
+	// - `"model_context_window_exceeded"`: we exceeded the model's context window
 	//
 	// In non-streaming mode this value is always non-null. In streaming mode, it is
 	// null in the `message_start` event and non-null otherwise.
@@ -5222,6 +8875,7 @@ type Message struct {
 		ID           respjson.Field
 		Container    respjson.Field
 		Content      respjson.Field
+		Diagnostics  respjson.Field
 		Model        respjson.Field
 		Role         respjson.Field
 		StopDetails  respjson.Field
@@ -5398,41 +9052,41 @@ func (u MessageCountTokensToolUnionParam) GetName() *string {
 	if vt := u.OfTool; vt != nil {
 		return (*string)(&vt.Name)
 	} else if vt := u.OfBashTool20250124; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfCodeExecutionTool20250522; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfCodeExecutionTool20250825; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfTextEditor20250124; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfTextEditor20250429; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfTextEditor20250728; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebSearchTool20250305; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebFetchTool20250910; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebFetchTool20260309; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebSearchTool20260318; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebFetchTool20260318; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfToolSearchToolRegex20251119; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	}
 	return nil
 }
@@ -5530,41 +9184,41 @@ func (u MessageCountTokensToolUnionParam) GetType() *string {
 	if vt := u.OfTool; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfBashTool20250124; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecutionTool20250522; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecutionTool20250825; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfBrowserToolset20260801; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfComputerToolset20260801; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfTextEditor20250124; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfTextEditor20250429; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfTextEditor20250728; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebSearchTool20250305; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebFetchTool20250910; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebFetchTool20260309; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebSearchTool20260318; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebFetchTool20260318; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfToolSearchToolRegex20251119; vt != nil {
@@ -5642,11 +9296,7 @@ func (u MessageCountTokensToolUnionParam) GetAllowedCallers() []string {
 		return vt.AllowedCallers
 	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
 		return vt.AllowedCallers
-	} else if vt := u.OfBrowserToolset20260801; vt != nil {
-		return vt.AllowedCallers
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
-		return vt.AllowedCallers
-	} else if vt := u.OfComputerToolset20260801; vt != nil {
 		return vt.AllowedCallers
 	} else if vt := u.OfTextEditor20250124; vt != nil {
 		return vt.AllowedCallers
@@ -6761,6 +10411,20 @@ func (u MessageCountTokensToolUnionParam) GetCitations() *CitationsConfigParam {
 	return nil
 }
 
+// Returns a pointer to the underlying variant's URLSources property, if present.
+func (u MessageCountTokensToolUnionParam) GetURLSources() *WebFetchURLSourcesParam {
+	if vt := u.OfWebFetchTool20250910; vt != nil {
+		return &vt.URLSources
+	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return &vt.URLSources
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return &vt.URLSources
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
+		return &vt.URLSources
+	}
+	return nil
+}
+
 // Only one field can be non-zero.
 //
 // Use [param.IsOmitted] to confirm if a field is set.
@@ -6904,29 +10568,69 @@ func (r *MetadataParam) UnmarshalJSON(data []byte) error {
 type Model = string
 
 const (
+	// Fastest model for high-volume, real-time tasks
+	ModelClaudeHaiku5_5 Model = "claude-haiku-5-5"
+	// Efficient model for coding and agents
+	ModelClaudeSonnet5_5 Model = "claude-sonnet-5-5"
+	// Frontier intelligence for ambitious tasks across coding, scientific discovery,
+	// and enterprise workflows
+	ModelClaudeFable5_1 Model = "claude-fable-5-1"
+	// Powerful intelligence for coding, knowledge work, and long-running agents
+	ModelClaudeOpus5_5 Model = "claude-opus-5-5"
+	// Our most capable model for cybersecurity and biology research, available through
+	// trusted access programs
+	ModelClaudeMythos5_1 Model = "claude-mythos-5-1"
+	// Efficient model for coding and agents
 	ModelClaudeSonnet5 Model = "claude-sonnet-5"
-	ModelClaudeFable5  Model = "claude-fable-5"
+	// Next generation of intelligence for the hardest knowledge work and coding
+	// problems
+	ModelClaudeFable5 Model = "claude-fable-5"
+	// Most capable model for cybersecurity and biology research
 	ModelClaudeMythos5 Model = "claude-mythos-5"
-	ModelClaudeOpus5   Model = "claude-opus-5"
+	// Powerful intelligence for long-running agents and coding
+	ModelClaudeOpus5 Model = "claude-opus-5"
+	// Powerful intelligence for long-running agents and coding
 	ModelClaudeOpus4_8 Model = "claude-opus-4-8"
+	// Powerful intelligence for long-running agents and coding
 	ModelClaudeOpus4_7 Model = "claude-opus-4-7"
+	// New class of intelligence, strongest in coding and cybersecurity
+	//
 	// Deprecated: Will reach end-of-life on June 30, 2026. Please migrate to
 	// claude-mythos-5. Visit
 	// https://docs.anthropic.com/en/docs/resources/model-deprecations for more
 	// information.
-	ModelClaudeMythosPreview      Model = "claude-mythos-preview"
-	ModelClaudeOpus4_6            Model = "claude-opus-4-6"
-	ModelClaudeSonnet4_6          Model = "claude-sonnet-4-6"
-	ModelClaudeHaiku4_5           Model = "claude-haiku-4-5"
-	ModelClaudeHaiku4_5_20251001  Model = "claude-haiku-4-5-20251001"
-	ModelClaudeOpus4_5            Model = "claude-opus-4-5"
-	ModelClaudeOpus4_5_20251101   Model = "claude-opus-4-5-20251101"
-	ModelClaudeSonnet4_5          Model = "claude-sonnet-4-5"
+	ModelClaudeMythosPreview Model = "claude-mythos-preview"
+	// Powerful intelligence for long-running agents and coding
+	ModelClaudeOpus4_6 Model = "claude-opus-4-6"
+	// Best combination of speed and intelligence
+	ModelClaudeSonnet4_6         Model = "claude-sonnet-4-6"
+	ModelClaudeHaiku4_5          Model = "claude-haiku-4-5"
+	ModelClaudeHaiku4_5_20251001 Model = "claude-haiku-4-5-20251001"
+	// Powerful intelligence for long-running agents and coding
+	ModelClaudeOpus4_5 Model = "claude-opus-4-5"
+	// Powerful intelligence for long-running agents and coding
+	ModelClaudeOpus4_5_20251101 Model = "claude-opus-4-5-20251101"
+	// High-performance model for agents and coding
+	//
+	// Deprecated: Will reach end-of-life on November 30, 2026. Please migrate to
+	// claude-sonnet-5-5. Visit
+	// https://docs.anthropic.com/en/docs/resources/model-deprecations for more
+	// information.
+	ModelClaudeSonnet4_5 Model = "claude-sonnet-4-5"
+	// High-performance model for agents and coding
+	//
+	// Deprecated: Will reach end-of-life on November 30, 2026. Please migrate to
+	// claude-sonnet-5-5. Visit
+	// https://docs.anthropic.com/en/docs/resources/model-deprecations for more
+	// information.
 	ModelClaudeSonnet4_5_20250929 Model = "claude-sonnet-4-5-20250929"
 )
 
 type OutputConfigParam struct {
-	// All possible effort levels.
+	// How much effort the model should put into its response. Higher effort levels may
+	// result in more thorough analysis but take longer.
+	//
+	// Valid values are `low`, `medium`, `high`, `xhigh`, or `max`.
 	//
 	// Any of "low", "medium", "high", "xhigh", "max".
 	Effort OutputConfigEffort `json:"effort,omitzero"`
@@ -6944,7 +10648,10 @@ func (r *OutputConfigParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// All possible effort levels.
+// How much effort the model should put into its response. Higher effort levels may
+// result in more thorough analysis but take longer.
+//
+// Valid values are `low`, `medium`, `high`, `xhigh`, or `max`.
 type OutputConfigEffort string
 
 const (
@@ -7151,7 +10858,6 @@ func (r *ContentBlockDeltaEvent) UnmarshalJSON(data []byte) error {
 }
 
 type ContentBlockStartEvent struct {
-	// Response model for a file uploaded to the container.
 	ContentBlock ContentBlockStartEventContentBlockUnion `json:"content_block" api:"required"`
 	Index        int64                                   `json:"index" api:"required"`
 	Type         constant.ContentBlockStart              `json:"type" default:"content_block_start"`
@@ -7567,10 +11273,13 @@ func (r *MessageDeltaEvent) UnmarshalJSON(data []byte) error {
 }
 
 type MessageDeltaEventDelta struct {
-	// Information about the container used in the request (for the code execution
-	// tool)
+	// Information about the container used in this request.
+	//
+	// This will be non-null if a container tool (e.g. code execution) was used.
 	Container Container `json:"container" api:"required"`
-	// Structured information about a refusal.
+	// Structured information about why model output stopped.
+	//
+	// This is `null` when the `stop_reason` has no additional detail to report.
 	StopDetails RefusalStopDetails `json:"stop_details" api:"required"`
 	// Any of "end_turn", "max_tokens", "stop_sequence", "tool_use", "pause_turn",
 	// "refusal", "model_context_window_exceeded".
@@ -7833,7 +11542,9 @@ func (r *RedactedThinkingBlockParam) UnmarshalJSON(data []byte) error {
 
 // Structured information about a refusal.
 type RefusalStopDetails struct {
-	// The policy category that triggered a refusal.
+	// The policy category that triggered the refusal.
+	//
+	// `null` when the refusal doesn't map to a named category.
 	//
 	// Any of "cyber", "bio", "frontier_llm", "reasoning_extraction", "general_harms".
 	Category RefusalStopDetailsCategory `json:"category" api:"required"`
@@ -7859,15 +11570,30 @@ func (r *RefusalStopDetails) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// The policy category that triggered a refusal.
+// The policy category that triggered the refusal.
+//
+// `null` when the refusal doesn't map to a named category.
 type RefusalStopDetailsCategory string
 
 const (
-	RefusalStopDetailsCategoryCyber               RefusalStopDetailsCategory = "cyber"
-	RefusalStopDetailsCategoryBio                 RefusalStopDetailsCategory = "bio"
-	RefusalStopDetailsCategoryFrontierLLM         RefusalStopDetailsCategory = "frontier_llm"
+	// The request could enable cyber harm, such as malware or exploit development.
+	// Benign cybersecurity work can also trigger this category.
+	RefusalStopDetailsCategoryCyber RefusalStopDetailsCategory = "cyber"
+	// The request could enable biological harm, such as dangerous lab methods.
+	// Beneficial life sciences work can also trigger this category.
+	RefusalStopDetailsCategoryBio RefusalStopDetailsCategory = "bio"
+	// The request could assist the development of competing AI models, which is
+	// restricted under
+	// [Anthropic's commercial terms](https://www.anthropic.com/legal/commercial-terms).
+	// Benign machine learning work can also trigger this category.
+	RefusalStopDetailsCategoryFrontierLLM RefusalStopDetailsCategory = "frontier_llm"
+	// The request asks the model to reproduce its internal reasoning in the response
+	// text. To get reasoning in a structured form instead, use
+	// [adaptive thinking](https://platform.claude.com/docs/en/build-with-claude/adaptive-thinking).
 	RefusalStopDetailsCategoryReasoningExtraction RefusalStopDetailsCategory = "reasoning_extraction"
-	RefusalStopDetailsCategoryGeneralHarms        RefusalStopDetailsCategory = "general_harms"
+	// The request could be related to an area that was determined as harmful. Benign
+	// work might sometimes trigger this category.
+	RefusalStopDetailsCategoryGeneralHarms RefusalStopDetailsCategory = "general_harms"
 )
 
 // The properties Content, Source, Title, Type are required.
@@ -8004,8 +11730,7 @@ func (r *ServerToolUsage) UnmarshalJSON(data []byte) error {
 }
 
 type ServerToolUseBlock struct {
-	ID string `json:"id" api:"required"`
-	// Tool invocation directly from the model.
+	ID     string                        `json:"id" api:"required"`
 	Caller ServerToolUseBlockCallerUnion `json:"caller" api:"required"`
 	Input  any                           `json:"input" api:"required"`
 	// Any of "web_search", "web_fetch", "code_execution", "bash_code_execution",
@@ -8121,9 +11846,8 @@ type ServerToolUseBlockParam struct {
 	// "text_editor_code_execution", "tool_search_tool_regex", "tool_search_tool_bm25".
 	Name ServerToolUseBlockParamName `json:"name,omitzero" api:"required"`
 	// Create a cache control breakpoint at this content block.
-	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
-	// Tool invocation directly from the model.
-	Caller ServerToolUseBlockParamCallerUnion `json:"caller,omitzero"`
+	CacheControl CacheControlEphemeralParam         `json:"cache_control,omitzero"`
+	Caller       ServerToolUseBlockParamCallerUnion `json:"caller,omitzero"`
 	// This field can be elided, and will marshal its zero value as "server_tool_use".
 	Type constant.ServerToolUse `json:"type" default:"server_tool_use"`
 	paramObj
@@ -8180,11 +11904,11 @@ func (u *ServerToolUseBlockParamCallerUnion) asAny() any {
 // Returns a pointer to the underlying variant's property, if present.
 func (u ServerToolUseBlockParamCallerUnion) GetType() *string {
 	if vt := u.OfDirect; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecution20250825; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecution20260120; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -8588,15 +12312,15 @@ func (u TextCitationParamUnion) GetDocumentTitle() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u TextCitationParamUnion) GetType() *string {
 	if vt := u.OfCharLocation; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfPageLocation; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfContentBlockLocation; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebSearchResultLocation; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfSearchResultLocation; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -9001,13 +12725,13 @@ func (u TextEditorCodeExecutionToolResultBlockParamContentUnion) GetOldStart() *
 // Returns a pointer to the underlying variant's property, if present.
 func (u TextEditorCodeExecutionToolResultBlockParamContentUnion) GetType() *string {
 	if vt := u.OfRequestTextEditorCodeExecutionToolResultError; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfRequestTextEditorCodeExecutionViewResultBlock; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfRequestTextEditorCodeExecutionCreateResultBlock; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfRequestTextEditorCodeExecutionStrReplaceResultBlock; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -9187,8 +12911,9 @@ func (r *ThinkingBlockParam) UnmarshalJSON(data []byte) error {
 type ThinkingConfigAdaptiveParam struct {
 	// Controls how thinking content appears in the response. When set to `summarized`,
 	// thinking is returned normally. When set to `omitted`, thinking content is
-	// redacted but a signature is returned for multi-turn continuity. Defaults to
-	// `summarized`.
+	// redacted but a signature is returned for multi-turn continuity. The default
+	// depends on the model; see
+	// [Controlling thinking display](https://platform.claude.com/docs/en/build-with-claude/thinking#controlling-thinking-display).
 	//
 	// Any of "summarized", "omitted".
 	Display ThinkingConfigAdaptiveDisplay `json:"display,omitzero"`
@@ -9207,14 +12932,36 @@ func (r *ThinkingConfigAdaptiveParam) UnmarshalJSON(data []byte) error {
 
 // Controls how thinking content appears in the response. When set to `summarized`,
 // thinking is returned normally. When set to `omitted`, thinking content is
-// redacted but a signature is returned for multi-turn continuity. Defaults to
-// `summarized`.
+// redacted but a signature is returned for multi-turn continuity. The default
+// depends on the model; see
+// [Controlling thinking display](https://platform.claude.com/docs/en/build-with-claude/thinking#controlling-thinking-display).
 type ThinkingConfigAdaptiveDisplay string
 
 const (
 	ThinkingConfigAdaptiveDisplaySummarized ThinkingConfigAdaptiveDisplay = "summarized"
 	ThinkingConfigAdaptiveDisplayOmitted    ThinkingConfigAdaptiveDisplay = "omitted"
 )
+
+func NewThinkingConfigBetweenToolsParam() ThinkingConfigBetweenToolsParam {
+	return ThinkingConfigBetweenToolsParam{
+		Type: "between_tools",
+	}
+}
+
+// This struct has a constant value, construct it with
+// [NewThinkingConfigBetweenToolsParam].
+type ThinkingConfigBetweenToolsParam struct {
+	Type constant.BetweenTools `json:"type" default:"between_tools"`
+	paramObj
+}
+
+func (r ThinkingConfigBetweenToolsParam) MarshalJSON() (data []byte, err error) {
+	type shadow ThinkingConfigBetweenToolsParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ThinkingConfigBetweenToolsParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
 
 func NewThinkingConfigDisabledParam() ThinkingConfigDisabledParam {
 	return ThinkingConfigDisabledParam{
@@ -9251,8 +12998,9 @@ type ThinkingConfigEnabledParam struct {
 	BudgetTokens int64 `json:"budget_tokens" api:"required"`
 	// Controls how thinking content appears in the response. When set to `summarized`,
 	// thinking is returned normally. When set to `omitted`, thinking content is
-	// redacted but a signature is returned for multi-turn continuity. Defaults to
-	// `summarized`.
+	// redacted but a signature is returned for multi-turn continuity. The default
+	// depends on the model; see
+	// [Controlling thinking display](https://platform.claude.com/docs/en/build-with-claude/thinking#controlling-thinking-display).
 	//
 	// Any of "summarized", "omitted".
 	Display ThinkingConfigEnabledDisplay `json:"display,omitzero"`
@@ -9271,8 +13019,9 @@ func (r *ThinkingConfigEnabledParam) UnmarshalJSON(data []byte) error {
 
 // Controls how thinking content appears in the response. When set to `summarized`,
 // thinking is returned normally. When set to `omitted`, thinking content is
-// redacted but a signature is returned for multi-turn continuity. Defaults to
-// `summarized`.
+// redacted but a signature is returned for multi-turn continuity. The default
+// depends on the model; see
+// [Controlling thinking display](https://platform.claude.com/docs/en/build-with-claude/thinking#controlling-thinking-display).
 type ThinkingConfigEnabledDisplay string
 
 const (
@@ -9290,14 +13039,15 @@ func ThinkingConfigParamOfEnabled(budgetTokens int64) ThinkingConfigParamUnion {
 //
 // Use [param.IsOmitted] to confirm if a field is set.
 type ThinkingConfigParamUnion struct {
-	OfEnabled  *ThinkingConfigEnabledParam  `json:",omitzero,inline"`
-	OfDisabled *ThinkingConfigDisabledParam `json:",omitzero,inline"`
-	OfAdaptive *ThinkingConfigAdaptiveParam `json:",omitzero,inline"`
+	OfEnabled      *ThinkingConfigEnabledParam      `json:",omitzero,inline"`
+	OfDisabled     *ThinkingConfigDisabledParam     `json:",omitzero,inline"`
+	OfBetweenTools *ThinkingConfigBetweenToolsParam `json:",omitzero,inline"`
+	OfAdaptive     *ThinkingConfigAdaptiveParam     `json:",omitzero,inline"`
 	paramUnion
 }
 
 func (u ThinkingConfigParamUnion) MarshalJSON() ([]byte, error) {
-	return param.MarshalUnion(u, u.OfEnabled, u.OfDisabled, u.OfAdaptive)
+	return param.MarshalUnion(u, u.OfEnabled, u.OfDisabled, u.OfBetweenTools, u.OfAdaptive)
 }
 func (u *ThinkingConfigParamUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
@@ -9308,6 +13058,8 @@ func (u *ThinkingConfigParamUnion) asAny() any {
 		return u.OfEnabled
 	} else if !param.IsOmitted(u.OfDisabled) {
 		return u.OfDisabled
+	} else if !param.IsOmitted(u.OfBetweenTools) {
+		return u.OfBetweenTools
 	} else if !param.IsOmitted(u.OfAdaptive) {
 		return u.OfAdaptive
 	}
@@ -9325,11 +13077,13 @@ func (u ThinkingConfigParamUnion) GetBudgetTokens() *int64 {
 // Returns a pointer to the underlying variant's property, if present.
 func (u ThinkingConfigParamUnion) GetType() *string {
 	if vt := u.OfEnabled; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfDisabled; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
+	} else if vt := u.OfBetweenTools; vt != nil {
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfAdaptive; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -9349,6 +13103,7 @@ func init() {
 		"type",
 		apijson.Discriminator[ThinkingConfigEnabledParam]("enabled"),
 		apijson.Discriminator[ThinkingConfigDisabledParam]("disabled"),
+		apijson.Discriminator[ThinkingConfigBetweenToolsParam]("between_tools"),
 		apijson.Discriminator[ThinkingConfigAdaptiveParam]("adaptive"),
 	)
 }
@@ -9433,7 +13188,7 @@ type ToolInputSchemaParam struct {
 	Required   []string `json:"required,omitzero"`
 	// This field can be elided, and will marshal its zero value as "object".
 	Type        constant.Object `json:"type" default:"object"`
-	ExtraFields map[string]any  `json:"-"`
+	ExtraFields map[string]any  `json:"-" api:"extrafields"`
 	paramObj
 }
 
@@ -9531,13 +13286,13 @@ func (u ToolChoiceUnionParam) GetName() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u ToolChoiceUnionParam) GetType() *string {
 	if vt := u.OfAuto; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfAny; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfTool; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfNone; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -9815,17 +13570,17 @@ func (u ToolResultBlockParamContentUnion) GetStateChanges() []BrowserStateChange
 // Returns a pointer to the underlying variant's property, if present.
 func (u ToolResultBlockParamContentUnion) GetType() *string {
 	if vt := u.OfText; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfImage; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfSearchResult; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfDocument; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfToolReference; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfBrowserState; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -10215,9 +13970,9 @@ func (u ToolSearchToolResultBlockParamContentUnion) GetToolReferences() []ToolRe
 // Returns a pointer to the underlying variant's property, if present.
 func (u ToolSearchToolResultBlockParamContentUnion) GetType() *string {
 	if vt := u.OfRequestToolSearchToolResultError; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfRequestToolSearchToolSearchResultBlock; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -10571,41 +14326,41 @@ func (u ToolUnionParam) GetName() *string {
 	if vt := u.OfTool; vt != nil {
 		return (*string)(&vt.Name)
 	} else if vt := u.OfBashTool20250124; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfCodeExecutionTool20250522; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfCodeExecutionTool20250825; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfTextEditor20250124; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfTextEditor20250429; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfTextEditor20250728; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebSearchTool20250305; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebFetchTool20250910; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebFetchTool20260309; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebSearchTool20260318; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfWebFetchTool20260318; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	} else if vt := u.OfToolSearchToolRegex20251119; vt != nil {
-		return (*string)(&vt.Name)
+		return paramutil.AddrOrDefault(vt.Name)
 	}
 	return nil
 }
@@ -10703,41 +14458,41 @@ func (u ToolUnionParam) GetType() *string {
 	if vt := u.OfTool; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfBashTool20250124; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecutionTool20250522; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecutionTool20250825; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecutionTool20260120; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfBrowserToolset20260801; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfComputerToolset20260801; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfTextEditor20250124; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfTextEditor20250429; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfTextEditor20250728; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebSearchTool20250305; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebFetchTool20250910; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebSearchTool20260209; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebFetchTool20260209; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebFetchTool20260309; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebSearchTool20260318; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfWebFetchTool20260318; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfToolSearchToolBm25_20251119; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfToolSearchToolRegex20251119; vt != nil {
@@ -10815,11 +14570,7 @@ func (u ToolUnionParam) GetAllowedCallers() []string {
 		return vt.AllowedCallers
 	} else if vt := u.OfCodeExecutionTool20260521; vt != nil {
 		return vt.AllowedCallers
-	} else if vt := u.OfBrowserToolset20260801; vt != nil {
-		return vt.AllowedCallers
 	} else if vt := u.OfMemoryTool20250818; vt != nil {
-		return vt.AllowedCallers
-	} else if vt := u.OfComputerToolset20260801; vt != nil {
 		return vt.AllowedCallers
 	} else if vt := u.OfTextEditor20250124; vt != nil {
 		return vt.AllowedCallers
@@ -11934,9 +15685,22 @@ func (u ToolUnionParam) GetCitations() *CitationsConfigParam {
 	return nil
 }
 
+// Returns a pointer to the underlying variant's URLSources property, if present.
+func (u ToolUnionParam) GetURLSources() *WebFetchURLSourcesParam {
+	if vt := u.OfWebFetchTool20250910; vt != nil {
+		return &vt.URLSources
+	} else if vt := u.OfWebFetchTool20260209; vt != nil {
+		return &vt.URLSources
+	} else if vt := u.OfWebFetchTool20260309; vt != nil {
+		return &vt.URLSources
+	} else if vt := u.OfWebFetchTool20260318; vt != nil {
+		return &vt.URLSources
+	}
+	return nil
+}
+
 type ToolUseBlock struct {
-	ID string `json:"id" api:"required"`
-	// Tool invocation directly from the model.
+	ID     string                  `json:"id" api:"required"`
 	Caller ToolUseBlockCallerUnion `json:"caller" api:"required"`
 	// necessary custom code modification
 	Input json.RawMessage  `json:"input,required"`
@@ -12042,9 +15806,8 @@ type ToolUseBlockParam struct {
 	// For a toolset member tool_use, the toolset family this member belongs to.
 	ToolsetName param.Opt[string] `json:"toolset_name,omitzero"`
 	// Create a cache control breakpoint at this content block.
-	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
-	// Tool invocation directly from the model.
-	Caller ToolUseBlockParamCallerUnion `json:"caller,omitzero"`
+	CacheControl CacheControlEphemeralParam   `json:"cache_control,omitzero"`
+	Caller       ToolUseBlockParamCallerUnion `json:"caller,omitzero"`
 	// This field can be elided, and will marshal its zero value as "tool_use".
 	Type constant.ToolUse `json:"type" default:"tool_use"`
 	paramObj
@@ -12089,11 +15852,11 @@ func (u *ToolUseBlockParamCallerUnion) asAny() any {
 // Returns a pointer to the underlying variant's property, if present.
 func (u ToolUseBlockParamCallerUnion) GetType() *string {
 	if vt := u.OfDirect; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecution20250825; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecution20260120; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -12115,6 +15878,287 @@ func init() {
 		apijson.Discriminator[ServerToolCallerParam]("code_execution_20250825"),
 		apijson.Discriminator[ServerToolCaller20260120Param]("code_execution_20260120"),
 	)
+}
+
+// ToolUseCallerUnion contains all possible properties and values from
+// [DirectCaller], [ServerToolCaller], [ServerToolCaller20260120].
+//
+// Use the [ToolUseCallerUnion.AsAny] method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ToolUseCallerUnion struct {
+	// Any of "direct", "code_execution_20250825", "code_execution_20260120".
+	Type   string `json:"type"`
+	ToolID string `json:"tool_id"`
+	JSON   struct {
+		Type   respjson.Field
+		ToolID respjson.Field
+		raw    string
+	} `json:"-"`
+}
+
+// anyToolUseCaller is implemented by each variant of [ToolUseCallerUnion] to add
+// type safety for the return type of [ToolUseCallerUnion.AsAny]
+type anyToolUseCaller interface {
+	implToolUseCallerUnion()
+}
+
+func (DirectCaller) implToolUseCallerUnion()             {}
+func (ServerToolCaller) implToolUseCallerUnion()         {}
+func (ServerToolCaller20260120) implToolUseCallerUnion() {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ToolUseCallerUnion.AsAny().(type) {
+//	case anthropic.DirectCaller:
+//	case anthropic.ServerToolCaller:
+//	case anthropic.ServerToolCaller20260120:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ToolUseCallerUnion) AsAny() anyToolUseCaller {
+	switch u.Type {
+	case "direct":
+		return u.AsDirect()
+	case "code_execution_20250825":
+		return u.AsCodeExecution20250825()
+	case "code_execution_20260120":
+		return u.AsCodeExecution20260120()
+	}
+	return nil
+}
+
+func (u ToolUseCallerUnion) AsDirect() (v DirectCaller) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ToolUseCallerUnion) AsCodeExecution20250825() (v ServerToolCaller) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ToolUseCallerUnion) AsCodeExecution20260120() (v ServerToolCaller20260120) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ToolUseCallerUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ToolUseCallerUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToolsetToolUseBlockUnion contains all possible properties and values from
+// [BrowserToolUseBlockUnion], [ComputerToolUseBlockUnion], [ToolUseBlock].
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ToolsetToolUseBlockUnion struct {
+	ID string `json:"id"`
+	// This field is a union of [ToolUseCallerUnion], [ToolUseBlockCallerUnion]
+	Caller ToolsetToolUseBlockUnionCaller `json:"caller"`
+	// This field is a union of [BrowserNavigateInput], [BrowserListTabsInput],
+	// [BrowserNewTabInput], [BrowserSwitchTabInput], [BrowserCloseTabInput],
+	// [BrowserReadPageInput], [BrowserGetPageTextInput], [BrowserReadConsoleInput],
+	// [BrowserReadNetworkInput], [BrowserFindInput], [BrowserFormInputInput],
+	// [BrowserFileUploadInput], [BrowserScrollToInput], [BrowserScreenshotInput],
+	// [BrowserZoomInput], [BrowserLeftClickInput], [BrowserRightClickInput],
+	// [BrowserMiddleClickInput], [BrowserDoubleClickInput], [BrowserTripleClickInput],
+	// [BrowserHoverInput], [BrowserLeftClickDragInput], [BrowserLeftMouseDownInput],
+	// [BrowserLeftMouseUpInput], [BrowserMouseMoveInput], [BrowserScrollInput],
+	// [BrowserTypeInput], [BrowserKeyInput], [BrowserHoldKeyInput],
+	// [BrowserWaitInput], [BrowserJavascriptExecInput], [ComputerKeyInput],
+	// [ComputerHoldKeyInput], [ComputerTypeInput], [ComputerCursorPositionInput],
+	// [ComputerMouseMoveInput], [ComputerLeftMouseDownInput],
+	// [ComputerLeftMouseUpInput], [ComputerLeftClickInput],
+	// [ComputerLeftClickDragInput], [ComputerRightClickInput],
+	// [ComputerMiddleClickInput], [ComputerDoubleClickInput],
+	// [ComputerTripleClickInput], [ComputerScrollInput], [ComputerWaitInput],
+	// [ComputerScreenshotInput], [ComputerZoomInput], [map[string]any]
+	Input       ToolsetToolUseBlockUnionInput `json:"input"`
+	Name        string                        `json:"name"`
+	ToolsetName string                        `json:"toolset_name"`
+	// This field is from variant [BrowserToolUseBlockUnion].
+	Type constant.ToolUse `json:"type"`
+	JSON struct {
+		ID          respjson.Field
+		Caller      respjson.Field
+		Input       respjson.Field
+		Name        respjson.Field
+		ToolsetName respjson.Field
+		Type        respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+func (u ToolsetToolUseBlockUnion) AsResponseBrowserToolUseBlock() (v BrowserToolUseBlockUnion) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ToolsetToolUseBlockUnion) AsResponseComputerToolUseBlock() (v ComputerToolUseBlockUnion) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ToolsetToolUseBlockUnion) AsResponseToolUseBlock() (v ToolUseBlock) {
+	apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ToolsetToolUseBlockUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ToolsetToolUseBlockUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToolsetToolUseBlockUnionCaller is an implicit subunion of
+// [ToolsetToolUseBlockUnion]. ToolsetToolUseBlockUnionCaller provides convenient
+// access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [ToolsetToolUseBlockUnion].
+type ToolsetToolUseBlockUnionCaller struct {
+	Type   string `json:"type"`
+	ToolID string `json:"tool_id"`
+	JSON   struct {
+		Type   respjson.Field
+		ToolID respjson.Field
+		raw    string
+	} `json:"-"`
+}
+
+func (r *ToolsetToolUseBlockUnionCaller) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToolsetToolUseBlockUnionInput is an implicit subunion of
+// [ToolsetToolUseBlockUnion]. ToolsetToolUseBlockUnionInput provides convenient
+// access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [ToolsetToolUseBlockUnion].
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfToolUseBlockInput]
+type ToolsetToolUseBlockUnionInput struct {
+	// This field will be present if the value is a [any] instead of an object.
+	OfToolUseBlockInput any `json:",inline"`
+	// This field is from variant [BrowserNavigateInput].
+	URL   string `json:"url"`
+	TabID string `json:"tab_id"`
+	// This field is from variant [BrowserReadPageInput].
+	Depth int64 `json:"depth"`
+	// This field is from variant [BrowserReadPageInput].
+	Filter BrowserReadPageFilter `json:"filter"`
+	// This field is from variant [BrowserReadPageInput].
+	Ref string `json:"ref"`
+	// This field is from variant [BrowserFindInput].
+	Query string `json:"query"`
+	// This field is a union of [BrowserRefTarget], [BrowserClickTargetUnion],
+	// [BrowserCoordinateTarget]
+	Target ToolsetToolUseBlockUnionInputTarget `json:"target"`
+	// This field is from variant [BrowserFormInputInput].
+	Value BrowserFormInputValueUnion `json:"value"`
+	// This field is from variant [BrowserFileUploadInput].
+	DocumentIDs []string `json:"document_ids"`
+	// This field is from variant [BrowserFileUploadInput].
+	Paths     []string `json:"paths"`
+	Region    []int64  `json:"region"`
+	Modifiers string   `json:"modifiers"`
+	// This field is from variant [BrowserLeftClickDragInput].
+	From            BrowserCoordinateTarget `json:"from"`
+	ScrollDirection string                  `json:"scroll_direction"`
+	ScrollAmount    int64                   `json:"scroll_amount"`
+	Text            string                  `json:"text"`
+	Repeat          int64                   `json:"repeat"`
+	// This field is a union of [float64], [float64], [int64], [int64]
+	Duration   ToolsetToolUseBlockUnionInputDuration `json:"duration"`
+	Coordinate []int64                               `json:"coordinate"`
+	// This field is from variant [ComputerLeftClickDragInput].
+	StartCoordinate []int64 `json:"start_coordinate"`
+	JSON            struct {
+		OfToolUseBlockInput respjson.Field
+		URL                 respjson.Field
+		TabID               respjson.Field
+		Depth               respjson.Field
+		Filter              respjson.Field
+		Ref                 respjson.Field
+		Query               respjson.Field
+		Target              respjson.Field
+		Value               respjson.Field
+		DocumentIDs         respjson.Field
+		Paths               respjson.Field
+		Region              respjson.Field
+		Modifiers           respjson.Field
+		From                respjson.Field
+		ScrollDirection     respjson.Field
+		ScrollAmount        respjson.Field
+		Text                respjson.Field
+		Repeat              respjson.Field
+		Duration            respjson.Field
+		Coordinate          respjson.Field
+		StartCoordinate     respjson.Field
+		raw                 string
+	} `json:"-"`
+}
+
+func (r *ToolsetToolUseBlockUnionInput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToolsetToolUseBlockUnionInputTarget is an implicit subunion of
+// [ToolsetToolUseBlockUnion]. ToolsetToolUseBlockUnionInputTarget provides
+// convenient access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [ToolsetToolUseBlockUnion].
+type ToolsetToolUseBlockUnionInputTarget struct {
+	// This field is from variant [BrowserRefTarget], [BrowserClickTargetUnion].
+	Ref  string `json:"ref"`
+	Type string `json:"type"`
+	// This field is from variant [BrowserClickTargetUnion], [BrowserCoordinateTarget].
+	X int64 `json:"x"`
+	// This field is from variant [BrowserClickTargetUnion], [BrowserCoordinateTarget].
+	Y    int64 `json:"y"`
+	JSON struct {
+		Ref  respjson.Field
+		Type respjson.Field
+		X    respjson.Field
+		Y    respjson.Field
+		raw  string
+	} `json:"-"`
+}
+
+func (r *ToolsetToolUseBlockUnionInputTarget) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToolsetToolUseBlockUnionInputDuration is an implicit subunion of
+// [ToolsetToolUseBlockUnion]. ToolsetToolUseBlockUnionInputDuration provides
+// convenient access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [ToolsetToolUseBlockUnion].
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfFloat OfInt]
+type ToolsetToolUseBlockUnionInputDuration struct {
+	// This field will be present if the value is a [float64] instead of an object.
+	OfFloat float64 `json:",inline"`
+	// This field will be present if the value is a [int64] instead of an object.
+	OfInt int64 `json:",inline"`
+	JSON  struct {
+		OfFloat respjson.Field
+		OfInt   respjson.Field
+		raw     string
+	} `json:"-"`
+}
+
+func (r *ToolsetToolUseBlockUnionInputDuration) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
 }
 
 // The properties Type, URL are required.
@@ -12175,6 +16219,10 @@ type Usage struct {
 	//
 	// Any of "standard", "priority", "batch".
 	ServiceTier UsageServiceTier `json:"service_tier" api:"required"`
+	// The inference speed mode used for this request.
+	//
+	// Any of "standard", "fast".
+	Speed UsageSpeed `json:"speed" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		CacheCreation            respjson.Field
@@ -12186,6 +16234,7 @@ type Usage struct {
 		OutputTokensDetails      respjson.Field
 		ServerToolUse            respjson.Field
 		ServiceTier              respjson.Field
+		Speed                    respjson.Field
 		ExtraFields              map[string]respjson.Field
 		raw                      string
 	} `json:"-"`
@@ -12204,6 +16253,14 @@ const (
 	UsageServiceTierStandard UsageServiceTier = "standard"
 	UsageServiceTierPriority UsageServiceTier = "priority"
 	UsageServiceTierBatch    UsageServiceTier = "batch"
+)
+
+// The inference speed mode used for this request.
+type UsageSpeed string
+
+const (
+	UsageSpeedStandard UsageSpeed = "standard"
+	UsageSpeedFast     UsageSpeed = "fast"
 )
 
 // The property Type is required.
@@ -12299,6 +16356,9 @@ type WebFetchTool20250910Param struct {
 	// Citations configuration for fetched documents. Citations are disabled by
 	// default.
 	Citations CitationsConfigParam `json:"citations,omitzero"`
+	// Which sources contribute to the set of URLs the tool may fetch. Omitted means
+	// every source.
+	URLSources WebFetchURLSourcesParam `json:"url_sources,omitzero"`
 	// Name of the tool.
 	//
 	// This is how the tool will be called by the model and in `tool_use` blocks.
@@ -12343,6 +16403,9 @@ type WebFetchTool20260209Param struct {
 	// Citations configuration for fetched documents. Citations are disabled by
 	// default.
 	Citations CitationsConfigParam `json:"citations,omitzero"`
+	// Which sources contribute to the set of URLs the tool may fetch. Omitted means
+	// every source.
+	URLSources WebFetchURLSourcesParam `json:"url_sources,omitzero"`
 	// Name of the tool.
 	//
 	// This is how the tool will be called by the model and in `tool_use` blocks.
@@ -12393,6 +16456,9 @@ type WebFetchTool20260309Param struct {
 	// Citations configuration for fetched documents. Citations are disabled by
 	// default.
 	Citations CitationsConfigParam `json:"citations,omitzero"`
+	// Which sources contribute to the set of URLs the tool may fetch. Omitted means
+	// every source.
+	URLSources WebFetchURLSourcesParam `json:"url_sources,omitzero"`
 	// Name of the tool.
 	//
 	// This is how the tool will be called by the model and in `tool_use` blocks.
@@ -12450,6 +16516,9 @@ type WebFetchTool20260318Param struct {
 	//
 	// Any of "full", "excluded".
 	ResponseInclusion WebFetchTool20260318ResponseInclusion `json:"response_inclusion,omitzero"`
+	// Which sources contribute to the set of URLs the tool may fetch. Omitted means
+	// every source.
+	URLSources WebFetchURLSourcesParam `json:"url_sources,omitzero"`
 	// Name of the tool.
 	//
 	// This is how the tool will be called by the model and in `tool_use` blocks.
@@ -12484,7 +16553,6 @@ const (
 )
 
 type WebFetchToolResultBlock struct {
-	// Tool invocation directly from the model.
 	Caller    WebFetchToolResultBlockCallerUnion  `json:"caller" api:"required"`
 	Content   WebFetchToolResultBlockContentUnion `json:"content" api:"required"`
 	ToolUseID string                              `json:"tool_use_id" api:"required"`
@@ -12624,9 +16692,8 @@ type WebFetchToolResultBlockParam struct {
 	Content   WebFetchToolResultBlockParamContentUnion `json:"content,omitzero" api:"required"`
 	ToolUseID string                                   `json:"tool_use_id" api:"required"`
 	// Create a cache control breakpoint at this content block.
-	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
-	// Tool invocation directly from the model.
-	Caller WebFetchToolResultBlockParamCallerUnion `json:"caller,omitzero"`
+	CacheControl CacheControlEphemeralParam              `json:"cache_control,omitzero"`
+	Caller       WebFetchToolResultBlockParamCallerUnion `json:"caller,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_fetch_tool_result".
 	Type constant.WebFetchToolResult `json:"type" default:"web_fetch_tool_result"`
@@ -12701,9 +16768,9 @@ func (u WebFetchToolResultBlockParamContentUnion) GetRetrievedAt() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u WebFetchToolResultBlockParamContentUnion) GetType() *string {
 	if vt := u.OfRequestWebFetchToolResultError; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfRequestWebFetchResultBlock; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -12739,11 +16806,11 @@ func (u *WebFetchToolResultBlockParamCallerUnion) asAny() any {
 // Returns a pointer to the underlying variant's property, if present.
 func (u WebFetchToolResultBlockParamCallerUnion) GetType() *string {
 	if vt := u.OfDirect; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecution20250825; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecution20260120; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -12770,7 +16837,7 @@ func init() {
 type WebFetchToolResultErrorBlock struct {
 	// Any of "invalid_tool_input", "url_too_long", "url_not_allowed",
 	// "url_not_in_prior_context", "url_not_accessible", "unsupported_content_type",
-	// "too_many_requests", "max_uses_exceeded", "unavailable".
+	// "too_many_requests", "max_uses_exceeded", "unavailable", "content_too_large".
 	ErrorCode WebFetchToolResultErrorCode      `json:"error_code" api:"required"`
 	Type      constant.WebFetchToolResultError `json:"type" default:"web_fetch_tool_result_error"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
@@ -12792,7 +16859,7 @@ func (r *WebFetchToolResultErrorBlock) UnmarshalJSON(data []byte) error {
 type WebFetchToolResultErrorBlockParam struct {
 	// Any of "invalid_tool_input", "url_too_long", "url_not_allowed",
 	// "url_not_in_prior_context", "url_not_accessible", "unsupported_content_type",
-	// "too_many_requests", "max_uses_exceeded", "unavailable".
+	// "too_many_requests", "max_uses_exceeded", "unavailable", "content_too_large".
 	ErrorCode WebFetchToolResultErrorCode `json:"error_code,omitzero" api:"required"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_fetch_tool_result_error".
@@ -12820,7 +16887,312 @@ const (
 	WebFetchToolResultErrorCodeTooManyRequests        WebFetchToolResultErrorCode = "too_many_requests"
 	WebFetchToolResultErrorCodeMaxUsesExceeded        WebFetchToolResultErrorCode = "max_uses_exceeded"
 	WebFetchToolResultErrorCodeUnavailable            WebFetchToolResultErrorCode = "unavailable"
+	WebFetchToolResultErrorCodeContentTooLarge        WebFetchToolResultErrorCode = "content_too_large"
 )
+
+func NewWebFetchURLSourceAllParam() WebFetchURLSourceAllParam {
+	return WebFetchURLSourceAllParam{
+		Type: "all",
+	}
+}
+
+// The `url_sources` variant under which a source contributes in full: every result
+// of the tool filter's source, or all user input.
+//
+// This struct has a constant value, construct it with
+// [NewWebFetchURLSourceAllParam].
+type WebFetchURLSourceAllParam struct {
+	Type constant.All `json:"type" default:"all"`
+	paramObj
+}
+
+func (r WebFetchURLSourceAllParam) MarshalJSON() (data []byte, err error) {
+	type shadow WebFetchURLSourceAllParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *WebFetchURLSourceAllParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The tool filter variant under which every result but the named tools'
+// contributes.
+//
+// The properties Tools, Type are required.
+type WebFetchURLSourceExceptParam struct {
+	Tools []WebFetchURLSourceToolReferenceParam `json:"tools,omitzero" api:"required"`
+	// This field can be elided, and will marshal its zero value as "except".
+	Type constant.Except `json:"type" default:"except"`
+	paramObj
+}
+
+func (r WebFetchURLSourceExceptParam) MarshalJSON() (data []byte, err error) {
+	type shadow WebFetchURLSourceExceptParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *WebFetchURLSourceExceptParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func NewWebFetchURLSourceNoneParam() WebFetchURLSourceNoneParam {
+	return WebFetchURLSourceNoneParam{
+		Type: "none",
+	}
+}
+
+// The `url_sources` variant under which a source contributes nothing: no result of
+// the tool filter's source, or no user input.
+//
+// This struct has a constant value, construct it with
+// [NewWebFetchURLSourceNoneParam].
+type WebFetchURLSourceNoneParam struct {
+	Type constant.None `json:"type" default:"none"`
+	paramObj
+}
+
+func (r WebFetchURLSourceNoneParam) MarshalJSON() (data []byte, err error) {
+	type shadow WebFetchURLSourceNoneParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *WebFetchURLSourceNoneParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The tool filter variant under which only the named tools' results contribute.
+//
+// The properties Tools, Type are required.
+type WebFetchURLSourceOnlyParam struct {
+	Tools []WebFetchURLSourceToolReferenceParam `json:"tools,omitzero" api:"required"`
+	// This field can be elided, and will marshal its zero value as "only".
+	Type constant.Only `json:"type" default:"only"`
+	paramObj
+}
+
+func (r WebFetchURLSourceOnlyParam) MarshalJSON() (data []byte, err error) {
+	type shadow WebFetchURLSourceOnlyParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *WebFetchURLSourceOnlyParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// One entry of a tool filter's `tools`: it must name a tool declared in this
+// request's `tools[]`.
+//
+// The properties Name, Type are required.
+type WebFetchURLSourceToolReferenceParam struct {
+	Name string `json:"name" api:"required"`
+	// This field can be elided, and will marshal its zero value as "tool_reference".
+	Type constant.ToolReference `json:"type" default:"tool_reference"`
+	paramObj
+}
+
+func (r WebFetchURLSourceToolReferenceParam) MarshalJSON() (data []byte, err error) {
+	type shadow WebFetchURLSourceToolReferenceParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *WebFetchURLSourceToolReferenceParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Which sources contribute to the set of URLs web fetch may fetch.
+//
+// Each key is a tagged variant: `user_input` is `all` or `none`; the two tool
+// filters are `all`, `none`, `only` (only the named tools' results) or `except`
+// (every result but the named tools'). A named tool must be declared in this
+// request's `tools[]`.
+type WebFetchURLSourcesParam struct {
+	// Which client tools' results contribute fetchable URLs: "all", "none", or an only
+	// or except list of client tool names from tools[].
+	ClientToolResults WebFetchURLSourcesClientToolResultsUnionParam `json:"client_tool_results,omitzero"`
+	// Which server tools' results contribute fetchable URLs: "all", "none", or an only
+	// or except list of server tool names from tools[]; only web_search and web_fetch
+	// results ever contribute.
+	ServerToolResults WebFetchURLSourcesServerToolResultsUnionParam `json:"server_tool_results,omitzero"`
+	// Whether URLs in user messages are fetchable: "all" or "none".
+	UserInput WebFetchURLSourcesUserInputUnionParam `json:"user_input,omitzero"`
+	paramObj
+}
+
+func (r WebFetchURLSourcesParam) MarshalJSON() (data []byte, err error) {
+	type shadow WebFetchURLSourcesParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *WebFetchURLSourcesParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type WebFetchURLSourcesClientToolResultsUnionParam struct {
+	OfAll    *WebFetchURLSourceAllParam    `json:",omitzero,inline"`
+	OfNone   *WebFetchURLSourceNoneParam   `json:",omitzero,inline"`
+	OfOnly   *WebFetchURLSourceOnlyParam   `json:",omitzero,inline"`
+	OfExcept *WebFetchURLSourceExceptParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u WebFetchURLSourcesClientToolResultsUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfAll, u.OfNone, u.OfOnly, u.OfExcept)
+}
+func (u *WebFetchURLSourcesClientToolResultsUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *WebFetchURLSourcesClientToolResultsUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfAll) {
+		return u.OfAll
+	} else if !param.IsOmitted(u.OfNone) {
+		return u.OfNone
+	} else if !param.IsOmitted(u.OfOnly) {
+		return u.OfOnly
+	} else if !param.IsOmitted(u.OfExcept) {
+		return u.OfExcept
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u WebFetchURLSourcesClientToolResultsUnionParam) GetType() *string {
+	if vt := u.OfAll; vt != nil {
+		return paramutil.AddrOrDefault(vt.Type)
+	} else if vt := u.OfNone; vt != nil {
+		return paramutil.AddrOrDefault(vt.Type)
+	} else if vt := u.OfOnly; vt != nil {
+		return paramutil.AddrOrDefault(vt.Type)
+	} else if vt := u.OfExcept; vt != nil {
+		return paramutil.AddrOrDefault(vt.Type)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's Tools property, if present.
+func (u WebFetchURLSourcesClientToolResultsUnionParam) GetTools() []WebFetchURLSourceToolReferenceParam {
+	if vt := u.OfOnly; vt != nil {
+		return vt.Tools
+	} else if vt := u.OfExcept; vt != nil {
+		return vt.Tools
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[WebFetchURLSourcesClientToolResultsUnionParam](
+		"type",
+		apijson.Discriminator[WebFetchURLSourceAllParam]("all"),
+		apijson.Discriminator[WebFetchURLSourceNoneParam]("none"),
+		apijson.Discriminator[WebFetchURLSourceOnlyParam]("only"),
+		apijson.Discriminator[WebFetchURLSourceExceptParam]("except"),
+	)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type WebFetchURLSourcesServerToolResultsUnionParam struct {
+	OfAll    *WebFetchURLSourceAllParam    `json:",omitzero,inline"`
+	OfNone   *WebFetchURLSourceNoneParam   `json:",omitzero,inline"`
+	OfOnly   *WebFetchURLSourceOnlyParam   `json:",omitzero,inline"`
+	OfExcept *WebFetchURLSourceExceptParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u WebFetchURLSourcesServerToolResultsUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfAll, u.OfNone, u.OfOnly, u.OfExcept)
+}
+func (u *WebFetchURLSourcesServerToolResultsUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *WebFetchURLSourcesServerToolResultsUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfAll) {
+		return u.OfAll
+	} else if !param.IsOmitted(u.OfNone) {
+		return u.OfNone
+	} else if !param.IsOmitted(u.OfOnly) {
+		return u.OfOnly
+	} else if !param.IsOmitted(u.OfExcept) {
+		return u.OfExcept
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u WebFetchURLSourcesServerToolResultsUnionParam) GetType() *string {
+	if vt := u.OfAll; vt != nil {
+		return paramutil.AddrOrDefault(vt.Type)
+	} else if vt := u.OfNone; vt != nil {
+		return paramutil.AddrOrDefault(vt.Type)
+	} else if vt := u.OfOnly; vt != nil {
+		return paramutil.AddrOrDefault(vt.Type)
+	} else if vt := u.OfExcept; vt != nil {
+		return paramutil.AddrOrDefault(vt.Type)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's Tools property, if present.
+func (u WebFetchURLSourcesServerToolResultsUnionParam) GetTools() []WebFetchURLSourceToolReferenceParam {
+	if vt := u.OfOnly; vt != nil {
+		return vt.Tools
+	} else if vt := u.OfExcept; vt != nil {
+		return vt.Tools
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[WebFetchURLSourcesServerToolResultsUnionParam](
+		"type",
+		apijson.Discriminator[WebFetchURLSourceAllParam]("all"),
+		apijson.Discriminator[WebFetchURLSourceNoneParam]("none"),
+		apijson.Discriminator[WebFetchURLSourceOnlyParam]("only"),
+		apijson.Discriminator[WebFetchURLSourceExceptParam]("except"),
+	)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type WebFetchURLSourcesUserInputUnionParam struct {
+	OfAll  *WebFetchURLSourceAllParam  `json:",omitzero,inline"`
+	OfNone *WebFetchURLSourceNoneParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u WebFetchURLSourcesUserInputUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfAll, u.OfNone)
+}
+func (u *WebFetchURLSourcesUserInputUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *WebFetchURLSourcesUserInputUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfAll) {
+		return u.OfAll
+	} else if !param.IsOmitted(u.OfNone) {
+		return u.OfNone
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u WebFetchURLSourcesUserInputUnionParam) GetType() *string {
+	if vt := u.OfAll; vt != nil {
+		return paramutil.AddrOrDefault(vt.Type)
+	} else if vt := u.OfNone; vt != nil {
+		return paramutil.AddrOrDefault(vt.Type)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[WebFetchURLSourcesUserInputUnionParam](
+		"type",
+		apijson.Discriminator[WebFetchURLSourceAllParam]("all"),
+		apijson.Discriminator[WebFetchURLSourceNoneParam]("none"),
+	)
+}
 
 type WebSearchResultBlock struct {
 	EncryptedContent string                   `json:"encrypted_content" api:"required"`
@@ -13037,7 +17409,6 @@ func (r *WebSearchToolRequestErrorParam) UnmarshalJSON(data []byte) error {
 }
 
 type WebSearchToolResultBlock struct {
-	// Tool invocation directly from the model.
 	Caller    WebSearchToolResultBlockCallerUnion  `json:"caller" api:"required"`
 	Content   WebSearchToolResultBlockContentUnion `json:"content" api:"required"`
 	ToolUseID string                               `json:"tool_use_id" api:"required"`
@@ -13176,9 +17547,8 @@ type WebSearchToolResultBlockParam struct {
 	Content   WebSearchToolResultBlockParamContentUnion `json:"content,omitzero" api:"required"`
 	ToolUseID string                                    `json:"tool_use_id" api:"required"`
 	// Create a cache control breakpoint at this content block.
-	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
-	// Tool invocation directly from the model.
-	Caller WebSearchToolResultBlockParamCallerUnion `json:"caller,omitzero"`
+	CacheControl CacheControlEphemeralParam               `json:"cache_control,omitzero"`
+	Caller       WebSearchToolResultBlockParamCallerUnion `json:"caller,omitzero"`
 	// This field can be elided, and will marshal its zero value as
 	// "web_search_tool_result".
 	Type constant.WebSearchToolResult `json:"type" default:"web_search_tool_result"`
@@ -13224,11 +17594,11 @@ func (u *WebSearchToolResultBlockParamCallerUnion) asAny() any {
 // Returns a pointer to the underlying variant's property, if present.
 func (u WebSearchToolResultBlockParamCallerUnion) GetType() *string {
 	if vt := u.OfDirect; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecution20250825; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfCodeExecution20260120; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -13342,7 +17712,10 @@ type MessageNewParams struct {
 	//
 	// If the final message uses the `assistant` role, the response content will
 	// continue immediately from the content in that message. This can be used to
-	// constrain part of the model's response.
+	// constrain part of the model's response. This is called prefill. On models that
+	// don't support prefill, creating a message that ends with a partial `assistant`
+	// response returns a 400 error. See
+	// [Prefill not supported](https://platform.claude.com/docs/en/api/errors#prefill-not-supported).
 	//
 	// Example with a single `user` message:
 	//
@@ -13354,25 +17727,22 @@ type MessageNewParams struct {
 	//
 	// ```json
 	// [
-	//
-	//	{ "role": "user", "content": "Hello there." },
-	//	{ "role": "assistant", "content": "Hi, I'm Claude. How can I help you?" },
-	//	{ "role": "user", "content": "Can you explain LLMs in plain English?" }
-	//
+	//   { "role": "user", "content": "Hello there." },
+	//   { "role": "assistant", "content": "Hi, I'm Claude. How can I help you?" },
+	//   { "role": "user", "content": "Can you explain LLMs in plain English?" }
 	// ]
 	// ```
 	//
-	// Example with a partially-filled response from Claude:
+	// Example with a partially-filled response from Claude, for models that support
+	// prefill:
 	//
 	// ```json
 	// [
-	//
-	//	{
-	//	  "role": "user",
-	//	  "content": "What's the Greek name for Sun? (A) Sol (B) Helios (C) Sun"
-	//	},
-	//	{ "role": "assistant", "content": "The best answer is (" }
-	//
+	//   {
+	//     "role": "user",
+	//     "content": "What's the Greek name for Sun? (A) Sol (B) Helios (C) Sun"
+	//   },
+	//   { "role": "assistant", "content": "The best answer is (" }
 	// ]
 	// ```
 	//
@@ -13434,11 +17804,32 @@ type MessageNewParams struct {
 	// The user profile ID to attribute this request to. Use when acting on behalf of a
 	// party other than your organization. Requires the `user-profiles` beta header.
 	UserProfileID param.Opt[string] `header:"anthropic-user-profile-id,omitzero" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Container identifier for reuse across requests.
 	Container MessageCreateParamsContainerUnion `json:"container,omitzero"`
+	// The inference speed mode for this request. `"fast"` enables high
+	// output-tokens-per-second inference.
+	//
+	// Some models require the `fast-mode-2026-02-01` beta header for any `speed`
+	// value. See
+	// [fast mode](https://platform.claude.com/docs/en/build-with-claude/fast-mode) for
+	// which models.
+	//
+	// Any of "standard", "fast".
+	Speed MessageNewParamsSpeed `json:"speed,omitzero"`
 	// Top-level cache control automatically applies a cache_control marker to the last
 	// cacheable block in the request.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
+	// Request-level diagnostics. Supply `previous_message_id` to have the response
+	// include `diagnostics.cache_miss_reason` explaining any prompt-cache divergence
+	// from that prior request.
+	Diagnostics DiagnosticsParam `json:"diagnostics,omitzero"`
 	// An object describing metadata about the request.
 	Metadata MetadataParam `json:"metadata,omitzero"`
 	// Configuration options for the model's output, such as the output format.
@@ -13468,15 +17859,16 @@ type MessageNewParams struct {
 	// as specifying a particular goal or role. See our
 	// [guide to system prompts](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#give-claude-a-role).
 	System []TextBlockParam `json:"system,omitzero"`
-	// Configuration for enabling Claude's extended thinking.
+	// Configuration for Claude's thinking.
 	//
-	// When enabled, responses include `thinking` content blocks showing Claude's
-	// thinking process before the final answer. Requires a minimum budget of 1,024
-	// tokens and counts towards your `max_tokens` limit.
+	// With `{"type": "adaptive"}`, Claude decides when and how much to think. With
+	// `{"type": "enabled"}` (manual extended thinking), you set a `budget_tokens` of
+	// at least 1,024. Thinking tokens count toward your `max_tokens` limit.
 	//
-	// See
-	// [extended thinking](https://platform.claude.com/docs/en/build-with-claude/extended-thinking)
-	// for details.
+	// Which `type` values are accepted, and what happens when you omit `thinking`,
+	// depend on the model. See
+	// [thinking](https://platform.claude.com/docs/en/build-with-claude/thinking#configuring-thinking)
+	// for each model's behavior.
 	Thinking ThinkingConfigParamUnion `json:"thinking,omitzero"`
 	// How the model should use the provided tools. The model can use a specific tool,
 	// any available tool, decide by itself, or not use tools at all.
@@ -13496,32 +17888,30 @@ type MessageNewParams struct {
 	//
 	// Each tool definition includes:
 	//
-	//   - `name`: Name of the tool.
-	//   - `description`: Optional, but strongly-recommended description of the tool.
-	//   - `input_schema`: [JSON schema](https://json-schema.org/draft/2020-12) for the
-	//     tool `input` shape that the model will produce in `tool_use` output content
-	//     blocks.
+	// - `name`: Name of the tool.
+	// - `description`: Optional, but strongly-recommended description of the tool.
+	// - `input_schema`: [JSON schema](https://json-schema.org/draft/2020-12) for the
+	//   tool `input` shape that the model will produce in `tool_use` output content
+	//   blocks.
 	//
 	// For example, if you defined `tools` as:
 	//
 	// ```json
 	// [
-	//
-	//	{
-	//	  "name": "get_stock_price",
-	//	  "description": "Get the current stock price for a given ticker symbol.",
-	//	  "input_schema": {
-	//	    "type": "object",
-	//	    "properties": {
-	//	      "ticker": {
-	//	        "type": "string",
-	//	        "description": "The stock ticker symbol, e.g. AAPL for Apple Inc."
-	//	      }
-	//	    },
-	//	    "required": ["ticker"]
-	//	  }
-	//	}
-	//
+	//   {
+	//     "name": "get_stock_price",
+	//     "description": "Get the current stock price for a given ticker symbol.",
+	//     "input_schema": {
+	//       "type": "object",
+	//       "properties": {
+	//         "ticker": {
+	//           "type": "string",
+	//           "description": "The stock ticker symbol, e.g. AAPL for Apple Inc."
+	//         }
+	//       },
+	//       "required": ["ticker"]
+	//     }
+	//   }
 	// ]
 	// ```
 	//
@@ -13530,14 +17920,12 @@ type MessageNewParams struct {
 	//
 	// ```json
 	// [
-	//
-	//	{
-	//	  "type": "tool_use",
-	//	  "id": "toolu_01D7FLrfh4GYq7yT1ULFeyMV",
-	//	  "name": "get_stock_price",
-	//	  "input": { "ticker": "^GSPC" }
-	//	}
-	//
+	//   {
+	//     "type": "tool_use",
+	//     "id": "toolu_01D7FLrfh4GYq7yT1ULFeyMV",
+	//     "name": "get_stock_price",
+	//     "input": { "ticker": "^GSPC" }
+	//   }
 	// ]
 	// ```
 	//
@@ -13547,13 +17935,11 @@ type MessageNewParams struct {
 	//
 	// ```json
 	// [
-	//
-	//	{
-	//	  "type": "tool_result",
-	//	  "tool_use_id": "toolu_01D7FLrfh4GYq7yT1ULFeyMV",
-	//	  "content": "259.75 USD"
-	//	}
-	//
+	//   {
+	//     "type": "tool_result",
+	//     "tool_use_id": "toolu_01D7FLrfh4GYq7yT1ULFeyMV",
+	//     "content": "259.75 USD"
+	//   }
 	// ]
 	// ```
 	//
@@ -13589,6 +17975,20 @@ const (
 	MessageNewParamsServiceTierStandardOnly MessageNewParamsServiceTier = "standard_only"
 )
 
+// The inference speed mode for this request. `"fast"` enables high
+// output-tokens-per-second inference.
+//
+// Some models require the `fast-mode-2026-02-01` beta header for any `speed`
+// value. See
+// [fast mode](https://platform.claude.com/docs/en/build-with-claude/fast-mode) for
+// which models.
+type MessageNewParamsSpeed string
+
+const (
+	MessageNewParamsSpeedStandard MessageNewParamsSpeed = "standard"
+	MessageNewParamsSpeedFast     MessageNewParamsSpeed = "fast"
+)
+
 type MessageCountTokensParams struct {
 	// Input messages.
 	//
@@ -13604,7 +18004,10 @@ type MessageCountTokensParams struct {
 	//
 	// If the final message uses the `assistant` role, the response content will
 	// continue immediately from the content in that message. This can be used to
-	// constrain part of the model's response.
+	// constrain part of the model's response. This is called prefill. On models that
+	// don't support prefill, creating a message that ends with a partial `assistant`
+	// response returns a 400 error. See
+	// [Prefill not supported](https://platform.claude.com/docs/en/api/errors#prefill-not-supported).
 	//
 	// Example with a single `user` message:
 	//
@@ -13616,25 +18019,22 @@ type MessageCountTokensParams struct {
 	//
 	// ```json
 	// [
-	//
-	//	{ "role": "user", "content": "Hello there." },
-	//	{ "role": "assistant", "content": "Hi, I'm Claude. How can I help you?" },
-	//	{ "role": "user", "content": "Can you explain LLMs in plain English?" }
-	//
+	//   { "role": "user", "content": "Hello there." },
+	//   { "role": "assistant", "content": "Hi, I'm Claude. How can I help you?" },
+	//   { "role": "user", "content": "Can you explain LLMs in plain English?" }
 	// ]
 	// ```
 	//
-	// Example with a partially-filled response from Claude:
+	// Example with a partially-filled response from Claude, for models that support
+	// prefill:
 	//
 	// ```json
 	// [
-	//
-	//	{
-	//	  "role": "user",
-	//	  "content": "What's the Greek name for Sun? (A) Sol (B) Helios (C) Sun"
-	//	},
-	//	{ "role": "assistant", "content": "The best answer is (" }
-	//
+	//   {
+	//     "role": "user",
+	//     "content": "What's the Greek name for Sun? (A) Sol (B) Helios (C) Sun"
+	//   },
+	//   { "role": "assistant", "content": "The best answer is (" }
 	// ]
 	// ```
 	//
@@ -13669,6 +18069,23 @@ type MessageCountTokensParams struct {
 	// The user profile ID to attribute this request to. Use when acting on behalf of a
 	// party other than your organization. Requires the `user-profiles` beta header.
 	UserProfileID param.Opt[string] `header:"anthropic-user-profile-id,omitzero" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// The inference speed mode for this request. `"fast"` enables high
+	// output-tokens-per-second inference.
+	//
+	// Some models require the `fast-mode-2026-02-01` beta header for any `speed`
+	// value. See
+	// [fast mode](https://platform.claude.com/docs/en/build-with-claude/fast-mode) for
+	// which models.
+	//
+	// Any of "standard", "fast".
+	Speed MessageCountTokensParamsSpeed `json:"speed,omitzero"`
 	// Top-level cache control automatically applies a cache_control marker to the last
 	// cacheable block in the request.
 	CacheControl CacheControlEphemeralParam `json:"cache_control,omitzero"`
@@ -13680,15 +18097,16 @@ type MessageCountTokensParams struct {
 	// as specifying a particular goal or role. See our
 	// [guide to system prompts](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#give-claude-a-role).
 	System MessageCountTokensParamsSystemUnion `json:"system,omitzero"`
-	// Configuration for enabling Claude's extended thinking.
+	// Configuration for Claude's thinking.
 	//
-	// When enabled, responses include `thinking` content blocks showing Claude's
-	// thinking process before the final answer. Requires a minimum budget of 1,024
-	// tokens and counts towards your `max_tokens` limit.
+	// With `{"type": "adaptive"}`, Claude decides when and how much to think. With
+	// `{"type": "enabled"}` (manual extended thinking), you set a `budget_tokens` of
+	// at least 1,024. Thinking tokens count toward your `max_tokens` limit.
 	//
-	// See
-	// [extended thinking](https://platform.claude.com/docs/en/build-with-claude/extended-thinking)
-	// for details.
+	// Which `type` values are accepted, and what happens when you omit `thinking`,
+	// depend on the model. See
+	// [thinking](https://platform.claude.com/docs/en/build-with-claude/thinking#configuring-thinking)
+	// for each model's behavior.
 	Thinking ThinkingConfigParamUnion `json:"thinking,omitzero"`
 	// How the model should use the provided tools. The model can use a specific tool,
 	// any available tool, decide by itself, or not use tools at all.
@@ -13708,32 +18126,30 @@ type MessageCountTokensParams struct {
 	//
 	// Each tool definition includes:
 	//
-	//   - `name`: Name of the tool.
-	//   - `description`: Optional, but strongly-recommended description of the tool.
-	//   - `input_schema`: [JSON schema](https://json-schema.org/draft/2020-12) for the
-	//     tool `input` shape that the model will produce in `tool_use` output content
-	//     blocks.
+	// - `name`: Name of the tool.
+	// - `description`: Optional, but strongly-recommended description of the tool.
+	// - `input_schema`: [JSON schema](https://json-schema.org/draft/2020-12) for the
+	//   tool `input` shape that the model will produce in `tool_use` output content
+	//   blocks.
 	//
 	// For example, if you defined `tools` as:
 	//
 	// ```json
 	// [
-	//
-	//	{
-	//	  "name": "get_stock_price",
-	//	  "description": "Get the current stock price for a given ticker symbol.",
-	//	  "input_schema": {
-	//	    "type": "object",
-	//	    "properties": {
-	//	      "ticker": {
-	//	        "type": "string",
-	//	        "description": "The stock ticker symbol, e.g. AAPL for Apple Inc."
-	//	      }
-	//	    },
-	//	    "required": ["ticker"]
-	//	  }
-	//	}
-	//
+	//   {
+	//     "name": "get_stock_price",
+	//     "description": "Get the current stock price for a given ticker symbol.",
+	//     "input_schema": {
+	//       "type": "object",
+	//       "properties": {
+	//         "ticker": {
+	//           "type": "string",
+	//           "description": "The stock ticker symbol, e.g. AAPL for Apple Inc."
+	//         }
+	//       },
+	//       "required": ["ticker"]
+	//     }
+	//   }
 	// ]
 	// ```
 	//
@@ -13742,14 +18158,12 @@ type MessageCountTokensParams struct {
 	//
 	// ```json
 	// [
-	//
-	//	{
-	//	  "type": "tool_use",
-	//	  "id": "toolu_01D7FLrfh4GYq7yT1ULFeyMV",
-	//	  "name": "get_stock_price",
-	//	  "input": { "ticker": "^GSPC" }
-	//	}
-	//
+	//   {
+	//     "type": "tool_use",
+	//     "id": "toolu_01D7FLrfh4GYq7yT1ULFeyMV",
+	//     "name": "get_stock_price",
+	//     "input": { "ticker": "^GSPC" }
+	//   }
 	// ]
 	// ```
 	//
@@ -13759,13 +18173,11 @@ type MessageCountTokensParams struct {
 	//
 	// ```json
 	// [
-	//
-	//	{
-	//	  "type": "tool_result",
-	//	  "tool_use_id": "toolu_01D7FLrfh4GYq7yT1ULFeyMV",
-	//	  "content": "259.75 USD"
-	//	}
-	//
+	//   {
+	//     "type": "tool_result",
+	//     "tool_use_id": "toolu_01D7FLrfh4GYq7yT1ULFeyMV",
+	//     "content": "259.75 USD"
+	//   }
 	// ]
 	// ```
 	//
@@ -13787,6 +18199,20 @@ func (r MessageCountTokensParams) MarshalJSON() (data []byte, err error) {
 func (r *MessageCountTokensParams) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
+
+// The inference speed mode for this request. `"fast"` enables high
+// output-tokens-per-second inference.
+//
+// Some models require the `fast-mode-2026-02-01` beta header for any `speed`
+// value. See
+// [fast mode](https://platform.claude.com/docs/en/build-with-claude/fast-mode) for
+// which models.
+type MessageCountTokensParamsSpeed string
+
+const (
+	MessageCountTokensParamsSpeedStandard MessageCountTokensParamsSpeed = "standard"
+	MessageCountTokensParamsSpeedFast     MessageCountTokensParamsSpeed = "fast"
+)
 
 // Only one field can be non-zero.
 //

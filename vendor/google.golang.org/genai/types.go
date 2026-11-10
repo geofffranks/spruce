@@ -27,6 +27,18 @@ import (
 	"time"
 )
 
+// How the model processes input media for understanding.
+type MediaProcessing string
+
+const (
+	// Default. Uses model-specific processing
+	MediaProcessingUnspecified MediaProcessing = "MEDIA_PROCESSING_UNSPECIFIED"
+	// Fixed-rate frame extraction. All frames placed in context.
+	MediaProcessingStatic MediaProcessing = "STATIC"
+	// Model-driven dynamic navigation. Recommended for most use cases.
+	MediaProcessingAgentic MediaProcessing = "AGENTIC"
+)
+
 // Outcome of the code execution.
 type Outcome string
 
@@ -140,6 +152,28 @@ const (
 	APISpecElasticSearch APISpec = "ELASTIC_SEARCH"
 )
 
+// SafetyPolicy
+type SafetyPolicy string
+
+const (
+	// Unspecified safety policy. This value should not be used.
+	SafetyPolicyUnspecified SafetyPolicy = "SAFETY_POLICY_UNSPECIFIED"
+	// Financial transactions safety policy.
+	SafetyPolicyFinancialTransactions SafetyPolicy = "FINANCIAL_TRANSACTIONS"
+	// Sensitive data modification safety policy.
+	SafetyPolicySensitiveDataModification SafetyPolicy = "SENSITIVE_DATA_MODIFICATION"
+	// Communication tool safety policy.
+	SafetyPolicyCommunicationTool SafetyPolicy = "COMMUNICATION_TOOL"
+	// Account creation safety policy.
+	SafetyPolicyAccountCreation SafetyPolicy = "ACCOUNT_CREATION"
+	// Data modification safety policy.
+	SafetyPolicyDataModification SafetyPolicy = "DATA_MODIFICATION"
+	// User consent management safety policy.
+	SafetyPolicyUserConsentManagement SafetyPolicy = "USER_CONSENT_MANAGEMENT"
+	// Legal terms and agreements safety policy.
+	SafetyPolicyLegalTermsAndAgreements SafetyPolicy = "LEGAL_TERMS_AND_AGREEMENTS"
+)
+
 // The environment being operated.
 type Environment string
 
@@ -152,28 +186,6 @@ const (
 	EnvironmentMobile Environment = "ENVIRONMENT_MOBILE"
 	// Operates in a desktop environment.
 	EnvironmentDesktop Environment = "ENVIRONMENT_DESKTOP"
-)
-
-// SafetyPolicy
-type SafetyPolicy string
-
-const (
-	// Unspecified safety policy.
-	SafetyPolicyUnspecified SafetyPolicy = "SAFETY_POLICY_UNSPECIFIED"
-	// Safety policy for financial transactions.
-	SafetyPolicyFinancialTransactions SafetyPolicy = "FINANCIAL_TRANSACTIONS"
-	// Safety policy for sensitive data modification.
-	SafetyPolicySensitiveDataModification SafetyPolicy = "SENSITIVE_DATA_MODIFICATION"
-	// Safety policy for communication tools (e.g. Gmail, Chat, Meet).
-	SafetyPolicyCommunicationTool SafetyPolicy = "COMMUNICATION_TOOL"
-	// Safety policy for account creation.
-	SafetyPolicyAccountCreation SafetyPolicy = "ACCOUNT_CREATION"
-	// Safety policy for data modification.
-	SafetyPolicyDataModification SafetyPolicy = "DATA_MODIFICATION"
-	// Safety policy for user consent management.
-	SafetyPolicyUserConsentManagement SafetyPolicy = "USER_CONSENT_MANAGEMENT"
-	// Safety policy for legal terms and agreements.
-	SafetyPolicyLegalTermsAndAgreements SafetyPolicy = "LEGAL_TERMS_AND_AGREEMENTS"
 )
 
 // Sites with confidence level chosen & above this value will be blocked from the search
@@ -355,6 +367,18 @@ const (
 	FunctionCallingConfigModeValidated FunctionCallingConfigMode = "VALIDATED"
 )
 
+// Transcription mode.
+type AudioTranscriptionConfigMode string
+
+const (
+	// Unspecified transcription mode.
+	AudioTranscriptionConfigModeUnspecified AudioTranscriptionConfigMode = "MODE_UNSPECIFIED"
+	// Verbatim transcription mode.
+	AudioTranscriptionConfigModeVerbatim AudioTranscriptionConfigMode = "VERBATIM"
+	// Smart transcription mode.
+	AudioTranscriptionConfigModeSmart AudioTranscriptionConfigMode = "SMART"
+)
+
 // The reason why the model stopped generating tokens.
 // If empty, the model has not stopped generating the tokens.
 type FinishReason string
@@ -398,6 +422,10 @@ const (
 	FinishReasonImageRecitation FinishReason = "IMAGE_RECITATION"
 	// Image generation stopped for a reason not otherwise specified.
 	FinishReasonImageOther FinishReason = "IMAGE_OTHER"
+	// Token generation stopped because the response reached the per-request token limit,
+	// but generation is not yet complete. The response can be continued by passing the
+	// returned `continuation_token` in a subsequent request.
+	FinishReasonContinuation FinishReason = "CONTINUATION"
 )
 
 // The probability of harm for this category.
@@ -487,6 +515,8 @@ const (
 	TrafficTypeOnDemandPriority TrafficType = "ON_DEMAND_PRIORITY"
 	// Type for Flex traffic.
 	TrafficTypeOnDemandFlex TrafficType = "ON_DEMAND_FLEX"
+	// Type for Off-Peak Pay-As-You-Go traffic.
+	TrafficTypeOnDemandOffpeak TrafficType = "ON_DEMAND_OFFPEAK"
 	// Type for Provisioned Throughput traffic.
 	TrafficTypeProvisionedThroughput TrafficType = "PROVISIONED_THROUGHPUT"
 )
@@ -894,6 +924,8 @@ const (
 	ToolTypeGoogleMaps ToolType = "GOOGLE_MAPS"
 	// File search tool, maps to Tool.file_search.
 	ToolTypeFileSearch ToolType = "FILE_SEARCH"
+	// Media processing tool.
+	ToolTypeMediaProcessing ToolType = "MEDIA_PROCESSING"
 )
 
 // Resource scope.
@@ -1304,6 +1336,16 @@ type ToolResponse struct {
 	Response map[string]any `json:"response,omitempty"`
 }
 
+// Extra metadata associated with the part for speech synthesis.
+type SpeechMetadata struct {
+	// Optional. The speaker for this part, which must match a `speaker` name in
+	// `MultiSpeakerVoiceConfig.speaker_voice_configs`.
+	Speaker string `json:"speaker,omitempty"`
+	// Optional. The style instruction for how the voice should be synthesized
+	// (e.g. "excited, fast-paced").
+	Style string `json:"style,omitempty"`
+}
+
 // Result of executing the ExecutableCode. Generated only when the `CodeExecution` tool
 // is used.
 type CodeExecutionResult struct {
@@ -1337,7 +1379,7 @@ type FileData struct {
 	// Optional. The display name of the file. Used to provide a label or filename to distinguish
 	// files. This field is only returned in `PromptMessage` for prompt management. It is
 	// used in the Gemini calls only when server side tools (`code_execution`, `google_search`,
-	// and `url_context`) are enabled. This field is not supported in Gemini API.
+	// and `url_context`) are enabled.
 	DisplayName string `json:"displayName,omitempty"`
 	// Required. The URI of the file in Google Cloud Storage.
 	FileURI string `json:"fileUri,omitempty"`
@@ -1485,7 +1527,7 @@ type Blob struct {
 	// Optional. The display name of the blob. Used to provide a label or filename to distinguish
 	// blobs. This field is only returned in `PromptMessage` for prompt management. It is
 	// used in the Gemini calls only when server-side tools (`code_execution`, `google_search`,
-	// and `url_context`) are enabled. This field is not supported in Gemini API.
+	// and `url_context`) are enabled.
 	DisplayName string `json:"displayName,omitempty"`
 	// Required. The IANA standard MIME type of the source data.
 	MIMEType string `json:"mimeType,omitempty"`
@@ -1581,6 +1623,57 @@ type Transcription struct {
 	SpeakerLabel string `json:"speakerLabel,omitempty"`
 	// Optional. Detailed word-level transcriptions and timing details.
 	Words []*WordInfo `json:"words,omitempty"`
+	// Optional. Start offset in time of the transcription relative to the start of the
+	// audio.
+	StartOffset time.Duration `json:"startOffset,omitempty"`
+	// Optional. End offset in time of the transcription relative to the start of the audio.
+	EndOffset time.Duration `json:"endOffset,omitempty"`
+}
+
+func (t *Transcription) UnmarshalJSON(data []byte) error {
+	type Alias Transcription
+	aux := &struct {
+		StartOffset *InternalDurationJSON `json:"startOffset,omitempty"`
+		EndOffset   *InternalDurationJSON `json:"endOffset,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(t),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	if !reflect.ValueOf(aux.StartOffset).IsZero() {
+		t.StartOffset = time.Duration(*aux.StartOffset)
+	}
+
+	if !reflect.ValueOf(aux.EndOffset).IsZero() {
+		t.EndOffset = time.Duration(*aux.EndOffset)
+	}
+
+	return nil
+}
+
+func (t *Transcription) MarshalJSON() ([]byte, error) {
+	type Alias Transcription
+	aux := &struct {
+		StartOffset *InternalDurationJSON `json:"startOffset,omitempty"`
+		EndOffset   *InternalDurationJSON `json:"endOffset,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(t),
+	}
+
+	if !reflect.ValueOf(t.StartOffset).IsZero() {
+		aux.StartOffset = (*InternalDurationJSON)(&t.StartOffset)
+	}
+
+	if !reflect.ValueOf(t.EndOffset).IsZero() {
+		aux.EndOffset = (*InternalDurationJSON)(&t.EndOffset)
+	}
+
+	return json.Marshal(aux)
 }
 
 // A datatype containing media content.
@@ -1634,6 +1727,11 @@ type Part struct {
 	PartMetadata map[string]any `json:"partMetadata,omitempty"`
 	// Optional. Output only. The transcription of the audio part.
 	AudioTranscription *Transcription `json:"audioTranscription,omitempty"`
+	// Optional. How the model processes this part's media for understanding.
+	MediaProcessing MediaProcessing `json:"mediaProcessing,omitempty"`
+	// Optional. Extra metadata associated with the part for speech synthesis, such
+	// as speaker and style. Only valid when `Part.data` is set to `text`.
+	SpeechMetadata *SpeechMetadata `json:"speechMetadata,omitempty"`
 }
 
 // NewPartFromURI builds a Part from a given file URI and mime type.
@@ -2290,8 +2388,7 @@ type ComputerUse struct {
 	ExcludedPredefinedFunctions []string `json:"excludedPredefinedFunctions,omitempty"`
 	// Optional. Enables the prompt injection detection check on computer-use request.
 	EnablePromptInjectionDetection *bool `json:"enablePromptInjectionDetection,omitempty"`
-	// Optional. Disabled safety policies for computer use. This field is not supported
-	// in Vertex AI.
+	// Optional. Disabled safety policies for computer use.
 	DisabledSafetyPolicies []SafetyPolicy `json:"disabledSafetyPolicies,omitempty"`
 }
 
@@ -2571,7 +2668,7 @@ func (s *StreamableHTTPTransport) MarshalJSON() ([]byte, error) {
 }
 
 // A MCPServer is a server that can be called by the model to perform actions. It is
-// a server that implements the MCP protocol. Next ID: 6. This data type is not supported
+// a server that implements the MCP protocol. Next ID: 7. This data type is not supported
 // in Vertex AI.
 type MCPServer struct {
 	// The name of the MCPServer.
@@ -2675,6 +2772,8 @@ type VoiceConfig struct {
 	ReplicatedVoiceConfig *ReplicatedVoiceConfig `json:"replicatedVoiceConfig,omitempty"`
 	// The configuration for a prebuilt voice.
 	PrebuiltVoiceConfig *PrebuiltVoiceConfig `json:"prebuiltVoiceConfig,omitempty"`
+	// Optional. The speaker identifier for synthesis.
+	Voice string `json:"voice,omitempty"`
 }
 
 // Configuration for a single speaker in a multi-speaker setup.
@@ -2887,6 +2986,13 @@ type AudioTranscriptionConfig struct {
 	Diarization *bool `json:"diarization,omitempty"`
 	// Optional. Configures word-level timestamp generation.
 	WordTimestamp *bool `json:"wordTimestamp,omitempty"`
+	// Optional. Configures transcription mode. Supported values: `VERBATIM`, `SMART`. If
+	// unspecified, defaults to `VERBATIM` transcription. In `SMART` mode, the model performs
+	// disfluency removal (eliminating filler words, repetitions, and false starts), light
+	// grammatical cleanup, automatic formatting (paragraphs, bullet points, numbered lists),
+	// and minor user edits (inline self-corrections). Timestamps and diarization are incompatible
+	// with mode `SMART`.
+	Mode AudioTranscriptionConfigMode `json:"mode,omitempty"`
 }
 
 // Optional model configuration parameters.
@@ -2985,7 +3091,7 @@ type GenerateContentConfig struct {
 	Tools []*Tool `json:"tools,omitempty"`
 	// Optional. Associates model output to a specific function call.
 	ToolConfig *ToolConfig `json:"toolConfig,omitempty"`
-	// Optional. Labels with user-defined metadata to break down billed charges.
+	// Optional. Labels with user-defined metadata for the request.
 	Labels map[string]string `json:"labels,omitempty"`
 	// Optional. Resource name of a context cache that can be used in subsequent
 	// requests.
@@ -3014,6 +3120,15 @@ type GenerateContentConfig struct {
 	ServiceTier ServiceTier `json:"serviceTier,omitempty"`
 	// Optional. Configuration for audio transcription (speech recognition).
 	AudioTranscriptionConfig *AudioTranscriptionConfig `json:"audioTranscriptionConfig,omitempty"`
+	// Optional. An opaque continuation token used to resume generation from a
+	// previous response that stopped with `finish_reason` set to
+	// `CONTINUATION`.
+	ContinuationToken []byte `json:"continuationToken,omitempty"`
+	// Optional. Defaults to true. When a response ends with finish reason
+	// `CONTINUATION`, the SDK sends the same request again with the response's
+	// continuation token until the model finishes. Timeouts, retries and
+	// billing apply to each request. Set to false to turn this off.
+	AutomaticContinuation *bool `json:"automaticContinuation,omitempty"`
 }
 
 func (c GenerateContentConfig) ToGenerationConfig(backend Backend) (*GenerationConfig, error) {
@@ -3574,6 +3689,9 @@ type Candidate struct {
 	// Output only. Metadata returned when the model uses the `url_context` tool to get
 	// information from a user-provided URL.
 	URLContextMetadata *URLContextMetadata `json:"urlContextMetadata,omitempty"`
+	// Optional. An opaque continuation token returned when `finish_reason` is
+	// `CONTINUATION`. Pass it in a subsequent request to continue generation.
+	ContinuationToken []byte `json:"continuationToken,omitempty"`
 }
 
 // Content filter results for a prompt sent in the request. Note: This is sent only
@@ -3856,6 +3974,24 @@ func (r *GenerateContentResponse) CodeExecutionResult() string {
 	}
 
 	return ""
+}
+
+// InitialPromptTokenCount returns the prompt token count from the initial request
+// prior to any continuation hops.
+func (r *GenerateContentResponse) InitialPromptTokenCount() int32 {
+	if r == nil || r.UsageMetadata == nil {
+		return 0
+	}
+	return r.UsageMetadata.InitialPromptTokenCount()
+}
+
+// InitialPromptTokenCount returns the prompt token count from the initial request
+// prior to any continuation hops.
+func (u *GenerateContentResponseUsageMetadata) InitialPromptTokenCount() int32 {
+	if u == nil {
+		return 0
+	}
+	return getInitialPromptTokenCount(u)
 }
 
 // Optional parameters for the EmbedContent method.
@@ -4609,6 +4745,9 @@ type VideoResponseFormat struct {
 	// Optional. The Google Cloud Storage URI to store the video output. Required for Vertex
 	// if delivery is URI.
 	GCSURI string `json:"gcsUri,omitempty"`
+	// Optional. The video output resolution. Supported values: "360p", "720p", "1080p",
+	// "4k".
+	Resolution string `json:"resolution,omitempty"`
 }
 
 func (v *VideoResponseFormat) UnmarshalJSON(data []byte) error {
@@ -4666,7 +4805,7 @@ type TranslationConfig struct {
 	// essentially it will parrot the input. If false, we will not produce audio for the
 	// target language.
 	EchoTargetLanguage *bool `json:"echoTargetLanguage,omitempty"`
-	// Required. The target language for translation. Supported values are BCP-47 language
+	// Optional. The target language for translation. Supported values are BCP-47 language
 	// codes (e.g. "en", "es", "fr").
 	TargetLanguageCode string `json:"targetLanguageCode,omitempty"`
 }
@@ -4780,7 +4919,7 @@ type GenerationConfig struct {
 	// Optional. New response format field for the model to configure output formatting
 	// and delivery.
 	ResponseFormat []*ResponseFormat `json:"responseFormat,omitempty"`
-	// Optional. Config for translation. This field is not supported in Vertex AI.
+	// Optional. Config for translation.
 	TranslationConfig *TranslationConfig `json:"translationConfig,omitempty"`
 	// Optional. Configuration for audio transcription (speech recognition).
 	AudioTranscriptionConfig *AudioTranscriptionConfig `json:"audioTranscriptionConfig,omitempty"`
@@ -5575,6 +5714,8 @@ type ReinforcementTuningExample struct {
 	References map[string]string `json:"references,omitempty"`
 	// Corresponds to system_instruction in user-facing GenerateContentRequest.
 	SystemInstruction *Content `json:"systemInstruction,omitempty"`
+	// Optional. Corresponds to tools in user-facing GenerateContentRequest.
+	Tools []*Tool `json:"tools,omitempty"`
 }
 
 // Sample reinforcement tuning user data in the training dataset. The contents are truncated
@@ -6182,6 +6323,8 @@ type TuningJob struct {
 	VeoLoraTuningSpec *VeoLoraTuningSpec `json:"veoLoraTuningSpec,omitempty"`
 
 	DistillationSamplingSpec *DistillationSamplingSpec `json:"distillationSamplingSpec,omitempty"`
+	// Output only. The Cloud Storage metrics URI associated with this TuningJob.
+	GCSMetricsURI string `json:"gcsMetricsUri,omitempty"`
 }
 
 func (t *TuningJob) UnmarshalJSON(data []byte) error {
@@ -6439,6 +6582,9 @@ type ReinforcementTuningRewardInfo struct {
 	// is set only if the Cloud Run reward function configured by user returns a "user_requested_aux_info".
 	// Refer to ReinforcementTuningCloudRunRewardScorer for more details.
 	UserRequestedAuxInfo string `json:"userRequestedAuxInfo,omitempty"`
+	// Output only. In case of an error for this reward, this field will be populated with
+	// a detailed error status.
+	ErrorStatus *GoogleRpcStatus `json:"errorStatus,omitempty"`
 }
 
 // Response for the validate_reward method.
@@ -8208,6 +8354,8 @@ type RealtimeInputConfig struct {
 	ActivityHandling ActivityHandling `json:"activityHandling,omitempty"`
 	// Optional. Defines which input is included in the user's turn.
 	TurnCoverage TurnCoverage `json:"turnCoverage,omitempty"`
+	// Optional. If true, enables interim transcript timestamps.
+	InterimTranscriptTimestampEnabled *bool `json:"interimTranscriptTimestampEnabled,omitempty"`
 }
 
 // Configuration of session resumption mechanism.
@@ -8329,6 +8477,13 @@ type LiveClientSetup struct {
 	SafetySettings []*SafetySetting `json:"safetySettings,omitempty"`
 	// Optional. Configures the exchange of history between the client and the server.
 	HistoryConfig *HistoryConfig `json:"historyConfig,omitempty"`
+	// Optional. Labels with user-defined metadata for the request. Optional. Labels must
+	// follow standard unified Cloud label requirements: - Label keys must start with a
+	// letter. - Label keys and values can be no longer than 63 characters (Unicode codepoints)
+	// and can only contain lowercase letters, numeric characters, underscores, and dashes.
+	// - International characters are allowed. Usage: - Safety identifiers from aggregators:
+	// Use the key `safety_identifier` (e.g. `{"safety_identifier": "user_session_123"}`)
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // Incremental update of the current conversation delivered from the client.

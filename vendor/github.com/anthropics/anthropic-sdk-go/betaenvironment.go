@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package anthropic
 
 import (
@@ -10,9 +8,11 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go/internal/apijson"
 	"github.com/anthropics/anthropic-sdk-go/internal/apiquery"
+	"github.com/anthropics/anthropic-sdk-go/internal/paramutil"
 	"github.com/anthropics/anthropic-sdk-go/internal/requestconfig"
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/anthropics/anthropic-sdk-go/packages/pagination"
@@ -44,20 +44,41 @@ func NewBetaEnvironmentService(opts ...option.RequestOption) (r BetaEnvironmentS
 
 // Create a new environment with the specified configuration.
 func (r *BetaEnvironmentService) New(ctx context.Context, params BetaEnvironmentNewParams, opts ...option.RequestOption) (res *BetaEnvironment, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
 	path := "v1/environments?beta=true"
+	opts = append(opts, requestconfig.WithSpan("anthropic.environments.create", "/v1/environments"), requestconfig.WithSpanCreatedID("anthropic.environment.id", &res, func(created *BetaEnvironment) string { return created.ID }))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
 
 // Retrieve a specific environment by ID.
 func (r *BetaEnvironmentService) Get(ctx context.Context, environmentID string, query BetaEnvironmentGetParams, opts ...option.RequestOption) (res *BetaEnvironment, err error) {
-	for _, v := range query.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(query.Betas) > 0 {
+		headerValues := make([]string, len(query.Betas))
+		for i, v := range query.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(query.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", query.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
@@ -65,15 +86,26 @@ func (r *BetaEnvironmentService) Get(ctx context.Context, environmentID string, 
 		err = errors.New("missing required environment_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/environments/%s?beta=true", environmentID)
+	path := fmt.Sprintf("v1/environments/%s?beta=true", url.PathEscape(environmentID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.environments.retrieve", "/v1/environments/{environment_id}"), requestconfig.WithSpanAttribute("anthropic.environment.id", environmentID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
 
 // Update an existing environment's configuration.
 func (r *BetaEnvironmentService) Update(ctx context.Context, environmentID string, params BetaEnvironmentUpdateParams, opts ...option.RequestOption) (res *BetaEnvironment, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
@@ -81,7 +113,8 @@ func (r *BetaEnvironmentService) Update(ctx context.Context, environmentID strin
 		err = errors.New("missing required environment_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/environments/%s?beta=true", environmentID)
+	path := fmt.Sprintf("v1/environments/%s?beta=true", url.PathEscape(environmentID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.environments.update", "/v1/environments/{environment_id}"), requestconfig.WithSpanAttribute("anthropic.environment.id", environmentID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
@@ -89,12 +122,23 @@ func (r *BetaEnvironmentService) Update(ctx context.Context, environmentID strin
 // List environments with pagination support.
 func (r *BetaEnvironmentService) List(ctx context.Context, params BetaEnvironmentListParams, opts ...option.RequestOption) (res *pagination.PageCursor[BetaEnvironment], err error) {
 	var raw *http.Response
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01"), option.WithResponseInto(&raw)}, opts...)
 	path := "v1/environments?beta=true"
+	opts = append(opts, requestconfig.WithSpan("anthropic.environments.list", "/v1/environments", "include_archived", "limit", "page"))
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, params, &res, opts...)
 	if err != nil {
 		return nil, err
@@ -114,8 +158,18 @@ func (r *BetaEnvironmentService) ListAutoPaging(ctx context.Context, params Beta
 
 // Delete an environment by ID. Returns a confirmation of the deletion.
 func (r *BetaEnvironmentService) Delete(ctx context.Context, environmentID string, body BetaEnvironmentDeleteParams, opts ...option.RequestOption) (res *BetaEnvironmentDeleteResponse, err error) {
-	for _, v := range body.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(body.Betas) > 0 {
+		headerValues := make([]string, len(body.Betas))
+		for i, v := range body.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(body.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", body.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
@@ -123,7 +177,8 @@ func (r *BetaEnvironmentService) Delete(ctx context.Context, environmentID strin
 		err = errors.New("missing required environment_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/environments/%s?beta=true", environmentID)
+	path := fmt.Sprintf("v1/environments/%s?beta=true", url.PathEscape(environmentID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.environments.delete", "/v1/environments/{environment_id}"), requestconfig.WithSpanAttribute("anthropic.environment.id", environmentID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, &res, opts...)
 	return res, err
 }
@@ -131,8 +186,18 @@ func (r *BetaEnvironmentService) Delete(ctx context.Context, environmentID strin
 // Archive an environment by ID. Archived environments cannot be used to create new
 // sessions.
 func (r *BetaEnvironmentService) Archive(ctx context.Context, environmentID string, body BetaEnvironmentArchiveParams, opts ...option.RequestOption) (res *BetaEnvironment, err error) {
-	for _, v := range body.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(body.Betas) > 0 {
+		headerValues := make([]string, len(body.Betas))
+		for i, v := range body.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(body.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", body.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
@@ -140,7 +205,8 @@ func (r *BetaEnvironmentService) Archive(ctx context.Context, environmentID stri
 		err = errors.New("missing required environment_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/environments/%s/archive?beta=true", environmentID)
+	path := fmt.Sprintf("v1/environments/%s/archive?beta=true", url.PathEscape(environmentID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.environments.archive", "/v1/environments/{environment_id}/archive"), requestconfig.WithSpanAttribute("anthropic.environment.id", environmentID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, nil, &res, opts...)
 	return res, err
 }
@@ -246,11 +312,9 @@ func (r *BetaCloudConfigNetworkingUnion) UnmarshalJSON(data []byte) error {
 type BetaCloudConfigParams struct {
 	// Network configuration policy. Omit on update to preserve the existing value.
 	Networking BetaCloudConfigParamsNetworkingUnion `json:"networking,omitzero"`
-	// Specify packages (and optionally their versions) available in this environment.
-	//
-	// When versioning, use the version semantics relevant for the package manager,
-	// e.g. for `pip` use `package==1.0.0`. You are responsible for validating the
-	// package and version exist. Unversioned installs the latest.
+	// Package manager configuration. Under `limited` networking, requires
+	// `networking.allow_package_managers` to be `true`. Omit on update to preserve the
+	// existing value.
 	Packages BetaPackagesParams `json:"packages,omitzero"`
 	// Environment type
 	//
@@ -319,9 +383,9 @@ func (u BetaCloudConfigParamsNetworkingUnion) GetAllowedHosts() []string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u BetaCloudConfigParamsNetworkingUnion) GetType() *string {
 	if vt := u.OfUnrestricted; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfLimited; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -526,7 +590,8 @@ type BetaLimitedNetworkParams struct {
 	// those listed in the `allowed_hosts` array. Defaults to `false`.
 	AllowMCPServers param.Opt[bool] `json:"allow_mcp_servers,omitzero"`
 	// Permits outbound access to public package registries (PyPI, npm, etc.) beyond
-	// those listed in the `allowed_hosts` array. Defaults to `false`.
+	// those listed in the `allowed_hosts` array. Defaults to `false` on creation. Must
+	// be `true` when `packages` are specified.
 	AllowPackageManagers param.Opt[bool] `json:"allow_package_managers,omitzero"`
 	// Specifies domains the container can reach.
 	AllowedHosts []string `json:"allowed_hosts,omitzero"`
@@ -595,6 +660,9 @@ const (
 // When versioning, use the version semantics relevant for the package manager,
 // e.g. for `pip` use `package==1.0.0`. You are responsible for validating the
 // package and version exist. Unversioned installs the latest.
+//
+// Under `limited` networking, requires `networking.allow_package_managers` to be
+// `true`.
 type BetaPackagesParams struct {
 	// Ubuntu/Debian packages to install
 	Apt []string `json:"apt,omitzero"`
@@ -728,12 +796,19 @@ type BetaEnvironmentNewParams struct {
 	Name string `json:"name" api:"required"`
 	// Optional description of the environment
 	Description param.Opt[string] `json:"description,omitzero"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Environment configuration
 	Config BetaEnvironmentNewParamsConfigUnion `json:"config,omitzero"`
 	// The visibility scope for this environment. 'organization' makes the environment
 	// visible to all accounts. 'account' restricts visibility to the owning account
-	// only. Only applicable for self-hosted environments. If not specified, defaults
-	// based on organization type.
+	// only. API organizations support only 'organization'; 'account' is rejected. If
+	// not specified, defaults based on organization type.
 	//
 	// Any of "organization", "account".
 	Scope BetaEnvironmentNewParamsScope `json:"scope,omitzero"`
@@ -796,9 +871,9 @@ func (u BetaEnvironmentNewParamsConfigUnion) GetPackages() *BetaPackagesParams {
 // Returns a pointer to the underlying variant's property, if present.
 func (u BetaEnvironmentNewParamsConfigUnion) GetType() *string {
 	if vt := u.OfCloud; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfSelfHosted; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -813,8 +888,8 @@ func init() {
 
 // The visibility scope for this environment. 'organization' makes the environment
 // visible to all accounts. 'account' restricts visibility to the owning account
-// only. Only applicable for self-hosted environments. If not specified, defaults
-// based on organization type.
+// only. API organizations support only 'organization'; 'account' is rejected. If
+// not specified, defaults based on organization type.
 type BetaEnvironmentNewParamsScope string
 
 const (
@@ -823,6 +898,13 @@ const (
 )
 
 type BetaEnvironmentGetParams struct {
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
@@ -834,6 +916,13 @@ type BetaEnvironmentUpdateParams struct {
 	Description param.Opt[string] `json:"description,omitzero"`
 	// Updated name for the environment
 	Name param.Opt[string] `json:"name,omitzero"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Updated environment configuration
 	Config BetaEnvironmentUpdateParamsConfigUnion `json:"config,omitzero"`
 	// The visibility scope for this environment. 'organization' makes the environment
@@ -902,9 +991,9 @@ func (u BetaEnvironmentUpdateParamsConfigUnion) GetPackages() *BetaPackagesParam
 // Returns a pointer to the underlying variant's property, if present.
 func (u BetaEnvironmentUpdateParamsConfigUnion) GetType() *string {
 	if vt := u.OfCloud; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	} else if vt := u.OfSelfHosted; vt != nil {
-		return (*string)(&vt.Type)
+		return paramutil.AddrOrDefault(vt.Type)
 	}
 	return nil
 }
@@ -935,6 +1024,13 @@ type BetaEnvironmentListParams struct {
 	IncludeArchived param.Opt[bool] `query:"include_archived,omitzero" json:"-"`
 	// Maximum number of environments to return
 	Limit param.Opt[int64] `query:"limit,omitzero" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
@@ -950,12 +1046,26 @@ func (r BetaEnvironmentListParams) URLQuery() (v url.Values, err error) {
 }
 
 type BetaEnvironmentDeleteParams struct {
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
 
 type BetaEnvironmentArchiveParams struct {
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj

@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package anthropic
 
 import (
@@ -7,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go/internal/apijson"
 	"github.com/anthropics/anthropic-sdk-go/internal/requestconfig"
@@ -45,13 +44,27 @@ func NewCompletionService(opts ...option.RequestOption) (r CompletionService) {
 // [migration guide](https://platform.claude.com/docs/en/build-with-claude/working-with-messages)
 // for guidance in migrating from Text Completions to Messages.
 //
+// Deprecated: Use the
+// [Messages API](https://platform.claude.com/docs/en/api/messages/create) instead.
+//
 // Note: If you choose to set a timeout for this request, we recommend 10 minutes.
 func (r *CompletionService) New(ctx context.Context, params CompletionNewParams, opts ...option.RequestOption) (res *Completion, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	path := "v1/complete"
+	opts = append(opts, requestconfig.WithSpan("anthropic.completions.create", "/v1/complete"))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
@@ -65,18 +78,32 @@ func (r *CompletionService) New(ctx context.Context, params CompletionNewParams,
 // [migration guide](https://platform.claude.com/docs/en/build-with-claude/working-with-messages)
 // for guidance in migrating from Text Completions to Messages.
 //
+// Deprecated: Use the
+// [Messages API](https://platform.claude.com/docs/en/api/messages/create) instead.
+//
 // Note: If you choose to set a timeout for this request, we recommend 10 minutes.
 func (r *CompletionService) NewStreaming(ctx context.Context, params CompletionNewParams, opts ...option.RequestOption) (stream *ssestream.Stream[Completion]) {
 	var (
 		raw *http.Response
 		err error
 	)
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append(opts, option.WithJSONSet("stream", true))
 	path := "v1/complete"
+	opts = append(opts, requestconfig.WithSpan("anthropic.completions.create", "/v1/complete"))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &raw, opts...)
 	return ssestream.NewStream[Completion](ssestream.NewDecoder(raw), err)
 }
@@ -97,9 +124,9 @@ type Completion struct {
 	//
 	// This may be one the following values:
 	//
-	//   - `"stop_sequence"`: we reached a stop sequence — either provided by you via the
-	//     `stop_sequences` parameter, or a stop sequence built into the model
-	//   - `"max_tokens"`: we exceeded `max_tokens_to_sample` or the model's maximum
+	// - `"stop_sequence"`: we reached a stop sequence — either provided by you via the
+	//   `stop_sequences` parameter, or a stop sequence built into the model
+	// - `"max_tokens"`: we exceeded `max_tokens_to_sample` or the model's maximum
 	StopReason string `json:"stop_reason" api:"required"`
 	// Object type.
 	//
@@ -173,6 +200,13 @@ type CompletionNewParams struct {
 	//
 	// Recommended for advanced use cases only.
 	TopP param.Opt[float64] `json:"top_p,omitzero"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// An object describing metadata about the request.
 	Metadata MetadataParam `json:"metadata,omitzero"`
 	// Sequences that will cause the model to stop generating.

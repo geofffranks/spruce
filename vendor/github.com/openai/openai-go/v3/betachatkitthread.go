@@ -35,7 +35,7 @@ type BetaChatKitThreadService struct {
 // options (if there is one), and before any request-specific options.
 func NewBetaChatKitThreadService(opts ...option.RequestOption) (r BetaChatKitThreadService) {
 	r = BetaChatKitThreadService{}
-	r.Options = opts
+	r.Options = requestconfig.InheritedOptions(opts...)
 	return
 }
 
@@ -434,17 +434,6 @@ func (u ChatSessionWorkflowParamStateVariableUnion) MarshalJSON() ([]byte, error
 }
 func (u *ChatSessionWorkflowParamStateVariableUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ChatSessionWorkflowParamStateVariableUnion) asAny() any {
-	if !param.IsOmitted(u.OfString) {
-		return &u.OfString.Value
-	} else if !param.IsOmitted(u.OfBool) {
-		return &u.OfBool.Value
-	} else if !param.IsOmitted(u.OfFloat) {
-		return &u.OfFloat.Value
-	}
-	return nil
 }
 
 // Optional tracing overrides for the workflow invocation. When omitted, tracing is

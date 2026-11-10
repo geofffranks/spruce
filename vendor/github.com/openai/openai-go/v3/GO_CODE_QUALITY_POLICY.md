@@ -58,6 +58,13 @@ The runner version used locally and in CI must match. It must also be built
 with a Go release at least as new as the newest Go release analyzed by CI. Tool
 updates are explicit policy changes and receive normal SDK CODEOWNER review.
 
+Staticcheck retains its upstream generated-file behavior: simplification
+checks do not report diagnostics for the conventional `// Code generated ...
+DO NOT EDIT.` marker. Castiron uses its existing `// File generated from our
+OpenAPI spec by Castiron.` ownership header instead, so its generated SDK
+source remains subject to S1009 alongside handwritten code. Do not add custom
+generated-file scanners or companion analyzers to override upstream behavior.
+
 The initial rollout order is:
 
 1. `gofmt`;
@@ -69,6 +76,19 @@ The initial rollout order is:
 
 Existing build, test, module-tidiness, supported-Go, vulnerability, and public
 API checks remain authoritative throughout the rollout.
+
+Lint analyzes the root, examples, and external-consumer modules on the host
+platform. On Linux, it also analyzes the excluded text-to-speech example under
+Windows/arm64 with cgo disabled. It does not repeat full SDK analysis for that
+target. New platform-specific source requires an explicit coverage decision;
+this targeted check is not a general cross-platform compatibility matrix.
+
+CI runs the root package, other root-module packages, examples/consumer, and
+Windows-only example in separate jobs. The required `lint` check succeeds only
+when every group succeeds. New root-module packages are discovered automatically.
+The local script still runs every group by default. Public and internal CI use
+the ordinary Linux/amd64 runner. Tests retain every supported Go version. All
+analyzer settings and test analysis remain the same across groups.
 
 ## Error handling
 

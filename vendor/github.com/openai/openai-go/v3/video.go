@@ -44,7 +44,7 @@ type VideoService struct {
 // 2026.
 func NewVideoService(opts ...option.RequestOption) (r VideoService) {
 	r = VideoService{}
-	r.Options = opts
+	r.Options = requestconfig.InheritedOptions(opts...)
 	return
 }
 
@@ -56,7 +56,7 @@ func (r *VideoService) New(ctx context.Context, body VideoNewParams, opts ...opt
 	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
 	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "videos"
-	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
+	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, requestconfig.MultipartBody(body), &res, opts...)
 	return res, err
 }
 
@@ -145,7 +145,7 @@ func (r *VideoService) NewCharacter(ctx context.Context, body VideoNewCharacterP
 	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
 	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "videos/characters"
-	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
+	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, requestconfig.MultipartBody(body), &res, opts...)
 	return res, err
 }
 
@@ -177,7 +177,7 @@ func (r *VideoService) Edit(ctx context.Context, body VideoEditParams, opts ...o
 	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
 	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "videos/edits"
-	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
+	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, requestconfig.MultipartBody(body), &res, opts...)
 	return res, err
 }
 
@@ -189,7 +189,7 @@ func (r *VideoService) Extend(ctx context.Context, body VideoExtendParams, opts 
 	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
 	opts = slices.Concat(preClientOpts, r.Options, opts)
 	path := "videos/extensions"
-	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
+	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, requestconfig.MultipartBody(body), &res, opts...)
 	return res, err
 }
 
@@ -315,9 +315,66 @@ type VideoCreateError struct {
 	Code string `json:"code" api:"required"`
 	// A human-readable description of the error that was returned.
 	Message string `json:"message" api:"required"`
+	// The Retry-After and Retry-After-Ms headers returned with the original error, if
+	// any.
+	Headers      map[string]string            `json:"headers"`
+	Misalignment VideoCreateErrorMisalignment `json:"misalignment"`
+	// The request parameter associated with the error, or null if none was recorded.
+	Param string `json:"param" api:"nullable"`
+	// The original error type, or null if it was not recorded.
+	Type string `json:"type" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Code        respjson.Field
+		Code         respjson.Field
+		Message      respjson.Field
+		Headers      respjson.Field
+		Misalignment respjson.Field
+		Param        respjson.Field
+		Type         respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r VideoCreateError) RawJSON() string { return r.JSON.raw }
+func (r *VideoCreateError) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type VideoCreateErrorMisalignment struct {
+	// The public explanation for this block.
+	DetailedExplanation string `json:"detailed_explanation"`
+	// An optional classification; clients must accept additional values.
+	ErrorType string `json:"error_type"`
+	// An opaque target for explicitly continuing this review, or null when
+	// unavailable.
+	ReviewTarget string `json:"review_target" api:"nullable"`
+	// An optional public continuation instruction.
+	Steer VideoCreateErrorMisalignmentSteer `json:"steer"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		DetailedExplanation respjson.Field
+		ErrorType           respjson.Field
+		ReviewTarget        respjson.Field
+		Steer               respjson.Field
+		ExtraFields         map[string]respjson.Field
+		raw                 string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r VideoCreateErrorMisalignment) RawJSON() string { return r.JSON.raw }
+func (r *VideoCreateErrorMisalignment) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// An optional public continuation instruction.
+type VideoCreateErrorMisalignmentSteer struct {
+	// The public continuation instruction.
+	Message string `json:"message" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
 		Message     respjson.Field
 		ExtraFields map[string]respjson.Field
 		raw         string
@@ -325,8 +382,8 @@ type VideoCreateError struct {
 }
 
 // Returns the unmodified JSON received from the API
-func (r VideoCreateError) RawJSON() string { return r.JSON.raw }
-func (r *VideoCreateError) UnmarshalJSON(data []byte) error {
+func (r VideoCreateErrorMisalignmentSteer) RawJSON() string { return r.JSON.raw }
+func (r *VideoCreateErrorMisalignmentSteer) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -465,6 +522,15 @@ func (r VideoNewParams) MarshalMultipart() (data []byte, contentType string, err
 	return buf.Bytes(), writer.FormDataContentType(), nil
 }
 
+// MarshalMultipartTo writes multipart fields without buffering file contents.
+// The caller owns writer and must close it to finish the multipart body.
+func (r VideoNewParams) MarshalMultipartTo(writer *multipart.Writer) error {
+	if err := apiform.MarshalRoot(r, writer); err != nil {
+		return err
+	}
+	return apiform.WriteExtras(writer, r.ExtraFields())
+}
+
 // Only one field can be non-zero.
 //
 // Use [param.IsOmitted] to confirm if a field is set.
@@ -479,15 +545,6 @@ func (u VideoNewParamsInputReferenceUnion) MarshalJSON() ([]byte, error) {
 }
 func (u *VideoNewParamsInputReferenceUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *VideoNewParamsInputReferenceUnion) asAny() any {
-	if !param.IsOmitted(u.OfFile) {
-		return &u.OfFile
-	} else if !param.IsOmitted(u.OfImageInputReference) {
-		return u.OfImageInputReference
-	}
-	return nil
 }
 
 type VideoListParams struct {
@@ -546,6 +603,15 @@ func (r VideoNewCharacterParams) MarshalMultipart() (data []byte, contentType st
 	return buf.Bytes(), writer.FormDataContentType(), nil
 }
 
+// MarshalMultipartTo writes multipart fields without buffering file contents.
+// The caller owns writer and must close it to finish the multipart body.
+func (r VideoNewCharacterParams) MarshalMultipartTo(writer *multipart.Writer) error {
+	if err := apiform.MarshalRoot(r, writer); err != nil {
+		return err
+	}
+	return apiform.WriteExtras(writer, r.ExtraFields())
+}
+
 type VideoDownloadContentParams struct {
 	// Which downloadable asset to return. Defaults to the MP4 video.
 	//
@@ -598,6 +664,15 @@ func (r VideoEditParams) MarshalMultipart() (data []byte, contentType string, er
 	return buf.Bytes(), writer.FormDataContentType(), nil
 }
 
+// MarshalMultipartTo writes multipart fields without buffering file contents.
+// The caller owns writer and must close it to finish the multipart body.
+func (r VideoEditParams) MarshalMultipartTo(writer *multipart.Writer) error {
+	if err := apiform.MarshalRoot(r, writer); err != nil {
+		return err
+	}
+	return apiform.WriteExtras(writer, r.ExtraFields())
+}
+
 // Only one field can be non-zero.
 //
 // Use [param.IsOmitted] to confirm if a field is set.
@@ -612,15 +687,6 @@ func (u VideoEditParamsVideoUnion) MarshalJSON() ([]byte, error) {
 }
 func (u *VideoEditParamsVideoUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *VideoEditParamsVideoUnion) asAny() any {
-	if !param.IsOmitted(u.OfFile) {
-		return &u.OfFile
-	} else if !param.IsOmitted(u.OfVideoEditsVideoVideoReferenceInputParam) {
-		return u.OfVideoEditsVideoVideoReferenceInputParam
-	}
-	return nil
 }
 
 // Reference to the completed video to edit.
@@ -671,6 +737,15 @@ func (r VideoExtendParams) MarshalMultipart() (data []byte, contentType string, 
 	return buf.Bytes(), writer.FormDataContentType(), nil
 }
 
+// MarshalMultipartTo writes multipart fields without buffering file contents.
+// The caller owns writer and must close it to finish the multipart body.
+func (r VideoExtendParams) MarshalMultipartTo(writer *multipart.Writer) error {
+	if err := apiform.MarshalRoot(r, writer); err != nil {
+		return err
+	}
+	return apiform.WriteExtras(writer, r.ExtraFields())
+}
+
 // Only one field can be non-zero.
 //
 // Use [param.IsOmitted] to confirm if a field is set.
@@ -685,15 +760,6 @@ func (u VideoExtendParamsVideoUnion) MarshalJSON() ([]byte, error) {
 }
 func (u *VideoExtendParamsVideoUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *VideoExtendParamsVideoUnion) asAny() any {
-	if !param.IsOmitted(u.OfFile) {
-		return &u.OfFile
-	} else if !param.IsOmitted(u.OfVideoExtendsVideoVideoReferenceInputParam) {
-		return u.OfVideoExtendsVideoVideoReferenceInputParam
-	}
-	return nil
 }
 
 // Reference to the completed video.

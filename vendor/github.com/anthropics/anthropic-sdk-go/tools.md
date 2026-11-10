@@ -102,9 +102,9 @@ rawTool, err := toolrunner.NewBetaToolFromBytes(
 The `BetaToolRunner` automatically handles the conversation loop between Claude and your tools. On each iteration, it:
 
 1. Sends the current messages to Claude
-2. If Claude responds with tool calls, executes them in parallel
-3. Adds the tool results to the conversation
-4. Repeats until Claude produces a final response (no tool calls)
+2. If the message's `StopReason` is `tool_use`, executes the requested tools in parallel and adds the results to the conversation
+3. If it is `pause_turn` or `compaction`, sends the turn back unchanged so the server can resume it
+4. Repeats until Claude stops for any other reason (e.g. `end_turn`, `max_tokens`), returning that final message without running tools
 
 ### Basic Usage
 
@@ -207,7 +207,7 @@ for !runner.IsCompleted() {
 
 ### Max Iterations
 
-Limit the number of API calls to prevent runaway loops. When set to 0 (the default), there is no limit and the runner continues until the model stops using tools:
+Limit the number of API calls to prevent runaway loops. When set to 0 (the default), there is no limit and the runner continues until the model's stop reason ends the loop:
 
 ```go
 runner := client.Beta.Messages.NewToolRunner(tools, anthropic.BetaToolRunnerParams{
@@ -242,6 +242,93 @@ runner.AppendMessages(anthropic.NewBetaUserMessage(
 	anthropic.NewBetaTextBlock("Now check the weather in London too"),
 ))
 ```
+
+### Compacting the Conversation
+
+With the `compact-2026-09-04` beta you decide when a conversation is compacted: a request with the `Compaction` param returns a single `compaction` block, which then replaces the messages it summarizes. In a tool runner, call `CompactBeforeNextTurn()` and the runner does this for you:
+
+```go
+runner := client.Beta.Messages.NewToolRunner(tools, anthropic.BetaToolRunnerParams{
+	BetaMessageNewParams: anthropic.BetaMessageNewParams{
+		Model:     anthropic.ModelClaudeSonnet4_5_20250929,
+		MaxTokens: 1024,
+		Betas:     []anthropic.AnthropicBeta{anthropic.AnthropicBetaCompact2026_09_04},
+		Messages: []anthropic.BetaMessageParam{
+			anthropic.NewBetaUserMessage(anthropic.NewBetaTextBlock("Find every page that mentions rate limits.")),
+		},
+	},
+})
+
+for message, err := range runner.All(ctx) {
+	if err != nil {
+		log.Fatal(err)
+	}
+	if message.Usage.InputTokens > 100_000 {
+		runner.CompactBeforeNextTurn(anthropic.BetaCompactionConfigUnionParam{})
+	}
+}
+```
+
+The call only schedules the compaction. Once the current turn has finished, including any tool calls, the runner requests a summary, replaces its message history with the compaction response the API returns, and carries on. A turn that was paused (`pause_turn`) is resumed and finished first. If the current turn is the last one, the runner compacts and then stops, so the last message of the run is the compaction response. If you call it before the first turn, the compaction is the first request.
+
+The compaction response is returned like any other message and doesn't count towards `MaxIterations`. Its `StopReason` is `compaction`, the summary is in its first content block, and its top-level `Usage.InputTokens` and `Usage.OutputTokens` are 0: what the compaction cost is in `Usage.Iterations`. Calling `CompactBeforeNextTurn()` while handling that message does nothing, so a threshold like the one above doesn't compact twice. With the streaming runner, read the message from `runner.LastMessage()` once the turn's events have been consumed.
+
+`CompactBeforeNextTurn()` takes the same config as the `Compaction` field of `BetaMessageNewParams`, and the zero value means `{"type": "summarize"}`. For example, to give your own summarization instructions:
+
+```go
+runner.CompactBeforeNextTurn(anthropic.BetaCompactionConfigUnionParam{
+	OfSummarize: &anthropic.BetaSummarizeCompactionParam{
+		Instructions: anthropic.String("Keep the page URLs found so far."),
+	},
+})
+```
+
+A few things to know:
+
+- Calling it again before the compaction runs replaces the pending one.
+- The runner doesn't add the beta for you, so pass it in `Betas`.
+- `ContextManagement`, `StopSequences`, a `ToolChoice` that forces tool use (`any` or `tool`) and the output format (`OutputConfig.Format` or `OutputFormat`, and the `OutputConfig.Format` of each entry in `Fallbacks`) are left out of the compaction request, because the API doesn't accept them together with `Compaction`, and are sent again afterwards. While `ContextManagement` has a compaction edit (`compact_20260112`) the compaction is not sent: the next `NextMessage()` or `NextStreaming()` call returns an error and the pending compaction is dropped.
+- With the streaming runner, don't replace or append to `Params.Messages` while the compaction response is streaming, because that response is about to replace them. If you do, the stream ends with an error and your messages are kept. Other params can still be changed.
+- If the API returns no summary, the runner prints a warning to stderr and keeps the history as it is.
+- If the run ends on a turn that was cut short with tool calls that never ran (`max_tokens`, for example), the pending compaction is skipped with a warning printed to stderr. It is also skipped if the run stops at `MaxIterations` or you stop iterating.
+- The `Compaction` param itself can't be set in the runner's `Params`, because every request in the loop would compact again: the next `NextMessage()` or `NextStreaming()` call clears it and returns an error.
+- If the compaction request itself fails, the error is returned and the compaction is not retried. Call `CompactBeforeNextTurn()` again if you carry on.
+
+### Changing Tools Mid-Conversation
+
+Editing `runner.Params.Tools` between turns invalidates the prompt cache for the whole conversation. `AddTools`, `AddToolParams`, `RemoveTools` and `RemoveToolsByNames` change the model's tools and keep the cache: they leave `Params.Tools` as it is and tell the model about the change in a `role: "system"` message. Requests must include the `inline-tools-2026-09-15` beta, which the runner does not add for you.
+
+```go
+runner := client.Beta.Messages.NewToolRunner([]anthropic.BetaTool{readFileTool}, anthropic.BetaToolRunnerParams{
+	BetaMessageNewParams: anthropic.BetaMessageNewParams{
+		// ...
+		Betas: []anthropic.AnthropicBeta{anthropic.AnthropicBetaInlineTools2026_09_15},
+	},
+})
+
+for message, err := range runner.All(ctx) {
+	// ...
+	if db.JustConnected() {
+		runner.AddTools(dbQueryTool)
+	}
+	if db.JustDisconnected() {
+		runner.RemoveTools(dbQueryTool)
+		// or, by name: runner.RemoveToolsByNames("db_query")
+	}
+	if wantsWebSearch(message) {
+		runner.AddToolParams(anthropic.BetaToolUnionParam{
+			OfWebSearchTool20250305: &anthropic.BetaWebSearchTool20250305Param{MaxUses: anthropic.Int(3)},
+		})
+	}
+}
+```
+
+- `AddTools` sends each tool's full definition to the model with the next request. The runner runs the tool straight away, in place of any earlier tool of the same name: a call the model has already made in the message you're handling runs the new one.
+- `AddToolParams` sends a definition exactly as given, for server tools such as web search. The runner never runs a client tool added this way: a call to it gets the same "not found" error result as a call to an unknown tool, and a tool the runner ran under that name stops running straight away.
+- `RemoveTools` and `RemoveToolsByNames` take effect in the runner immediately. A call to a removed tool, including one in the message you were just handed, gets the "not found" error result; a call that has already started is not interrupted. The tool stays removed until you pass it to `AddTools` again. Removing a server tool only tells the model.
+- The changes you make while handling one message are sent together, in the order you made them, as a single system message right after that turn's tool results (or after your first message, if you make them before the first request). After a `pause_turn` message, which the runner sends back unchanged so the API resumes the turn, they are sent one request later, because the API does not take a tool change directly after a paused turn. A compaction requested with `CompactBeforeNextTurn` carries them, except one that follows the final message. Changes you make after the final message are never sent.
+- If the conversation starts from a `compaction` block made elsewhere whose `tool_changes` removes a tool you also pass to the runner, the API applies the removal for the model but the runner does not refuse the tool locally; call `RemoveTools` for it.
+- In the rare case where a compaction response comes back without `tool_changes` even though the summarized messages added or removed tools, the model goes back to the tools in `Params.Tools` and the runner does not detect it. Call `AddTools` or `RemoveTools` again after that compaction if you need the change restored.
 
 ### Inspecting State
 
@@ -289,7 +376,7 @@ When Claude requests multiple tool calls in a single message, they are executed 
 The same `anthropic.BetaTool` shape works for managed-agents sessions. Two helpers cover the self-hosted side:
 
 - `client.Beta.Sessions.Events.NewToolRunner(ctx, sessionID, anthropic.SessionToolRunnerOptions{...})` — the sessions-side counterpart to `client.Beta.Messages.NewToolRunner`. The session id is a positional argument (matching `list`/`send`/`stream` on the events resource); the options struct carries the tool registry and tuning knobs. It attaches to a session's event stream, dispatches the registered tools on both `agent.tool_use` (builtin tools, answered with `user.tool_result`) and `agent.custom_tool_use` (user-defined function tools, answered with `user.custom_tool_result`), and stops after the session is idle past `MaxIdle`. It does *only* that — no work claiming, lease heartbeating, or skill download.
-- `environments.NewEnvironmentWorker(client, environments.EnvironmentWorkerOptions{...})` (in `github.com/anthropics/anthropic-sdk-go/lib/environments`) — the full self-hosted runner: it composes `environments.WorkPoller` (claim work) with a per-session `SessionToolRunner`, sets up the workdir + downloads the session agent's skills, heartbeats the work-item lease in parallel, force-stops the work on exit, and loops. A single `EnvironmentKey` authorizes everything — both the work-poll calls and the per-session calls. `worker.Run(ctx)` drives the poll loop (requires `EnvironmentID` + `EnvironmentKey`); `worker.HandleItem(ctx, environments.HandleItemOptions{...})` runs that same per-item flow (skills + run + heartbeat + force-stop) once for a work item you have already claimed yourself. Each `HandleItemOptions` field — `WorkID` / `EnvironmentID` / `SessionID` / `EnvironmentKey` — falls back to `ANTHROPIC_WORK_ID` / `ANTHROPIC_ENVIRONMENT_ID` / `ANTHROPIC_SESSION_ID` / `ANTHROPIC_ENVIRONMENT_KEY` when left empty (and `EnvironmentKey` also falls back to the worker's own `EnvironmentKey` option), so inside an `ant worker poll --on-work` hook (which exports all of them) it is just `worker.HandleItem(ctx, environments.HandleItemOptions{})`. If you are iterating `environments.WorkPoller` yourself, pass the claimed item through: `worker.HandleItem(ctx, environments.HandleItemOptions{WorkID: work.ID, EnvironmentID: work.EnvironmentID, SessionID: work.Data.ID, EnvironmentKey: environmentKey})`.
+- `environments.NewEnvironmentWorker(client, environments.EnvironmentWorkerOptions{...})` (in `github.com/anthropics/anthropic-sdk-go/lib/environments`) — the full self-hosted runner: it composes `environments.WorkPoller` (claim work) with a per-session `SessionToolRunner`, sets up the workdir + downloads the session agent's skills, heartbeats the work-item lease in parallel, force-stops the work on exit, and loops. A single `EnvironmentKey` authorizes everything — both the work-poll calls and the per-session calls. `worker.Run(ctx)` drives the poll loop (requires `EnvironmentID` + `EnvironmentKey`); `worker.HandleItem(ctx, environments.HandleItemOptions{...})` runs that same per-item flow (skills + run + heartbeat + force-stop) once for a work item you have already claimed yourself. Each `HandleItemOptions` field — `WorkID` / `EnvironmentID` / `SessionID` / `EnvironmentKey` — falls back to `ANTHROPIC_WORK_ID` / `ANTHROPIC_ENVIRONMENT_ID` / `ANTHROPIC_SESSION_ID` / `ANTHROPIC_ENVIRONMENT_KEY` when left empty (and `EnvironmentKey` also falls back to the worker's own `EnvironmentKey` option), so inside an `ant worker poll --on-work` hook (which exports all of them) it is just `worker.HandleItem(ctx, environments.HandleItemOptions{})`. If you are iterating `environments.WorkPoller` yourself, pass the claimed item through: `worker.HandleItem(ctx, environments.HandleItemOptions{WorkID: work.ID, EnvironmentID: work.EnvironmentID, SessionID: work.Data.ID, EnvironmentKey: environmentKey})`. When another process already acknowledged the item and sent its first heartbeat, pass that heartbeat response's `last_heartbeat` as `ExpectedLastHeartbeat` (or export `ANTHROPIC_WORK_LAST_HEARTBEAT`) and `HandleItem` continues that lease instead of starting one.
 
 The standard `agent_toolset_20260401` tools (`bash`, `read`, `write`, `edit`, `glob`, `grep`), the workdir/skills `AgentToolContext`, and the skill-download helper live in `github.com/anthropics/anthropic-sdk-go/tools/agenttoolset`; `agenttoolset.BetaAgentToolset20260401(env)` returns them as a plain `[]anthropic.BetaTool` you can filter or extend. The file tools confine to the workdir (symlink-aware) and are safe without a sandbox; `bash` is unrestricted and should run inside one.
 
