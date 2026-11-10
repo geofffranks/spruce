@@ -9,6 +9,9 @@ Google's generative models into their Go applications. It supports the
 [Gemini Enterprise Agent Platform](https://docs.cloud.google.com/gemini-enterprise-agent-platform)
 APIs.
 
+> [!NOTE]
+> The GenAI SDK now supports the [Interactions API](#interactions).
+
 > [!WARNING]
 > **Updates to GenerateVideos in upcoming SDK version:**
 >
@@ -34,7 +37,7 @@ parts := []*genai.Part{
   {Text: "What's this image about?"},
   {InlineData: &genai.Blob{Data: imageBytes, MIMEType: "image/jpeg"}},
 }
-result, err := client.Models.GenerateContent(ctx, "gemini-2.5-flash", []*genai.Content{{Parts: parts}}, nil)
+result, err := client.Models.GenerateContent(ctx, "gemini-flash-latest", []*genai.Content{{Parts: parts}}, nil)
 ```
 
 ## Installation and usage
@@ -88,6 +91,48 @@ export GOOGLE_CLOUD_LOCATION='us-central1'
 
 ```go
 client, err := genai.NewClient(ctx, &genai.ClientConfig{})
+```
+
+## Interactions
+
+The Interactions API allows you to interact with agents and models in a multi-turn conversation.
+
+Here is a simple example of creating a new interaction with a model:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"google.golang.org/genai"
+	"google.golang.org/genai/interactions/models/interactions"
+	"google.golang.org/genai/interactions/models/operations"
+)
+
+func main() {
+	ctx := context.Background()
+	client, err := genai.NewClient(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	body := operations.NewCreateInteractionRequestBody(interactions.CreateModelInteraction{
+		Model: interactions.Model("gemini-flash-latest"),
+		Input: genai.Ptr(interactions.NewInteractionsInput("Tell me a short joke about programming.")),
+	})
+
+	res, err := client.Interactions.Create(ctx, operations.CreateInteractionRequest{Body: body})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if res.Interaction != nil {
+		fmt.Println(res.Interaction.Text())
+	}
+}
 ```
 
 ## License

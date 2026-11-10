@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package option
 
 import (
@@ -370,6 +368,10 @@ func WithRequestBody(contentType string, body any) RequestOption {
 // WithRequestTimeout returns a RequestOption that sets the timeout for
 // each request attempt. This should be smaller than the timeout defined in
 // the context, which spans all retries.
+//
+// An attempt that exceeds this timeout is retried (see [WithMaxRetries]) for as
+// long as the context passed to the method is not done, so a call can take up to
+// roughly (retries + 1) * dur plus backoff before it fails with context.DeadlineExceeded.
 func WithRequestTimeout(dur time.Duration) RequestOption {
 	// we need this to be a PreRequestOptionFunc so that it can be applied at the endpoint level
 	// see: CalculateNonStreamingTimeout
@@ -594,15 +596,11 @@ func withConfig(cfg *config.Config, quiet bool) RequestOption {
 				return nil, resolveErr
 			}
 
-			handler := rc.HTTPClient.Do
-			if rc.CustomHTTPDoer != nil {
-				handler = rc.CustomHTTPDoer.Do
-			}
 			key := withConfigClientKey{httpClient: rc.HTTPClient, customDoer: rc.CustomHTTPDoer}
 			cacheMu.Lock()
 			cache, ok := cacheBy[key]
 			if !ok {
-				cache = auth.NewTokenCache(provider, handler)
+				cache = auth.NewTokenCache(provider, auth.TokenRequestHandler(rc))
 				cacheBy[key] = cache
 			}
 			cacheMu.Unlock()

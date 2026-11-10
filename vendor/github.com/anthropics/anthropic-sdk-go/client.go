@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package anthropic
 
 import (
@@ -23,13 +21,14 @@ import (
 // interacting with the anthropic API. You should not instantiate this client
 // directly, and instead use the [NewClient] method instead.
 type Client struct {
-	Options     []option.RequestOption
-	Completions CompletionService
-	Messages    MessageService
-	Models      ModelService
-	Files       FileService
-	Skills      SkillService
-	Beta        BetaService
+	Options      []option.RequestOption
+	Completions  CompletionService
+	Messages     MessageService
+	Models       ModelService
+	Files        FileService
+	Skills       SkillService
+	Organization OrganizationService
+	Beta         BetaService
 }
 
 // DefaultClientOptions walks the default credential chain per the
@@ -53,7 +52,7 @@ type Client struct {
 // suppresses both paths. Also honors ANTHROPIC_BASE_URL.
 func DefaultClientOptions() []option.RequestOption {
 	defaults := []option.RequestOption{
-		option.WithHTTPClient(defaultHTTPClient()),
+		option.WithHTTPClient(requestconfig.DefaultHTTPClient()),
 		option.WithEnvironmentProduction(),
 	}
 	if o, ok := os.LookupEnv("ANTHROPIC_BASE_URL"); ok {
@@ -222,6 +221,7 @@ func NewClient(opts ...option.RequestOption) (r Client) {
 	r.Models = NewModelService(opts...)
 	r.Files = NewFileService(opts...)
 	r.Skills = NewSkillService(opts...)
+	r.Organization = NewOrganizationService(opts...)
 	r.Beta = NewBetaService(opts...)
 
 	return
@@ -238,10 +238,6 @@ func NewClient(opts ...option.RequestOption) (r Client) {
 // type implements a MarshalJSON function, it will be used instead to serialize the
 // request. If a URLQuery method is implemented, the returned [url.Values] will be
 // used as query strings to the url.
-//
-// If your params struct uses [param.Field], you must provide either [MarshalJSON],
-// [URLQuery], and/or [MarshalForm] functions. It is undefined behavior to use a
-// struct uses [param.Field] without specifying how it is serialized.
 //
 // Any "…Params" object defined in this library can be used as the request
 // argument. Note that 'path' arguments will not be forwarded into the url.

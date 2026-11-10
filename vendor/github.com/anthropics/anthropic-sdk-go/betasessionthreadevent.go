@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package anthropic
 
 import (
@@ -9,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go/internal/apiquery"
 	"github.com/anthropics/anthropic-sdk-go/internal/requestconfig"
@@ -40,8 +39,18 @@ func NewBetaSessionThreadEventService(opts ...option.RequestOption) (r BetaSessi
 // List Session Thread Events
 func (r *BetaSessionThreadEventService) List(ctx context.Context, threadID string, params BetaSessionThreadEventListParams, opts ...option.RequestOption) (res *pagination.PageCursor[BetaManagedAgentsSessionEventUnion], err error) {
 	var raw *http.Response
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01"), option.WithResponseInto(&raw)}, opts...)
@@ -53,7 +62,8 @@ func (r *BetaSessionThreadEventService) List(ctx context.Context, threadID strin
 		err = errors.New("missing required thread_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/sessions/%s/threads/%s/events?beta=true", params.SessionID, threadID)
+	path := fmt.Sprintf("v1/sessions/%s/threads/%s/events?beta=true", url.PathEscape(params.SessionID), url.PathEscape(threadID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.sessions.threads.events.list", "/v1/sessions/{session_id}/threads/{thread_id}/events", "limit", "page"), requestconfig.WithSpanAttribute("anthropic.session.id", params.SessionID), requestconfig.WithSpanAttribute("anthropic.session.thread.id", threadID))
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, params, &res, opts...)
 	if err != nil {
 		return nil, err
@@ -77,8 +87,18 @@ func (r *BetaSessionThreadEventService) StreamEvents(ctx context.Context, thread
 		raw *http.Response
 		err error
 	)
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "managed-agents-2026-04-01")}, opts...)
@@ -90,18 +110,25 @@ func (r *BetaSessionThreadEventService) StreamEvents(ctx context.Context, thread
 		err = errors.New("missing required thread_id parameter")
 		return ssestream.NewStream[BetaManagedAgentsStreamSessionThreadEventsUnion](nil, err)
 	}
-	path := fmt.Sprintf("v1/sessions/%s/threads/%s/stream?beta=true", params.SessionID, threadID)
+	path := fmt.Sprintf("v1/sessions/%s/threads/%s/stream?beta=true", url.PathEscape(params.SessionID), url.PathEscape(threadID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.sessions.threads.events.stream", "/v1/sessions/{session_id}/threads/{thread_id}/stream", "event_deltas"), requestconfig.WithSpanAttribute("anthropic.session.id", params.SessionID), requestconfig.WithSpanAttribute("anthropic.session.thread.id", threadID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, params, &raw, opts...)
 	return ssestream.NewStream[BetaManagedAgentsStreamSessionThreadEventsUnion](ssestream.NewDecoder(raw), err)
 }
 
 type BetaSessionThreadEventListParams struct {
-	SessionID string `path:"session_id" api:"required" json:"-"`
-	// Query parameter for limit
-	Limit param.Opt[int64] `query:"limit,omitzero" json:"-"`
-	// Query parameter for page
-	Page param.Opt[string] `query:"page,omitzero" json:"-"`
-	// Optional header to specify the beta version(s) you want to use.
+	SessionID string            `path:"session_id" api:"required" json:"-"`
+	Limit     param.Opt[int64]  `query:"limit,omitzero" json:"-"`
+	Page      param.Opt[string] `query:"page,omitzero" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// This endpoint is in beta: requests must send `managed-agents-2026-04-01` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
@@ -117,6 +144,13 @@ func (r BetaSessionThreadEventListParams) URLQuery() (v url.Values, err error) {
 
 type BetaSessionThreadEventStreamParams struct {
 	SessionID string `path:"session_id" api:"required" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// When set, this connection also receives streaming deltas (`event_start`,
 	// `event_delta`) while an event is being produced, before the event itself
 	// arrives. Deltas are best-effort; when the final event is produced it carries the
@@ -128,7 +162,8 @@ type BetaSessionThreadEventStreamParams struct {
 	// the `agent.thinking` event itself. Only previews of the requested event types
 	// are sent.
 	EventDeltas []BetaManagedAgentsDeltaType `query:"event_deltas,omitzero" json:"-"`
-	// Optional header to specify the beta version(s) you want to use.
+	// This endpoint is in beta: requests must send `managed-agents-2026-04-01` in this
+	// header.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }

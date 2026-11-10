@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"go/constant"
 	"go/token"
+	"go/types"
 	"slices"
 	"strings"
 	"sync"
@@ -289,7 +290,28 @@ func (s *analysisState) raiseIssue(val ssa.Value, issueDescription string, fromI
 				issueDescription += " by passing a zeroed buffer from make"
 				allIssues = append(allIssues, newIssue(s.Pass.Analyzer.Name, issueDescription, s.Pass.Fset, fromInstr.Pos(), issue.High, issue.High))
 			}
+		case "complit":
+			// An array literal stores its elements one by one.
+			if s.analyzeUsage(v)&statusHard != 0 {
+				issueDescription += " by passing hardcoded array literal"
+				allIssues = append(allIssues, newIssue(s.Pass.Analyzer.Name, issueDescription, s.Pass.Fset, fromInstr.Pos(), issue.High, issue.High))
+			}
 		default:
+			// An array that is not assigned as a whole before the use holds
+			// its zero value until something writes to it, just like a
+			// buffer from make.
+			if isArrayAlloc(v) && !s.isAssignedBefore(v, fromInstr) {
+				if s.allTaintedEventsCovered(v, fromInstr) {
+					return nil, nil
+				}
+				if s.analyzeUsage(v)&statusHard != 0 {
+					issueDescription += " by passing an array modified with hardcoded values"
+				} else {
+					issueDescription += " by passing a zeroed array"
+				}
+				allIssues = append(allIssues, newIssue(s.Pass.Analyzer.Name, issueDescription, s.Pass.Fset, fromInstr.Pos(), issue.High, issue.High))
+				break
+			}
 			// Ensure we trace the specific Store that tainted this Alloc
 			if refs := v.Referrers(); refs != nil {
 				for _, ref := range *refs {
@@ -422,6 +444,39 @@ func (s *analysisState) isFuncReturnsHardcoded(fn *ssa.Function) bool {
 					return true
 				}
 			}
+		}
+	}
+	return false
+}
+
+// isArrayAlloc reports whether alloc allocates an array.
+func isArrayAlloc(alloc *ssa.Alloc) bool {
+	ptr, ok := alloc.Type().Underlying().(*types.Pointer)
+	if !ok {
+		return false
+	}
+	_, ok = ptr.Elem().Underlying().(*types.Array)
+	return ok
+}
+
+// isAssignedBefore reports whether the whole value of alloc is stored before
+// usage. A store of a value loaded from alloc itself, as a named result gets
+// on return, does not count.
+func (s *analysisState) isAssignedBefore(alloc *ssa.Alloc, usage ssa.Instruction) bool {
+	refs := alloc.Referrers()
+	if refs == nil {
+		return false
+	}
+	for _, ref := range *refs {
+		store, ok := ref.(*ssa.Store)
+		if !ok || store.Addr != alloc {
+			continue
+		}
+		if load, ok := store.Val.(*ssa.UnOp); ok && load.Op == token.MUL && load.X == alloc {
+			continue
+		}
+		if s.Analyzer.Precedes(store, usage) {
+			return true
 		}
 	}
 	return false
@@ -619,8 +674,14 @@ func (s *analysisState) allTaintedEventsCovered(val ssa.Value, usage ssa.Instruc
 	// 1. Collection Phase: Gathering all Safe (Reads) and Unsafe (Allocs/Stores) actions.
 	var actions []RangeAction
 
+	// The walk back to the source can cycle: a named result is stored back
+	// into its own Alloc on return (t1 = *t0; *t0 = t1), so following the
+	// Store from the Alloc leads to a load of the same Alloc. Stop at the
+	// first value seen twice; it is the root allocation.
+	visited := make(map[ssa.Value]bool)
 	v := val
-	for {
+	for !visited[v] {
+		visited[v] = true
 		s.collectTaintedEvents(v, usage, &actions)
 		s.collectCoveredRanges(v, usage, &actions)
 
@@ -787,7 +848,10 @@ func (s *analysisState) collectCoveredRanges(val ssa.Value, usage ssa.Instructio
 	}
 
 	for _, ref := range *refs {
-		if s.isFullDynamicRead(ref, val) {
+		// The call that consumes the nonce cannot also be the read that
+		// fills it. Without this an unresolved AEAD.Seal counts as a dynamic
+		// read of its own nonce, since Precedes(usage, usage) is true.
+		if ref != usage && s.isFullDynamicRead(ref, val) {
 			if s.Analyzer.Precedes(ref, usage) {
 				if absRange, ok := s.resolveAbsoluteRange(val); ok {
 					*actions = append(*actions, RangeAction{

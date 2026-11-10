@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package anthropic
 
 import (
@@ -47,32 +45,44 @@ func NewSkillService(opts ...option.RequestOption) (r SkillService) {
 }
 
 // Create Skill
-func (r *SkillService) New(ctx context.Context, body SkillNewParams, opts ...option.RequestOption) (res *Skill, err error) {
+func (r *SkillService) New(ctx context.Context, params SkillNewParams, opts ...option.RequestOption) (res *Skill, err error) {
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
+	}
 	opts = slices.Concat(r.Options, opts)
 	path := "v1/skills"
-	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, body, &res, opts...)
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.create", "/v1/skills"), requestconfig.WithSpanCreatedID("anthropic.skill.id", &res, func(created *Skill) string { return created.ID }))
+	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
 
 // Get Skill
-func (r *SkillService) Get(ctx context.Context, skillID string, opts ...option.RequestOption) (res *Skill, err error) {
+func (r *SkillService) Get(ctx context.Context, skillID string, query SkillGetParams, opts ...option.RequestOption) (res *Skill, err error) {
+	if !param.IsOmitted(query.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", query.WorkspaceID.Value)))
+	}
 	opts = slices.Concat(r.Options, opts)
 	if skillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/skills/%s", skillID)
+	path := fmt.Sprintf("v1/skills/%s", url.PathEscape(skillID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.retrieve", "/v1/skills/{skill_id}"), requestconfig.WithSpanAttribute("anthropic.skill.id", skillID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
 
 // List Skills
-func (r *SkillService) List(ctx context.Context, query SkillListParams, opts ...option.RequestOption) (res *pagination.PageCursor[Skill], err error) {
+func (r *SkillService) List(ctx context.Context, params SkillListParams, opts ...option.RequestOption) (res *pagination.PageCursor[Skill], err error) {
 	var raw *http.Response
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
+	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	path := "v1/skills"
-	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, query, &res, opts...)
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.list", "/v1/skills", "limit", "page", "source"))
+	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, params, &res, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -85,18 +95,22 @@ func (r *SkillService) List(ctx context.Context, query SkillListParams, opts ...
 }
 
 // List Skills
-func (r *SkillService) ListAutoPaging(ctx context.Context, query SkillListParams, opts ...option.RequestOption) *pagination.PageCursorAutoPager[Skill] {
-	return pagination.NewPageCursorAutoPager(r.List(ctx, query, opts...))
+func (r *SkillService) ListAutoPaging(ctx context.Context, params SkillListParams, opts ...option.RequestOption) *pagination.PageCursorAutoPager[Skill] {
+	return pagination.NewPageCursorAutoPager(r.List(ctx, params, opts...))
 }
 
 // Delete Skill
-func (r *SkillService) Delete(ctx context.Context, skillID string, opts ...option.RequestOption) (res *DeletedSkill, err error) {
+func (r *SkillService) Delete(ctx context.Context, skillID string, body SkillDeleteParams, opts ...option.RequestOption) (res *DeletedSkill, err error) {
+	if !param.IsOmitted(body.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", body.WorkspaceID.Value)))
+	}
 	opts = slices.Concat(r.Options, opts)
 	if skillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/skills/%s", skillID)
+	path := fmt.Sprintf("v1/skills/%s", url.PathEscape(skillID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.delete", "/v1/skills/{skill_id}"), requestconfig.WithSpanAttribute("anthropic.skill.id", skillID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, &res, opts...)
 	return res, err
 }
@@ -227,6 +241,13 @@ type SkillNewParams struct {
 	// set: derived from the SKILL.md frontmatter `name` when omitted at creation. Not
 	// unique.
 	DisplayName param.Opt[string] `json:"display_name,omitzero"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	paramObj
 }
 
@@ -248,6 +269,17 @@ func (r SkillNewParams) MarshalMultipart() (data []byte, contentType string, err
 	return buf.Bytes(), writer.FormDataContentType(), nil
 }
 
+type SkillGetParams struct {
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	paramObj
+}
+
 type SkillListParams struct {
 	// Pagination token for fetching a specific page of results.
 	//
@@ -265,6 +297,13 @@ type SkillListParams struct {
 	//
 	// Ranges from `1` to `1000`. Defaults to `20`.
 	Limit param.Opt[int64] `query:"limit,omitzero" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	paramObj
 }
 
@@ -274,4 +313,15 @@ func (r SkillListParams) URLQuery() (v url.Values, err error) {
 		ArrayFormat:  apiquery.ArrayQueryFormatBrackets,
 		NestedFormat: apiquery.NestedQueryFormatBrackets,
 	})
+}
+
+type SkillDeleteParams struct {
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	paramObj
 }

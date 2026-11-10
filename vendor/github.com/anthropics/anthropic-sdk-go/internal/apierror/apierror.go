@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package apierror
 
 import (
@@ -40,6 +38,10 @@ func (r *Error) Type() shared.ErrorType { return r.errorType }
 func (r Error) RawJSON() string { return r.JSON.raw }
 
 func (r *Error) UnmarshalJSON(data []byte) error {
+	if !json.Valid(data) {
+		r.JSON.raw = string(data)
+		return nil
+	}
 	if err := apijson.UnmarshalRoot(data, r); err != nil {
 		return err
 	}
@@ -60,28 +62,66 @@ func (r *Error) UnmarshalJSON(data []byte) error {
 func (r *Error) UnmarshalAPIJSON(data []byte) error { return r.UnmarshalJSON(data) }
 
 func (r *Error) Error() string {
-	// Attempt to re-populate the response body
-	statusInfo := fmt.Sprintf("%s %q: %d %s", r.Request.Method, r.Request.URL, r.Response.StatusCode, http.StatusText(r.Response.StatusCode))
-
+	msg := fmt.Sprintf("%s %q: %d %s", r.Request.Method, r.Request.URL, r.Response.StatusCode, http.StatusText(r.Response.StatusCode))
 	if r.RequestID != "" {
-		statusInfo += fmt.Sprintf(" (Request-ID: %s)", r.RequestID)
+		msg += fmt.Sprintf(" (Request-ID: %s)", r.RequestID)
 	}
 	if r.WorkspaceID != "" {
-		statusInfo += fmt.Sprintf(" (Workspace-ID: %s)", r.WorkspaceID)
+		msg += fmt.Sprintf(" (Workspace-ID: %s)", r.WorkspaceID)
 	}
-
-	return fmt.Sprintf("%s %s", statusInfo, r.JSON.raw)
+	if body := r.JSON.raw; body != "" {
+		msg += " " + body
+	}
+	return msg
 }
 
+// DumpRequest returns the request in HTTP/1.x wire format, with sensitive header
+// values redacted.
 func (r *Error) DumpRequest(body bool) []byte {
 	if r.Request.GetBody != nil {
 		r.Request.Body, _ = r.Request.GetBody()
 	}
-	out, _ := httputil.DumpRequestOut(r.Request, body)
+	req := *r.Request
+	req.Header = RedactHeaders(r.Request.Header)
+	out, _ := httputil.DumpRequestOut(&req, body)
+	// The dump may swap in an unread copy of the body; keep it for later reads.
+	r.Request.Body = req.Body
 	return out
 }
 
+// DumpResponse returns the response in HTTP/1.x wire format, with sensitive header
+// values redacted.
 func (r *Error) DumpResponse(body bool) []byte {
-	out, _ := httputil.DumpResponse(r.Response, body)
+	resp := *r.Response
+	resp.Header = RedactHeaders(r.Response.Header)
+	out, _ := httputil.DumpResponse(&resp, body)
+	// The dump may swap in an unread copy of the body; keep it for later reads.
+	r.Response.Body = resp.Body
 	return out
+}
+
+var sensitiveHeaders = []string{"authorization", "proxy-authorization", "api-key", "x-api-key", "cookie", "set-cookie"}
+
+// RedactHeaders returns headers with every value of each sensitive header
+// replaced by "***", without modifying headers. The result may be headers
+// itself, so callers must not modify it.
+func RedactHeaders(headers http.Header) http.Header {
+	var redacted http.Header
+	for _, name := range sensitiveHeaders {
+		values := headers.Values(name)
+		if len(values) == 0 {
+			continue
+		}
+		if redacted == nil {
+			redacted = headers.Clone()
+		}
+		redacted.Del(name)
+		for range values {
+			redacted.Add(name, "***")
+		}
+	}
+	if redacted == nil {
+		return headers
+	}
+	return redacted
 }

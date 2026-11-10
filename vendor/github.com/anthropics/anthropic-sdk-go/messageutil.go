@@ -202,8 +202,16 @@ func (r Message) ToParam() MessageParam {
 	return p
 }
 
+// ToParam converts the block into the param that sends it back in a later
+// request. A block or citation of a type this SDK version does not model has no
+// Of* variant, so it is sent as its raw JSON with every Of* field nil; after
+// [Message.Accumulate] that raw JSON lacks any deltas of an unmodeled type.
 func (r ContentBlockUnion) ToParam() ContentBlockParamUnion {
-	return r.AsAny().toParamUnion()
+	variant := r.AsAny()
+	if variant == nil {
+		return param.Override[ContentBlockParamUnion](json.RawMessage(r.RawJSON()))
+	}
+	return variant.toParamUnion()
 }
 
 func (variant TextBlock) toParamUnion() ContentBlockParamUnion {
@@ -250,7 +258,42 @@ func (r ToolUseBlock) ToParam() ToolUseBlockParam {
 	toolUse.Input = r.Input
 	toolUse.Name = r.Name
 	toolUse.ToolsetName = paramutil.ToOpt(r.ToolsetName, r.JSON.ToolsetName)
+	if r.JSON.Caller.Valid() {
+		toolUse.Caller = r.Caller.toParam()
+	}
 	return toolUse
+}
+
+// toParam converts a caller. The other three caller unions share this layout
+// and convert through it.
+func (r ToolUseBlockCallerUnion) toParam() ToolUseBlockParamCallerUnion {
+	var p ToolUseBlockParamCallerUnion
+	switch v := r.AsAny().(type) {
+	case DirectCaller:
+		c := v.ToParam()
+		p.OfDirect = &c
+	case ServerToolCaller:
+		c := v.ToParam()
+		p.OfCodeExecution20250825 = &c
+	case ServerToolCaller20260120:
+		c := v.ToParam()
+		p.OfCodeExecution20260120 = &c
+	default:
+		p = param.Override[ToolUseBlockParamCallerUnion](json.RawMessage(r.RawJSON()))
+	}
+	return p
+}
+
+func (r ServerToolUseBlockCallerUnion) toParam() ServerToolUseBlockParamCallerUnion {
+	return ServerToolUseBlockParamCallerUnion(ToolUseBlockCallerUnion(r).toParam())
+}
+
+func (r WebSearchToolResultBlockCallerUnion) toParam() WebSearchToolResultBlockParamCallerUnion {
+	return WebSearchToolResultBlockParamCallerUnion(ToolUseBlockCallerUnion(r).toParam())
+}
+
+func (r WebFetchToolResultBlockCallerUnion) toParam() WebFetchToolResultBlockParamCallerUnion {
+	return WebFetchToolResultBlockParamCallerUnion(ToolUseBlockCallerUnion(r).toParam())
 }
 
 func (citationVariant CitationCharLocation) toParamUnion() TextCitationParamUnion {
@@ -320,10 +363,18 @@ func (r TextBlock) ToParam() TextBlockParam {
 	}
 
 	for _, citation := range r.Citations {
-		p.Citations = append(p.Citations, citation.AsAny().toParamUnion())
+		p.Citations = append(p.Citations, citation.toParam())
 	}
 
 	return p
+}
+
+func (r TextCitationUnion) toParam() TextCitationParamUnion {
+	variant := r.AsAny()
+	if variant == nil {
+		return param.Override[TextCitationParamUnion](json.RawMessage(r.RawJSON()))
+	}
+	return variant.toParamUnion()
 }
 
 func (r ThinkingBlock) ToParam() ThinkingBlockParam {
@@ -340,6 +391,9 @@ func (r ServerToolUseBlock) ToParam() ServerToolUseBlockParam {
 	p.ID = r.ID
 	p.Input = r.Input
 	p.Name = ServerToolUseBlockParamName(r.Name)
+	if r.JSON.Caller.Valid() {
+		p.Caller = r.Caller.toParam()
+	}
 	return p
 }
 
@@ -348,6 +402,9 @@ func (r WebSearchToolResultBlock) ToParam() WebSearchToolResultBlockParam {
 	p.Type = r.Type
 	p.ToolUseID = r.ToolUseID
 	p.Content = r.Content.ToParam()
+	if r.JSON.Caller.Valid() {
+		p.Caller = r.Caller.toParam()
+	}
 	return p
 }
 
@@ -364,7 +421,9 @@ func (r WebSearchResultBlock) ToParam() WebSearchResultBlockParam {
 func (r WebSearchToolResultBlockContentUnion) ToParam() WebSearchToolResultBlockParamContentUnion {
 	var p WebSearchToolResultBlockParamContentUnion
 
-	if len(r.OfWebSearchResultBlockArray) > 0 {
+	if r.JSON.OfWebSearchResultBlockArray.Valid() {
+		// content is required, so send [] rather than omitting it.
+		p.OfWebSearchToolResultBlockItem = make([]WebSearchResultBlockParam, 0, len(r.OfWebSearchResultBlockArray))
 		for _, block := range r.OfWebSearchResultBlockArray {
 			p.OfWebSearchToolResultBlockItem = append(p.OfWebSearchToolResultBlockItem, block.ToParam())
 		}
@@ -411,6 +470,16 @@ func (r WebFetchToolResultBlock) ToParam() WebFetchToolResultBlockParam {
 	var p WebFetchToolResultBlockParam
 	p.Type = r.Type
 	p.ToolUseID = r.ToolUseID
+	if r.Content.JSON.ErrorCode.Valid() {
+		p.Content.OfRequestWebFetchToolResultError = &WebFetchToolResultErrorBlockParam{
+			ErrorCode: r.Content.ErrorCode,
+		}
+	} else {
+		p.Content = param.Override[WebFetchToolResultBlockParamContentUnion](json.RawMessage(r.Content.RawJSON()))
+	}
+	if r.JSON.Caller.Valid() {
+		p.Caller = r.Caller.toParam()
+	}
 	return p
 }
 
@@ -432,6 +501,8 @@ func (r BashCodeExecutionToolResultBlock) ToParam() BashCodeExecutionToolResultB
 		}
 	} else {
 		requestBashContentResult := &BashCodeExecutionResultBlockParam{
+			// content is required, so send [] rather than omitting it.
+			Content:    make([]BashCodeExecutionOutputBlockParam, 0, len(r.Content.Content)),
 			ReturnCode: r.Content.ReturnCode,
 			Stderr:     r.Content.Stderr,
 			Stdout:     r.Content.Stdout,
@@ -456,18 +527,29 @@ func (r CodeExecutionToolResultBlock) ToParam() CodeExecutionToolResultBlockPara
 	var p CodeExecutionToolResultBlockParam
 	p.Type = r.Type
 	p.ToolUseID = r.ToolUseID
-	if r.Content.JSON.ErrorCode.Valid() {
+	// content is required, so send [] rather than omitting it.
+	files := make([]CodeExecutionOutputBlockParam, 0, len(r.Content.Content))
+	for _, block := range r.Content.Content {
+		files = append(files, block.ToParam())
+	}
+	switch {
+	case r.Content.JSON.ErrorCode.Valid():
 		p.Content.OfRequestCodeExecutionToolResultError = &CodeExecutionToolResultErrorParam{
 			ErrorCode: r.Content.ErrorCode,
 		}
-	} else {
+	case r.Content.JSON.EncryptedStdout.Valid():
+		p.Content.OfRequestEncryptedCodeExecutionResultBlock = &EncryptedCodeExecutionResultBlockParam{
+			Content:         files,
+			EncryptedStdout: r.Content.EncryptedStdout,
+			ReturnCode:      r.Content.ReturnCode,
+			Stderr:          r.Content.Stderr,
+		}
+	default:
 		p.Content.OfRequestCodeExecutionResultBlock = &CodeExecutionResultBlockParam{
+			Content:    files,
 			ReturnCode: r.Content.ReturnCode,
 			Stderr:     r.Content.Stderr,
 			Stdout:     r.Content.Stdout,
-		}
-		for _, block := range r.Content.Content {
-			p.Content.OfRequestCodeExecutionResultBlock.Content = append(p.Content.OfRequestCodeExecutionResultBlock.Content, block.ToParam())
 		}
 	}
 	return p
@@ -490,7 +572,7 @@ func (r TextEditorCodeExecutionToolResultBlock) ToParam() TextEditorCodeExecutio
 			ErrorMessage: paramutil.ToOpt(r.Content.ErrorMessage, r.Content.JSON.ErrorMessage),
 		}
 	} else {
-		p.Content = param.Override[TextEditorCodeExecutionToolResultBlockParamContentUnion](r.Content.RawJSON())
+		p.Content = param.Override[TextEditorCodeExecutionToolResultBlockParamContentUnion](json.RawMessage(r.Content.RawJSON()))
 	}
 	return p
 }
@@ -501,10 +583,14 @@ func (r ToolSearchToolResultBlock) ToParam() ToolSearchToolResultBlockParam {
 	p.ToolUseID = r.ToolUseID
 	if r.Content.JSON.ErrorCode.Valid() {
 		p.Content.OfRequestToolSearchToolResultError = &ToolSearchToolResultErrorParam{
-			ErrorCode: ToolSearchToolResultErrorCode(r.Content.ErrorCode),
+			ErrorCode:    ToolSearchToolResultErrorCode(r.Content.ErrorCode),
+			ErrorMessage: paramutil.ToOpt(r.Content.ErrorMessage, r.Content.JSON.ErrorMessage),
 		}
 	} else {
-		p.Content.OfRequestToolSearchToolSearchResultBlock = &ToolSearchToolSearchResultBlockParam{}
+		p.Content.OfRequestToolSearchToolSearchResultBlock = &ToolSearchToolSearchResultBlockParam{
+			// tool_references is required, so send [] rather than omitting it.
+			ToolReferences: make([]ToolReferenceBlockParam, 0, len(r.Content.ToolReferences)),
+		}
 		for _, block := range r.Content.ToolReferences {
 			p.Content.OfRequestToolSearchToolSearchResultBlock.ToolReferences = append(
 				p.Content.OfRequestToolSearchToolSearchResultBlock.ToolReferences,

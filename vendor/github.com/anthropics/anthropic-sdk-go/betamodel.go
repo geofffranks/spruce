@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package anthropic
 
 import (
@@ -9,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go/internal/apijson"
@@ -45,15 +44,26 @@ func NewBetaModelService(opts ...option.RequestOption) (r BetaModelService) {
 // The Models API response can be used to determine information about a specific
 // model or resolve a model alias to a model ID.
 func (r *BetaModelService) Get(ctx context.Context, modelID string, query BetaModelGetParams, opts ...option.RequestOption) (res *BetaModelInfo, err error) {
-	for _, v := range query.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(query.Betas) > 0 {
+		headerValues := make([]string, len(query.Betas))
+		for i, v := range query.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(query.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", query.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	if modelID == "" {
 		err = errors.New("missing required model_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/models/%s?beta=true", modelID)
+	path := fmt.Sprintf("v1/models/%s?beta=true", url.PathEscape(modelID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.models.retrieve", "/v1/models/{model_id}"), requestconfig.WithSpanAttribute("anthropic.model.id", modelID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
@@ -64,12 +74,23 @@ func (r *BetaModelService) Get(ctx context.Context, modelID string, query BetaMo
 // use in the API. More recently released models are listed first.
 func (r *BetaModelService) List(ctx context.Context, params BetaModelListParams, opts ...option.RequestOption) (res *pagination.Page[BetaModelInfo], err error) {
 	var raw *http.Response
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
 	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	path := "v1/models?beta=true"
+	opts = append(opts, requestconfig.WithSpan("anthropic.models.list", "/v1/models", "after_id", "before_id", "lifecycle", "limit"))
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, params, &res, opts...)
 	if err != nil {
 		return nil, err
@@ -108,13 +129,36 @@ func (r *BetaCapabilitySupport) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Compaction capability details: whether the model accepts the top-level
+// `compaction` request parameter, with one entry per supported `compaction.type`
+// value.
+type BetaCompactionCapability struct {
+	// Whether the summarize compaction type is supported.
+	Summarize BetaCapabilitySupport `json:"summarize" api:"required"`
+	// Whether this capability is supported by the model.
+	Supported bool `json:"supported" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Summarize   respjson.Field
+		Supported   respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BetaCompactionCapability) RawJSON() string { return r.JSON.raw }
+func (r *BetaCompactionCapability) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // Context management capability details.
 type BetaContextManagementCapability struct {
-	// Indicates whether a capability is supported.
+	// Whether the clear_thinking_20251015 strategy is supported.
 	ClearThinking20251015 BetaCapabilitySupport `json:"clear_thinking_20251015" api:"required"`
-	// Indicates whether a capability is supported.
+	// Whether the clear_tool_uses_20250919 strategy is supported.
 	ClearToolUses20250919 BetaCapabilitySupport `json:"clear_tool_uses_20250919" api:"required"`
-	// Indicates whether a capability is supported.
+	// Whether the compact_20260112 strategy is supported.
 	Compact20260112 BetaCapabilitySupport `json:"compact_20260112" api:"required"`
 	// Whether this capability is supported by the model.
 	Supported bool `json:"supported" api:"required"`
@@ -147,7 +191,7 @@ type BetaEffortCapability struct {
 	Medium BetaCapabilitySupport `json:"medium" api:"required"`
 	// Whether this capability is supported by the model.
 	Supported bool `json:"supported" api:"required"`
-	// Indicates whether a capability is supported.
+	// Whether the model supports xhigh effort level.
 	Xhigh BetaCapabilitySupport `json:"xhigh" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
@@ -174,8 +218,14 @@ type BetaModelCapabilities struct {
 	Batch BetaCapabilitySupport `json:"batch" api:"required"`
 	// Whether the model supports citation generation.
 	Citations BetaCapabilitySupport `json:"citations" api:"required"`
-	// Whether the model supports code execution tools.
+	// Whether code that the model runs in the code execution tool can call the
+	// request's other tools, as in programmatic tool calling and dynamic filtering for
+	// web search and web fetch. Support for the code execution tool itself is in
+	// `server_tools.code_execution`.
 	CodeExecution BetaCapabilitySupport `json:"code_execution" api:"required"`
+	// Server-side compaction support (the top-level `compaction` parameter) and the
+	// accepted `compaction.type` values.
+	Compaction BetaCompactionCapability `json:"compaction" api:"required"`
 	// Context management support and available strategies.
 	ContextManagement BetaContextManagementCapability `json:"context_management" api:"required"`
 	// Effort (reasoning_effort) support and available levels.
@@ -184,6 +234,11 @@ type BetaModelCapabilities struct {
 	ImageInput BetaCapabilitySupport `json:"image_input" api:"required"`
 	// Whether the model accepts PDF content blocks.
 	PDFInput BetaCapabilitySupport `json:"pdf_input" api:"required"`
+	// Whether this model supports the web search and code execution server tools.
+	// `supported` is true when the model supports at least one of the tools. A
+	// supported tool can still be rejected for your organization, for example when an
+	// admin has turned web search off.
+	ServerTools BetaServerToolsCapability `json:"server_tools" api:"required"`
 	// Whether the model supports structured output / JSON mode / strict tool schemas.
 	StructuredOutputs BetaCapabilitySupport `json:"structured_outputs" api:"required"`
 	// Thinking capability and supported type configurations.
@@ -193,10 +248,12 @@ type BetaModelCapabilities struct {
 		Batch             respjson.Field
 		Citations         respjson.Field
 		CodeExecution     respjson.Field
+		Compaction        respjson.Field
 		ContextManagement respjson.Field
 		Effort            respjson.Field
 		ImageInput        respjson.Field
 		PDFInput          respjson.Field
+		ServerTools       respjson.Field
 		StructuredOutputs respjson.Field
 		Thinking          respjson.Field
 		ExtraFields       map[string]respjson.Field
@@ -217,17 +274,46 @@ type BetaModelInfo struct {
 	// empty list means the `fallbacks` parameter is not supported for this model as
 	// primary.
 	AllowedFallbackModels []string `json:"allowed_fallback_models" api:"required"`
-	// Model capability information.
+	// Object mapping capability names to their support details. Keys are always
+	// present for all known capabilities.
 	Capabilities BetaModelCapabilities `json:"capabilities" api:"required"`
 	// RFC 3339 datetime string representing the time at which the model was released.
 	// May be set to an epoch value if the release date is unknown.
 	CreatedAt time.Time `json:"created_at" api:"required" format:"date-time"`
+	// RFC 3339 datetime string representing the time of the model's most recent
+	// deprecation. Populated for `deprecated` and `retired` models; `null` while the
+	// model is `active`.
+	DeprecatedAt time.Time `json:"deprecated_at" api:"required" format:"date-time"`
 	// A human-readable name for the model.
 	DisplayName string `json:"display_name" api:"required"`
+	// The model's current lifecycle stage.
+	//
+	// - `active`: The model is available for use, open to new adopters, and not
+	//   scheduled for retirement.
+	// - `deprecated`: The model remains callable for organizations with existing
+	//   access, but is headed for retirement and closed to new adopters.
+	// - `retired`: The model is no longer available for use; inference requests naming
+	//   it fail. It remains in the catalogue as the historical record of its
+	//   retirement.
+	//
+	// Any of "active", "deprecated", "retired".
+	Lifecycle BetaModelInfoLifecycle `json:"lifecycle" api:"required"`
+	// The model line this model belongs to, such as `opus` for both Claude Opus 4.5
+	// and Claude Opus 4.6. More lines may be added. `null` when the model belongs to
+	// no line; do not infer a line from the `id`.
+	//
+	// Any of "haiku", "sonnet", "opus", "fable", "mythos".
+	Line BetaModelLine `json:"line" api:"required"`
 	// Maximum input context window size in tokens for this model.
 	MaxInputTokens int64 `json:"max_input_tokens" api:"required"`
 	// Maximum value for the `max_tokens` parameter when using this model.
 	MaxTokens int64 `json:"max_tokens" api:"required"`
+	// RFC 3339 datetime string representing the model's currently scheduled retirement
+	// date. The schedule can be revised until retirement occurs; `null` while the
+	// model is `active` or while no retirement is scheduled. A past date on a
+	// `deprecated` model means retirement is overdue, not that it has occurred:
+	// `lifecycle` is the retirement signal.
+	RetiresAt time.Time `json:"retires_at" api:"required" format:"date-time"`
 	// Object type.
 	//
 	// For Models, this is always `"model"`.
@@ -238,9 +324,13 @@ type BetaModelInfo struct {
 		AllowedFallbackModels respjson.Field
 		Capabilities          respjson.Field
 		CreatedAt             respjson.Field
+		DeprecatedAt          respjson.Field
 		DisplayName           respjson.Field
+		Lifecycle             respjson.Field
+		Line                  respjson.Field
 		MaxInputTokens        respjson.Field
 		MaxTokens             respjson.Field
+		RetiresAt             respjson.Field
 		Type                  respjson.Field
 		ExtraFields           map[string]respjson.Field
 		raw                   string
@@ -250,6 +340,61 @@ type BetaModelInfo struct {
 // Returns the unmodified JSON received from the API
 func (r BetaModelInfo) RawJSON() string { return r.JSON.raw }
 func (r *BetaModelInfo) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The model's current lifecycle stage.
+//
+//   - `active`: The model is available for use, open to new adopters, and not
+//     scheduled for retirement.
+//   - `deprecated`: The model remains callable for organizations with existing
+//     access, but is headed for retirement and closed to new adopters.
+//   - `retired`: The model is no longer available for use; inference requests naming
+//     it fail. It remains in the catalogue as the historical record of its
+//     retirement.
+type BetaModelInfoLifecycle string
+
+const (
+	BetaModelInfoLifecycleActive     BetaModelInfoLifecycle = "active"
+	BetaModelInfoLifecycleDeprecated BetaModelInfoLifecycle = "deprecated"
+	BetaModelInfoLifecycleRetired    BetaModelInfoLifecycle = "retired"
+)
+
+// A Claude model line, such as `opus` or `sonnet`. More lines may be added as new
+// values.
+type BetaModelLine string
+
+const (
+	BetaModelLineHaiku  BetaModelLine = "haiku"
+	BetaModelLineSonnet BetaModelLine = "sonnet"
+	BetaModelLineOpus   BetaModelLine = "opus"
+	BetaModelLineFable  BetaModelLine = "fable"
+	BetaModelLineMythos BetaModelLine = "mythos"
+)
+
+// Web search and code execution tool support, with one entry per tool.
+type BetaServerToolsCapability struct {
+	// Whether the model supports the code execution tool: true when the model supports
+	// at least one version of the tool, not necessarily every version.
+	CodeExecution BetaCapabilitySupport `json:"code_execution" api:"required"`
+	// Whether this capability is supported by the model.
+	Supported bool `json:"supported" api:"required"`
+	// Whether the model supports the web search tool: true when the model supports at
+	// least one version of the tool, not necessarily every version.
+	WebSearch BetaCapabilitySupport `json:"web_search" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CodeExecution respjson.Field
+		Supported     respjson.Field
+		WebSearch     respjson.Field
+		ExtraFields   map[string]respjson.Field
+		raw           string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BetaServerToolsCapability) RawJSON() string { return r.JSON.raw }
+func (r *BetaServerToolsCapability) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -274,18 +419,36 @@ func (r *BetaThinkingCapability) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// Supported thinking type configurations.
+// Which `thinking.type` values the model accepts on requests. Read each key on its
+// own: for example, `enabled` can be false while `disabled` is true.
 type BetaThinkingTypes struct {
-	// Whether the model supports thinking with type 'adaptive' (auto).
+	// Whether the model accepts thinking with type 'adaptive' (the model decides
+	// whether and how much to think).
 	Adaptive BetaCapabilitySupport `json:"adaptive" api:"required"`
-	// Whether the model supports thinking with type 'enabled'.
+	// Whether the model accepts thinking with type 'between_tools' (thinking turned
+	// off, and any short progress updates the model writes between tool calls come
+	// back as thinking blocks). False exactly when a request that sends it gets a 400
+	// from this model. A request that sends 'between_tools' can still be rejected for
+	// another reason, such as an effort level the model does not allow with thinking
+	// off.
+	BetweenTools BetaCapabilitySupport `json:"between_tools" api:"required"`
+	// Whether the model accepts thinking with type 'disabled' (thinking turned off).
+	// False exactly when a request that sends it gets a 400 from this model. True on a
+	// model that does not support thinking. A request that sends 'disabled' can still
+	// be rejected for another reason, such as an effort level the model does not allow
+	// with thinking off.
+	Disabled BetaCapabilitySupport `json:"disabled" api:"required"`
+	// Whether the model accepts thinking with type 'enabled' (extended thinking with a
+	// caller-set `budget_tokens`).
 	Enabled BetaCapabilitySupport `json:"enabled" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Adaptive    respjson.Field
-		Enabled     respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Adaptive     respjson.Field
+		BetweenTools respjson.Field
+		Disabled     respjson.Field
+		Enabled      respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -296,6 +459,13 @@ func (r *BetaThinkingTypes) UnmarshalJSON(data []byte) error {
 }
 
 type BetaModelGetParams struct {
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
@@ -312,6 +482,20 @@ type BetaModelListParams struct {
 	//
 	// Defaults to `20`. Ranges from `1` to `1000`.
 	Limit param.Opt[int64] `query:"limit,omitzero" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
+	// Filter the list to models in any of the given lifecycle stages (`active`,
+	// `deprecated`, or `retired`). Up to 3 values. When omitted, the list contains the
+	// `active` and `deprecated` models; `retired` models appear only when `retired` is
+	// requested explicitly.
+	//
+	// Any of "active", "deprecated", "retired".
+	Lifecycle []string `query:"lifecycle,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj

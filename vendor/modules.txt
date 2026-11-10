@@ -1,8 +1,8 @@
 # cloud.google.com/go v0.123.0
 ## explicit; go 1.24.0
 cloud.google.com/go/civil
-# cloud.google.com/go/auth v0.23.2
-## explicit; go 1.25.0
+# cloud.google.com/go/auth v0.24.1
+## explicit; go 1.26.0
 cloud.google.com/go/auth
 cloud.google.com/go/auth/credentials
 cloud.google.com/go/auth/credentials/internal/externalaccount
@@ -19,8 +19,8 @@ cloud.google.com/go/auth/internal/retry
 cloud.google.com/go/auth/internal/transport
 cloud.google.com/go/auth/internal/transport/cert
 cloud.google.com/go/auth/internal/transport/headers
-# cloud.google.com/go/compute/metadata v0.9.0
-## explicit; go 1.24.0
+# cloud.google.com/go/compute/metadata v0.10.0
+## explicit; go 1.26.0
 cloud.google.com/go/compute/metadata
 # github.com/BurntSushi/toml v1.6.0
 ## explicit; go 1.18
@@ -32,7 +32,7 @@ github.com/Knetic/govaluate
 # github.com/Masterminds/semver/v3 v3.5.0
 ## explicit; go 1.21
 github.com/Masterminds/semver/v3
-# github.com/anthropics/anthropic-sdk-go v1.66.0
+# github.com/anthropics/anthropic-sdk-go v1.82.0
 ## explicit; go 1.24
 github.com/anthropics/anthropic-sdk-go
 github.com/anthropics/anthropic-sdk-go/config
@@ -49,6 +49,8 @@ github.com/anthropics/anthropic-sdk-go/internal/paramutil
 github.com/anthropics/anthropic-sdk-go/internal/requestconfig
 github.com/anthropics/anthropic-sdk-go/internal/sendwindow
 github.com/anthropics/anthropic-sdk-go/internal/stainlessheader
+github.com/anthropics/anthropic-sdk-go/internal/telemetry
+github.com/anthropics/anthropic-sdk-go/internal/tracing
 github.com/anthropics/anthropic-sdk-go/option
 github.com/anthropics/anthropic-sdk-go/packages/jsonl
 github.com/anthropics/anthropic-sdk-go/packages/pagination
@@ -217,6 +219,13 @@ github.com/cespare/xxhash/v2
 # github.com/cloudfoundry-community/vaultkv v0.7.2
 ## explicit; go 1.20
 github.com/cloudfoundry-community/vaultkv
+# github.com/coder/websocket v1.8.15
+## explicit; go 1.23
+github.com/coder/websocket
+github.com/coder/websocket/internal/bpool
+github.com/coder/websocket/internal/errd
+github.com/coder/websocket/internal/util
+github.com/coder/websocket/internal/wsjs
 # github.com/cppforlife/go-patch v0.2.0
 ## explicit
 github.com/cppforlife/go-patch/patch
@@ -264,10 +273,10 @@ github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
 github.com/google/go-cmp/cmp/internal/value
-# github.com/google/pprof v0.0.0-20260802141513-ef3492d7dac3
-## explicit; go 1.25.0
+# github.com/google/pprof v0.0.0-20261016150608-1facf8f91b50
+## explicit; go 1.26.0
 github.com/google/pprof/profile
-# github.com/google/s2a-go v0.1.9
+# github.com/google/s2a-go v0.1.11
 ## explicit; go 1.20
 github.com/google/s2a-go
 github.com/google/s2a-go/fallback
@@ -293,12 +302,12 @@ github.com/google/s2a-go/stream
 # github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
-# github.com/googleapis/enterprise-certificate-proxy v0.3.20
+# github.com/googleapis/enterprise-certificate-proxy v0.3.23
 ## explicit; go 1.25.0
 github.com/googleapis/enterprise-certificate-proxy/client
 github.com/googleapis/enterprise-certificate-proxy/client/util
-# github.com/googleapis/gax-go/v2 v2.24.0
-## explicit; go 1.25.0
+# github.com/googleapis/gax-go/v2 v2.26.2
+## explicit; go 1.26.0
 github.com/googleapis/gax-go/v2
 github.com/googleapis/gax-go/v2/apierror
 github.com/googleapis/gax-go/v2/apierror/internal/proto
@@ -306,7 +315,7 @@ github.com/googleapis/gax-go/v2/callctx
 github.com/googleapis/gax-go/v2/internal
 github.com/googleapis/gax-go/v2/internallog
 github.com/googleapis/gax-go/v2/internallog/internal
-# github.com/gookit/color v1.6.1
+# github.com/gookit/color v1.6.3
 ## explicit; go 1.18
 github.com/gookit/color
 # github.com/gorilla/websocket v1.5.3
@@ -393,8 +402,8 @@ github.com/onsi/gomega/matchers/support/goraph/edge
 github.com/onsi/gomega/matchers/support/goraph/node
 github.com/onsi/gomega/matchers/support/goraph/util
 github.com/onsi/gomega/types
-# github.com/openai/openai-go/v3 v3.52.0
-## explicit; go 1.25.0
+# github.com/openai/openai-go/v3 v3.82.0
+## explicit; go 1.26.0
 github.com/openai/openai-go/v3
 github.com/openai/openai-go/v3/auth
 github.com/openai/openai-go/v3/conversations
@@ -408,21 +417,30 @@ github.com/openai/openai-go/v3/internal/encoding/json/sentinel
 github.com/openai/openai-go/v3/internal/encoding/json/shims
 github.com/openai/openai-go/v3/internal/paramutil
 github.com/openai/openai-go/v3/internal/requestconfig
+github.com/openai/openai-go/v3/internal/websockettransport
+github.com/openai/openai-go/v3/live
 github.com/openai/openai-go/v3/option
 github.com/openai/openai-go/v3/packages/pagination
 github.com/openai/openai-go/v3/packages/param
 github.com/openai/openai-go/v3/packages/respjson
 github.com/openai/openai-go/v3/packages/ssestream
+github.com/openai/openai-go/v3/packages/websocket
 github.com/openai/openai-go/v3/realtime
 github.com/openai/openai-go/v3/responses
 github.com/openai/openai-go/v3/shared
 github.com/openai/openai-go/v3/shared/constant
 github.com/openai/openai-go/v3/webhooks
-# github.com/pb33f/ordered-map/v2 v2.3.1
+# github.com/pb33f/go-yaml v0.1.1
+## explicit; go 1.18
+github.com/pb33f/go-yaml
+github.com/pb33f/go-yaml/internal/libyaml
+github.com/pb33f/go-yaml/internal/plugin
+github.com/pb33f/go-yaml/plugin/limit
+# github.com/pb33f/ordered-map/v2 v2.3.2
 ## explicit; go 1.24
 github.com/pb33f/ordered-map/v2
-# github.com/securego/gosec/v2 v2.29.0
-## explicit; go 1.25.0
+# github.com/securego/gosec/v2 v2.30.0
+## explicit; go 1.26.0
 github.com/securego/gosec/v2
 github.com/securego/gosec/v2/analyzers
 github.com/securego/gosec/v2/autofix
@@ -456,13 +474,13 @@ github.com/starkandwayne/goutils/tree
 # github.com/texttheater/golang-levenshtein v1.0.1
 ## explicit; go 1.13
 github.com/texttheater/golang-levenshtein/levenshtein
-# github.com/tidwall/gjson v1.19.0
+# github.com/tidwall/gjson v1.20.0
 ## explicit; go 1.23
 github.com/tidwall/gjson
 # github.com/tidwall/match v1.2.0
 ## explicit; go 1.15
 github.com/tidwall/match
-# github.com/tidwall/pretty v1.2.1
+# github.com/tidwall/pretty v1.2.2
 ## explicit; go 1.16
 github.com/tidwall/pretty
 # github.com/tidwall/sjson v1.2.5
@@ -474,8 +492,8 @@ github.com/virtuald/go-ordered-json
 # github.com/voxelbrain/goptions v0.0.0-20180630082107-58cddc247ea2
 ## explicit
 github.com/voxelbrain/goptions
-# github.com/xo/terminfo v1.0.0
-## explicit; go 1.19
+# github.com/xo/terminfo v1.2.0
+## explicit; go 1.25
 github.com/xo/terminfo
 # github.com/ziutek/utils v0.0.0-20190626152656-eb2a3b364d6c
 ## explicit
@@ -484,13 +502,13 @@ github.com/ziutek/utils/netaddr
 ## explicit; go 1.24.0
 go.opentelemetry.io/auto/sdk
 go.opentelemetry.io/auto/sdk/internal/telemetry
-# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0
-## explicit; go 1.25.0
+# go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
+## explicit; go 1.26.0
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp/internal/request
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp/internal/semconv
-# go.opentelemetry.io/otel v1.45.0
-## explicit; go 1.25.0
+# go.opentelemetry.io/otel v1.47.0
+## explicit; go 1.26.0
 go.opentelemetry.io/otel
 go.opentelemetry.io/otel/attribute
 go.opentelemetry.io/otel/attribute/internal
@@ -501,17 +519,22 @@ go.opentelemetry.io/otel/internal/baggage
 go.opentelemetry.io/otel/internal/errorhandler
 go.opentelemetry.io/otel/internal/global
 go.opentelemetry.io/otel/propagation
+go.opentelemetry.io/otel/propagation/internal/hextable
 go.opentelemetry.io/otel/semconv/internal/metricpool
 go.opentelemetry.io/otel/semconv/v1.37.0
 go.opentelemetry.io/otel/semconv/v1.43.0
 go.opentelemetry.io/otel/semconv/v1.43.0/httpconv
-# go.opentelemetry.io/otel/metric v1.45.0
-## explicit; go 1.25.0
+# go.opentelemetry.io/otel/log v1.47.0
+## explicit; go 1.26.0
+go.opentelemetry.io/otel/log
+go.opentelemetry.io/otel/log/embedded
+# go.opentelemetry.io/otel/metric v1.47.0
+## explicit; go 1.26.0
 go.opentelemetry.io/otel/metric
 go.opentelemetry.io/otel/metric/embedded
 go.opentelemetry.io/otel/metric/noop
-# go.opentelemetry.io/otel/trace v1.45.0
-## explicit; go 1.25.0
+# go.opentelemetry.io/otel/trace v1.47.0
+## explicit; go 1.26.0
 go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/internal/telemetry
@@ -522,12 +545,7 @@ go.yaml.in/yaml/v2
 # go.yaml.in/yaml/v3 v3.0.5
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
-# go.yaml.in/yaml/v4 v4.0.0-rc.6
-## explicit; go 1.18
-go.yaml.in/yaml/v4
-go.yaml.in/yaml/v4/internal/libyaml
-go.yaml.in/yaml/v4/plugin/limit
-# golang.org/x/crypto v0.57.0
+# golang.org/x/crypto v0.58.0
 ## explicit; go 1.26.0
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/chacha20poly1305
@@ -539,12 +557,12 @@ golang.org/x/crypto/internal/poly1305
 # golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678
 ## explicit; go 1.18
 golang.org/x/exp/typeparams
-# golang.org/x/mod v0.41.0
+# golang.org/x/mod v0.42.0
 ## explicit; go 1.26.0
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.59.0
+# golang.org/x/net v0.61.0
 ## explicit; go 1.26.0
 golang.org/x/net/html
 golang.org/x/net/html/atom
@@ -557,21 +575,21 @@ golang.org/x/net/internal/httpcommon
 golang.org/x/net/internal/httpsfv
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sync v0.23.0
+# golang.org/x/sync v0.24.0
 ## explicit; go 1.26.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/syncmap
-# golang.org/x/sys v0.48.0
+# golang.org/x/sys v0.49.0
 ## explicit; go 1.26.0
 golang.org/x/sys/cpu
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
-# golang.org/x/term v0.46.0
+# golang.org/x/term v0.47.0
 ## explicit; go 1.26.0
 golang.org/x/term
-# golang.org/x/text v0.42.0
+# golang.org/x/text v0.43.0
 ## explicit; go 1.26.0
 golang.org/x/text/cases
 golang.org/x/text/encoding
@@ -595,7 +613,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.51.0
+# golang.org/x/tools v0.52.0
 ## explicit; go 1.26.0
 golang.org/x/tools/cover
 golang.org/x/tools/go/analysis
@@ -635,19 +653,39 @@ golang.org/x/tools/internal/stdlib
 golang.org/x/tools/internal/typeparams
 golang.org/x/tools/internal/typesinternal
 golang.org/x/tools/internal/versions
-# google.golang.org/api v0.293.0
-## explicit; go 1.25.0
+# google.golang.org/api v0.304.0
+## explicit; go 1.26.0
 google.golang.org/api/googleapi
 google.golang.org/api/internal/third_party/uritemplates
-# google.golang.org/genai v1.69.0
+# google.golang.org/genai v1.75.0
 ## explicit; go 1.24
 google.golang.org/genai
-# google.golang.org/genproto/googleapis/rpc v0.0.0-20260819154853-08b0e4226688
-## explicit; go 1.25.0
+google.golang.org/genai/interactions
+google.golang.org/genai/interactions/internal/config
+google.golang.org/genai/interactions/internal/globals
+google.golang.org/genai/interactions/internal/hooks
+google.golang.org/genai/interactions/internal/utils
+google.golang.org/genai/interactions/models/agents
+google.golang.org/genai/interactions/models/apierrors
+google.golang.org/genai/interactions/models/components
+google.golang.org/genai/interactions/models/credentials
+google.golang.org/genai/interactions/models/environments
+google.golang.org/genai/interactions/models/interactions
+google.golang.org/genai/interactions/models/operations
+google.golang.org/genai/interactions/models/triggers
+google.golang.org/genai/interactions/models/voices
+google.golang.org/genai/interactions/models/webhooks
+google.golang.org/genai/interactions/optionalnullable
+google.golang.org/genai/interactions/redact
+google.golang.org/genai/interactions/retry
+google.golang.org/genai/interactions/types
+google.golang.org/genai/interactions/types/stream
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20261012220534-4341edf3f941
+## explicit; go 1.26.0
 google.golang.org/genproto/googleapis/rpc/code
 google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.83.2
+# google.golang.org/grpc v1.84.0
 ## explicit; go 1.25.0
 google.golang.org/grpc
 google.golang.org/grpc/attributes

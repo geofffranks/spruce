@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package anthropic
 
 import (
@@ -12,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
+	"time"
 
 	"github.com/anthropics/anthropic-sdk-go/internal/apiform"
 	"github.com/anthropics/anthropic-sdk-go/internal/apijson"
@@ -21,6 +21,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/packages/pagination"
 	"github.com/anthropics/anthropic-sdk-go/packages/param"
 	"github.com/anthropics/anthropic-sdk-go/packages/respjson"
+	"github.com/anthropics/anthropic-sdk-go/shared/constant"
 )
 
 // BetaSkillService contains methods and other services that help with interacting
@@ -45,42 +46,73 @@ func NewBetaSkillService(opts ...option.RequestOption) (r BetaSkillService) {
 }
 
 // Create Skill
-func (r *BetaSkillService) New(ctx context.Context, params BetaSkillNewParams, opts ...option.RequestOption) (res *BetaSkillNewResponse, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+func (r *BetaSkillService) New(ctx context.Context, params BetaSkillNewParams, opts ...option.RequestOption) (res *BetaSkill, err error) {
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
-	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02")}, opts...)
 	path := "v1/skills?beta=true"
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.create", "/v1/skills"), requestconfig.WithSpanCreatedID("anthropic.skill.id", &res, func(created *BetaSkill) string { return created.ID }))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
 
 // Get Skill
-func (r *BetaSkillService) Get(ctx context.Context, skillID string, query BetaSkillGetParams, opts ...option.RequestOption) (res *BetaSkillGetResponse, err error) {
-	for _, v := range query.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+func (r *BetaSkillService) Get(ctx context.Context, skillID string, query BetaSkillGetParams, opts ...option.RequestOption) (res *BetaSkill, err error) {
+	if len(query.Betas) > 0 {
+		headerValues := make([]string, len(query.Betas))
+		for i, v := range query.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(query.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", query.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
-	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02")}, opts...)
 	if skillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/skills/%s?beta=true", skillID)
+	path := fmt.Sprintf("v1/skills/%s?beta=true", url.PathEscape(skillID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.retrieve", "/v1/skills/{skill_id}"), requestconfig.WithSpanAttribute("anthropic.skill.id", skillID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
 
 // List Skills
-func (r *BetaSkillService) List(ctx context.Context, params BetaSkillListParams, opts ...option.RequestOption) (res *pagination.PageCursor[BetaSkillListResponse], err error) {
+func (r *BetaSkillService) List(ctx context.Context, params BetaSkillListParams, opts ...option.RequestOption) (res *pagination.PageCursor[BetaSkill], err error) {
 	var raw *http.Response
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
-	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02"), option.WithResponseInto(&raw)}, opts...)
+	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	path := "v1/skills?beta=true"
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.list", "/v1/skills", "limit", "page", "source"))
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, params, &res, opts...)
 	if err != nil {
 		return nil, err
@@ -94,174 +126,37 @@ func (r *BetaSkillService) List(ctx context.Context, params BetaSkillListParams,
 }
 
 // List Skills
-func (r *BetaSkillService) ListAutoPaging(ctx context.Context, params BetaSkillListParams, opts ...option.RequestOption) *pagination.PageCursorAutoPager[BetaSkillListResponse] {
+func (r *BetaSkillService) ListAutoPaging(ctx context.Context, params BetaSkillListParams, opts ...option.RequestOption) *pagination.PageCursorAutoPager[BetaSkill] {
 	return pagination.NewPageCursorAutoPager(r.List(ctx, params, opts...))
 }
 
 // Delete Skill
-func (r *BetaSkillService) Delete(ctx context.Context, skillID string, body BetaSkillDeleteParams, opts ...option.RequestOption) (res *BetaSkillDeleteResponse, err error) {
-	for _, v := range body.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+func (r *BetaSkillService) Delete(ctx context.Context, skillID string, body BetaSkillDeleteParams, opts ...option.RequestOption) (res *BetaDeletedSkill, err error) {
+	if len(body.Betas) > 0 {
+		headerValues := make([]string, len(body.Betas))
+		for i, v := range body.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(body.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", body.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
-	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02")}, opts...)
 	if skillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/skills/%s?beta=true", skillID)
+	path := fmt.Sprintf("v1/skills/%s?beta=true", url.PathEscape(skillID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.delete", "/v1/skills/{skill_id}"), requestconfig.WithSpanAttribute("anthropic.skill.id", skillID))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, &res, opts...)
 	return res, err
 }
 
-type BetaSkillNewResponse struct {
-	// Unique identifier for the skill.
-	//
-	// The format and length of IDs may change over time.
-	ID string `json:"id" api:"required"`
-	// ISO 8601 timestamp of when the skill was created.
-	CreatedAt string `json:"created_at" api:"required"`
-	// Display title for the skill.
-	//
-	// This is a human-readable label that is not included in the prompt sent to the
-	// model.
-	DisplayTitle string `json:"display_title" api:"required"`
-	// The latest version identifier for the skill.
-	//
-	// This represents the most recent version of the skill that has been created.
-	LatestVersion string `json:"latest_version" api:"required"`
-	// Source of the skill.
-	//
-	// This may be one of the following values:
-	//
-	// - `"custom"`: the skill was created by a user
-	// - `"anthropic"`: the skill was created by Anthropic
-	Source string `json:"source" api:"required"`
-	// Object type.
-	//
-	// For Skills, this is always `"skill"`.
-	Type string `json:"type" api:"required"`
-	// ISO 8601 timestamp of when the skill was last updated.
-	UpdatedAt string `json:"updated_at" api:"required"`
-	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
-	JSON struct {
-		ID            respjson.Field
-		CreatedAt     respjson.Field
-		DisplayTitle  respjson.Field
-		LatestVersion respjson.Field
-		Source        respjson.Field
-		Type          respjson.Field
-		UpdatedAt     respjson.Field
-		ExtraFields   map[string]respjson.Field
-		raw           string
-	} `json:"-"`
-}
-
-// Returns the unmodified JSON received from the API
-func (r BetaSkillNewResponse) RawJSON() string { return r.JSON.raw }
-func (r *BetaSkillNewResponse) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
-type BetaSkillGetResponse struct {
-	// Unique identifier for the skill.
-	//
-	// The format and length of IDs may change over time.
-	ID string `json:"id" api:"required"`
-	// ISO 8601 timestamp of when the skill was created.
-	CreatedAt string `json:"created_at" api:"required"`
-	// Display title for the skill.
-	//
-	// This is a human-readable label that is not included in the prompt sent to the
-	// model.
-	DisplayTitle string `json:"display_title" api:"required"`
-	// The latest version identifier for the skill.
-	//
-	// This represents the most recent version of the skill that has been created.
-	LatestVersion string `json:"latest_version" api:"required"`
-	// Source of the skill.
-	//
-	// This may be one of the following values:
-	//
-	// - `"custom"`: the skill was created by a user
-	// - `"anthropic"`: the skill was created by Anthropic
-	Source string `json:"source" api:"required"`
-	// Object type.
-	//
-	// For Skills, this is always `"skill"`.
-	Type string `json:"type" api:"required"`
-	// ISO 8601 timestamp of when the skill was last updated.
-	UpdatedAt string `json:"updated_at" api:"required"`
-	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
-	JSON struct {
-		ID            respjson.Field
-		CreatedAt     respjson.Field
-		DisplayTitle  respjson.Field
-		LatestVersion respjson.Field
-		Source        respjson.Field
-		Type          respjson.Field
-		UpdatedAt     respjson.Field
-		ExtraFields   map[string]respjson.Field
-		raw           string
-	} `json:"-"`
-}
-
-// Returns the unmodified JSON received from the API
-func (r BetaSkillGetResponse) RawJSON() string { return r.JSON.raw }
-func (r *BetaSkillGetResponse) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
-type BetaSkillListResponse struct {
-	// Unique identifier for the skill.
-	//
-	// The format and length of IDs may change over time.
-	ID string `json:"id" api:"required"`
-	// ISO 8601 timestamp of when the skill was created.
-	CreatedAt string `json:"created_at" api:"required"`
-	// Display title for the skill.
-	//
-	// This is a human-readable label that is not included in the prompt sent to the
-	// model.
-	DisplayTitle string `json:"display_title" api:"required"`
-	// The latest version identifier for the skill.
-	//
-	// This represents the most recent version of the skill that has been created.
-	LatestVersion string `json:"latest_version" api:"required"`
-	// Source of the skill.
-	//
-	// This may be one of the following values:
-	//
-	// - `"custom"`: the skill was created by a user
-	// - `"anthropic"`: the skill was created by Anthropic
-	Source string `json:"source" api:"required"`
-	// Object type.
-	//
-	// For Skills, this is always `"skill"`.
-	Type string `json:"type" api:"required"`
-	// ISO 8601 timestamp of when the skill was last updated.
-	UpdatedAt string `json:"updated_at" api:"required"`
-	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
-	JSON struct {
-		ID            respjson.Field
-		CreatedAt     respjson.Field
-		DisplayTitle  respjson.Field
-		LatestVersion respjson.Field
-		Source        respjson.Field
-		Type          respjson.Field
-		UpdatedAt     respjson.Field
-		ExtraFields   map[string]respjson.Field
-		raw           string
-	} `json:"-"`
-}
-
-// Returns the unmodified JSON received from the API
-func (r BetaSkillListResponse) RawJSON() string { return r.JSON.raw }
-func (r *BetaSkillListResponse) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
-type BetaSkillDeleteResponse struct {
+type BetaDeletedSkill struct {
 	// Unique identifier for the skill.
 	//
 	// The format and length of IDs may change over time.
@@ -269,7 +164,7 @@ type BetaSkillDeleteResponse struct {
 	// Deleted object type.
 	//
 	// For Skills, this is always `"skill_deleted"`.
-	Type string `json:"type" api:"required"`
+	Type constant.SkillDeleted `json:"type" default:"skill_deleted"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -280,10 +175,102 @@ type BetaSkillDeleteResponse struct {
 }
 
 // Returns the unmodified JSON received from the API
-func (r BetaSkillDeleteResponse) RawJSON() string { return r.JSON.raw }
-func (r *BetaSkillDeleteResponse) UnmarshalJSON(data []byte) error {
+func (r BetaDeletedSkill) RawJSON() string { return r.JSON.raw }
+func (r *BetaDeletedSkill) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
+
+type BetaSkill struct {
+	// Unique identifier for the skill.
+	//
+	// The format and length of IDs may change over time.
+	ID string `json:"id" api:"required"`
+	// ISO 8601 timestamp of when the skill was created.
+	CreatedAt time.Time `json:"created_at" api:"required" format:"date-time"`
+	// Human-readable, single-line label for the Skill. Maximum 255 characters. Always
+	// set: derived from the SKILL.md frontmatter `name` when omitted at creation. Not
+	// unique.
+	DisplayName string `json:"display_name" api:"required"`
+	// ID of the newest Skill Version — what `latest` references resolve to. Always
+	// set: a Skill holds at least one version.
+	LatestVersionID string `json:"latest_version_id" api:"required"`
+	// Where the Skill comes from.
+	//
+	// Possible values:
+	//
+	// - `"custom"`: authored by the platform user; private to their workspace
+	// - `"anthropic"`: published by Anthropic; shared and read-only
+	// - `"anthropic_example"`: Anthropic-published sample Skill
+	// - `"plugin"`: resolved from an installed plugin
+	Source BetaSkillSource `json:"source" api:"required"`
+	// Object type.
+	//
+	// For Skills, this is always `"skill"`.
+	Type constant.Skill `json:"type" default:"skill"`
+	// ISO 8601 timestamp of when the skill was last updated.
+	UpdatedAt time.Time `json:"updated_at" api:"required" format:"date-time"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID              respjson.Field
+		CreatedAt       respjson.Field
+		DisplayName     respjson.Field
+		LatestVersionID respjson.Field
+		Source          respjson.Field
+		Type            respjson.Field
+		UpdatedAt       respjson.Field
+		ExtraFields     map[string]respjson.Field
+		raw             string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BetaSkill) RawJSON() string { return r.JSON.raw }
+func (r *BetaSkill) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BetaSkillSource struct {
+	// Where the Skill comes from.
+	//
+	// Possible values:
+	//
+	// - `"custom"`: authored by the platform user; private to their workspace
+	// - `"anthropic"`: published by Anthropic; shared and read-only
+	// - `"anthropic_example"`: Anthropic-published sample Skill
+	// - `"plugin"`: resolved from an installed plugin
+	//
+	// Any of "custom", "anthropic", "anthropic_example", "plugin".
+	Type BetaSkillSourceType `json:"type" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BetaSkillSource) RawJSON() string { return r.JSON.raw }
+func (r *BetaSkillSource) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Where the Skill comes from.
+//
+// Possible values:
+//
+// - `"custom"`: authored by the platform user; private to their workspace
+// - `"anthropic"`: published by Anthropic; shared and read-only
+// - `"anthropic_example"`: Anthropic-published sample Skill
+// - `"plugin"`: resolved from an installed plugin
+type BetaSkillSourceType string
+
+const (
+	BetaSkillSourceTypeCustom           BetaSkillSourceType = "custom"
+	BetaSkillSourceTypeAnthropic        BetaSkillSourceType = "anthropic"
+	BetaSkillSourceTypeAnthropicExample BetaSkillSourceType = "anthropic_example"
+	BetaSkillSourceTypePlugin           BetaSkillSourceType = "plugin"
+)
 
 type BetaSkillNewParams struct {
 	// Files to upload for the skill.
@@ -291,11 +278,17 @@ type BetaSkillNewParams struct {
 	// All files must be in the same top-level directory and must include a SKILL.md
 	// file at the root of that directory.
 	Files []io.Reader `json:"files,omitzero" api:"required" format:"binary"`
-	// Display title for the skill.
+	// Human-readable, single-line label for the Skill. Maximum 255 characters. Always
+	// set: derived from the SKILL.md frontmatter `name` when omitted at creation. Not
+	// unique.
+	DisplayName param.Opt[string] `json:"display_name,omitzero"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
 	//
-	// This is a human-readable label that is not included in the prompt sent to the
-	// model.
-	DisplayTitle param.Opt[string] `json:"display_title,omitzero"`
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
@@ -320,6 +313,13 @@ func (r BetaSkillNewParams) MarshalMultipart() (data []byte, contentType string,
 }
 
 type BetaSkillGetParams struct {
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
@@ -340,8 +340,15 @@ type BetaSkillListParams struct {
 	Source param.Opt[string] `query:"source,omitzero" json:"-"`
 	// Number of results to return per page.
 	//
-	// Maximum value is 100. Defaults to 20.
+	// Ranges from `1` to `1000`. Defaults to `20`.
 	Limit param.Opt[int64] `query:"limit,omitzero" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
@@ -356,6 +363,13 @@ func (r BetaSkillListParams) URLQuery() (v url.Values, err error) {
 }
 
 type BetaSkillDeleteParams struct {
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj

@@ -1,5 +1,3 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package anthropic
 
 import (
@@ -12,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
+	"time"
 
 	"github.com/anthropics/anthropic-sdk-go/internal/apiform"
 	"github.com/anthropics/anthropic-sdk-go/internal/apijson"
@@ -21,6 +21,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/packages/pagination"
 	"github.com/anthropics/anthropic-sdk-go/packages/param"
 	"github.com/anthropics/anthropic-sdk-go/packages/respjson"
+	"github.com/anthropics/anthropic-sdk-go/shared/constant"
 )
 
 // BetaSkillVersionService contains methods and other services that help with
@@ -43,28 +44,47 @@ func NewBetaSkillVersionService(opts ...option.RequestOption) (r BetaSkillVersio
 }
 
 // Create Skill Version
-func (r *BetaSkillVersionService) New(ctx context.Context, skillID string, params BetaSkillVersionNewParams, opts ...option.RequestOption) (res *BetaSkillVersionNewResponse, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+func (r *BetaSkillVersionService) New(ctx context.Context, skillID string, params BetaSkillVersionNewParams, opts ...option.RequestOption) (res *BetaSkillVersion, err error) {
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
-	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02")}, opts...)
 	if skillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/skills/%s/versions?beta=true", skillID)
+	path := fmt.Sprintf("v1/skills/%s/versions?beta=true", url.PathEscape(skillID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.versions.create", "/v1/skills/{skill_id}/versions"), requestconfig.WithSpanAttribute("anthropic.skill.id", skillID), requestconfig.WithSpanCreatedID("anthropic.skill.version.id", &res, func(created *BetaSkillVersion) string { return created.ID }))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodPost, path, params, &res, opts...)
 	return res, err
 }
 
 // Get Skill Version
-func (r *BetaSkillVersionService) Get(ctx context.Context, version string, params BetaSkillVersionGetParams, opts ...option.RequestOption) (res *BetaSkillVersionGetResponse, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+func (r *BetaSkillVersionService) Get(ctx context.Context, version string, params BetaSkillVersionGetParams, opts ...option.RequestOption) (res *BetaSkillVersion, err error) {
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
-	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02")}, opts...)
 	if params.SkillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
@@ -73,24 +93,36 @@ func (r *BetaSkillVersionService) Get(ctx context.Context, version string, param
 		err = errors.New("missing required version parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/skills/%s/versions/%s?beta=true", params.SkillID, version)
+	path := fmt.Sprintf("v1/skills/%s/versions/%s?beta=true", url.PathEscape(params.SkillID), url.PathEscape(version))
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.versions.retrieve", "/v1/skills/{skill_id}/versions/{version}"), requestconfig.WithSpanAttribute("anthropic.skill.id", params.SkillID), requestconfig.WithSpanAttribute("anthropic.skill.version.id", version))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
 
 // List Skill Versions
-func (r *BetaSkillVersionService) List(ctx context.Context, skillID string, params BetaSkillVersionListParams, opts ...option.RequestOption) (res *pagination.PageCursor[BetaSkillVersionListResponse], err error) {
+func (r *BetaSkillVersionService) List(ctx context.Context, skillID string, params BetaSkillVersionListParams, opts ...option.RequestOption) (res *pagination.PageCursor[BetaSkillVersion], err error) {
 	var raw *http.Response
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
-	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02"), option.WithResponseInto(&raw)}, opts...)
+	opts = append([]option.RequestOption{option.WithResponseInto(&raw)}, opts...)
 	if skillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/skills/%s/versions?beta=true", skillID)
+	path := fmt.Sprintf("v1/skills/%s/versions?beta=true", url.PathEscape(skillID))
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.versions.list", "/v1/skills/{skill_id}/versions", "limit", "page"), requestconfig.WithSpanAttribute("anthropic.skill.id", skillID))
 	cfg, err := requestconfig.NewRequestConfig(ctx, http.MethodGet, path, params, &res, opts...)
 	if err != nil {
 		return nil, err
@@ -104,17 +136,26 @@ func (r *BetaSkillVersionService) List(ctx context.Context, skillID string, para
 }
 
 // List Skill Versions
-func (r *BetaSkillVersionService) ListAutoPaging(ctx context.Context, skillID string, params BetaSkillVersionListParams, opts ...option.RequestOption) *pagination.PageCursorAutoPager[BetaSkillVersionListResponse] {
+func (r *BetaSkillVersionService) ListAutoPaging(ctx context.Context, skillID string, params BetaSkillVersionListParams, opts ...option.RequestOption) *pagination.PageCursorAutoPager[BetaSkillVersion] {
 	return pagination.NewPageCursorAutoPager(r.List(ctx, skillID, params, opts...))
 }
 
 // Delete Skill Version
-func (r *BetaSkillVersionService) Delete(ctx context.Context, version string, params BetaSkillVersionDeleteParams, opts ...option.RequestOption) (res *BetaSkillVersionDeleteResponse, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+func (r *BetaSkillVersionService) Delete(ctx context.Context, version string, params BetaSkillVersionDeleteParams, opts ...option.RequestOption) (res *BetaDeletedSkillVersion, err error) {
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
-	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02")}, opts...)
 	if params.SkillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
@@ -123,18 +164,29 @@ func (r *BetaSkillVersionService) Delete(ctx context.Context, version string, pa
 		err = errors.New("missing required version parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/skills/%s/versions/%s?beta=true", params.SkillID, version)
+	path := fmt.Sprintf("v1/skills/%s/versions/%s?beta=true", url.PathEscape(params.SkillID), url.PathEscape(version))
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.versions.delete", "/v1/skills/{skill_id}/versions/{version}"), requestconfig.WithSpanAttribute("anthropic.skill.id", params.SkillID), requestconfig.WithSpanAttribute("anthropic.skill.version.id", version))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodDelete, path, nil, &res, opts...)
 	return res, err
 }
 
 // Download a skill version's content as a zip archive.
 func (r *BetaSkillVersionService) Download(ctx context.Context, version string, params BetaSkillVersionDownloadParams, opts ...option.RequestOption) (res *http.Response, err error) {
-	for _, v := range params.Betas {
-		opts = append(opts, option.WithHeaderAdd("anthropic-beta", fmt.Sprintf("%v", v)))
+	if len(params.Betas) > 0 {
+		headerValues := make([]string, len(params.Betas))
+		for i, v := range params.Betas {
+			headerValues[i] = fmt.Sprintf("%v", v)
+		}
+		opts = append(opts, requestconfig.RequestOptionFunc(func(cfg *requestconfig.RequestConfig) error {
+			cfg.Request.Header.Set("anthropic-beta", strings.Join(append(headerValues, cfg.Request.Header.Values("anthropic-beta")...), ","))
+			return nil
+		}))
+	}
+	if !param.IsOmitted(params.WorkspaceID) {
+		opts = append(opts, option.WithHeader("anthropic-workspace-id", fmt.Sprintf("%v", params.WorkspaceID.Value)))
 	}
 	opts = slices.Concat(r.Options, opts)
-	opts = append([]option.RequestOption{option.WithHeader("anthropic-beta", "skills-2025-10-02"), option.WithHeader("Accept", "application/binary")}, opts...)
+	opts = append([]option.RequestOption{option.WithHeader("Accept", "application/binary")}, opts...)
 	if params.SkillID == "" {
 		err = errors.New("missing required skill_id parameter")
 		return nil, err
@@ -143,170 +195,20 @@ func (r *BetaSkillVersionService) Download(ctx context.Context, version string, 
 		err = errors.New("missing required version parameter")
 		return nil, err
 	}
-	path := fmt.Sprintf("v1/skills/%s/versions/%s/content?beta=true", params.SkillID, version)
+	path := fmt.Sprintf("v1/skills/%s/versions/%s/content?beta=true", url.PathEscape(params.SkillID), url.PathEscape(version))
+	opts = append(opts, requestconfig.WithSpan("anthropic.skills.versions.download", "/v1/skills/{skill_id}/versions/{version}/content"), requestconfig.WithSpanAttribute("anthropic.skill.id", params.SkillID), requestconfig.WithSpanAttribute("anthropic.skill.version.id", version))
 	err = requestconfig.ExecuteNewRequest(ctx, http.MethodGet, path, nil, &res, opts...)
 	return res, err
 }
 
-type BetaSkillVersionNewResponse struct {
-	// Unique identifier for the skill version.
-	//
-	// The format and length of IDs may change over time.
-	ID string `json:"id" api:"required"`
-	// ISO 8601 timestamp of when the skill version was created.
-	CreatedAt string `json:"created_at" api:"required"`
-	// Description of the skill version.
-	//
-	// This is extracted from the SKILL.md file in the skill upload.
-	Description string `json:"description" api:"required"`
-	// Directory name of the skill version.
-	//
-	// This is the top-level directory name that was extracted from the uploaded files.
-	Directory string `json:"directory" api:"required"`
-	// Human-readable name of the skill version.
-	//
-	// This is extracted from the SKILL.md file in the skill upload.
-	Name string `json:"name" api:"required"`
-	// Identifier for the skill that this version belongs to.
-	SkillID string `json:"skill_id" api:"required"`
-	// Object type.
-	//
-	// For Skill Versions, this is always `"skill_version"`.
-	Type string `json:"type" api:"required"`
-	// Version identifier for the skill.
-	//
-	// Each version is identified by a Unix epoch timestamp (e.g., "1759178010641129").
-	Version string `json:"version" api:"required"`
-	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
-	JSON struct {
-		ID          respjson.Field
-		CreatedAt   respjson.Field
-		Description respjson.Field
-		Directory   respjson.Field
-		Name        respjson.Field
-		SkillID     respjson.Field
-		Type        respjson.Field
-		Version     respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
-	} `json:"-"`
-}
-
-// Returns the unmodified JSON received from the API
-func (r BetaSkillVersionNewResponse) RawJSON() string { return r.JSON.raw }
-func (r *BetaSkillVersionNewResponse) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
-type BetaSkillVersionGetResponse struct {
-	// Unique identifier for the skill version.
-	//
-	// The format and length of IDs may change over time.
-	ID string `json:"id" api:"required"`
-	// ISO 8601 timestamp of when the skill version was created.
-	CreatedAt string `json:"created_at" api:"required"`
-	// Description of the skill version.
-	//
-	// This is extracted from the SKILL.md file in the skill upload.
-	Description string `json:"description" api:"required"`
-	// Directory name of the skill version.
-	//
-	// This is the top-level directory name that was extracted from the uploaded files.
-	Directory string `json:"directory" api:"required"`
-	// Human-readable name of the skill version.
-	//
-	// This is extracted from the SKILL.md file in the skill upload.
-	Name string `json:"name" api:"required"`
-	// Identifier for the skill that this version belongs to.
-	SkillID string `json:"skill_id" api:"required"`
-	// Object type.
-	//
-	// For Skill Versions, this is always `"skill_version"`.
-	Type string `json:"type" api:"required"`
-	// Version identifier for the skill.
-	//
-	// Each version is identified by a Unix epoch timestamp (e.g., "1759178010641129").
-	Version string `json:"version" api:"required"`
-	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
-	JSON struct {
-		ID          respjson.Field
-		CreatedAt   respjson.Field
-		Description respjson.Field
-		Directory   respjson.Field
-		Name        respjson.Field
-		SkillID     respjson.Field
-		Type        respjson.Field
-		Version     respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
-	} `json:"-"`
-}
-
-// Returns the unmodified JSON received from the API
-func (r BetaSkillVersionGetResponse) RawJSON() string { return r.JSON.raw }
-func (r *BetaSkillVersionGetResponse) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
-type BetaSkillVersionListResponse struct {
-	// Unique identifier for the skill version.
-	//
-	// The format and length of IDs may change over time.
-	ID string `json:"id" api:"required"`
-	// ISO 8601 timestamp of when the skill version was created.
-	CreatedAt string `json:"created_at" api:"required"`
-	// Description of the skill version.
-	//
-	// This is extracted from the SKILL.md file in the skill upload.
-	Description string `json:"description" api:"required"`
-	// Directory name of the skill version.
-	//
-	// This is the top-level directory name that was extracted from the uploaded files.
-	Directory string `json:"directory" api:"required"`
-	// Human-readable name of the skill version.
-	//
-	// This is extracted from the SKILL.md file in the skill upload.
-	Name string `json:"name" api:"required"`
-	// Identifier for the skill that this version belongs to.
-	SkillID string `json:"skill_id" api:"required"`
-	// Object type.
-	//
-	// For Skill Versions, this is always `"skill_version"`.
-	Type string `json:"type" api:"required"`
-	// Version identifier for the skill.
-	//
-	// Each version is identified by a Unix epoch timestamp (e.g., "1759178010641129").
-	Version string `json:"version" api:"required"`
-	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
-	JSON struct {
-		ID          respjson.Field
-		CreatedAt   respjson.Field
-		Description respjson.Field
-		Directory   respjson.Field
-		Name        respjson.Field
-		SkillID     respjson.Field
-		Type        respjson.Field
-		Version     respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
-	} `json:"-"`
-}
-
-// Returns the unmodified JSON received from the API
-func (r BetaSkillVersionListResponse) RawJSON() string { return r.JSON.raw }
-func (r *BetaSkillVersionListResponse) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
-type BetaSkillVersionDeleteResponse struct {
-	// Version identifier for the skill.
-	//
-	// Each version is identified by a Unix epoch timestamp (e.g., "1759178010641129").
+type BetaDeletedSkillVersion struct {
+	// Unique identifier for this Skill Version. The id addresses the version in paths
+	// and pins it in references.
 	ID string `json:"id" api:"required"`
 	// Deleted object type.
 	//
 	// For Skill Versions, this is always `"skill_version_deleted"`.
-	Type string `json:"type" api:"required"`
+	Type constant.SkillVersionDeleted `json:"type" default:"skill_version_deleted"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
@@ -317,8 +219,50 @@ type BetaSkillVersionDeleteResponse struct {
 }
 
 // Returns the unmodified JSON received from the API
-func (r BetaSkillVersionDeleteResponse) RawJSON() string { return r.JSON.raw }
-func (r *BetaSkillVersionDeleteResponse) UnmarshalJSON(data []byte) error {
+func (r BetaDeletedSkillVersion) RawJSON() string { return r.JSON.raw }
+func (r *BetaDeletedSkillVersion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type BetaSkillVersion struct {
+	// Unique identifier for this Skill Version. The id addresses the version in paths
+	// and pins it in references.
+	ID string `json:"id" api:"required"`
+	// ISO 8601 timestamp of when the skill was created.
+	CreatedAt time.Time `json:"created_at" api:"required" format:"date-time"`
+	// Description of the skill version.
+	//
+	// This is extracted from the SKILL.md file in the skill upload.
+	Description string `json:"description" api:"required"`
+	// The Skill's immutable kebab-case slug, set at creation from the first upload's
+	// SKILL.md frontmatter `name` (or its enclosing directory). Every later upload
+	// must resolve to the same value. Also the top-level directory of the Skill's
+	// mounted files and the base name of a downloaded archive.
+	Name string `json:"name" api:"required"`
+	// Unique identifier for the skill.
+	//
+	// The format and length of IDs may change over time.
+	SkillID string `json:"skill_id" api:"required"`
+	// Object type.
+	//
+	// For Skill Versions, this is always `"skill_version"`.
+	Type constant.SkillVersion `json:"type" default:"skill_version"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		CreatedAt   respjson.Field
+		Description respjson.Field
+		Name        respjson.Field
+		SkillID     respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r BetaSkillVersion) RawJSON() string { return r.JSON.raw }
+func (r *BetaSkillVersion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -328,6 +272,13 @@ type BetaSkillVersionNewParams struct {
 	// All files must be in the same top-level directory and must include a SKILL.md
 	// file at the root of that directory.
 	Files []io.Reader `json:"files,omitzero" api:"required" format:"binary"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
@@ -356,18 +307,32 @@ type BetaSkillVersionGetParams struct {
 	//
 	// The format and length of IDs may change over time.
 	SkillID string `path:"skill_id" api:"required" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
 }
 
 type BetaSkillVersionListParams struct {
-	// Number of items to return per page.
+	// Number of results to return per page.
 	//
-	// Defaults to `20`. Ranges from `1` to `1000`.
+	// Ranges from `1` to `1000`. Defaults to `20`.
 	Limit param.Opt[int64] `query:"limit,omitzero" json:"-"`
 	// Optionally set to the `next_page` token from the previous response.
 	Page param.Opt[string] `query:"page,omitzero" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
@@ -387,6 +352,13 @@ type BetaSkillVersionDeleteParams struct {
 	//
 	// The format and length of IDs may change over time.
 	SkillID string `path:"skill_id" api:"required" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj
@@ -397,6 +369,13 @@ type BetaSkillVersionDownloadParams struct {
 	//
 	// The format and length of IDs may change over time.
 	SkillID string `path:"skill_id" api:"required" json:"-"`
+	// Optional header to select the Workspace for this request. The value is a
+	// Workspace ID (for example, `wrkspc_011CZkZaBF1tNoB5wlCeusgy`).
+	//
+	// Only needed for credentials that can act on more than one Workspace. A
+	// credential that belongs to a specific Workspace may omit it; if sent, it must
+	// match that Workspace.
+	WorkspaceID param.Opt[string] `header:"anthropic-workspace-id,omitzero" json:"-"`
 	// Optional header to specify the beta version(s) you want to use.
 	Betas []AnthropicBeta `header:"anthropic-beta,omitzero" json:"-"`
 	paramObj

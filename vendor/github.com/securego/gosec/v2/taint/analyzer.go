@@ -22,6 +22,24 @@ type RuleInfo struct {
 	CWE         string
 }
 
+// issueText builds the message for a taint finding, naming the sink so that
+// two findings of one rule at different sinks do not share a message. The
+// description alone is byte-identical for every finding a rule produces.
+func issueText(description string, sink Sink) string {
+	return fmt.Sprintf("%s: %s", description, formatSinkKey(sink))
+}
+
+// sinkID is the comparable identity of a sink, for use as a map key. Sink
+// itself holds a []int and so cannot be one.
+type sinkID struct {
+	pkg, receiver, method string
+	pointer               bool
+}
+
+func newSinkID(sink Sink) sinkID {
+	return sinkID{pkg: sink.Package, receiver: sink.Receiver, method: sink.Method, pointer: sink.Pointer}
+}
+
 // NewGosecAnalyzer creates a golang.org/x/tools/go/analysis.Analyzer
 // compatible with gosec's analyzer framework.
 func NewGosecAnalyzer(rule *RuleInfo, config *Config) *analysis.Analyzer {
@@ -56,6 +74,9 @@ func makeAnalyzerRunner(rule *RuleInfo, config *Config) func(*analysis.Pass) (in
 
 		// Run taint analysis
 		analyzer := New(config)
+		if !analyzer.hasSinkCalls(srcFuncs) {
+			return nil, nil
+		}
 		if ssaResult.Shared != nil {
 			analyzer.SetCallGraph(ssaResult.Shared.CallGraph())
 		}
@@ -63,6 +84,10 @@ func makeAnalyzerRunner(rule *RuleInfo, config *Config) func(*analysis.Pass) (in
 
 		// Convert results to gosec issues
 		var issues []*issue.Issue
+		// One message per distinct sink rather than per finding: a rule reports
+		// at a handful of sinks and can produce thousands of findings, and this
+		// path is gated for allocations.
+		texts := make(map[sinkID]string)
 		for _, result := range results {
 			// Map severity string to issue.Score
 			var severity issue.Score
@@ -79,10 +104,17 @@ func makeAnalyzerRunner(rule *RuleInfo, config *Config) func(*analysis.Pass) (in
 				severity = issue.Medium
 			}
 
+			id := newSinkID(result.Sink)
+			what, cached := texts[id]
+			if !cached {
+				what = issueText(rule.Description, result.Sink)
+				texts[id] = what
+			}
+
 			// Create gosec issue using the standard helper
 			newIssue := newIssue(
 				rule.ID,
-				rule.Description,
+				what,
 				pass.Fset,
 				result.SinkPos,
 				severity,
@@ -92,7 +124,7 @@ func makeAnalyzerRunner(rule *RuleInfo, config *Config) func(*analysis.Pass) (in
 			issues = append(issues, newIssue)
 
 			// Report to analysis pass (for use with go vet style tools)
-			pass.Reportf(result.SinkPos, "%s: %s", rule.ID, rule.Description)
+			pass.Reportf(result.SinkPos, "%s: %s", rule.ID, what)
 		}
 
 		if len(issues) > 0 {
@@ -100,6 +132,25 @@ func makeAnalyzerRunner(rule *RuleInfo, config *Config) func(*analysis.Pass) (in
 		}
 		return nil, nil
 	}
+}
+
+// hasSinkCalls checks only source instructions, which call graph construction does not change.
+func (a *Analyzer) hasSinkCalls(funcs []*ssa.Function) bool {
+	for _, fn := range funcs {
+		if fn == nil {
+			continue
+		}
+		for _, block := range fn.Blocks {
+			for _, instr := range block.Instrs {
+				if call, ok := instr.(*ssa.Call); ok {
+					if _, found := a.isSinkCall(call); found {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 // newIssue creates a new gosec issue

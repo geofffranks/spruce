@@ -1,8 +1,7 @@
-// File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
-
 package pagination
 
 import (
+	"iter"
 	"net/http"
 
 	"github.com/anthropics/anthropic-sdk-go/internal/apijson"
@@ -137,6 +136,16 @@ func (r *PageAutoPager[T]) Index() int {
 	return r.run
 }
 
+func (r *PageAutoPager[T]) All() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for r.Next() {
+			if !yield(r.Current()) {
+				break
+			}
+		}
+	}
+}
+
 type TokenPage[T any] struct {
 	Data     []T    `json:"data"`
 	HasMore  bool   `json:"has_more"`
@@ -243,6 +252,16 @@ func (r *TokenPageAutoPager[T]) Index() int {
 	return r.run
 }
 
+func (r *TokenPageAutoPager[T]) All() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for r.Next() {
+			if !yield(r.Current()) {
+				break
+			}
+		}
+	}
+}
+
 type PageCursor[T any] struct {
 	Data     []T    `json:"data"`
 	NextPage string `json:"next_page" api:"nullable"`
@@ -267,9 +286,6 @@ func (r *PageCursor[T]) UnmarshalJSON(data []byte) error {
 // there is no next page, this function will return a 'nil' for the page value, but
 // will not return an error
 func (r *PageCursor[T]) GetNextPage() (res *PageCursor[T], err error) {
-	if len(r.Data) == 0 {
-		return nil, nil
-	}
 	next := r.NextPage
 	if len(next) == 0 {
 		return nil, nil
@@ -315,13 +331,23 @@ func NewPageCursorAutoPager[T any](page *PageCursor[T], err error) *PageCursorAu
 }
 
 func (r *PageCursorAutoPager[T]) Next() bool {
-	if r.page == nil || len(r.page.Data) == 0 {
+	if r.page == nil {
 		return false
 	}
 	if r.idx >= len(r.page.Data) {
 		r.idx = 0
 		r.page, r.err = r.page.GetNextPage()
-		if r.err != nil || r.page == nil || len(r.page.Data) == 0 {
+		if r.err != nil || r.page == nil {
+			return false
+		}
+	}
+	// if the API returned empty data then keep iterating
+	// until we either get more data or there are no more pages
+	// to fetch
+	for len(r.page.Data) == 0 {
+		r.idx = 0
+		r.page, r.err = r.page.GetNextPage()
+		if r.err != nil || r.page == nil {
 			return false
 		}
 	}
@@ -341,6 +367,16 @@ func (r *PageCursorAutoPager[T]) Err() error {
 
 func (r *PageCursorAutoPager[T]) Index() int {
 	return r.run
+}
+
+func (r *PageCursorAutoPager[T]) All() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for r.Next() {
+			if !yield(r.Current()) {
+				break
+			}
+		}
+	}
 }
 
 type BidirectionalPageCursor[T any] struct {
@@ -369,9 +405,6 @@ func (r *BidirectionalPageCursor[T]) UnmarshalJSON(data []byte) error {
 // there is no next page, this function will return a 'nil' for the page value, but
 // will not return an error
 func (r *BidirectionalPageCursor[T]) GetNextPage() (res *BidirectionalPageCursor[T], err error) {
-	if len(r.Data) == 0 {
-		return nil, nil
-	}
 	next := r.NextPage
 	if len(next) == 0 {
 		return nil, nil
@@ -417,13 +450,23 @@ func NewBidirectionalPageCursorAutoPager[T any](page *BidirectionalPageCursor[T]
 }
 
 func (r *BidirectionalPageCursorAutoPager[T]) Next() bool {
-	if r.page == nil || len(r.page.Data) == 0 {
+	if r.page == nil {
 		return false
 	}
 	if r.idx >= len(r.page.Data) {
 		r.idx = 0
 		r.page, r.err = r.page.GetNextPage()
-		if r.err != nil || r.page == nil || len(r.page.Data) == 0 {
+		if r.err != nil || r.page == nil {
+			return false
+		}
+	}
+	// if the API returned empty data then keep iterating
+	// until we either get more data or there are no more pages
+	// to fetch
+	for len(r.page.Data) == 0 {
+		r.idx = 0
+		r.page, r.err = r.page.GetNextPage()
+		if r.err != nil || r.page == nil {
 			return false
 		}
 	}
@@ -443,4 +486,14 @@ func (r *BidirectionalPageCursorAutoPager[T]) Err() error {
 
 func (r *BidirectionalPageCursorAutoPager[T]) Index() int {
 	return r.run
+}
+
+func (r *BidirectionalPageCursorAutoPager[T]) All() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for r.Next() {
+			if !yield(r.Current()) {
+				break
+			}
+		}
+	}
 }

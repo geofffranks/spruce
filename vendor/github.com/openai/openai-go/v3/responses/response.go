@@ -3,13 +3,14 @@
 package responses
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
-	"strings"
 
 	"github.com/openai/openai-go/v3/internal/apijson"
 	"github.com/openai/openai-go/v3/internal/apiquery"
@@ -23,6 +24,8 @@ import (
 	"github.com/openai/openai-go/v3/shared/constant"
 )
 
+// Create and manage model responses.
+//
 // ResponseService contains methods and other services that help with interacting
 // with the openai API.
 //
@@ -30,8 +33,10 @@ import (
 // automatically. You should not instantiate this service directly, and instead use
 // the [NewResponseService] method instead.
 type ResponseService struct {
-	Options     []option.RequestOption
-	InputItems  InputItemService
+	Options []option.RequestOption
+	// Create and manage model responses.
+	InputItems InputItemService
+	// Create and manage model responses.
 	InputTokens InputTokenService
 }
 
@@ -40,23 +45,23 @@ type ResponseService struct {
 // there is one), and before any request-specific options.
 func NewResponseService(opts ...option.RequestOption) (r ResponseService) {
 	r = ResponseService{}
-	r.Options = opts
+	r.Options = requestconfig.InheritedOptions(opts...)
 	r.InputItems = NewInputItemService(opts...)
 	r.InputTokens = NewInputTokenService(opts...)
 	return
 }
 
 // Creates a model response. Provide
-// [text](https://platform.openai.com/docs/guides/text) or
-// [image](https://platform.openai.com/docs/guides/images) inputs to generate
-// [text](https://platform.openai.com/docs/guides/text) or
-// [JSON](https://platform.openai.com/docs/guides/structured-outputs) outputs. Have
-// the model call your own
-// [custom code](https://platform.openai.com/docs/guides/function-calling) or use
-// built-in [tools](https://platform.openai.com/docs/guides/tools) like
-// [web search](https://platform.openai.com/docs/guides/tools-web-search) or
-// [file search](https://platform.openai.com/docs/guides/tools-file-search) to use
-// your own data as input for the model's response.
+// [text](https://developers.openai.com/api/docs/guides/text) or
+// [image](https://developers.openai.com/api/docs/guides/images-vision) inputs to
+// generate [text](https://developers.openai.com/api/docs/guides/text) or
+// [JSON](https://developers.openai.com/api/docs/guides/structured-outputs)
+// outputs. Have the model call your own
+// [custom code](https://developers.openai.com/api/docs/guides/function-calling) or
+// use built-in [tools](https://developers.openai.com/api/docs/guides/tools) like
+// [web search](https://developers.openai.com/api/docs/guides/tools-web-search) or
+// [file search](https://developers.openai.com/api/docs/guides/tools-file-search)
+// to use your own data as input for the model's response.
 func (r *ResponseService) New(ctx context.Context, body ResponseNewParams, opts ...option.RequestOption) (res *Response, err error) {
 	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
 	opts = slices.Concat(preClientOpts, r.Options, opts)
@@ -66,16 +71,16 @@ func (r *ResponseService) New(ctx context.Context, body ResponseNewParams, opts 
 }
 
 // Creates a model response. Provide
-// [text](https://platform.openai.com/docs/guides/text) or
-// [image](https://platform.openai.com/docs/guides/images) inputs to generate
-// [text](https://platform.openai.com/docs/guides/text) or
-// [JSON](https://platform.openai.com/docs/guides/structured-outputs) outputs. Have
-// the model call your own
-// [custom code](https://platform.openai.com/docs/guides/function-calling) or use
-// built-in [tools](https://platform.openai.com/docs/guides/tools) like
-// [web search](https://platform.openai.com/docs/guides/tools-web-search) or
-// [file search](https://platform.openai.com/docs/guides/tools-file-search) to use
-// your own data as input for the model's response.
+// [text](https://developers.openai.com/api/docs/guides/text) or
+// [image](https://developers.openai.com/api/docs/guides/images-vision) inputs to
+// generate [text](https://developers.openai.com/api/docs/guides/text) or
+// [JSON](https://developers.openai.com/api/docs/guides/structured-outputs)
+// outputs. Have the model call your own
+// [custom code](https://developers.openai.com/api/docs/guides/function-calling) or
+// use built-in [tools](https://developers.openai.com/api/docs/guides/tools) like
+// [web search](https://developers.openai.com/api/docs/guides/tools-web-search) or
+// [file search](https://developers.openai.com/api/docs/guides/tools-file-search)
+// to use your own data as input for the model's response.
 func (r *ResponseService) NewStreaming(ctx context.Context, body ResponseNewParams, opts ...option.RequestOption) (stream *ssestream.Stream[ResponseStreamEventUnion]) {
 	var (
 		raw *http.Response
@@ -136,7 +141,7 @@ func (r *ResponseService) Delete(ctx context.Context, responseID string, opts ..
 
 // Cancels a model response with the given ID. Only responses created with the
 // `background` parameter set to `true` can be cancelled.
-// [Learn more](https://platform.openai.com/docs/guides/background).
+// [Learn more](https://developers.openai.com/api/docs/guides/background).
 func (r *ResponseService) Cancel(ctx context.Context, responseID string, opts ...option.RequestOption) (res *Response, err error) {
 	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
 	opts = slices.Concat(preClientOpts, r.Options, opts)
@@ -152,9 +157,9 @@ func (r *ResponseService) Cancel(ctx context.Context, responseID string, opts ..
 // Compact a conversation. Returns a compacted response object.
 //
 // Learn when and how to compact long-running conversations in the
-// [conversation state guide](https://platform.openai.com/docs/guides/conversation-state#managing-the-context-window).
+// [conversation state guide](https://developers.openai.com/api/docs/guides/conversation-state#managing-the-context-window).
 // For ZDR-compatible compaction details, see
-// [Compaction (advanced)](https://platform.openai.com/docs/guides/conversation-state#compaction-advanced).
+// [Compaction (advanced)](https://developers.openai.com/api/docs/guides/conversation-state#compaction-advanced).
 func (r *ResponseService) Compact(ctx context.Context, body ResponseCompactParams, opts ...option.RequestOption) (res *CompactedResponse, err error) {
 	var preClientOpts = []option.RequestOption{requestconfig.WithBearerAuthSecurity()}
 	opts = slices.Concat(preClientOpts, r.Options, opts)
@@ -738,29 +743,6 @@ func (u *ComputerActionUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ComputerActionUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfClick) {
-		return u.OfClick
-	} else if !param.IsOmitted(u.OfDoubleClick) {
-		return u.OfDoubleClick
-	} else if !param.IsOmitted(u.OfDrag) {
-		return u.OfDrag
-	} else if !param.IsOmitted(u.OfKeypress) {
-		return u.OfKeypress
-	} else if !param.IsOmitted(u.OfMove) {
-		return u.OfMove
-	} else if !param.IsOmitted(u.OfScreenshot) {
-		return u.OfScreenshot
-	} else if !param.IsOmitted(u.OfScroll) {
-		return u.OfScroll
-	} else if !param.IsOmitted(u.OfType) {
-		return u.OfType
-	} else if !param.IsOmitted(u.OfWait) {
-		return u.OfWait
-	}
-	return nil
-}
-
 // Returns a pointer to the underlying variant's property, if present.
 func (u ComputerActionUnionParam) GetButton() *string {
 	if vt := u.OfClick; vt != nil {
@@ -1157,7 +1139,7 @@ type ComputerActionList []ComputerActionUnion
 type ComputerActionListParam []ComputerActionUnionParam
 
 // A tool that controls a virtual computer. Learn more about the
-// [computer tool](https://platform.openai.com/docs/guides/tools-computer-use).
+// [computer tool](https://developers.openai.com/api/docs/guides/tools-computer-use).
 type ComputerTool struct {
 	// The type of the computer tool. Always `computer`.
 	Type constant.Computer `json:"type" default:"computer"`
@@ -1191,7 +1173,7 @@ func NewComputerToolParam() ComputerToolParam {
 }
 
 // A tool that controls a virtual computer. Learn more about the
-// [computer tool](https://platform.openai.com/docs/guides/tools-computer-use).
+// [computer tool](https://developers.openai.com/api/docs/guides/tools-computer-use).
 //
 // This struct has a constant value, construct it with [NewComputerToolParam].
 type ComputerToolParam struct {
@@ -1209,7 +1191,7 @@ func (r *ComputerToolParam) UnmarshalJSON(data []byte) error {
 }
 
 // A tool that controls a virtual computer. Learn more about the
-// [computer tool](https://platform.openai.com/docs/guides/tools-computer-use).
+// [computer tool](https://developers.openai.com/api/docs/guides/tools-computer-use).
 type ComputerUsePreviewTool struct {
 	// The height of the computer display.
 	DisplayHeight int64 `json:"display_height" api:"required"`
@@ -1259,7 +1241,7 @@ const (
 )
 
 // A tool that controls a virtual computer. Learn more about the
-// [computer tool](https://platform.openai.com/docs/guides/tools-computer-use).
+// [computer tool](https://developers.openai.com/api/docs/guides/tools-computer-use).
 //
 // The properties DisplayHeight, DisplayWidth, Environment, Type are required.
 type ComputerUsePreviewToolParam struct {
@@ -1521,15 +1503,6 @@ func (u *ContainerAutoNetworkPolicyUnionParam) UnmarshalJSON(data []byte) error 
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ContainerAutoNetworkPolicyUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfDisabled) {
-		return u.OfDisabled
-	} else if !param.IsOmitted(u.OfAllowlist) {
-		return u.OfAllowlist
-	}
-	return nil
-}
-
 // Returns a pointer to the underlying variant's property, if present.
 func (u ContainerAutoNetworkPolicyUnionParam) GetAllowedDomains() []string {
 	if vt := u.OfAllowlist; vt != nil {
@@ -1578,15 +1551,6 @@ func (u ContainerAutoSkillUnionParam) MarshalJSON() ([]byte, error) {
 }
 func (u *ContainerAutoSkillUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ContainerAutoSkillUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfSkillReference) {
-		return u.OfSkillReference
-	} else if !param.IsOmitted(u.OfInline) {
-		return u.OfInline
-	}
-	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
@@ -1852,7 +1816,7 @@ func (r *ContainerReferenceParam) UnmarshalJSON(data []byte) error {
 }
 
 // A custom tool that processes input using a specified format. Learn more about
-// [custom tools](https://platform.openai.com/docs/guides/function-calling#custom-tools)
+// [custom tools](https://developers.openai.com/api/docs/guides/function-calling#custom-tools)
 type CustomTool struct {
 	// The name of the custom tool, used to identify it in tool calls.
 	Name string `json:"name" api:"required"`
@@ -1862,6 +1826,9 @@ type CustomTool struct {
 	//
 	// Any of "direct", "programmatic".
 	AllowedCallers []string `json:"allowed_callers" api:"nullable"`
+	// Whether the tool response can be returned asynchronously versus immediately
+	// returned on next response creation.
+	Async bool `json:"async"`
 	// Whether this tool should be deferred and discovered via tool search.
 	DeferLoading bool `json:"defer_loading"`
 	// Optional description of the custom tool, used to provide more context.
@@ -1873,6 +1840,7 @@ type CustomTool struct {
 		Name           respjson.Field
 		Type           respjson.Field
 		AllowedCallers respjson.Field
+		Async          respjson.Field
 		DeferLoading   respjson.Field
 		Description    respjson.Field
 		Format         respjson.Field
@@ -1897,12 +1865,15 @@ func (r CustomTool) ToParam() CustomToolParam {
 }
 
 // A custom tool that processes input using a specified format. Learn more about
-// [custom tools](https://platform.openai.com/docs/guides/function-calling#custom-tools)
+// [custom tools](https://developers.openai.com/api/docs/guides/function-calling#custom-tools)
 //
 // The properties Name, Type are required.
 type CustomToolParam struct {
 	// The name of the custom tool, used to identify it in tool calls.
 	Name string `json:"name" api:"required"`
+	// Whether the tool response can be returned asynchronously versus immediately
+	// returned on next response creation.
+	Async param.Opt[bool] `json:"async,omitzero"`
 	// Whether this tool should be deferred and discovered via tool search.
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// Optional description of the custom tool, used to provide more context.
@@ -2110,7 +2081,7 @@ func (u *EasyInputMessageContentUnionParam) asAny() any {
 
 // A tool that searches for relevant content from uploaded files. Learn more about
 // the
-// [file search tool](https://platform.openai.com/docs/guides/tools-file-search).
+// [file search tool](https://developers.openai.com/api/docs/guides/tools-file-search).
 type FileSearchTool struct {
 	// The type of the file search tool. Always `file_search`.
 	Type constant.FileSearch `json:"type" default:"file_search"`
@@ -2161,7 +2132,7 @@ type FileSearchToolFiltersUnion struct {
 	// This field is from variant [shared.ComparisonFilter].
 	Value shared.ComparisonFilterValueUnion `json:"value"`
 	// This field is from variant [shared.CompoundFilter].
-	Filters []shared.ComparisonFilter `json:"filters"`
+	Filters []shared.CompoundFilterFilterUnion `json:"filters"`
 	JSON    struct {
 		Key     respjson.Field
 		Type    respjson.Field
@@ -2241,7 +2212,7 @@ func (r *FileSearchToolRankingOptionsHybridSearch) UnmarshalJSON(data []byte) er
 
 // A tool that searches for relevant content from uploaded files. Learn more about
 // the
-// [file search tool](https://platform.openai.com/docs/guides/tools-file-search).
+// [file search tool](https://developers.openai.com/api/docs/guides/tools-file-search).
 //
 // The properties Type, VectorStoreIDs are required.
 type FileSearchToolParam struct {
@@ -2311,7 +2282,7 @@ func (u FileSearchToolFiltersUnionParam) GetValue() *shared.ComparisonFilterValu
 }
 
 // Returns a pointer to the underlying variant's property, if present.
-func (u FileSearchToolFiltersUnionParam) GetFilters() []shared.ComparisonFilterParam {
+func (u FileSearchToolFiltersUnionParam) GetFilters() []shared.CompoundFilterFilterUnionParam {
 	if vt := u.OfCompoundFilter; vt != nil {
 		return vt.Filters
 	}
@@ -2657,7 +2628,7 @@ func init() {
 
 // Defines a function in your own code the model can choose to call. Learn more
 // about
-// [function calling](https://platform.openai.com/docs/guides/function-calling).
+// [function calling](https://developers.openai.com/api/docs/guides/function-calling).
 type FunctionTool struct {
 	// The name of the function to call.
 	Name string `json:"name" api:"required"`
@@ -2671,6 +2642,7 @@ type FunctionTool struct {
 	//
 	// Any of "direct", "programmatic".
 	AllowedCallers []string `json:"allowed_callers" api:"nullable"`
+	Async          bool     `json:"async"`
 	// Whether this function is deferred and loaded via tool search.
 	DeferLoading bool `json:"defer_loading"`
 	// A description of the function. Used by the model to determine whether or not to
@@ -2686,6 +2658,7 @@ type FunctionTool struct {
 		Strict         respjson.Field
 		Type           respjson.Field
 		AllowedCallers respjson.Field
+		Async          respjson.Field
 		DeferLoading   respjson.Field
 		Description    respjson.Field
 		OutputSchema   respjson.Field
@@ -2711,7 +2684,7 @@ func (r FunctionTool) ToParam() FunctionToolParam {
 
 // Defines a function in your own code the model can choose to call. Learn more
 // about
-// [function calling](https://platform.openai.com/docs/guides/function-calling).
+// [function calling](https://developers.openai.com/api/docs/guides/function-calling).
 //
 // The properties Name, Parameters, Strict, Type are required.
 type FunctionToolParam struct {
@@ -2724,6 +2697,7 @@ type FunctionToolParam struct {
 	// A description of the function. Used by the model to determine whether or not to
 	// call the function.
 	Description param.Opt[string] `json:"description,omitzero"`
+	Async       param.Opt[bool]   `json:"async,omitzero"`
 	// Whether this function is deferred and loaded via tool search.
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// The tool invocation context(s).
@@ -3302,6 +3276,7 @@ type NamespaceToolToolUnion struct {
 	// Any of "function", "custom".
 	Type           string   `json:"type"`
 	AllowedCallers []string `json:"allowed_callers"`
+	Async          bool     `json:"async"`
 	DeferLoading   bool     `json:"defer_loading"`
 	Description    string   `json:"description"`
 	// This field is from variant [NamespaceToolToolFunction].
@@ -3316,6 +3291,7 @@ type NamespaceToolToolUnion struct {
 		Name           respjson.Field
 		Type           respjson.Field
 		AllowedCallers respjson.Field
+		Async          respjson.Field
 		DeferLoading   respjson.Field
 		Description    respjson.Field
 		OutputSchema   respjson.Field
@@ -3377,6 +3353,9 @@ type NamespaceToolToolFunction struct {
 	//
 	// Any of "direct", "programmatic".
 	AllowedCallers []string `json:"allowed_callers" api:"nullable"`
+	// Whether the tool response can be returned asynchronously versus immediately
+	// returned on next response creation.
+	Async bool `json:"async"`
 	// Whether this function should be deferred and discovered via tool search.
 	DeferLoading bool   `json:"defer_loading"`
 	Description  string `json:"description" api:"nullable"`
@@ -3393,6 +3372,7 @@ type NamespaceToolToolFunction struct {
 		Name           respjson.Field
 		Type           respjson.Field
 		AllowedCallers respjson.Field
+		Async          respjson.Field
 		DeferLoading   respjson.Field
 		Description    respjson.Field
 		OutputSchema   respjson.Field
@@ -3450,15 +3430,6 @@ func (u *NamespaceToolToolUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *NamespaceToolToolUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfFunction) {
-		return u.OfFunction
-	} else if !param.IsOmitted(u.OfCustom) {
-		return u.OfCustom
-	}
-	return nil
-}
-
 // Returns a pointer to the underlying variant's property, if present.
 func (u NamespaceToolToolUnionParam) GetOutputSchema() map[string]any {
 	if vt := u.OfFunction; vt != nil {
@@ -3512,6 +3483,16 @@ func (u NamespaceToolToolUnionParam) GetType() *string {
 }
 
 // Returns a pointer to the underlying variant's property, if present.
+func (u NamespaceToolToolUnionParam) GetAsync() *bool {
+	if vt := u.OfFunction; vt != nil && vt.Async.Valid() {
+		return &vt.Async.Value
+	} else if vt := u.OfCustom; vt != nil && vt.Async.Valid() {
+		return &vt.Async.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
 func (u NamespaceToolToolUnionParam) GetDeferLoading() *bool {
 	if vt := u.OfFunction; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
@@ -3558,6 +3539,9 @@ type NamespaceToolToolFunctionParam struct {
 	// to use strict validation when the schema is compatible, and falls back to
 	// non-strict validation otherwise.
 	Strict param.Opt[bool] `json:"strict,omitzero"`
+	// Whether the tool response can be returned asynchronously versus immediately
+	// returned on next response creation.
+	Async param.Opt[bool] `json:"async,omitzero"`
 	// Whether this function should be deferred and discovered via tool search.
 	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
 	// The tool invocation context(s).
@@ -3583,7 +3567,8 @@ func (r *NamespaceToolToolFunctionParam) UnmarshalJSON(data []byte) error {
 
 type Response struct {
 	// Unique identifier for this Response.
-	ID string `json:"id" api:"required"`
+	ID             string                 `json:"id" api:"required"`
+	AccessPrograms ResponseAccessPrograms `json:"access_programs" api:"required"`
 	// Unix timestamp (in seconds) of when this Response was created.
 	CreatedAt float64 `json:"created_at" api:"required" format:"unixtime"`
 	// An error object returned when the model fails to generate a Response.
@@ -3603,11 +3588,11 @@ type Response struct {
 	// Keys are strings with a maximum length of 64 characters. Values are strings with
 	// a maximum length of 512 characters.
 	Metadata shared.Metadata `json:"metadata" api:"required"`
-	// Model ID used to generate the response, like `gpt-4o` or `o3`. OpenAI offers a
-	// wide range of models with different capabilities, performance characteristics,
-	// and price points. Refer to the
-	// [model guide](https://platform.openai.com/docs/models) to browse and compare
-	// available models.
+	// Model ID used to generate the response, like `gpt-6-astra`. OpenAI offers a wide
+	// range of models with different capabilities, performance characteristics, and
+	// price points. Refer to the
+	// [model guide](https://developers.openai.com/api/docs/models) to browse and
+	// compare available models.
 	Model shared.ResponsesModel `json:"model" api:"required"`
 	// The object type of this resource - always set to `response`.
 	Object constant.Response `json:"object" default:"response"`
@@ -3637,17 +3622,18 @@ type Response struct {
 	//
 	//   - **Built-in tools**: Tools that are provided by OpenAI that extend the model's
 	//     capabilities, like
-	//     [web search](https://platform.openai.com/docs/guides/tools-web-search) or
-	//     [file search](https://platform.openai.com/docs/guides/tools-file-search).
+	//     [web search](https://developers.openai.com/api/docs/guides/tools-web-search)
+	//     or
+	//     [file search](https://developers.openai.com/api/docs/guides/tools-file-search).
 	//     Learn more about
-	//     [built-in tools](https://platform.openai.com/docs/guides/tools).
+	//     [built-in tools](https://developers.openai.com/api/docs/guides/tools).
 	//   - **MCP Tools**: Integrations with third-party systems via custom MCP servers or
 	//     predefined connectors such as Google Drive and SharePoint. Learn more about
-	//     [MCP Tools](https://platform.openai.com/docs/guides/tools-connectors-mcp).
+	//     [MCP Tools](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
 	//   - **Function calls (custom tools)**: Functions that are defined by you, enabling
 	//     the model to call your own code with strongly typed arguments and outputs.
 	//     Learn more about
-	//     [function calling](https://platform.openai.com/docs/guides/function-calling).
+	//     [function calling](https://developers.openai.com/api/docs/guides/function-calling).
 	//     You can also use custom tools to call your own code.
 	Tools []ToolUnion `json:"tools" api:"required"`
 	// An alternative to sampling with temperature, called nucleus sampling, where the
@@ -3657,7 +3643,7 @@ type Response struct {
 	// We generally recommend altering this or `temperature` but not both.
 	TopP float64 `json:"top_p" api:"required"`
 	// Whether to run the model response in the background.
-	// [Learn more](https://platform.openai.com/docs/guides/background).
+	// [Learn more](https://developers.openai.com/api/docs/guides/background).
 	Background bool `json:"background" api:"nullable"`
 	// Unix timestamp (in seconds) of when this Response was completed. Only present
 	// when the status is `completed`.
@@ -3667,7 +3653,7 @@ type Response struct {
 	Conversation ResponseConversation `json:"conversation" api:"nullable"`
 	// An upper bound for the number of tokens that can be generated for a response,
 	// including visible output tokens and
-	// [reasoning tokens](https://platform.openai.com/docs/guides/reasoning).
+	// [reasoning tokens](https://developers.openai.com/api/docs/guides/reasoning).
 	MaxOutputTokens int64 `json:"max_output_tokens" api:"nullable"`
 	// The maximum number of total calls to built-in tools that can be processed in a
 	// response. This maximum number applies across all built-in tool calls, not per
@@ -3679,15 +3665,17 @@ type Response struct {
 	Moderation ResponseModeration `json:"moderation" api:"nullable"`
 	// The unique ID of the previous response to the model. Use this to create
 	// multi-turn conversations. Learn more about
-	// [conversation state](https://platform.openai.com/docs/guides/conversation-state).
+	// [conversation state](https://developers.openai.com/api/docs/guides/conversation-state).
 	// Cannot be used in conjunction with `conversation`.
 	PreviousResponseID string `json:"previous_response_id" api:"nullable"`
 	// Reference to a prompt template and its variables.
-	// [Learn more](https://platform.openai.com/docs/guides/text?api-mode=responses#reusable-prompts).
+	// [Learn more](https://developers.openai.com/api/docs/guides/text?api-mode=responses#version-prompts-in-code).
 	Prompt ResponsePrompt `json:"prompt" api:"nullable"`
+	// Prompt cache diagnostics requested for this response.
+	PromptCacheDiagnostics ResponsePromptCacheDiagnosticsUnion `json:"prompt_cache_diagnostics"`
 	// Used by OpenAI to cache responses for similar requests to optimize your cache
 	// hit rates. Replaces the `user` field.
-	// [Learn more](https://platform.openai.com/docs/guides/prompt-caching).
+	// [Learn more](https://developers.openai.com/api/docs/guides/prompt-caching).
 	PromptCacheKey string `json:"prompt_cache_key" api:"nullable"`
 	// The prompt-caching options that were applied to the response. Supported for
 	// `gpt-5.6` and later models.
@@ -3697,7 +3685,7 @@ type Response struct {
 	// The retention policy for the prompt cache. Set to `24h` to enable extended
 	// prompt caching, which keeps cached prefixes active for longer, up to a maximum
 	// of 24 hours.
-	// [Learn more](https://platform.openai.com/docs/guides/prompt-caching#prompt-cache-retention).
+	// [Learn more](https://developers.openai.com/api/docs/guides/prompt-caching#prompt-cache-retention).
 	// This field expresses a maximum retention policy, while
 	// `prompt_cache_options.ttl` expresses a minimum cache lifetime. The two fields
 	// are independent and do not interact. For `gpt-5.5`, `gpt-5.5-pro`, and future
@@ -3714,17 +3702,15 @@ type Response struct {
 	//
 	// Deprecated: deprecated
 	PromptCacheRetention ResponsePromptCacheRetention `json:"prompt_cache_retention" api:"nullable"`
-	// **gpt-5 and o-series models only**
-	//
 	// Configuration options for
-	// [reasoning models](https://platform.openai.com/docs/guides/reasoning).
+	// [reasoning models](https://developers.openai.com/api/docs/guides/reasoning).
 	Reasoning shared.Reasoning `json:"reasoning" api:"nullable"`
 	// A stable identifier used to help detect users of your application that may be
 	// violating OpenAI's usage policies. The IDs should be a string that uniquely
-	// identifies each user, with a maximum length of 64 characters. We recommend
+	// identifies each user, with a maximum length of 128 characters. We recommend
 	// hashing their username or email address, in order to avoid sending us any
 	// identifying information.
-	// [Learn more](https://platform.openai.com/docs/guides/safety-best-practices#safety-identifiers).
+	// [Learn more](https://developers.openai.com/api/docs/guides/safety-best-practices#implement-safety-identifiers).
 	SafetyIdentifier string `json:"safety_identifier" api:"nullable"`
 	// Specifies the processing type used for serving the request.
 	//
@@ -3733,13 +3719,15 @@ type Response struct {
 	//     will use 'default'.
 	//   - If set to 'default', then the request will be processed with the standard
 	//     pricing and performance for the selected model.
-	//   - If set to '[flex](https://platform.openai.com/docs/guides/flex-processing)',
-	//     then the request will be processed with the Flex Processing service tier.
-	//   - To opt-in to [Fast mode](/api/docs/guides/fast-mode) at the request level,
-	//     include the `service_tier=fast` or `service_tier=priority` parameter for
-	//     Responses or Chat Completions. The response will show `service_tier=priority`
-	//     regardless of if you specify `service_tier=fast` or `priority` in your
-	//     request.
+	//   - If set to
+	//     '[flex](https://developers.openai.com/api/docs/guides/flex-processing)', then
+	//     the request will be processed with the Flex Processing service tier.
+	//   - To opt-in to
+	//     [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode) at the
+	//     request level, include the `service_tier=fast` or `service_tier=priority`
+	//     parameter for Responses or Chat Completions. The response will show
+	//     `service_tier=priority` regardless of if you specify `service_tier=fast` or
+	//     `priority` in your request.
 	//   - If set to 'ultrafast', then the request will be processed with the
 	//     access-controlled Ultrafast Processing service tier. This tier is currently
 	//     available for `gpt-5.6-sol`; a response served through it will show
@@ -3762,8 +3750,8 @@ type Response struct {
 	// Configuration options for a text response from the model. Can be plain text or
 	// structured JSON data. Learn more:
 	//
-	// - [Text inputs and outputs](https://platform.openai.com/docs/guides/text)
-	// - [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)
+	//   - [Text inputs and outputs](https://developers.openai.com/api/docs/guides/text)
+	//   - [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 	Text ResponseTextConfig `json:"text"`
 	// An integer between 0 and 20 specifying the maximum number of most likely tokens
 	// to return at each token position, each with an associated log probability. In
@@ -3786,61 +3774,55 @@ type Response struct {
 	// `prompt_cache_key` instead to maintain caching optimizations. A stable
 	// identifier for your end-users. Used to boost cache hit rates by better bucketing
 	// similar requests and to help OpenAI detect and prevent abuse.
-	// [Learn more](https://platform.openai.com/docs/guides/safety-best-practices#safety-identifiers).
+	// [Learn more](https://developers.openai.com/api/docs/guides/safety-best-practices#implement-safety-identifiers).
 	//
 	// Deprecated: deprecated
 	User string `json:"user"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		ID                   respjson.Field
-		CreatedAt            respjson.Field
-		Error                respjson.Field
-		IncompleteDetails    respjson.Field
-		Instructions         respjson.Field
-		Metadata             respjson.Field
-		Model                respjson.Field
-		Object               respjson.Field
-		Output               respjson.Field
-		ParallelToolCalls    respjson.Field
-		Temperature          respjson.Field
-		ToolChoice           respjson.Field
-		Tools                respjson.Field
-		TopP                 respjson.Field
-		Background           respjson.Field
-		CompletedAt          respjson.Field
-		Conversation         respjson.Field
-		MaxOutputTokens      respjson.Field
-		MaxToolCalls         respjson.Field
-		Moderation           respjson.Field
-		PreviousResponseID   respjson.Field
-		Prompt               respjson.Field
-		PromptCacheKey       respjson.Field
-		PromptCacheOptions   respjson.Field
-		PromptCacheRetention respjson.Field
-		Reasoning            respjson.Field
-		SafetyIdentifier     respjson.Field
-		ServiceTier          respjson.Field
-		Status               respjson.Field
-		Text                 respjson.Field
-		TopLogprobs          respjson.Field
-		Truncation           respjson.Field
-		Usage                respjson.Field
-		User                 respjson.Field
-		ExtraFields          map[string]respjson.Field
-		raw                  string
+		ID                     respjson.Field
+		AccessPrograms         respjson.Field
+		CreatedAt              respjson.Field
+		Error                  respjson.Field
+		IncompleteDetails      respjson.Field
+		Instructions           respjson.Field
+		Metadata               respjson.Field
+		Model                  respjson.Field
+		Object                 respjson.Field
+		Output                 respjson.Field
+		ParallelToolCalls      respjson.Field
+		Temperature            respjson.Field
+		ToolChoice             respjson.Field
+		Tools                  respjson.Field
+		TopP                   respjson.Field
+		Background             respjson.Field
+		CompletedAt            respjson.Field
+		Conversation           respjson.Field
+		MaxOutputTokens        respjson.Field
+		MaxToolCalls           respjson.Field
+		Moderation             respjson.Field
+		PreviousResponseID     respjson.Field
+		Prompt                 respjson.Field
+		PromptCacheDiagnostics respjson.Field
+		PromptCacheKey         respjson.Field
+		PromptCacheOptions     respjson.Field
+		PromptCacheRetention   respjson.Field
+		Reasoning              respjson.Field
+		SafetyIdentifier       respjson.Field
+		ServiceTier            respjson.Field
+		Status                 respjson.Field
+		Text                   respjson.Field
+		TopLogprobs            respjson.Field
+		Truncation             respjson.Field
+		Usage                  respjson.Field
+		User                   respjson.Field
+		ExtraFields            map[string]respjson.Field
+		raw                    string
 	} `json:"-"`
 }
 
 func (r Response) OutputText() string {
-	var outputText strings.Builder
-	for _, item := range r.Output {
-		for _, content := range item.Content {
-			if content.Type == "output_text" {
-				outputText.WriteString(content.Text)
-			}
-		}
-	}
-	return outputText.String()
+	return responseOutputText(r)
 }
 
 // Returns the unmodified JSON received from the API
@@ -3849,11 +3831,32 @@ func (r *Response) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+type ResponseAccessPrograms struct {
+	// The effective Cyber access program used for this response.
+	//
+	// Any of "standard", "daybreak_blue", "daybreak_red".
+	Cyber string `json:"cyber" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Cyber       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseAccessPrograms) RawJSON() string { return r.JSON.raw }
+func (r *ResponseAccessPrograms) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // Details about why the response is incomplete.
 type ResponseIncompleteDetails struct {
-	// The reason why the response is incomplete.
+	// The reason why the response is incomplete. `steered` means the response stopped
+	// at a safe output boundary after a WebSocket `response.steer` event. The server
+	// can then create a successor response automatically with the queued input.
 	//
-	// Any of "max_output_tokens", "content_filter".
+	// Any of "max_output_tokens", "max_messages", "content_filter", "steered".
 	Reason string `json:"reason"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
@@ -4329,6 +4332,177 @@ func (r *ResponseModerationOutputError) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// ResponsePromptCacheDiagnosticsUnion contains all possible properties and values
+// from [ResponsePromptCacheDiagnosticsCacheMiss],
+// [ResponsePromptCacheDiagnosticsCacheHit],
+// [ResponsePromptCacheDiagnosticsComparisonResponseNotFound],
+// [ResponsePromptCacheDiagnosticsUnavailable].
+//
+// Use the [ResponsePromptCacheDiagnosticsUnion.AsAny] method to switch on the
+// variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ResponsePromptCacheDiagnosticsUnion struct {
+	// This field is from variant [ResponsePromptCacheDiagnosticsCacheMiss].
+	CacheMissedTokens int64 `json:"cache_missed_tokens"`
+	// This field is from variant [ResponsePromptCacheDiagnosticsCacheMiss].
+	Reason string `json:"reason"`
+	// Any of "cache_miss", "cache_hit", "comparison_response_not_found",
+	// "unavailable".
+	Type string `json:"type"`
+	// This field is from variant [ResponsePromptCacheDiagnosticsCacheMiss].
+	ComparisonReusableTokens int64 `json:"comparison_reusable_tokens"`
+	JSON                     struct {
+		CacheMissedTokens        respjson.Field
+		Reason                   respjson.Field
+		Type                     respjson.Field
+		ComparisonReusableTokens respjson.Field
+		raw                      string
+	} `json:"-"`
+}
+
+// anyResponsePromptCacheDiagnostics is implemented by each variant of
+// [ResponsePromptCacheDiagnosticsUnion] to add type safety for the return type of
+// [ResponsePromptCacheDiagnosticsUnion.AsAny]
+type anyResponsePromptCacheDiagnostics interface {
+	implResponsePromptCacheDiagnosticsUnion()
+}
+
+func (ResponsePromptCacheDiagnosticsCacheMiss) implResponsePromptCacheDiagnosticsUnion() {}
+func (ResponsePromptCacheDiagnosticsCacheHit) implResponsePromptCacheDiagnosticsUnion()  {}
+func (ResponsePromptCacheDiagnosticsComparisonResponseNotFound) implResponsePromptCacheDiagnosticsUnion() {
+}
+func (ResponsePromptCacheDiagnosticsUnavailable) implResponsePromptCacheDiagnosticsUnion() {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ResponsePromptCacheDiagnosticsUnion.AsAny().(type) {
+//	case responses.ResponsePromptCacheDiagnosticsCacheMiss:
+//	case responses.ResponsePromptCacheDiagnosticsCacheHit:
+//	case responses.ResponsePromptCacheDiagnosticsComparisonResponseNotFound:
+//	case responses.ResponsePromptCacheDiagnosticsUnavailable:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ResponsePromptCacheDiagnosticsUnion) AsAny() anyResponsePromptCacheDiagnostics {
+	switch u.Type {
+	case "cache_miss":
+		return u.AsCacheMiss()
+	case "cache_hit":
+		return u.AsCacheHit()
+	case "comparison_response_not_found":
+		return u.AsComparisonResponseNotFound()
+	case "unavailable":
+		return u.AsUnavailable()
+	}
+	return nil
+}
+
+func (u ResponsePromptCacheDiagnosticsUnion) AsCacheMiss() (v ResponsePromptCacheDiagnosticsCacheMiss) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsePromptCacheDiagnosticsUnion) AsCacheHit() (v ResponsePromptCacheDiagnosticsCacheHit) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsePromptCacheDiagnosticsUnion) AsComparisonResponseNotFound() (v ResponsePromptCacheDiagnosticsComparisonResponseNotFound) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsePromptCacheDiagnosticsUnion) AsUnavailable() (v ResponsePromptCacheDiagnosticsUnavailable) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponsePromptCacheDiagnosticsUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ResponsePromptCacheDiagnosticsUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ResponsePromptCacheDiagnosticsCacheMiss struct {
+	// The estimated number of input tokens affected after the first detected
+	// divergence.
+	CacheMissedTokens int64 `json:"cache_missed_tokens" api:"required"`
+	// The reason prompt cache reuse did not occur.
+	//
+	// Any of "model_changed", "prompt_cache_key_changed", "tools_changed",
+	// "text_format_changed", "reasoning_effort_changed", "verbosity_changed",
+	// "context_compacted", "input_changed", "service_tier_changed".
+	Reason string             `json:"reason" api:"required"`
+	Type   constant.CacheMiss `json:"type" default:"cache_miss"`
+	// The raw token count of the reusable prefix in the compared response.
+	ComparisonReusableTokens int64 `json:"comparison_reusable_tokens"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CacheMissedTokens        respjson.Field
+		Reason                   respjson.Field
+		Type                     respjson.Field
+		ComparisonReusableTokens respjson.Field
+		ExtraFields              map[string]respjson.Field
+		raw                      string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsePromptCacheDiagnosticsCacheMiss) RawJSON() string { return r.JSON.raw }
+func (r *ResponsePromptCacheDiagnosticsCacheMiss) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ResponsePromptCacheDiagnosticsCacheHit struct {
+	Type constant.CacheHit `json:"type" default:"cache_hit"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsePromptCacheDiagnosticsCacheHit) RawJSON() string { return r.JSON.raw }
+func (r *ResponsePromptCacheDiagnosticsCacheHit) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ResponsePromptCacheDiagnosticsComparisonResponseNotFound struct {
+	Type constant.ComparisonResponseNotFound `json:"type" default:"comparison_response_not_found"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsePromptCacheDiagnosticsComparisonResponseNotFound) RawJSON() string { return r.JSON.raw }
+func (r *ResponsePromptCacheDiagnosticsComparisonResponseNotFound) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ResponsePromptCacheDiagnosticsUnavailable struct {
+	Type constant.Unavailable `json:"type" default:"unavailable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsePromptCacheDiagnosticsUnavailable) RawJSON() string { return r.JSON.raw }
+func (r *ResponsePromptCacheDiagnosticsUnavailable) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // The prompt-caching options that were applied to the response. Supported for
 // `gpt-5.6` and later models.
 type ResponsePromptCacheOptions struct {
@@ -4340,12 +4514,15 @@ type ResponsePromptCacheOptions struct {
 	//
 	// Any of "30m".
 	Ttl string `json:"ttl" api:"required"`
+	// The response ID supplied as the prompt cache diagnostics comparison.
+	ComparisonResponseID string `json:"comparison_response_id" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Mode        respjson.Field
-		Ttl         respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Mode                 respjson.Field
+		Ttl                  respjson.Field
+		ComparisonResponseID respjson.Field
+		ExtraFields          map[string]respjson.Field
+		raw                  string
 	} `json:"-"`
 }
 
@@ -4360,7 +4537,7 @@ func (r *ResponsePromptCacheOptions) UnmarshalJSON(data []byte) error {
 // The retention policy for the prompt cache. Set to `24h` to enable extended
 // prompt caching, which keeps cached prefixes active for longer, up to a maximum
 // of 24 hours.
-// [Learn more](https://platform.openai.com/docs/guides/prompt-caching#prompt-cache-retention).
+// [Learn more](https://developers.openai.com/api/docs/guides/prompt-caching#prompt-cache-retention).
 // This field expresses a maximum retention policy, while
 // `prompt_cache_options.ttl` expresses a minimum cache lifetime. The two fields
 // are independent and do not interact. For `gpt-5.5`, `gpt-5.5-pro`, and future
@@ -4386,13 +4563,15 @@ const (
 //     will use 'default'.
 //   - If set to 'default', then the request will be processed with the standard
 //     pricing and performance for the selected model.
-//   - If set to '[flex](https://platform.openai.com/docs/guides/flex-processing)',
-//     then the request will be processed with the Flex Processing service tier.
-//   - To opt-in to [Fast mode](/api/docs/guides/fast-mode) at the request level,
-//     include the `service_tier=fast` or `service_tier=priority` parameter for
-//     Responses or Chat Completions. The response will show `service_tier=priority`
-//     regardless of if you specify `service_tier=fast` or `priority` in your
-//     request.
+//   - If set to
+//     '[flex](https://developers.openai.com/api/docs/guides/flex-processing)', then
+//     the request will be processed with the Flex Processing service tier.
+//   - To opt-in to
+//     [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode) at the
+//     request level, include the `service_tier=fast` or `service_tier=priority`
+//     parameter for Responses or Chat Completions. The response will show
+//     `service_tier=priority` regardless of if you specify `service_tier=fast` or
+//     `priority` in your request.
 //   - If set to 'ultrafast', then the request will be processed with the
 //     access-controlled Ultrafast Processing service tier. This tier is currently
 //     available for `gpt-5.6-sol`; a response served through it will show
@@ -5331,15 +5510,6 @@ func (u *ResponseCodeInterpreterToolCallOutputUnionParam) UnmarshalJSON(data []b
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ResponseCodeInterpreterToolCallOutputUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfLogs) {
-		return u.OfLogs
-	} else if !param.IsOmitted(u.OfImage) {
-		return u.OfImage
-	}
-	return nil
-}
-
 // Returns a pointer to the underlying variant's property, if present.
 func (u ResponseCodeInterpreterToolCallOutputUnionParam) GetLogs() *string {
 	if vt := u.OfLogs; vt != nil {
@@ -5416,8 +5586,36 @@ func (r *ResponseCodeInterpreterToolCallOutputImageParam) UnmarshalJSON(data []b
 	return apijson.UnmarshalRoot(data, r)
 }
 
+// Emitted when new summary content is sampled for a compaction trigger. Contains
+// no summary content.
+type ResponseCompactionCompactingEvent struct {
+	// The ID of the compaction output item.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the compaction output item.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the event that was emitted.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The type of the event, always `response.compaction.compacting`.
+	Type constant.ResponseCompactionCompacting `json:"type" default:"response.compaction.compacting"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseCompactionCompactingEvent) RawJSON() string { return r.JSON.raw }
+func (r *ResponseCompactionCompactingEvent) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // A compaction item generated by the
-// [`v1/responses/compact` API](https://platform.openai.com/docs/api-reference/responses/compact).
+// [`v1/responses/compact` API](https://developers.openai.com/api/reference/resources/responses/methods/compact).
 type ResponseCompactionItem struct {
 	// The unique ID of the compaction item.
 	ID string `json:"id" api:"required"`
@@ -5447,7 +5645,7 @@ func (r *ResponseCompactionItem) UnmarshalJSON(data []byte) error {
 func (ResponseCompactionItem) ImplConversationItemUnion() {}
 
 // A compaction item generated by the
-// [`v1/responses/compact` API](https://platform.openai.com/docs/api-reference/responses/compact).
+// [`v1/responses/compact` API](https://developers.openai.com/api/reference/resources/responses/methods/compact).
 type ResponseCompactionItemParamResp struct {
 	// The encrypted content of the compaction summary.
 	EncryptedContent string `json:"encrypted_content" api:"required"`
@@ -5482,7 +5680,7 @@ func (r ResponseCompactionItemParamResp) ToParam() ResponseCompactionItemParam {
 }
 
 // A compaction item generated by the
-// [`v1/responses/compact` API](https://platform.openai.com/docs/api-reference/responses/compact).
+// [`v1/responses/compact` API](https://developers.openai.com/api/reference/resources/responses/methods/compact).
 //
 // The properties EncryptedContent, Type are required.
 type ResponseCompactionItemParam struct {
@@ -5530,7 +5728,7 @@ func (r *ResponseCompletedEvent) UnmarshalJSON(data []byte) error {
 }
 
 // A tool call to a computer use tool. See the
-// [computer use guide](https://platform.openai.com/docs/guides/tools-computer-use)
+// [computer use guide](https://developers.openai.com/api/docs/guides/tools-computer-use)
 // for more information.
 type ResponseComputerToolCall struct {
 	// The unique ID of the computer call.
@@ -6041,7 +6239,7 @@ func (r *ResponseComputerToolCallActionWait) UnmarshalJSON(data []byte) error {
 }
 
 // A tool call to a computer use tool. See the
-// [computer use guide](https://platform.openai.com/docs/guides/tools-computer-use)
+// [computer use guide](https://developers.openai.com/api/docs/guides/tools-computer-use)
 // for more information.
 //
 // The properties ID, CallID, PendingSafetyChecks, Status, Type are required.
@@ -6544,7 +6742,7 @@ func (r *ResponseComputerToolCallActionWaitParam) UnmarshalJSON(data []byte) err
 }
 
 type ResponseComputerToolCallOutputItem struct {
-	// The unique ID of the computer call tool output.
+	// The ID of the computer tool call output.
 	ID string `json:"id" api:"required"`
 	// The ID of the computer tool call that produced the output.
 	CallID string `json:"call_id" api:"required"`
@@ -6678,6 +6876,155 @@ func (r ResponseComputerToolCallOutputScreenshotParam) MarshalJSON() (data []byt
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ResponseComputerToolCallOutputScreenshotParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A configuration update that applies to subsequent responses until it is replaced
+// by another configuration update.
+type ResponseConfigurationUpdateItem struct {
+	// The unique ID of the configuration update item.
+	ID string `json:"id" api:"required"`
+	// The item type. Always `configuration_update`.
+	Type constant.ConfigurationUpdate `json:"type" default:"configuration_update"`
+	// The reasoning configuration applied by this update.
+	Reasoning ResponseConfigurationUpdateItemReasoning `json:"reasoning"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID          respjson.Field
+		Type        respjson.Field
+		Reasoning   respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseConfigurationUpdateItem) RawJSON() string { return r.JSON.raw }
+func (r *ResponseConfigurationUpdateItem) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func (ResponseConfigurationUpdateItem) ImplConversationItemUnion() {}
+
+// The reasoning configuration applied by this update.
+type ResponseConfigurationUpdateItemReasoning struct {
+	// The reasoning effort used for subsequent responses until another configuration
+	// update replaces it.
+	//
+	// Any of "none", "minimal", "low", "medium", "high", "xhigh", "max".
+	Effort shared.ReasoningEffort `json:"effort" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Effort      respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseConfigurationUpdateItemReasoning) RawJSON() string { return r.JSON.raw }
+func (r *ResponseConfigurationUpdateItemReasoning) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// An update to the conversation's response configuration. The configuration
+// remains in effect for subsequent responses until it is replaced by another
+// configuration update.
+type ResponseConfigurationUpdateItemParamResp struct {
+	// The item type. Always `configuration_update`.
+	Type constant.ConfigurationUpdate `json:"type" default:"configuration_update"`
+	// The unique ID of the configuration update item.
+	ID string `json:"id" api:"nullable"`
+	// Updates to reasoning configuration. Only effort is supported.
+	Reasoning ResponseConfigurationUpdateItemParamReasoningResp `json:"reasoning"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ID          respjson.Field
+		Reasoning   respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseConfigurationUpdateItemParamResp) RawJSON() string { return r.JSON.raw }
+func (r *ResponseConfigurationUpdateItemParamResp) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this ResponseConfigurationUpdateItemParamResp to a
+// ResponseConfigurationUpdateItemParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// ResponseConfigurationUpdateItemParam.Overrides()
+func (r ResponseConfigurationUpdateItemParamResp) ToParam() ResponseConfigurationUpdateItemParam {
+	return param.Override[ResponseConfigurationUpdateItemParam](json.RawMessage(r.RawJSON()))
+}
+
+// Updates to reasoning configuration. Only effort is supported.
+type ResponseConfigurationUpdateItemParamReasoningResp struct {
+	// The reasoning effort to use for subsequent responses until another configuration
+	// update replaces it.
+	//
+	// Any of "none", "minimal", "low", "medium", "high", "xhigh", "max".
+	Effort shared.ReasoningEffort `json:"effort" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Effort      respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseConfigurationUpdateItemParamReasoningResp) RawJSON() string { return r.JSON.raw }
+func (r *ResponseConfigurationUpdateItemParamReasoningResp) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// An update to the conversation's response configuration. The configuration
+// remains in effect for subsequent responses until it is replaced by another
+// configuration update.
+//
+// The property Type is required.
+type ResponseConfigurationUpdateItemParam struct {
+	// The unique ID of the configuration update item.
+	ID param.Opt[string] `json:"id,omitzero"`
+	// Updates to reasoning configuration. Only effort is supported.
+	Reasoning ResponseConfigurationUpdateItemParamReasoning `json:"reasoning,omitzero"`
+	// The item type. Always `configuration_update`.
+	//
+	// This field can be elided, and will marshal its zero value as
+	// "configuration_update".
+	Type constant.ConfigurationUpdate `json:"type" default:"configuration_update"`
+	paramObj
+}
+
+func (r ResponseConfigurationUpdateItemParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseConfigurationUpdateItemParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseConfigurationUpdateItemParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Updates to reasoning configuration. Only effort is supported.
+type ResponseConfigurationUpdateItemParamReasoning struct {
+	// The reasoning effort to use for subsequent responses until another configuration
+	// update replaces it.
+	//
+	// Any of "none", "minimal", "low", "medium", "high", "xhigh", "max".
+	Effort shared.ReasoningEffort `json:"effort,omitzero"`
+	paramObj
+}
+
+func (r ResponseConfigurationUpdateItemParamReasoning) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseConfigurationUpdateItemParamReasoning
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseConfigurationUpdateItemParamReasoning) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -7026,6 +7373,8 @@ type ResponseCustomToolCall struct {
 	Type constant.CustomToolCall `json:"type" default:"custom_tool_call"`
 	// The unique ID of the custom tool call in the OpenAI platform.
 	ID string `json:"id"`
+	// Whether the custom tool call runs asynchronously.
+	Async bool `json:"async"`
 	// The execution context that produced this tool call.
 	Caller ResponseCustomToolCallCallerUnion `json:"caller" api:"nullable"`
 	// The namespace of the custom tool being called.
@@ -7037,6 +7386,7 @@ type ResponseCustomToolCall struct {
 		Name        respjson.Field
 		Type        respjson.Field
 		ID          respjson.Field
+		Async       respjson.Field
 		Caller      respjson.Field
 		Namespace   respjson.Field
 		ExtraFields map[string]respjson.Field
@@ -7173,6 +7523,8 @@ type ResponseCustomToolCallParam struct {
 	Name string `json:"name" api:"required"`
 	// The unique ID of the custom tool call in the OpenAI platform.
 	ID param.Opt[string] `json:"id,omitzero"`
+	// Whether the custom tool call runs asynchronously.
+	Async param.Opt[bool] `json:"async,omitzero"`
 	// The namespace of the custom tool being called.
 	Namespace param.Opt[string] `json:"namespace,omitzero"`
 	// The execution context that produced this tool call.
@@ -7743,17 +8095,6 @@ func (u *ResponseCustomToolCallOutputOutputOutputContentListItemUnionParam) Unma
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ResponseCustomToolCallOutputOutputOutputContentListItemUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfInputText) {
-		return u.OfInputText
-	} else if !param.IsOmitted(u.OfInputImage) {
-		return u.OfInputImage
-	} else if !param.IsOmitted(u.OfInputFile) {
-		return u.OfInputFile
-	}
-	return nil
-}
-
 // Returns a pointer to the underlying variant's property, if present.
 func (u ResponseCustomToolCallOutputOutputOutputContentListItemUnionParam) GetText() *string {
 	if vt := u.OfInputText; vt != nil {
@@ -8005,21 +8346,29 @@ type ResponseError struct {
 	// The error code for the response.
 	//
 	// Any of "server_error", "rate_limit_exceeded", "invalid_prompt",
-	// "data_residency_mismatch", "bio_policy", "vector_store_timeout",
-	// "invalid_image", "invalid_image_format", "invalid_base64_image",
-	// "invalid_image_url", "image_too_large", "image_too_small", "image_parse_error",
-	// "image_content_policy_violation", "invalid_image_mode", "image_file_too_large",
-	// "unsupported_image_media_type", "empty_image_file", "failed_to_download_image",
-	// "image_file_not_found".
+	// "data_residency_mismatch", "bio_policy", "misalignment_policy_violation",
+	// "vector_store_timeout", "invalid_image", "invalid_image_format",
+	// "invalid_base64_image", "invalid_image_url", "image_too_large",
+	// "image_too_small", "image_parse_error", "image_content_policy_violation",
+	// "invalid_image_mode", "image_file_too_large", "unsupported_image_media_type",
+	// "empty_image_file", "failed_to_download_image", "image_file_not_found".
 	Code ResponseErrorCode `json:"code" api:"required"`
 	// A human-readable description of the error.
-	Message string `json:"message" api:"required"`
+	Message      string                    `json:"message" api:"required"`
+	Misalignment ResponseErrorMisalignment `json:"misalignment"`
+	// The request parameter associated with the error, or null if none was recorded.
+	Param string `json:"param" api:"nullable"`
+	// The original error type, or null if it was not recorded.
+	Type string `json:"type" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		Code        respjson.Field
-		Message     respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		Code         respjson.Field
+		Message      respjson.Field
+		Misalignment respjson.Field
+		Param        respjson.Field
+		Type         respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
 	} `json:"-"`
 }
 
@@ -8038,6 +8387,7 @@ const (
 	ResponseErrorCodeInvalidPrompt               ResponseErrorCode = "invalid_prompt"
 	ResponseErrorCodeDataResidencyMismatch       ResponseErrorCode = "data_residency_mismatch"
 	ResponseErrorCodeBioPolicy                   ResponseErrorCode = "bio_policy"
+	ResponseErrorCodeMisalignmentPolicyViolation ResponseErrorCode = "misalignment_policy_violation"
 	ResponseErrorCodeVectorStoreTimeout          ResponseErrorCode = "vector_store_timeout"
 	ResponseErrorCodeInvalidImage                ResponseErrorCode = "invalid_image"
 	ResponseErrorCodeInvalidImageFormat          ResponseErrorCode = "invalid_image_format"
@@ -8054,6 +8404,51 @@ const (
 	ResponseErrorCodeFailedToDownloadImage       ResponseErrorCode = "failed_to_download_image"
 	ResponseErrorCodeImageFileNotFound           ResponseErrorCode = "image_file_not_found"
 )
+
+type ResponseErrorMisalignment struct {
+	// The public explanation for this block.
+	DetailedExplanation string `json:"detailed_explanation"`
+	// An optional classification; clients must accept additional values.
+	ErrorType string `json:"error_type"`
+	// An opaque target for explicitly continuing this review, or null when
+	// unavailable.
+	ReviewTarget string `json:"review_target" api:"nullable"`
+	// An optional public continuation instruction.
+	Steer ResponseErrorMisalignmentSteer `json:"steer"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		DetailedExplanation respjson.Field
+		ErrorType           respjson.Field
+		ReviewTarget        respjson.Field
+		Steer               respjson.Field
+		ExtraFields         map[string]respjson.Field
+		raw                 string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseErrorMisalignment) RawJSON() string { return r.JSON.raw }
+func (r *ResponseErrorMisalignment) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// An optional public continuation instruction.
+type ResponseErrorMisalignmentSteer struct {
+	// The public continuation instruction.
+	Message string `json:"message" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Message     respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseErrorMisalignmentSteer) RawJSON() string { return r.JSON.raw }
+func (r *ResponseErrorMisalignmentSteer) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
 
 // Emitted when an error occurs.
 type ResponseErrorEvent struct {
@@ -8191,7 +8586,7 @@ func (r *ResponseFileSearchCallSearchingEvent) UnmarshalJSON(data []byte) error 
 }
 
 // The results of a file search tool call. See the
-// [file search guide](https://platform.openai.com/docs/guides/tools-file-search)
+// [file search guide](https://developers.openai.com/api/docs/guides/tools-file-search)
 // for more information.
 type ResponseFileSearchToolCall struct {
 	// The unique ID of the file search tool call.
@@ -8327,7 +8722,7 @@ func (r *ResponseFileSearchToolCallResultAttributeUnion) UnmarshalJSON(data []by
 }
 
 // The results of a file search tool call. See the
-// [file search guide](https://platform.openai.com/docs/guides/tools-file-search)
+// [file search guide](https://developers.openai.com/api/docs/guides/tools-file-search)
 // for more information.
 //
 // The properties ID, Queries, Status, Type are required.
@@ -8399,17 +8794,6 @@ func (u ResponseFileSearchToolCallResultAttributeUnionParam) MarshalJSON() ([]by
 }
 func (u *ResponseFileSearchToolCallResultAttributeUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ResponseFileSearchToolCallResultAttributeUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfString) {
-		return &u.OfString.Value
-	} else if !param.IsOmitted(u.OfFloat) {
-		return &u.OfFloat.Value
-	} else if !param.IsOmitted(u.OfBool) {
-		return &u.OfBool.Value
-	}
-	return nil
 }
 
 // ResponseFormatTextConfigUnion contains all possible properties and values from
@@ -8526,17 +8910,6 @@ func (u *ResponseFormatTextConfigUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ResponseFormatTextConfigUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfText) {
-		return u.OfText
-	} else if !param.IsOmitted(u.OfJSONSchema) {
-		return u.OfJSONSchema
-	} else if !param.IsOmitted(u.OfJSONObject) {
-		return u.OfJSONObject
-	}
-	return nil
-}
-
 // Returns a pointer to the underlying variant's property, if present.
 func (u ResponseFormatTextConfigUnionParam) GetName() *string {
 	if vt := u.OfJSONSchema; vt != nil {
@@ -8592,7 +8965,7 @@ func init() {
 
 // JSON Schema response format. Used to generate structured JSON responses. Learn
 // more about
-// [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs).
+// [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
 type ResponseFormatTextJSONSchemaConfig struct {
 	// The name of the response format. Must be a-z, A-Z, 0-9, or contain underscores
 	// and dashes, with a maximum length of 64.
@@ -8609,7 +8982,7 @@ type ResponseFormatTextJSONSchemaConfig struct {
 	// true, the model will always follow the exact schema defined in the `schema`
 	// field. Only a subset of JSON Schema is supported when `strict` is `true`. To
 	// learn more, read the
-	// [Structured Outputs guide](https://platform.openai.com/docs/guides/structured-outputs).
+	// [Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs).
 	Strict bool `json:"strict" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
@@ -8641,7 +9014,7 @@ func (r ResponseFormatTextJSONSchemaConfig) ToParam() ResponseFormatTextJSONSche
 
 // JSON Schema response format. Used to generate structured JSON responses. Learn
 // more about
-// [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs).
+// [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
 //
 // The properties Name, Schema, Type are required.
 type ResponseFormatTextJSONSchemaConfigParam struct {
@@ -8655,7 +9028,7 @@ type ResponseFormatTextJSONSchemaConfigParam struct {
 	// true, the model will always follow the exact schema defined in the `schema`
 	// field. Only a subset of JSON Schema is supported when `strict` is `true`. To
 	// learn more, read the
-	// [Structured Outputs guide](https://platform.openai.com/docs/guides/structured-outputs).
+	// [Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs).
 	Strict param.Opt[bool] `json:"strict,omitzero"`
 	// A description of what the response format is for, used by the model to determine
 	// how to respond in the format.
@@ -8711,8 +9084,6 @@ type ResponseFunctionCallArgumentsDoneEvent struct {
 	Arguments string `json:"arguments" api:"required"`
 	// The ID of the item.
 	ItemID string `json:"item_id" api:"required"`
-	// The name of the function that was called.
-	Name string `json:"name" api:"required"`
 	// The index of the output item.
 	OutputIndex int64 `json:"output_index" api:"required"`
 	// The sequence number of this event.
@@ -8722,7 +9093,6 @@ type ResponseFunctionCallArgumentsDoneEvent struct {
 	JSON struct {
 		Arguments      respjson.Field
 		ItemID         respjson.Field
-		Name           respjson.Field
 		OutputIndex    respjson.Field
 		SequenceNumber respjson.Field
 		Type           respjson.Field
@@ -8883,17 +9253,6 @@ func (u ResponseFunctionCallOutputItemUnionParam) MarshalJSON() ([]byte, error) 
 }
 func (u *ResponseFunctionCallOutputItemUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ResponseFunctionCallOutputItemUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfInputText) {
-		return u.OfInputText
-	} else if !param.IsOmitted(u.OfInputImage) {
-		return u.OfInputImage
-	} else if !param.IsOmitted(u.OfInputFile) {
-		return u.OfInputFile
-	}
-	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
@@ -9201,15 +9560,6 @@ func (u ResponseFunctionShellCallOutputContentOutcomeUnionParam) MarshalJSON() (
 }
 func (u *ResponseFunctionShellCallOutputContentOutcomeUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ResponseFunctionShellCallOutputContentOutcomeUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfTimeout) {
-		return u.OfTimeout
-	} else if !param.IsOmitted(u.OfExit) {
-		return u.OfExit
-	}
-	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
@@ -9821,7 +10171,7 @@ func (r *ResponseFunctionShellToolCallOutputCallerProgram) UnmarshalJSON(data []
 }
 
 // A tool call to run a function. See the
-// [function calling guide](https://platform.openai.com/docs/guides/function-calling)
+// [function calling guide](https://developers.openai.com/api/docs/guides/function-calling)
 // for more information.
 type ResponseFunctionToolCall struct {
 	// A JSON string of the arguments to pass to the function.
@@ -9834,6 +10184,8 @@ type ResponseFunctionToolCall struct {
 	Type constant.FunctionCall `json:"type" default:"function_call"`
 	// The unique ID of the function tool call.
 	ID string `json:"id"`
+	// Whether the function tool call runs asynchronously.
+	Async bool `json:"async"`
 	// The execution context that produced this tool call.
 	Caller ResponseFunctionToolCallCallerUnion `json:"caller" api:"nullable"`
 	// The namespace of the function to run.
@@ -9850,6 +10202,7 @@ type ResponseFunctionToolCall struct {
 		Name        respjson.Field
 		Type        respjson.Field
 		ID          respjson.Field
+		Async       respjson.Field
 		Caller      respjson.Field
 		Namespace   respjson.Field
 		Status      respjson.Field
@@ -9985,7 +10338,7 @@ const (
 )
 
 // A tool call to run a function. See the
-// [function calling guide](https://platform.openai.com/docs/guides/function-calling)
+// [function calling guide](https://developers.openai.com/api/docs/guides/function-calling)
 // for more information.
 //
 // The properties Arguments, CallID, Name, Type are required.
@@ -9998,6 +10351,8 @@ type ResponseFunctionToolCallParam struct {
 	Name string `json:"name" api:"required"`
 	// The unique ID of the function tool call.
 	ID param.Opt[string] `json:"id,omitzero"`
+	// Whether the function tool call runs asynchronously.
+	Async param.Opt[bool] `json:"async,omitzero"`
 	// The namespace of the function to run.
 	Namespace param.Opt[string] `json:"namespace,omitzero"`
 	// The execution context that produced this tool call.
@@ -10112,7 +10467,7 @@ func (r *ResponseFunctionToolCallCallerProgramParam) UnmarshalJSON(data []byte) 
 }
 
 // A tool call to run a function. See the
-// [function calling guide](https://platform.openai.com/docs/guides/function-calling)
+// [function calling guide](https://developers.openai.com/api/docs/guides/function-calling)
 // for more information.
 type ResponseFunctionToolCallItem struct {
 	// The unique ID of the function tool call.
@@ -10146,8 +10501,6 @@ func (ResponseFunctionToolCallItem) ImplConversationItemUnion() {}
 type ResponseFunctionToolCallOutputItem struct {
 	// The unique ID of the function call tool output.
 	ID string `json:"id" api:"required"`
-	// The unique ID of the function tool call generated by the model.
-	CallID string `json:"call_id" api:"required"`
 	// The output from the function call generated by your code. Can be a string or an
 	// list of output content.
 	Output ResponseFunctionToolCallOutputItemOutputUnion `json:"output" api:"required"`
@@ -10158,6 +10511,8 @@ type ResponseFunctionToolCallOutputItem struct {
 	Status ResponseFunctionToolCallOutputItemStatus `json:"status" api:"required"`
 	// The type of the function tool call output. Always `function_call_output`.
 	Type constant.FunctionCallOutput `json:"type" default:"function_call_output"`
+	// The unique ID of the function tool call generated by the model.
+	CallID string `json:"call_id"`
 	// The execution context that produced this tool call.
 	Caller ResponseFunctionToolCallOutputItemCallerUnion `json:"caller" api:"nullable"`
 	// The identifier of the actor that created the item.
@@ -10169,10 +10524,10 @@ type ResponseFunctionToolCallOutputItem struct {
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
 		ID          respjson.Field
-		CallID      respjson.Field
 		Output      respjson.Field
 		Status      respjson.Field
 		Type        respjson.Field
+		CallID      respjson.Field
 		Caller      respjson.Field
 		CreatedBy   respjson.Field
 		Name        respjson.Field
@@ -10465,8 +10820,8 @@ func (r *ResponseFunctionToolCallOutputItemCallerProgram) UnmarshalJSON(data []b
 }
 
 // The results of a web search tool call. See the
-// [web search guide](https://platform.openai.com/docs/guides/tools-web-search) for
-// more information.
+// [web search guide](https://developers.openai.com/api/docs/guides/tools-web-search)
+// for more information.
 type ResponseFunctionWebSearch struct {
 	// The unique ID of the web search tool call.
 	ID string `json:"id" api:"required"`
@@ -10475,7 +10830,7 @@ type ResponseFunctionWebSearch struct {
 	Action ResponseFunctionWebSearchActionUnion `json:"action" api:"required"`
 	// The status of the web search tool call.
 	//
-	// Any of "in_progress", "searching", "completed", "failed".
+	// Any of "in_progress", "searching", "completed", "failed", "incomplete".
 	Status ResponseFunctionWebSearchStatus `json:"status" api:"required"`
 	// The type of the web search tool call. Always `web_search_call`.
 	Type constant.WebSearchCall `json:"type" default:"web_search_call"`
@@ -10697,11 +11052,12 @@ const (
 	ResponseFunctionWebSearchStatusSearching  ResponseFunctionWebSearchStatus = "searching"
 	ResponseFunctionWebSearchStatusCompleted  ResponseFunctionWebSearchStatus = "completed"
 	ResponseFunctionWebSearchStatusFailed     ResponseFunctionWebSearchStatus = "failed"
+	ResponseFunctionWebSearchStatusIncomplete ResponseFunctionWebSearchStatus = "incomplete"
 )
 
 // The results of a web search tool call. See the
-// [web search guide](https://platform.openai.com/docs/guides/tools-web-search) for
-// more information.
+// [web search guide](https://developers.openai.com/api/docs/guides/tools-web-search)
+// for more information.
 //
 // The properties ID, Action, Status, Type are required.
 type ResponseFunctionWebSearchParam struct {
@@ -10712,7 +11068,7 @@ type ResponseFunctionWebSearchParam struct {
 	Action ResponseFunctionWebSearchActionUnionParam `json:"action,omitzero" api:"required"`
 	// The status of the web search tool call.
 	//
-	// Any of "in_progress", "searching", "completed", "failed".
+	// Any of "in_progress", "searching", "completed", "failed", "incomplete".
 	Status ResponseFunctionWebSearchStatus `json:"status,omitzero" api:"required"`
 	// The type of the web search tool call. Always `web_search_call`.
 	//
@@ -11099,6 +11455,10 @@ const (
 )
 
 // An event that is emitted when a response finishes as incomplete.
+//
+// Over WebSocket, steering can finish a response with
+// `response.incomplete_details.reason` set to `steered`, followed automatically by
+// a successor `response.created` that commits the queued steering input.
 type ResponseIncompleteEvent struct {
 	// The response that was incomplete.
 	Response Response `json:"response" api:"required"`
@@ -11369,17 +11729,6 @@ func (u ResponseInputContentUnionParam) MarshalJSON() ([]byte, error) {
 }
 func (u *ResponseInputContentUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ResponseInputContentUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfInputText) {
-		return u.OfInputText
-	} else if !param.IsOmitted(u.OfInputImage) {
-		return u.OfInputImage
-	} else if !param.IsOmitted(u.OfInputFile) {
-		return u.OfInputFile
-	}
-	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
@@ -11812,7 +12161,7 @@ func (r *ResponseInputFileContentPromptCacheBreakpointParam) UnmarshalJSON(data 
 }
 
 // An image input to the model. Learn about
-// [image inputs](https://platform.openai.com/docs/guides/vision).
+// [image inputs](https://developers.openai.com/api/docs/guides/images-vision).
 type ResponseInputImage struct {
 	// The detail level of the image to be sent to the model. One of `high`, `low`,
 	// `auto`, or `original`. Defaults to `auto`.
@@ -11891,7 +12240,7 @@ func (r *ResponseInputImagePromptCacheBreakpoint) UnmarshalJSON(data []byte) err
 }
 
 // An image input to the model. Learn about
-// [image inputs](https://platform.openai.com/docs/guides/vision).
+// [image inputs](https://developers.openai.com/api/docs/guides/images-vision).
 //
 // The properties Detail, Type are required.
 type ResponseInputImageParam struct {
@@ -11951,7 +12300,7 @@ func (r *ResponseInputImagePromptCacheBreakpointParam) UnmarshalJSON(data []byte
 }
 
 // An image input to the model. Learn about
-// [image inputs](https://platform.openai.com/docs/guides/vision)
+// [image inputs](https://developers.openai.com/api/docs/guides/images-vision)
 type ResponseInputImageContent struct {
 	// The type of the input item. Always `input_image`.
 	Type constant.InputImage `json:"type" default:"input_image"`
@@ -12029,7 +12378,7 @@ func (r *ResponseInputImageContentPromptCacheBreakpoint) UnmarshalJSON(data []by
 }
 
 // An image input to the model. Learn about
-// [image inputs](https://platform.openai.com/docs/guides/vision)
+// [image inputs](https://developers.openai.com/api/docs/guides/images-vision)
 //
 // The property Type is required.
 type ResponseInputImageContentParam struct {
@@ -12094,17 +12443,17 @@ func (r *ResponseInputImageContentPromptCacheBreakpointParam) UnmarshalJSON(data
 // [ResponseInputItemComputerCallOutput], [ResponseFunctionWebSearch],
 // [ResponseFunctionToolCall], [ResponseInputItemFunctionCallOutput],
 // [ResponseInputItemToolSearchCall], [ResponseToolSearchOutputItemParamResp],
-// [ResponseInputItemAdditionalTools], [ResponseReasoningItem],
-// [ResponseCompactionItemParamResp], [ResponseInputItemImageGenerationCall],
-// [ResponseCodeInterpreterToolCall], [ResponseInputItemLocalShellCall],
-// [ResponseInputItemLocalShellCallOutput], [ResponseInputItemShellCall],
-// [ResponseInputItemShellCallOutput], [ResponseInputItemApplyPatchCall],
-// [ResponseInputItemApplyPatchCallOutput], [ResponseInputItemMcpListTools],
-// [ResponseInputItemMcpApprovalRequest], [ResponseInputItemMcpApprovalResponse],
-// [ResponseInputItemMcpCall], [ResponseCustomToolCallOutput],
-// [ResponseCustomToolCall], [ResponseInputItemCompactionTrigger],
-// [ResponseInputItemItemReference], [ResponseInputItemProgram],
-// [ResponseInputItemProgramOutput].
+// [ResponseInputItemAdditionalTools], [ResponseConfigurationUpdateItemParamResp],
+// [ResponseReasoningItem], [ResponseCompactionItemParamResp],
+// [ResponseInputItemImageGenerationCall], [ResponseCodeInterpreterToolCall],
+// [ResponseInputItemLocalShellCall], [ResponseInputItemLocalShellCallOutput],
+// [ResponseInputItemShellCall], [ResponseInputItemShellCallOutput],
+// [ResponseInputItemApplyPatchCall], [ResponseInputItemApplyPatchCallOutput],
+// [ResponseInputItemMcpListTools], [ResponseInputItemMcpApprovalRequest],
+// [ResponseInputItemMcpApprovalResponse], [ResponseInputItemMcpCall],
+// [ResponseCustomToolCallOutput], [ResponseCustomToolCall],
+// [ResponseInputItemCompactionTrigger], [ResponseInputItemItemReference],
+// [ResponseInputItemProgram], [ResponseInputItemProgramOutput].
 //
 // Use the [ResponseInputItemUnion.AsAny] method to switch on the variant.
 //
@@ -12119,13 +12468,13 @@ type ResponseInputItemUnion struct {
 	// Any of "message", "message", "message", "file_search_call", "computer_call",
 	// "computer_call_output", "web_search_call", "function_call",
 	// "function_call_output", "tool_search_call", "tool_search_output",
-	// "additional_tools", "reasoning", "compaction", "image_generation_call",
-	// "code_interpreter_call", "local_shell_call", "local_shell_call_output",
-	// "shell_call", "shell_call_output", "apply_patch_call",
-	// "apply_patch_call_output", "mcp_list_tools", "mcp_approval_request",
-	// "mcp_approval_response", "mcp_call", "custom_tool_call_output",
-	// "custom_tool_call", "compaction_trigger", "item_reference", "program",
-	// "program_output".
+	// "additional_tools", "configuration_update", "reasoning", "compaction",
+	// "image_generation_call", "code_interpreter_call", "local_shell_call",
+	// "local_shell_call_output", "shell_call", "shell_call_output",
+	// "apply_patch_call", "apply_patch_call_output", "mcp_list_tools",
+	// "mcp_approval_request", "mcp_approval_response", "mcp_call",
+	// "custom_tool_call_output", "custom_tool_call", "compaction_trigger",
+	// "item_reference", "program", "program_output".
 	Type   string `json:"type"`
 	Status string `json:"status"`
 	ID     string `json:"id"`
@@ -12137,8 +12486,8 @@ type ResponseInputItemUnion struct {
 	// This field is from variant [ResponseComputerToolCall].
 	PendingSafetyChecks []ResponseComputerToolCallPendingSafetyCheck `json:"pending_safety_checks"`
 	// This field is a union of [ResponseComputerToolCallActionUnion],
-	// [ResponseFunctionWebSearchActionUnion], [ResponseInputItemLocalShellCallAction],
-	// [ResponseInputItemShellCallAction]
+	// [ResponseFunctionWebSearchActionUnion], [string],
+	// [ResponseInputItemLocalShellCallAction], [ResponseInputItemShellCallAction]
 	Action ResponseInputItemUnionAction `json:"action"`
 	// This field is from variant [ResponseComputerToolCall].
 	Actions ComputerActionList `json:"actions"`
@@ -12152,6 +12501,7 @@ type ResponseInputItemUnion struct {
 	// This field is a union of [string], [any], [string], [string]
 	Arguments ResponseInputItemUnionArguments `json:"arguments"`
 	Name      string                          `json:"name"`
+	Async     bool                            `json:"async"`
 	// This field is a union of [ResponseFunctionToolCallCallerUnion],
 	// [ResponseInputItemFunctionCallOutputCallerUnion],
 	// [ResponseInputItemShellCallCallerUnion],
@@ -12162,14 +12512,26 @@ type ResponseInputItemUnion struct {
 	Caller    ResponseInputItemUnionCaller `json:"caller"`
 	Namespace string                       `json:"namespace"`
 	Execution string                       `json:"execution"`
-	// This field is a union of [[]ToolUnion], [[]ToolUnion],
-	// [[]ResponseInputItemMcpListToolsTool]
+	// This field is a union of [[]ResponseToolSearchOutputItemParamToolUnionResp],
+	// [[]ToolUnion], [[]ResponseInputItemMcpListToolsTool]
 	Tools ResponseInputItemUnionTools `json:"tools"`
+	// This field is from variant [ResponseConfigurationUpdateItemParamResp].
+	Reasoning ResponseConfigurationUpdateItemParamReasoningResp `json:"reasoning"`
 	// This field is from variant [ResponseReasoningItem].
 	Summary          []ResponseReasoningItemSummary `json:"summary"`
 	EncryptedContent string                         `json:"encrypted_content"`
 	Result           string                         `json:"result"`
-	Code             string                         `json:"code"`
+	// This field is from variant [ResponseInputItemImageGenerationCall].
+	Background string `json:"background"`
+	// This field is from variant [ResponseInputItemImageGenerationCall].
+	OutputFormat string `json:"output_format"`
+	// This field is from variant [ResponseInputItemImageGenerationCall].
+	Quality string `json:"quality"`
+	// This field is from variant [ResponseInputItemImageGenerationCall].
+	RevisedPrompt string `json:"revised_prompt"`
+	// This field is from variant [ResponseInputItemImageGenerationCall].
+	Size string `json:"size"`
+	Code string `json:"code"`
 	// This field is from variant [ResponseCodeInterpreterToolCall].
 	ContainerID string `json:"container_id"`
 	// This field is from variant [ResponseCodeInterpreterToolCall].
@@ -12209,13 +12571,20 @@ type ResponseInputItemUnion struct {
 		AcknowledgedSafetyChecks respjson.Field
 		Arguments                respjson.Field
 		Name                     respjson.Field
+		Async                    respjson.Field
 		Caller                   respjson.Field
 		Namespace                respjson.Field
 		Execution                respjson.Field
 		Tools                    respjson.Field
+		Reasoning                respjson.Field
 		Summary                  respjson.Field
 		EncryptedContent         respjson.Field
 		Result                   respjson.Field
+		Background               respjson.Field
+		OutputFormat             respjson.Field
+		Quality                  respjson.Field
+		RevisedPrompt            respjson.Field
+		Size                     respjson.Field
 		Code                     respjson.Field
 		ContainerID              respjson.Field
 		Outputs                  respjson.Field
@@ -12239,38 +12608,39 @@ type anyResponseInputItem interface {
 	implResponseInputItemUnion()
 }
 
-func (EasyInputMessage) implResponseInputItemUnion()                      {}
-func (ResponseInputItemMessage) implResponseInputItemUnion()              {}
-func (ResponseOutputMessage) implResponseInputItemUnion()                 {}
-func (ResponseFileSearchToolCall) implResponseInputItemUnion()            {}
-func (ResponseComputerToolCall) implResponseInputItemUnion()              {}
-func (ResponseInputItemComputerCallOutput) implResponseInputItemUnion()   {}
-func (ResponseFunctionWebSearch) implResponseInputItemUnion()             {}
-func (ResponseFunctionToolCall) implResponseInputItemUnion()              {}
-func (ResponseInputItemFunctionCallOutput) implResponseInputItemUnion()   {}
-func (ResponseInputItemToolSearchCall) implResponseInputItemUnion()       {}
-func (ResponseToolSearchOutputItemParamResp) implResponseInputItemUnion() {}
-func (ResponseInputItemAdditionalTools) implResponseInputItemUnion()      {}
-func (ResponseReasoningItem) implResponseInputItemUnion()                 {}
-func (ResponseCompactionItemParamResp) implResponseInputItemUnion()       {}
-func (ResponseInputItemImageGenerationCall) implResponseInputItemUnion()  {}
-func (ResponseCodeInterpreterToolCall) implResponseInputItemUnion()       {}
-func (ResponseInputItemLocalShellCall) implResponseInputItemUnion()       {}
-func (ResponseInputItemLocalShellCallOutput) implResponseInputItemUnion() {}
-func (ResponseInputItemShellCall) implResponseInputItemUnion()            {}
-func (ResponseInputItemShellCallOutput) implResponseInputItemUnion()      {}
-func (ResponseInputItemApplyPatchCall) implResponseInputItemUnion()       {}
-func (ResponseInputItemApplyPatchCallOutput) implResponseInputItemUnion() {}
-func (ResponseInputItemMcpListTools) implResponseInputItemUnion()         {}
-func (ResponseInputItemMcpApprovalRequest) implResponseInputItemUnion()   {}
-func (ResponseInputItemMcpApprovalResponse) implResponseInputItemUnion()  {}
-func (ResponseInputItemMcpCall) implResponseInputItemUnion()              {}
-func (ResponseCustomToolCallOutput) implResponseInputItemUnion()          {}
-func (ResponseCustomToolCall) implResponseInputItemUnion()                {}
-func (ResponseInputItemCompactionTrigger) implResponseInputItemUnion()    {}
-func (ResponseInputItemItemReference) implResponseInputItemUnion()        {}
-func (ResponseInputItemProgram) implResponseInputItemUnion()              {}
-func (ResponseInputItemProgramOutput) implResponseInputItemUnion()        {}
+func (EasyInputMessage) implResponseInputItemUnion()                         {}
+func (ResponseInputItemMessage) implResponseInputItemUnion()                 {}
+func (ResponseOutputMessage) implResponseInputItemUnion()                    {}
+func (ResponseFileSearchToolCall) implResponseInputItemUnion()               {}
+func (ResponseComputerToolCall) implResponseInputItemUnion()                 {}
+func (ResponseInputItemComputerCallOutput) implResponseInputItemUnion()      {}
+func (ResponseFunctionWebSearch) implResponseInputItemUnion()                {}
+func (ResponseFunctionToolCall) implResponseInputItemUnion()                 {}
+func (ResponseInputItemFunctionCallOutput) implResponseInputItemUnion()      {}
+func (ResponseInputItemToolSearchCall) implResponseInputItemUnion()          {}
+func (ResponseToolSearchOutputItemParamResp) implResponseInputItemUnion()    {}
+func (ResponseInputItemAdditionalTools) implResponseInputItemUnion()         {}
+func (ResponseConfigurationUpdateItemParamResp) implResponseInputItemUnion() {}
+func (ResponseReasoningItem) implResponseInputItemUnion()                    {}
+func (ResponseCompactionItemParamResp) implResponseInputItemUnion()          {}
+func (ResponseInputItemImageGenerationCall) implResponseInputItemUnion()     {}
+func (ResponseCodeInterpreterToolCall) implResponseInputItemUnion()          {}
+func (ResponseInputItemLocalShellCall) implResponseInputItemUnion()          {}
+func (ResponseInputItemLocalShellCallOutput) implResponseInputItemUnion()    {}
+func (ResponseInputItemShellCall) implResponseInputItemUnion()               {}
+func (ResponseInputItemShellCallOutput) implResponseInputItemUnion()         {}
+func (ResponseInputItemApplyPatchCall) implResponseInputItemUnion()          {}
+func (ResponseInputItemApplyPatchCallOutput) implResponseInputItemUnion()    {}
+func (ResponseInputItemMcpListTools) implResponseInputItemUnion()            {}
+func (ResponseInputItemMcpApprovalRequest) implResponseInputItemUnion()      {}
+func (ResponseInputItemMcpApprovalResponse) implResponseInputItemUnion()     {}
+func (ResponseInputItemMcpCall) implResponseInputItemUnion()                 {}
+func (ResponseCustomToolCallOutput) implResponseInputItemUnion()             {}
+func (ResponseCustomToolCall) implResponseInputItemUnion()                   {}
+func (ResponseInputItemCompactionTrigger) implResponseInputItemUnion()       {}
+func (ResponseInputItemItemReference) implResponseInputItemUnion()           {}
+func (ResponseInputItemProgram) implResponseInputItemUnion()                 {}
+func (ResponseInputItemProgramOutput) implResponseInputItemUnion()           {}
 
 // Use the following switch statement to find the correct variant
 //
@@ -12287,6 +12657,7 @@ func (ResponseInputItemProgramOutput) implResponseInputItemUnion()        {}
 //	case responses.ResponseInputItemToolSearchCall:
 //	case responses.ResponseToolSearchOutputItemParamResp:
 //	case responses.ResponseInputItemAdditionalTools:
+//	case responses.ResponseConfigurationUpdateItemParamResp:
 //	case responses.ResponseReasoningItem:
 //	case responses.ResponseCompactionItemParamResp:
 //	case responses.ResponseInputItemImageGenerationCall:
@@ -12332,6 +12703,8 @@ func (u ResponseInputItemUnion) AsAny() anyResponseInputItem {
 		return u.AsToolSearchOutput()
 	case "additional_tools":
 		return u.AsAdditionalTools()
+	case "configuration_update":
+		return u.AsConfigurationUpdate()
 	case "reasoning":
 		return u.AsReasoning()
 	case "compaction":
@@ -12432,6 +12805,11 @@ func (u ResponseInputItemUnion) AsToolSearchOutput() (v ResponseToolSearchOutput
 }
 
 func (u ResponseInputItemUnion) AsAdditionalTools() (v ResponseInputItemAdditionalTools) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseInputItemUnion) AsConfigurationUpdate() (v ResponseConfigurationUpdateItemParamResp) {
 	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
@@ -12584,7 +12962,12 @@ func (r *ResponseInputItemUnionContent) UnmarshalJSON(data []byte) error {
 //
 // For type safety it is recommended to directly use a variant of the
 // [ResponseInputItemUnion].
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfResponseInputItemImageGenerationCallAction]
 type ResponseInputItemUnionAction struct {
+	// This field will be present if the value is a [string] instead of an object.
+	OfResponseInputItemImageGenerationCallAction string `json:",inline"`
 	// This field is from variant [ResponseComputerToolCallActionUnion].
 	Button string   `json:"button"`
 	Type   string   `json:"type"`
@@ -12622,33 +13005,47 @@ type ResponseInputItemUnionAction struct {
 	// This field is from variant [ResponseInputItemShellCallAction].
 	MaxOutputLength int64 `json:"max_output_length"`
 	JSON            struct {
-		Button           respjson.Field
-		Type             respjson.Field
-		X                respjson.Field
-		Y                respjson.Field
-		Keys             respjson.Field
-		Path             respjson.Field
-		ScrollX          respjson.Field
-		ScrollY          respjson.Field
-		Text             respjson.Field
-		Queries          respjson.Field
-		Query            respjson.Field
-		Sources          respjson.Field
-		URL              respjson.Field
-		Pattern          respjson.Field
-		Command          respjson.Field
-		Env              respjson.Field
-		TimeoutMs        respjson.Field
-		User             respjson.Field
-		WorkingDirectory respjson.Field
-		Commands         respjson.Field
-		MaxOutputLength  respjson.Field
-		raw              string
+		OfResponseInputItemImageGenerationCallAction respjson.Field
+		Button                                       respjson.Field
+		Type                                         respjson.Field
+		X                                            respjson.Field
+		Y                                            respjson.Field
+		Keys                                         respjson.Field
+		Path                                         respjson.Field
+		ScrollX                                      respjson.Field
+		ScrollY                                      respjson.Field
+		Text                                         respjson.Field
+		Queries                                      respjson.Field
+		Query                                        respjson.Field
+		Sources                                      respjson.Field
+		URL                                          respjson.Field
+		Pattern                                      respjson.Field
+		Command                                      respjson.Field
+		Env                                          respjson.Field
+		TimeoutMs                                    respjson.Field
+		User                                         respjson.Field
+		WorkingDirectory                             respjson.Field
+		Commands                                     respjson.Field
+		MaxOutputLength                              respjson.Field
+		raw                                          string
 	} `json:"-"`
 }
 
 func (r *ResponseInputItemUnionAction) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
+	var decoded ResponseInputItemUnionAction
+	if err := apijson.UnmarshalRoot(data, &decoded); err != nil {
+		return err
+	}
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] != '{' && !bytes.Equal(trimmed, []byte("null")) {
+		if decoded.JSON.OfResponseInputItemImageGenerationCallAction.Valid() {
+			*r = decoded
+			return nil
+		}
+		return fmt.Errorf("cannot unmarshal JSON into ResponseInputItemUnionAction: no matching inline variant")
+	}
+	*r = decoded
+	return nil
 }
 
 // ResponseInputItemUnionOutput is an implicit subunion of
@@ -12693,7 +13090,23 @@ type ResponseInputItemUnionOutput struct {
 }
 
 func (r *ResponseInputItemUnionOutput) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
+	var decoded ResponseInputItemUnionOutput
+	if err := apijson.UnmarshalRoot(data, &decoded); err != nil {
+		return err
+	}
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] != '{' && !bytes.Equal(trimmed, []byte("null")) {
+		if decoded.JSON.OfString.Valid() ||
+			decoded.JSON.OfResponseFunctionCallOutputItemArray.Valid() ||
+			decoded.JSON.OfResponseFunctionShellCallOutputContentArray.Valid() ||
+			decoded.JSON.OfOutputContentList.Valid() {
+			*r = decoded
+			return nil
+		}
+		return fmt.Errorf("cannot unmarshal JSON into ResponseInputItemUnionOutput: no matching inline variant")
+	}
+	*r = decoded
+	return nil
 }
 
 // ResponseInputItemUnionArguments is an implicit subunion of
@@ -12749,17 +13162,22 @@ func (r *ResponseInputItemUnionCaller) UnmarshalJSON(data []byte) error {
 // [ResponseInputItemUnion].
 //
 // If the underlying value is not a json object, one of the following properties
-// will be valid: OfToolArray OfResponseInputItemMcpListToolsTools]
+// will be valid: OfResponseToolSearchOutputItemToolArray OfToolArray
+// OfResponseInputItemMcpListToolsTools]
 type ResponseInputItemUnionTools struct {
+	// This field will be present if the value is a
+	// [[]ResponseToolSearchOutputItemParamToolUnionResp] instead of an object.
+	OfResponseToolSearchOutputItemToolArray []ResponseToolSearchOutputItemParamToolUnionResp `json:",inline"`
 	// This field will be present if the value is a [[]ToolUnion] instead of an object.
 	OfToolArray []ToolUnion `json:",inline"`
 	// This field will be present if the value is a
 	// [[]ResponseInputItemMcpListToolsTool] instead of an object.
 	OfResponseInputItemMcpListToolsTools []ResponseInputItemMcpListToolsTool `json:",inline"`
 	JSON                                 struct {
-		OfToolArray                          respjson.Field
-		OfResponseInputItemMcpListToolsTools respjson.Field
-		raw                                  string
+		OfResponseToolSearchOutputItemToolArray respjson.Field
+		OfToolArray                             respjson.Field
+		OfResponseInputItemMcpListToolsTools    respjson.Field
+		raw                                     string
 	} `json:"-"`
 }
 
@@ -12795,7 +13213,20 @@ type ResponseInputItemUnionError struct {
 }
 
 func (r *ResponseInputItemUnionError) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
+	var decoded ResponseInputItemUnionError
+	if err := apijson.UnmarshalRoot(data, &decoded); err != nil {
+		return err
+	}
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] != '{' && !bytes.Equal(trimmed, []byte("null")) {
+		if decoded.JSON.OfString.Valid() {
+			*r = decoded
+			return nil
+		}
+		return fmt.Errorf("cannot unmarshal JSON into ResponseInputItemUnionError: no matching inline variant")
+	}
+	*r = decoded
+	return nil
 }
 
 // ToParam converts this ResponseInputItemUnion to a ResponseInputItemUnionParam.
@@ -12909,8 +13340,6 @@ func (r *ResponseInputItemComputerCallOutputAcknowledgedSafetyCheck) UnmarshalJS
 
 // The output of a function tool call.
 type ResponseInputItemFunctionCallOutput struct {
-	// The unique ID of the function tool call generated by the model.
-	CallID string `json:"call_id" api:"required"`
 	// Text, image, or file output of the function tool call.
 	Output ResponseInputItemFunctionCallOutputOutputUnion `json:"output" api:"required"`
 	// The type of the function tool call output. Always `function_call_output`.
@@ -12918,6 +13347,8 @@ type ResponseInputItemFunctionCallOutput struct {
 	// The unique ID of the function tool call output. Populated when this item is
 	// returned via API.
 	ID string `json:"id" api:"nullable"`
+	// The unique ID of the function tool call generated by the model.
+	CallID string `json:"call_id" api:"nullable"`
 	// The execution context that produced this tool call.
 	Caller ResponseInputItemFunctionCallOutputCallerUnion `json:"caller" api:"nullable"`
 	// The name of the tool that produced the output.
@@ -12931,10 +13362,10 @@ type ResponseInputItemFunctionCallOutput struct {
 	Status string `json:"status" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		CallID      respjson.Field
 		Output      respjson.Field
 		Type        respjson.Field
 		ID          respjson.Field
+		CallID      respjson.Field
 		Caller      respjson.Field
 		Name        respjson.Field
 		Namespace   respjson.Field
@@ -13165,20 +13596,105 @@ type ResponseInputItemImageGenerationCall struct {
 	Status string `json:"status" api:"required"`
 	// The type of the image generation call. Always `image_generation_call`.
 	Type constant.ImageGenerationCall `json:"type" default:"image_generation_call"`
+	// The action used for image generation.
+	//
+	// Any of "generate", "edit", "auto".
+	Action string `json:"action" api:"nullable"`
+	// The background setting used for generation.
+	//
+	// Any of "transparent", "opaque", "auto".
+	Background string `json:"background" api:"nullable"`
+	// Details of a moderation failure, when available.
+	Error ResponseInputItemImageGenerationCallError `json:"error"`
+	// The output format used for generation.
+	//
+	// Any of "png", "webp", "jpeg".
+	OutputFormat string `json:"output_format" api:"nullable"`
+	// The quality of the image generated by the image generation tool call. One of
+	// `low`, `medium`, `high`, `xhigh`, `max`, or `auto`.
+	//
+	// Any of "low", "medium", "high", "xhigh", "max", "auto".
+	Quality string `json:"quality" api:"nullable"`
+	// The prompt that was used after any model prompt rewriting.
+	RevisedPrompt string `json:"revised_prompt" api:"nullable"`
+	// The image dimensions as a `WIDTHxHEIGHT` string, for example `1536x864`.
+	Size string `json:"size" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		ID          respjson.Field
-		Result      respjson.Field
-		Status      respjson.Field
-		Type        respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		ID            respjson.Field
+		Result        respjson.Field
+		Status        respjson.Field
+		Type          respjson.Field
+		Action        respjson.Field
+		Background    respjson.Field
+		Error         respjson.Field
+		OutputFormat  respjson.Field
+		Quality       respjson.Field
+		RevisedPrompt respjson.Field
+		Size          respjson.Field
+		ExtraFields   map[string]respjson.Field
+		raw           string
 	} `json:"-"`
 }
 
 // Returns the unmodified JSON received from the API
 func (r ResponseInputItemImageGenerationCall) RawJSON() string { return r.JSON.raw }
 func (r *ResponseInputItemImageGenerationCall) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Details of a moderation failure, when available.
+type ResponseInputItemImageGenerationCallError struct {
+	// The error code.
+	Code string `json:"code" api:"required"`
+	// A description of the error.
+	Message string `json:"message" api:"required"`
+	// The related request parameter.
+	Param string `json:"param" api:"required"`
+	// The error type.
+	Type string `json:"type" api:"required"`
+	// Public details for a `moderation_blocked` error, when available.
+	ModerationDetails ResponseInputItemImageGenerationCallErrorModerationDetails `json:"moderation_details"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Code              respjson.Field
+		Message           respjson.Field
+		Param             respjson.Field
+		Type              respjson.Field
+		ModerationDetails respjson.Field
+		ExtraFields       map[string]respjson.Field
+		raw               string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseInputItemImageGenerationCallError) RawJSON() string { return r.JSON.raw }
+func (r *ResponseInputItemImageGenerationCallError) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Public details for a `moderation_blocked` error, when available.
+type ResponseInputItemImageGenerationCallErrorModerationDetails struct {
+	// Public moderation categories. New category values may be added over time.
+	Categories []string `json:"categories" api:"required"`
+	// The stage where moderation blocked the image generation call.
+	//
+	// Any of "input", "output", "unknown".
+	ModerationStage string `json:"moderation_stage" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Categories      respjson.Field
+		ModerationStage respjson.Field
+		ExtraFields     map[string]respjson.Field
+		raw             string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseInputItemImageGenerationCallErrorModerationDetails) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponseInputItemImageGenerationCallErrorModerationDetails) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -14417,9 +14933,8 @@ func ResponseInputItemParamOfFunctionCall(arguments string, callID string, name 
 	return ResponseInputItemUnionParam{OfFunctionCall: &functionCall}
 }
 
-func ResponseInputItemParamOfFunctionCallOutput[T string | ResponseFunctionCallOutputItemListParam](callID string, output T) ResponseInputItemUnionParam {
+func ResponseInputItemParamOfFunctionCallOutput[T string | ResponseFunctionCallOutputItemListParam](output T) ResponseInputItemUnionParam {
 	var functionCallOutput ResponseInputItemFunctionCallOutputParam
-	functionCallOutput.CallID = callID
 	switch v := any(output).(type) {
 	case string:
 		functionCallOutput.Output.OfString = param.NewOpt(v)
@@ -14435,7 +14950,7 @@ func ResponseInputItemParamOfToolSearchCall(arguments any) ResponseInputItemUnio
 	return ResponseInputItemUnionParam{OfToolSearchCall: &toolSearchCall}
 }
 
-func ResponseInputItemParamOfToolSearchOutput(tools []ToolUnionParam) ResponseInputItemUnionParam {
+func ResponseInputItemParamOfToolSearchOutput(tools []ResponseToolSearchOutputItemParamToolUnion) ResponseInputItemUnionParam {
 	var toolSearchOutput ResponseToolSearchOutputItemParam
 	toolSearchOutput.Tools = tools
 	return ResponseInputItemUnionParam{OfToolSearchOutput: &toolSearchOutput}
@@ -14572,6 +15087,7 @@ type ResponseInputItemUnionParam struct {
 	OfToolSearchCall       *ResponseInputItemToolSearchCallParam       `json:",omitzero,inline"`
 	OfToolSearchOutput     *ResponseToolSearchOutputItemParam          `json:",omitzero,inline"`
 	OfAdditionalTools      *ResponseInputItemAdditionalToolsParam      `json:",omitzero,inline"`
+	OfConfigurationUpdate  *ResponseConfigurationUpdateItemParam       `json:",omitzero,inline"`
 	OfReasoning            *ResponseReasoningItemParam                 `json:",omitzero,inline"`
 	OfCompaction           *ResponseCompactionItemParam                `json:",omitzero,inline"`
 	OfImageGenerationCall  *ResponseInputItemImageGenerationCallParam  `json:",omitzero,inline"`
@@ -14608,6 +15124,7 @@ func (u ResponseInputItemUnionParam) MarshalJSON() ([]byte, error) {
 		u.OfToolSearchCall,
 		u.OfToolSearchOutput,
 		u.OfAdditionalTools,
+		u.OfConfigurationUpdate,
 		u.OfReasoning,
 		u.OfCompaction,
 		u.OfImageGenerationCall,
@@ -14631,75 +15148,6 @@ func (u ResponseInputItemUnionParam) MarshalJSON() ([]byte, error) {
 }
 func (u *ResponseInputItemUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ResponseInputItemUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfMessage) {
-		return u.OfMessage
-	} else if !param.IsOmitted(u.OfInputMessage) {
-		return u.OfInputMessage
-	} else if !param.IsOmitted(u.OfOutputMessage) {
-		return u.OfOutputMessage
-	} else if !param.IsOmitted(u.OfFileSearchCall) {
-		return u.OfFileSearchCall
-	} else if !param.IsOmitted(u.OfComputerCall) {
-		return u.OfComputerCall
-	} else if !param.IsOmitted(u.OfComputerCallOutput) {
-		return u.OfComputerCallOutput
-	} else if !param.IsOmitted(u.OfWebSearchCall) {
-		return u.OfWebSearchCall
-	} else if !param.IsOmitted(u.OfFunctionCall) {
-		return u.OfFunctionCall
-	} else if !param.IsOmitted(u.OfFunctionCallOutput) {
-		return u.OfFunctionCallOutput
-	} else if !param.IsOmitted(u.OfToolSearchCall) {
-		return u.OfToolSearchCall
-	} else if !param.IsOmitted(u.OfToolSearchOutput) {
-		return u.OfToolSearchOutput
-	} else if !param.IsOmitted(u.OfAdditionalTools) {
-		return u.OfAdditionalTools
-	} else if !param.IsOmitted(u.OfReasoning) {
-		return u.OfReasoning
-	} else if !param.IsOmitted(u.OfCompaction) {
-		return u.OfCompaction
-	} else if !param.IsOmitted(u.OfImageGenerationCall) {
-		return u.OfImageGenerationCall
-	} else if !param.IsOmitted(u.OfCodeInterpreterCall) {
-		return u.OfCodeInterpreterCall
-	} else if !param.IsOmitted(u.OfLocalShellCall) {
-		return u.OfLocalShellCall
-	} else if !param.IsOmitted(u.OfLocalShellCallOutput) {
-		return u.OfLocalShellCallOutput
-	} else if !param.IsOmitted(u.OfShellCall) {
-		return u.OfShellCall
-	} else if !param.IsOmitted(u.OfShellCallOutput) {
-		return u.OfShellCallOutput
-	} else if !param.IsOmitted(u.OfApplyPatchCall) {
-		return u.OfApplyPatchCall
-	} else if !param.IsOmitted(u.OfApplyPatchCallOutput) {
-		return u.OfApplyPatchCallOutput
-	} else if !param.IsOmitted(u.OfMcpListTools) {
-		return u.OfMcpListTools
-	} else if !param.IsOmitted(u.OfMcpApprovalRequest) {
-		return u.OfMcpApprovalRequest
-	} else if !param.IsOmitted(u.OfMcpApprovalResponse) {
-		return u.OfMcpApprovalResponse
-	} else if !param.IsOmitted(u.OfMcpCall) {
-		return u.OfMcpCall
-	} else if !param.IsOmitted(u.OfCustomToolCallOutput) {
-		return u.OfCustomToolCallOutput
-	} else if !param.IsOmitted(u.OfCustomToolCall) {
-		return u.OfCustomToolCall
-	} else if !param.IsOmitted(u.OfCompactionTrigger) {
-		return u.OfCompactionTrigger
-	} else if !param.IsOmitted(u.OfItemReference) {
-		return u.OfItemReference
-	} else if !param.IsOmitted(u.OfProgram) {
-		return u.OfProgram
-	} else if !param.IsOmitted(u.OfProgramOutput) {
-		return u.OfProgramOutput
-	}
-	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
@@ -14743,9 +15191,57 @@ func (u ResponseInputItemUnionParam) GetAcknowledgedSafetyChecks() []ResponseInp
 }
 
 // Returns a pointer to the underlying variant's property, if present.
+func (u ResponseInputItemUnionParam) GetReasoning() *ResponseConfigurationUpdateItemParamReasoning {
+	if vt := u.OfConfigurationUpdate; vt != nil {
+		return &vt.Reasoning
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
 func (u ResponseInputItemUnionParam) GetSummary() []ResponseReasoningItemSummaryParam {
 	if vt := u.OfReasoning; vt != nil {
 		return vt.Summary
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseInputItemUnionParam) GetBackground() *string {
+	if vt := u.OfImageGenerationCall; vt != nil && vt.Background.Valid() {
+		return &vt.Background.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseInputItemUnionParam) GetOutputFormat() *string {
+	if vt := u.OfImageGenerationCall; vt != nil && vt.OutputFormat.Valid() {
+		return &vt.OutputFormat.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseInputItemUnionParam) GetQuality() *string {
+	if vt := u.OfImageGenerationCall; vt != nil {
+		return &vt.Quality
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseInputItemUnionParam) GetRevisedPrompt() *string {
+	if vt := u.OfImageGenerationCall; vt != nil && vt.RevisedPrompt.Valid() {
+		return &vt.RevisedPrompt.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseInputItemUnionParam) GetSize() *string {
+	if vt := u.OfImageGenerationCall; vt != nil && vt.Size.Valid() {
+		return &vt.Size.Value
 	}
 	return nil
 }
@@ -14872,6 +15368,8 @@ func (u ResponseInputItemUnionParam) GetType() *string {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfAdditionalTools; vt != nil {
 		return (*string)(&vt.Type)
+	} else if vt := u.OfConfigurationUpdate; vt != nil {
+		return (*string)(&vt.Type)
 	} else if vt := u.OfReasoning; vt != nil {
 		return (*string)(&vt.Type)
 	} else if vt := u.OfCompaction; vt != nil {
@@ -14986,6 +15484,8 @@ func (u ResponseInputItemUnionParam) GetID() *string {
 		return &vt.ID.Value
 	} else if vt := u.OfAdditionalTools; vt != nil && vt.ID.Valid() {
 		return &vt.ID.Value
+	} else if vt := u.OfConfigurationUpdate; vt != nil && vt.ID.Valid() {
+		return &vt.ID.Value
 	} else if vt := u.OfReasoning; vt != nil {
 		return (*string)(&vt.ID)
 	} else if vt := u.OfCompaction; vt != nil && vt.ID.Valid() {
@@ -15036,8 +15536,8 @@ func (u ResponseInputItemUnionParam) GetCallID() *string {
 		return (*string)(&vt.CallID)
 	} else if vt := u.OfFunctionCall; vt != nil {
 		return (*string)(&vt.CallID)
-	} else if vt := u.OfFunctionCallOutput; vt != nil {
-		return (*string)(&vt.CallID)
+	} else if vt := u.OfFunctionCallOutput; vt != nil && vt.CallID.Valid() {
+		return &vt.CallID.Value
 	} else if vt := u.OfToolSearchCall; vt != nil && vt.CallID.Valid() {
 		return &vt.CallID.Value
 	} else if vt := u.OfToolSearchOutput; vt != nil && vt.CallID.Valid() {
@@ -15076,6 +15576,16 @@ func (u ResponseInputItemUnionParam) GetName() *string {
 		return (*string)(&vt.Name)
 	} else if vt := u.OfCustomToolCall; vt != nil {
 		return (*string)(&vt.Name)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseInputItemUnionParam) GetAsync() *bool {
+	if vt := u.OfFunctionCall; vt != nil && vt.Async.Valid() {
+		return &vt.Async.Value
+	} else if vt := u.OfCustomToolCall; vt != nil && vt.Async.Valid() {
+		return &vt.Async.Value
 	}
 	return nil
 }
@@ -15195,6 +15705,8 @@ func (u ResponseInputItemUnionParam) GetAction() (res responseInputItemUnionPara
 		res.any = vt.Action.asAny()
 	} else if vt := u.OfWebSearchCall; vt != nil {
 		res.any = vt.Action.asAny()
+	} else if vt := u.OfImageGenerationCall; vt != nil && vt.Action.Valid() {
+		res.any = &vt.Action.Value
 	} else if vt := u.OfLocalShellCall; vt != nil {
 		res.any = &vt.Action
 	} else if vt := u.OfShellCall; vt != nil {
@@ -15214,7 +15726,7 @@ func (u ResponseInputItemUnionParam) GetAction() (res responseInputItemUnionPara
 // [*ResponseComputerToolCallActionWaitParam],
 // [*ResponseFunctionWebSearchActionSearchParam],
 // [*ResponseFunctionWebSearchActionOpenPageParam],
-// [*ResponseFunctionWebSearchActionFindParam],
+// [*ResponseFunctionWebSearchActionFindParam], [*string],
 // [*ResponseInputItemLocalShellCallActionParam],
 // [*ResponseInputItemShellCallActionParam]
 type responseInputItemUnionParamAction struct{ any }
@@ -15234,6 +15746,7 @@ type responseInputItemUnionParamAction struct{ any }
 //	case *responses.ResponseFunctionWebSearchActionSearchParam:
 //	case *responses.ResponseFunctionWebSearchActionOpenPageParam:
 //	case *responses.ResponseFunctionWebSearchActionFindParam:
+//	case *string:
 //	case *responses.ResponseInputItemLocalShellCallActionParam:
 //	case *responses.ResponseInputItemShellCallActionParam:
 //	default:
@@ -15244,8 +15757,8 @@ func (u responseInputItemUnionParamAction) AsAny() any { return u.any }
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetButton() *string {
 	switch vt := u.any.(type) {
-	case *ResponseComputerToolCallActionUnionParam:
-		return vt.GetButton()
+	case *ResponseComputerToolCallActionClickParam:
+		return &vt.Button
 	}
 	return nil
 }
@@ -15253,8 +15766,8 @@ func (u responseInputItemUnionParamAction) GetButton() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetPath() []ResponseComputerToolCallActionDragPathParam {
 	switch vt := u.any.(type) {
-	case *ResponseComputerToolCallActionUnionParam:
-		return vt.GetPath()
+	case *ResponseComputerToolCallActionDragParam:
+		return vt.Path
 	}
 	return nil
 }
@@ -15262,8 +15775,8 @@ func (u responseInputItemUnionParamAction) GetPath() []ResponseComputerToolCallA
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetScrollX() *int64 {
 	switch vt := u.any.(type) {
-	case *ResponseComputerToolCallActionUnionParam:
-		return vt.GetScrollX()
+	case *ResponseComputerToolCallActionScrollParam:
+		return &vt.ScrollX
 	}
 	return nil
 }
@@ -15271,8 +15784,8 @@ func (u responseInputItemUnionParamAction) GetScrollX() *int64 {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetScrollY() *int64 {
 	switch vt := u.any.(type) {
-	case *ResponseComputerToolCallActionUnionParam:
-		return vt.GetScrollY()
+	case *ResponseComputerToolCallActionScrollParam:
+		return &vt.ScrollY
 	}
 	return nil
 }
@@ -15280,8 +15793,8 @@ func (u responseInputItemUnionParamAction) GetScrollY() *int64 {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetText() *string {
 	switch vt := u.any.(type) {
-	case *ResponseComputerToolCallActionUnionParam:
-		return vt.GetText()
+	case *ResponseComputerToolCallActionTypeParam:
+		return &vt.Text
 	}
 	return nil
 }
@@ -15289,8 +15802,8 @@ func (u responseInputItemUnionParamAction) GetText() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetQueries() []string {
 	switch vt := u.any.(type) {
-	case *ResponseFunctionWebSearchActionUnionParam:
-		return vt.GetQueries()
+	case *ResponseFunctionWebSearchActionSearchParam:
+		return vt.Queries
 	}
 	return nil
 }
@@ -15298,8 +15811,8 @@ func (u responseInputItemUnionParamAction) GetQueries() []string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetQuery() *string {
 	switch vt := u.any.(type) {
-	case *ResponseFunctionWebSearchActionUnionParam:
-		return vt.GetQuery()
+	case *ResponseFunctionWebSearchActionSearchParam:
+		return paramutil.AddrIfPresent(vt.Query)
 	}
 	return nil
 }
@@ -15307,8 +15820,8 @@ func (u responseInputItemUnionParamAction) GetQuery() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetSources() []ResponseFunctionWebSearchActionSearchSourceParam {
 	switch vt := u.any.(type) {
-	case *ResponseFunctionWebSearchActionUnionParam:
-		return vt.GetSources()
+	case *ResponseFunctionWebSearchActionSearchParam:
+		return vt.Sources
 	}
 	return nil
 }
@@ -15316,8 +15829,8 @@ func (u responseInputItemUnionParamAction) GetSources() []ResponseFunctionWebSea
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetPattern() *string {
 	switch vt := u.any.(type) {
-	case *ResponseFunctionWebSearchActionUnionParam:
-		return vt.GetPattern()
+	case *ResponseFunctionWebSearchActionFindParam:
+		return &vt.Pattern
 	}
 	return nil
 }
@@ -15379,10 +15892,30 @@ func (u responseInputItemUnionParamAction) GetMaxOutputLength() *int64 {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetType() *string {
 	switch vt := u.any.(type) {
-	case *ResponseComputerToolCallActionUnionParam:
-		return vt.GetType()
-	case *ResponseFunctionWebSearchActionUnionParam:
-		return vt.GetType()
+	case *ResponseComputerToolCallActionClickParam:
+		return (*string)(&vt.Type)
+	case *ResponseComputerToolCallActionDoubleClickParam:
+		return (*string)(&vt.Type)
+	case *ResponseComputerToolCallActionDragParam:
+		return (*string)(&vt.Type)
+	case *ResponseComputerToolCallActionKeypressParam:
+		return (*string)(&vt.Type)
+	case *ResponseComputerToolCallActionMoveParam:
+		return (*string)(&vt.Type)
+	case *ResponseComputerToolCallActionScreenshotParam:
+		return (*string)(&vt.Type)
+	case *ResponseComputerToolCallActionScrollParam:
+		return (*string)(&vt.Type)
+	case *ResponseComputerToolCallActionTypeParam:
+		return (*string)(&vt.Type)
+	case *ResponseComputerToolCallActionWaitParam:
+		return (*string)(&vt.Type)
+	case *ResponseFunctionWebSearchActionSearchParam:
+		return (*string)(&vt.Type)
+	case *ResponseFunctionWebSearchActionOpenPageParam:
+		return (*string)(&vt.Type)
+	case *ResponseFunctionWebSearchActionFindParam:
+		return (*string)(&vt.Type)
 	case *ResponseInputItemLocalShellCallActionParam:
 		return (*string)(&vt.Type)
 	}
@@ -15392,8 +15925,14 @@ func (u responseInputItemUnionParamAction) GetType() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetX() *int64 {
 	switch vt := u.any.(type) {
-	case *ResponseComputerToolCallActionUnionParam:
-		return vt.GetX()
+	case *ResponseComputerToolCallActionClickParam:
+		return (*int64)(&vt.X)
+	case *ResponseComputerToolCallActionDoubleClickParam:
+		return (*int64)(&vt.X)
+	case *ResponseComputerToolCallActionMoveParam:
+		return (*int64)(&vt.X)
+	case *ResponseComputerToolCallActionScrollParam:
+		return (*int64)(&vt.X)
 	}
 	return nil
 }
@@ -15401,8 +15940,14 @@ func (u responseInputItemUnionParamAction) GetX() *int64 {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetY() *int64 {
 	switch vt := u.any.(type) {
-	case *ResponseComputerToolCallActionUnionParam:
-		return vt.GetY()
+	case *ResponseComputerToolCallActionClickParam:
+		return (*int64)(&vt.Y)
+	case *ResponseComputerToolCallActionDoubleClickParam:
+		return (*int64)(&vt.Y)
+	case *ResponseComputerToolCallActionMoveParam:
+		return (*int64)(&vt.Y)
+	case *ResponseComputerToolCallActionScrollParam:
+		return (*int64)(&vt.Y)
 	}
 	return nil
 }
@@ -15410,8 +15955,10 @@ func (u responseInputItemUnionParamAction) GetY() *int64 {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamAction) GetURL() *string {
 	switch vt := u.any.(type) {
-	case *ResponseFunctionWebSearchActionUnionParam:
-		return vt.GetURL()
+	case *ResponseFunctionWebSearchActionOpenPageParam:
+		return paramutil.AddrIfPresent(vt.URL)
+	case *ResponseFunctionWebSearchActionFindParam:
+		return (*string)(&vt.URL)
 	}
 	return nil
 }
@@ -15430,8 +15977,18 @@ func (u responseInputItemUnionParamAction) GetTimeoutMs() *int64 {
 // Returns a pointer to the underlying variant's Keys property, if present.
 func (u responseInputItemUnionParamAction) GetKeys() []string {
 	switch vt := u.any.(type) {
-	case *ResponseComputerToolCallActionUnionParam:
-		return vt.GetKeys()
+	case *ResponseComputerToolCallActionClickParam:
+		return vt.Keys
+	case *ResponseComputerToolCallActionDoubleClickParam:
+		return vt.Keys
+	case *ResponseComputerToolCallActionDragParam:
+		return vt.Keys
+	case *ResponseComputerToolCallActionKeypressParam:
+		return vt.Keys
+	case *ResponseComputerToolCallActionMoveParam:
+		return vt.Keys
+	case *ResponseComputerToolCallActionScrollParam:
+		return vt.Keys
 	}
 	return nil
 }
@@ -15575,22 +16132,38 @@ func (u responseInputItemUnionParamCaller) AsAny() any { return u.any }
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamCaller) GetType() *string {
 	switch vt := u.any.(type) {
-	case *ResponseFunctionToolCallCallerUnionParam:
-		return vt.GetType()
-	case *ResponseInputItemFunctionCallOutputCallerUnionParam:
-		return vt.GetType()
-	case *ResponseInputItemShellCallCallerUnionParam:
-		return vt.GetType()
-	case *ResponseInputItemShellCallOutputCallerUnionParam:
-		return vt.GetType()
-	case *ResponseInputItemApplyPatchCallCallerUnionParam:
-		return vt.GetType()
-	case *ResponseInputItemApplyPatchCallOutputCallerUnionParam:
-		return vt.GetType()
-	case *ResponseCustomToolCallOutputCallerUnionParam:
-		return vt.GetType()
-	case *ResponseCustomToolCallCallerUnionParam:
-		return vt.GetType()
+	case *ResponseFunctionToolCallCallerDirectParam:
+		return (*string)(&vt.Type)
+	case *ResponseFunctionToolCallCallerProgramParam:
+		return (*string)(&vt.Type)
+	case *ResponseInputItemFunctionCallOutputCallerDirectParam:
+		return (*string)(&vt.Type)
+	case *ResponseInputItemFunctionCallOutputCallerProgramParam:
+		return (*string)(&vt.Type)
+	case *ResponseInputItemShellCallCallerDirectParam:
+		return (*string)(&vt.Type)
+	case *ResponseInputItemShellCallCallerProgramParam:
+		return (*string)(&vt.Type)
+	case *ResponseInputItemShellCallOutputCallerDirectParam:
+		return (*string)(&vt.Type)
+	case *ResponseInputItemShellCallOutputCallerProgramParam:
+		return (*string)(&vt.Type)
+	case *ResponseInputItemApplyPatchCallCallerDirectParam:
+		return (*string)(&vt.Type)
+	case *ResponseInputItemApplyPatchCallCallerProgramParam:
+		return (*string)(&vt.Type)
+	case *ResponseInputItemApplyPatchCallOutputCallerDirectParam:
+		return (*string)(&vt.Type)
+	case *ResponseInputItemApplyPatchCallOutputCallerProgramParam:
+		return (*string)(&vt.Type)
+	case *ResponseCustomToolCallOutputCallerDirectParam:
+		return (*string)(&vt.Type)
+	case *ResponseCustomToolCallOutputCallerProgramParam:
+		return (*string)(&vt.Type)
+	case *ResponseCustomToolCallCallerDirectParam:
+		return (*string)(&vt.Type)
+	case *ResponseCustomToolCallCallerProgramParam:
+		return (*string)(&vt.Type)
 	}
 	return nil
 }
@@ -15598,22 +16171,22 @@ func (u responseInputItemUnionParamCaller) GetType() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamCaller) GetCallerID() *string {
 	switch vt := u.any.(type) {
-	case *ResponseFunctionToolCallCallerUnionParam:
-		return vt.GetCallerID()
-	case *ResponseInputItemFunctionCallOutputCallerUnionParam:
-		return vt.GetCallerID()
-	case *ResponseInputItemShellCallCallerUnionParam:
-		return vt.GetCallerID()
-	case *ResponseInputItemShellCallOutputCallerUnionParam:
-		return vt.GetCallerID()
-	case *ResponseInputItemApplyPatchCallCallerUnionParam:
-		return vt.GetCallerID()
-	case *ResponseInputItemApplyPatchCallOutputCallerUnionParam:
-		return vt.GetCallerID()
-	case *ResponseCustomToolCallOutputCallerUnionParam:
-		return vt.GetCallerID()
-	case *ResponseCustomToolCallCallerUnionParam:
-		return vt.GetCallerID()
+	case *ResponseFunctionToolCallCallerProgramParam:
+		return (*string)(&vt.CallerID)
+	case *ResponseInputItemFunctionCallOutputCallerProgramParam:
+		return (*string)(&vt.CallerID)
+	case *ResponseInputItemShellCallCallerProgramParam:
+		return (*string)(&vt.CallerID)
+	case *ResponseInputItemShellCallOutputCallerProgramParam:
+		return (*string)(&vt.CallerID)
+	case *ResponseInputItemApplyPatchCallCallerProgramParam:
+		return (*string)(&vt.CallerID)
+	case *ResponseInputItemApplyPatchCallOutputCallerProgramParam:
+		return (*string)(&vt.CallerID)
+	case *ResponseCustomToolCallOutputCallerProgramParam:
+		return (*string)(&vt.CallerID)
+	case *ResponseCustomToolCallCallerProgramParam:
+		return (*string)(&vt.CallerID)
 	}
 	return nil
 }
@@ -15632,13 +16205,14 @@ func (u ResponseInputItemUnionParam) GetTools() (res responseInputItemUnionParam
 	return
 }
 
-// Can have the runtime types [_[]ToolUnionParam],
-// [_[]ResponseInputItemMcpListToolsToolParam]
+// Can have the runtime types [_[]ResponseToolSearchOutputItemParamToolUnion],
+// [_[]ToolUnionParam], [\*[]ResponseInputItemMcpListToolsToolParam]
 type responseInputItemUnionParamTools struct{ any }
 
 // Use the following switch statement to get the type of the union:
 //
 //	switch u.AsAny().(type) {
+//	case *[]responses.ResponseToolSearchOutputItemParamToolUnion:
 //	case *[]responses.ToolUnionParam:
 //	case *[]responses.ResponseInputItemMcpListToolsToolParam:
 //	default:
@@ -15677,8 +16251,10 @@ func (u responseInputItemUnionParamError) AsAny() any { return u.any }
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamError) GetCode() *int64 {
 	switch vt := u.any.(type) {
-	case *McpToolCallErrorUnionParam:
-		return vt.GetCode()
+	case *McpToolCallErrorMcpProtocolErrorParam:
+		return (*int64)(&vt.Code)
+	case *McpToolCallErrorHTTPErrorParam:
+		return (*int64)(&vt.Code)
 	}
 	return nil
 }
@@ -15686,8 +16262,10 @@ func (u responseInputItemUnionParamError) GetCode() *int64 {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamError) GetMessage() *string {
 	switch vt := u.any.(type) {
-	case *McpToolCallErrorUnionParam:
-		return vt.GetMessage()
+	case *McpToolCallErrorMcpProtocolErrorParam:
+		return (*string)(&vt.Message)
+	case *McpToolCallErrorHTTPErrorParam:
+		return (*string)(&vt.Message)
 	}
 	return nil
 }
@@ -15695,8 +16273,12 @@ func (u responseInputItemUnionParamError) GetMessage() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamError) GetType() *string {
 	switch vt := u.any.(type) {
-	case *McpToolCallErrorUnionParam:
-		return vt.GetType()
+	case *McpToolCallErrorMcpProtocolErrorParam:
+		return (*string)(&vt.Type)
+	case *McpToolCallErrorMcpToolExecutionErrorParam:
+		return (*string)(&vt.Type)
+	case *McpToolCallErrorHTTPErrorParam:
+		return (*string)(&vt.Type)
 	}
 	return nil
 }
@@ -15704,8 +16286,8 @@ func (u responseInputItemUnionParamError) GetType() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u responseInputItemUnionParamError) GetContent() *any {
 	switch vt := u.any.(type) {
-	case *McpToolCallErrorUnionParam:
-		return vt.GetContent()
+	case *McpToolCallErrorMcpToolExecutionErrorParam:
+		return &vt.Content
 	}
 	return nil
 }
@@ -15725,6 +16307,7 @@ func init() {
 		apijson.Discriminator[ResponseInputItemToolSearchCallParam]("tool_search_call"),
 		apijson.Discriminator[ResponseToolSearchOutputItemParam]("tool_search_output"),
 		apijson.Discriminator[ResponseInputItemAdditionalToolsParam]("additional_tools"),
+		apijson.Discriminator[ResponseConfigurationUpdateItemParam]("configuration_update"),
 		apijson.Discriminator[ResponseReasoningItemParam]("reasoning"),
 		apijson.Discriminator[ResponseCompactionItemParam]("compaction"),
 		apijson.Discriminator[ResponseInputItemImageGenerationCallParam]("image_generation_call"),
@@ -15856,15 +16439,15 @@ func (r *ResponseInputItemComputerCallOutputAcknowledgedSafetyCheckParam) Unmars
 
 // The output of a function tool call.
 //
-// The properties CallID, Output, Type are required.
+// The properties Output, Type are required.
 type ResponseInputItemFunctionCallOutputParam struct {
-	// The unique ID of the function tool call generated by the model.
-	CallID string `json:"call_id" api:"required"`
 	// Text, image, or file output of the function tool call.
 	Output ResponseInputItemFunctionCallOutputOutputUnionParam `json:"output,omitzero" api:"required"`
 	// The unique ID of the function tool call output. Populated when this item is
 	// returned via API.
 	ID param.Opt[string] `json:"id,omitzero"`
+	// The unique ID of the function tool call generated by the model.
+	CallID param.Opt[string] `json:"call_id,omitzero"`
 	// The name of the tool that produced the output.
 	Name param.Opt[string] `json:"name,omitzero"`
 	// The namespace of the tool that produced the output.
@@ -16092,6 +16675,29 @@ type ResponseInputItemImageGenerationCallParam struct {
 	//
 	// Any of "in_progress", "completed", "generating", "failed".
 	Status string `json:"status,omitzero" api:"required"`
+	// The prompt that was used after any model prompt rewriting.
+	RevisedPrompt param.Opt[string] `json:"revised_prompt,omitzero"`
+	// The action used for image generation.
+	//
+	// Any of "generate", "edit", "auto".
+	Action param.Opt[string] `json:"action,omitzero"`
+	// The background setting used for generation.
+	//
+	// Any of "transparent", "opaque", "auto".
+	Background param.Opt[string] `json:"background,omitzero"`
+	// The output format used for generation.
+	//
+	// Any of "png", "webp", "jpeg".
+	OutputFormat param.Opt[string] `json:"output_format,omitzero"`
+	// The quality of the image generated by the image generation tool call. One of
+	// `low`, `medium`, `high`, `xhigh`, `max`, or `auto`.
+	//
+	// Any of "low", "medium", "high", "xhigh", "max", "auto".
+	Quality string `json:"quality,omitzero"`
+	// The image dimensions as a `WIDTHxHEIGHT` string, for example `1536x864`.
+	Size param.Opt[string] `json:"size,omitzero"`
+	// Details of a moderation failure, when available.
+	Error ResponseInputItemImageGenerationCallErrorParam `json:"error,omitzero"`
 	// The type of the image generation call. Always `image_generation_call`.
 	//
 	// This field can be elided, and will marshal its zero value as
@@ -16111,6 +16717,61 @@ func (r *ResponseInputItemImageGenerationCallParam) UnmarshalJSON(data []byte) e
 func init() {
 	apijson.RegisterFieldValidator[ResponseInputItemImageGenerationCallParam](
 		"status", "in_progress", "completed", "generating", "failed",
+	)
+	apijson.RegisterFieldValidator[ResponseInputItemImageGenerationCallParam](
+		"quality", "low", "medium", "high", "xhigh", "max", "auto",
+	)
+}
+
+// Details of a moderation failure, when available.
+//
+// The properties Code, Message, Param, Type are required.
+type ResponseInputItemImageGenerationCallErrorParam struct {
+	// The error code.
+	Code param.Opt[string] `json:"code,omitzero" api:"required"`
+	// The related request parameter.
+	Param param.Opt[string] `json:"param,omitzero" api:"required"`
+	// A description of the error.
+	Message string `json:"message" api:"required"`
+	// The error type.
+	Type string `json:"type" api:"required"`
+	// Public details for a `moderation_blocked` error, when available.
+	ModerationDetails ResponseInputItemImageGenerationCallErrorModerationDetailsParam `json:"moderation_details,omitzero"`
+	paramObj
+}
+
+func (r ResponseInputItemImageGenerationCallErrorParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseInputItemImageGenerationCallErrorParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseInputItemImageGenerationCallErrorParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Public details for a `moderation_blocked` error, when available.
+//
+// The properties Categories, ModerationStage are required.
+type ResponseInputItemImageGenerationCallErrorModerationDetailsParam struct {
+	// Public moderation categories. New category values may be added over time.
+	Categories []string `json:"categories,omitzero" api:"required"`
+	// The stage where moderation blocked the image generation call.
+	//
+	// Any of "input", "output", "unknown".
+	ModerationStage string `json:"moderation_stage,omitzero" api:"required"`
+	paramObj
+}
+
+func (r ResponseInputItemImageGenerationCallErrorModerationDetailsParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseInputItemImageGenerationCallErrorModerationDetailsParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseInputItemImageGenerationCallErrorModerationDetailsParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ResponseInputItemImageGenerationCallErrorModerationDetailsParam](
+		"moderation_stage", "input", "output", "unknown",
 	)
 }
 
@@ -16383,15 +17044,6 @@ func (u *ResponseInputItemShellCallEnvironmentUnionParam) UnmarshalJSON(data []b
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ResponseInputItemShellCallEnvironmentUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfLocal) {
-		return u.OfLocal
-	} else if !param.IsOmitted(u.OfContainerReference) {
-		return u.OfContainerReference
-	}
-	return nil
-}
-
 // Returns a pointer to the underlying variant's property, if present.
 func (u ResponseInputItemShellCallEnvironmentUnionParam) GetSkills() []LocalSkillParam {
 	if vt := u.OfLocal; vt != nil {
@@ -16616,17 +17268,6 @@ func (u ResponseInputItemApplyPatchCallOperationUnionParam) MarshalJSON() ([]byt
 }
 func (u *ResponseInputItemApplyPatchCallOperationUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ResponseInputItemApplyPatchCallOperationUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfCreateFile) {
-		return u.OfCreateFile
-	} else if !param.IsOmitted(u.OfDeleteFile) {
-		return u.OfDeleteFile
-	} else if !param.IsOmitted(u.OfUpdateFile) {
-		return u.OfUpdateFile
-	}
-	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
@@ -17503,15 +18144,16 @@ func (r *ResponseInputTextContentPromptCacheBreakpointParam) UnmarshalJSON(data 
 // [ResponseComputerToolCallOutputItem], [ResponseFunctionWebSearch],
 // [ResponseFunctionToolCallItem], [ResponseFunctionToolCallOutputItem],
 // [ResponseToolSearchCall], [ResponseToolSearchOutputItem],
-// [ResponseItemAdditionalTools], [ResponseReasoningItem], [ResponseItemProgram],
-// [ResponseItemProgramOutput], [ResponseCompactionItem],
-// [ResponseItemImageGenerationCall], [ResponseCodeInterpreterToolCall],
-// [ResponseItemLocalShellCall], [ResponseItemLocalShellCallOutput],
-// [ResponseFunctionShellToolCall], [ResponseFunctionShellToolCallOutput],
-// [ResponseApplyPatchToolCall], [ResponseApplyPatchToolCallOutput],
-// [ResponseItemMcpListTools], [ResponseItemMcpApprovalRequest],
-// [ResponseItemMcpApprovalResponse], [ResponseItemMcpCall],
-// [ResponseCustomToolCallItem], [ResponseCustomToolCallOutputItem].
+// [ResponseItemAdditionalTools], [ResponseConfigurationUpdateItem],
+// [ResponseReasoningItem], [ResponseItemProgram], [ResponseItemProgramOutput],
+// [ResponseCompactionItem], [ResponseItemImageGenerationCall],
+// [ResponseCodeInterpreterToolCall], [ResponseItemLocalShellCall],
+// [ResponseItemLocalShellCallOutput], [ResponseFunctionShellToolCall],
+// [ResponseFunctionShellToolCallOutput], [ResponseApplyPatchToolCall],
+// [ResponseApplyPatchToolCallOutput], [ResponseItemMcpListTools],
+// [ResponseItemMcpApprovalRequest], [ResponseItemMcpApprovalResponse],
+// [ResponseItemMcpCall], [ResponseCustomToolCallItem],
+// [ResponseCustomToolCallOutputItem].
 //
 // Use the [ResponseItemUnion.AsAny] method to switch on the variant.
 //
@@ -17525,11 +18167,12 @@ type ResponseItemUnion struct {
 	// Any of "message", "message", "file_search_call", "computer_call",
 	// "computer_call_output", "web_search_call", "function_call",
 	// "function_call_output", "tool_search_call", "tool_search_output",
-	// "additional_tools", "reasoning", "program", "program_output", "compaction",
-	// "image_generation_call", "code_interpreter_call", "local_shell_call",
-	// "local_shell_call_output", "shell_call", "shell_call_output",
-	// "apply_patch_call", "apply_patch_call_output", "mcp_list_tools",
-	// "mcp_approval_request", "mcp_approval_response", "mcp_call", "custom_tool_call",
+	// "additional_tools", "configuration_update", "reasoning", "program",
+	// "program_output", "compaction", "image_generation_call",
+	// "code_interpreter_call", "local_shell_call", "local_shell_call_output",
+	// "shell_call", "shell_call_output", "apply_patch_call",
+	// "apply_patch_call_output", "mcp_list_tools", "mcp_approval_request",
+	// "mcp_approval_response", "mcp_call", "custom_tool_call",
 	// "custom_tool_call_output".
 	Type   string `json:"type"`
 	Status string `json:"status"`
@@ -17543,8 +18186,8 @@ type ResponseItemUnion struct {
 	// This field is from variant [ResponseComputerToolCall].
 	PendingSafetyChecks []ResponseComputerToolCallPendingSafetyCheck `json:"pending_safety_checks"`
 	// This field is a union of [ResponseComputerToolCallActionUnion],
-	// [ResponseFunctionWebSearchActionUnion], [ResponseItemLocalShellCallAction],
-	// [ResponseFunctionShellToolCallAction]
+	// [ResponseFunctionWebSearchActionUnion], [string],
+	// [ResponseItemLocalShellCallAction], [ResponseFunctionShellToolCallAction]
 	Action ResponseItemUnionAction `json:"action"`
 	// This field is from variant [ResponseComputerToolCall].
 	Actions ComputerActionList `json:"actions"`
@@ -17559,6 +18202,7 @@ type ResponseItemUnion struct {
 	// This field is a union of [string], [any], [string], [string]
 	Arguments ResponseItemUnionArguments `json:"arguments"`
 	Name      string                     `json:"name"`
+	Async     bool                       `json:"async"`
 	// This field is a union of [ResponseFunctionToolCallCallerUnion],
 	// [ResponseFunctionToolCallOutputItemCallerUnion],
 	// [ResponseFunctionShellToolCallCallerUnion],
@@ -17572,6 +18216,8 @@ type ResponseItemUnion struct {
 	// This field is a union of [[]ToolUnion], [[]ToolUnion],
 	// [[]ResponseItemMcpListToolsTool]
 	Tools ResponseItemUnionTools `json:"tools"`
+	// This field is from variant [ResponseConfigurationUpdateItem].
+	Reasoning ResponseConfigurationUpdateItemReasoning `json:"reasoning"`
 	// This field is from variant [ResponseReasoningItem].
 	Summary          []ResponseReasoningItemSummary `json:"summary"`
 	EncryptedContent string                         `json:"encrypted_content"`
@@ -17579,6 +18225,16 @@ type ResponseItemUnion struct {
 	// This field is from variant [ResponseItemProgram].
 	Fingerprint string `json:"fingerprint"`
 	Result      string `json:"result"`
+	// This field is from variant [ResponseItemImageGenerationCall].
+	Background string `json:"background"`
+	// This field is from variant [ResponseItemImageGenerationCall].
+	OutputFormat string `json:"output_format"`
+	// This field is from variant [ResponseItemImageGenerationCall].
+	Quality string `json:"quality"`
+	// This field is from variant [ResponseItemImageGenerationCall].
+	RevisedPrompt string `json:"revised_prompt"`
+	// This field is from variant [ResponseItemImageGenerationCall].
+	Size string `json:"size"`
 	// This field is from variant [ResponseCodeInterpreterToolCall].
 	ContainerID string `json:"container_id"`
 	// This field is from variant [ResponseCodeInterpreterToolCall].
@@ -17617,15 +18273,22 @@ type ResponseItemUnion struct {
 		CreatedBy                respjson.Field
 		Arguments                respjson.Field
 		Name                     respjson.Field
+		Async                    respjson.Field
 		Caller                   respjson.Field
 		Namespace                respjson.Field
 		Execution                respjson.Field
 		Tools                    respjson.Field
+		Reasoning                respjson.Field
 		Summary                  respjson.Field
 		EncryptedContent         respjson.Field
 		Code                     respjson.Field
 		Fingerprint              respjson.Field
 		Result                   respjson.Field
+		Background               respjson.Field
+		OutputFormat             respjson.Field
+		Quality                  respjson.Field
+		RevisedPrompt            respjson.Field
+		Size                     respjson.Field
 		ContainerID              respjson.Field
 		Outputs                  respjson.Field
 		Environment              respjson.Field
@@ -17658,6 +18321,7 @@ func (ResponseFunctionToolCallOutputItem) implResponseItemUnion()  {}
 func (ResponseToolSearchCall) implResponseItemUnion()              {}
 func (ResponseToolSearchOutputItem) implResponseItemUnion()        {}
 func (ResponseItemAdditionalTools) implResponseItemUnion()         {}
+func (ResponseConfigurationUpdateItem) implResponseItemUnion()     {}
 func (ResponseReasoningItem) implResponseItemUnion()               {}
 func (ResponseItemProgram) implResponseItemUnion()                 {}
 func (ResponseItemProgramOutput) implResponseItemUnion()           {}
@@ -17691,6 +18355,7 @@ func (ResponseCustomToolCallOutputItem) implResponseItemUnion()    {}
 //	case responses.ResponseToolSearchCall:
 //	case responses.ResponseToolSearchOutputItem:
 //	case responses.ResponseItemAdditionalTools:
+//	case responses.ResponseConfigurationUpdateItem:
 //	case responses.ResponseReasoningItem:
 //	case responses.ResponseItemProgram:
 //	case responses.ResponseItemProgramOutput:
@@ -17734,6 +18399,8 @@ func (u ResponseItemUnion) AsAny() anyResponseItem {
 		return u.AsToolSearchOutput()
 	case "additional_tools":
 		return u.AsAdditionalTools()
+	case "configuration_update":
+		return u.AsConfigurationUpdate()
 	case "reasoning":
 		return u.AsReasoning()
 	case "program":
@@ -17825,6 +18492,11 @@ func (u ResponseItemUnion) AsToolSearchOutput() (v ResponseToolSearchOutputItem)
 }
 
 func (u ResponseItemUnion) AsAdditionalTools() (v ResponseItemAdditionalTools) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseItemUnion) AsConfigurationUpdate() (v ResponseConfigurationUpdateItem) {
 	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
@@ -17964,7 +18636,12 @@ func (r *ResponseItemUnionContent) UnmarshalJSON(data []byte) error {
 //
 // For type safety it is recommended to directly use a variant of the
 // [ResponseItemUnion].
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfResponseItemImageGenerationCallAction]
 type ResponseItemUnionAction struct {
+	// This field will be present if the value is a [string] instead of an object.
+	OfResponseItemImageGenerationCallAction string `json:",inline"`
 	// This field is from variant [ResponseComputerToolCallActionUnion].
 	Button string   `json:"button"`
 	Type   string   `json:"type"`
@@ -18002,33 +18679,47 @@ type ResponseItemUnionAction struct {
 	// This field is from variant [ResponseFunctionShellToolCallAction].
 	MaxOutputLength int64 `json:"max_output_length"`
 	JSON            struct {
-		Button           respjson.Field
-		Type             respjson.Field
-		X                respjson.Field
-		Y                respjson.Field
-		Keys             respjson.Field
-		Path             respjson.Field
-		ScrollX          respjson.Field
-		ScrollY          respjson.Field
-		Text             respjson.Field
-		Queries          respjson.Field
-		Query            respjson.Field
-		Sources          respjson.Field
-		URL              respjson.Field
-		Pattern          respjson.Field
-		Command          respjson.Field
-		Env              respjson.Field
-		TimeoutMs        respjson.Field
-		User             respjson.Field
-		WorkingDirectory respjson.Field
-		Commands         respjson.Field
-		MaxOutputLength  respjson.Field
-		raw              string
+		OfResponseItemImageGenerationCallAction respjson.Field
+		Button                                  respjson.Field
+		Type                                    respjson.Field
+		X                                       respjson.Field
+		Y                                       respjson.Field
+		Keys                                    respjson.Field
+		Path                                    respjson.Field
+		ScrollX                                 respjson.Field
+		ScrollY                                 respjson.Field
+		Text                                    respjson.Field
+		Queries                                 respjson.Field
+		Query                                   respjson.Field
+		Sources                                 respjson.Field
+		URL                                     respjson.Field
+		Pattern                                 respjson.Field
+		Command                                 respjson.Field
+		Env                                     respjson.Field
+		TimeoutMs                               respjson.Field
+		User                                    respjson.Field
+		WorkingDirectory                        respjson.Field
+		Commands                                respjson.Field
+		MaxOutputLength                         respjson.Field
+		raw                                     string
 	} `json:"-"`
 }
 
 func (r *ResponseItemUnionAction) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
+	var decoded ResponseItemUnionAction
+	if err := apijson.UnmarshalRoot(data, &decoded); err != nil {
+		return err
+	}
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] != '{' && !bytes.Equal(trimmed, []byte("null")) {
+		if decoded.JSON.OfResponseItemImageGenerationCallAction.Valid() {
+			*r = decoded
+			return nil
+		}
+		return fmt.Errorf("cannot unmarshal JSON into ResponseItemUnionAction: no matching inline variant")
+	}
+	*r = decoded
+	return nil
 }
 
 // ResponseItemUnionOutput is an implicit subunion of [ResponseItemUnion].
@@ -18069,7 +18760,22 @@ type ResponseItemUnionOutput struct {
 }
 
 func (r *ResponseItemUnionOutput) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
+	var decoded ResponseItemUnionOutput
+	if err := apijson.UnmarshalRoot(data, &decoded); err != nil {
+		return err
+	}
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] != '{' && !bytes.Equal(trimmed, []byte("null")) {
+		if decoded.JSON.OfString.Valid() ||
+			decoded.JSON.OfOutputContentList.Valid() ||
+			decoded.JSON.OfResponseFunctionShellToolCallOutputOutputArray.Valid() {
+			*r = decoded
+			return nil
+		}
+		return fmt.Errorf("cannot unmarshal JSON into ResponseItemUnionOutput: no matching inline variant")
+	}
+	*r = decoded
+	return nil
 }
 
 // ResponseItemUnionArguments is an implicit subunion of [ResponseItemUnion].
@@ -18171,7 +18877,20 @@ type ResponseItemUnionError struct {
 }
 
 func (r *ResponseItemUnionError) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
+	var decoded ResponseItemUnionError
+	if err := apijson.UnmarshalRoot(data, &decoded); err != nil {
+		return err
+	}
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] != '{' && !bytes.Equal(trimmed, []byte("null")) {
+		if decoded.JSON.OfString.Valid() {
+			*r = decoded
+			return nil
+		}
+		return fmt.Errorf("cannot unmarshal JSON into ResponseItemUnionError: no matching inline variant")
+	}
+	*r = decoded
+	return nil
 }
 
 type ResponseItemAdditionalTools struct {
@@ -18275,20 +18994,103 @@ type ResponseItemImageGenerationCall struct {
 	Status string `json:"status" api:"required"`
 	// The type of the image generation call. Always `image_generation_call`.
 	Type constant.ImageGenerationCall `json:"type" default:"image_generation_call"`
+	// The action used for image generation.
+	//
+	// Any of "generate", "edit", "auto".
+	Action string `json:"action" api:"nullable"`
+	// The background setting used for generation.
+	//
+	// Any of "transparent", "opaque", "auto".
+	Background string `json:"background" api:"nullable"`
+	// Details of a moderation failure, when available.
+	Error ResponseItemImageGenerationCallError `json:"error"`
+	// The output format used for generation.
+	//
+	// Any of "png", "webp", "jpeg".
+	OutputFormat string `json:"output_format" api:"nullable"`
+	// The quality of the image generated by the image generation tool call. One of
+	// `low`, `medium`, `high`, `xhigh`, `max`, or `auto`.
+	//
+	// Any of "low", "medium", "high", "xhigh", "max", "auto".
+	Quality string `json:"quality" api:"nullable"`
+	// The prompt that was used after any model prompt rewriting.
+	RevisedPrompt string `json:"revised_prompt" api:"nullable"`
+	// The image dimensions as a `WIDTHxHEIGHT` string, for example `1536x864`.
+	Size string `json:"size" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		ID          respjson.Field
-		Result      respjson.Field
-		Status      respjson.Field
-		Type        respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		ID            respjson.Field
+		Result        respjson.Field
+		Status        respjson.Field
+		Type          respjson.Field
+		Action        respjson.Field
+		Background    respjson.Field
+		Error         respjson.Field
+		OutputFormat  respjson.Field
+		Quality       respjson.Field
+		RevisedPrompt respjson.Field
+		Size          respjson.Field
+		ExtraFields   map[string]respjson.Field
+		raw           string
 	} `json:"-"`
 }
 
 // Returns the unmodified JSON received from the API
 func (r ResponseItemImageGenerationCall) RawJSON() string { return r.JSON.raw }
 func (r *ResponseItemImageGenerationCall) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Details of a moderation failure, when available.
+type ResponseItemImageGenerationCallError struct {
+	// The error code.
+	Code string `json:"code" api:"required"`
+	// A description of the error.
+	Message string `json:"message" api:"required"`
+	// The related request parameter.
+	Param string `json:"param" api:"required"`
+	// The error type.
+	Type string `json:"type" api:"required"`
+	// Public details for a `moderation_blocked` error, when available.
+	ModerationDetails ResponseItemImageGenerationCallErrorModerationDetails `json:"moderation_details"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Code              respjson.Field
+		Message           respjson.Field
+		Param             respjson.Field
+		Type              respjson.Field
+		ModerationDetails respjson.Field
+		ExtraFields       map[string]respjson.Field
+		raw               string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseItemImageGenerationCallError) RawJSON() string { return r.JSON.raw }
+func (r *ResponseItemImageGenerationCallError) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Public details for a `moderation_blocked` error, when available.
+type ResponseItemImageGenerationCallErrorModerationDetails struct {
+	// Public moderation categories. New category values may be added over time.
+	Categories []string `json:"categories" api:"required"`
+	// The stage where moderation blocked the image generation call.
+	//
+	// Any of "input", "output", "unknown".
+	ModerationStage string `json:"moderation_stage" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Categories      respjson.Field
+		ModerationStage respjson.Field
+		ExtraFields     map[string]respjson.Field
+		raw             string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseItemImageGenerationCallErrorModerationDetails) RawJSON() string { return r.JSON.raw }
+func (r *ResponseItemImageGenerationCallErrorModerationDetails) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -18836,6 +19638,7 @@ type ResponseOutputItemUnion struct {
 	Arguments ResponseOutputItemUnionArguments `json:"arguments"`
 	CallID    string                           `json:"call_id"`
 	Name      string                           `json:"name"`
+	Async     bool                             `json:"async"`
 	// This field is a union of [ResponseFunctionToolCallCallerUnion],
 	// [ResponseFunctionToolCallOutputItemCallerUnion],
 	// [ResponseFunctionShellToolCallCallerUnion],
@@ -18852,8 +19655,8 @@ type ResponseOutputItemUnion struct {
 	Output    ResponseOutputItemUnionOutput `json:"output"`
 	CreatedBy string                        `json:"created_by"`
 	// This field is a union of [ResponseFunctionWebSearchActionUnion],
-	// [ResponseComputerToolCallActionUnion], [ResponseOutputItemLocalShellCallAction],
-	// [ResponseFunctionShellToolCallAction]
+	// [ResponseComputerToolCallActionUnion], [string],
+	// [ResponseOutputItemLocalShellCallAction], [ResponseFunctionShellToolCallAction]
 	Action ResponseOutputItemUnionAction `json:"action"`
 	// This field is from variant [ResponseComputerToolCall].
 	PendingSafetyChecks []ResponseComputerToolCallPendingSafetyCheck `json:"pending_safety_checks"`
@@ -18872,6 +19675,16 @@ type ResponseOutputItemUnion struct {
 	// This field is a union of [[]ToolUnion], [[]ToolUnion],
 	// [[]ResponseOutputItemMcpListToolsTool]
 	Tools ResponseOutputItemUnionTools `json:"tools"`
+	// This field is from variant [ResponseOutputItemImageGenerationCall].
+	Background string `json:"background"`
+	// This field is from variant [ResponseOutputItemImageGenerationCall].
+	OutputFormat string `json:"output_format"`
+	// This field is from variant [ResponseOutputItemImageGenerationCall].
+	Quality string `json:"quality"`
+	// This field is from variant [ResponseOutputItemImageGenerationCall].
+	RevisedPrompt string `json:"revised_prompt"`
+	// This field is from variant [ResponseOutputItemImageGenerationCall].
+	Size string `json:"size"`
 	// This field is from variant [ResponseCodeInterpreterToolCall].
 	ContainerID string `json:"container_id"`
 	// This field is from variant [ResponseCodeInterpreterToolCall].
@@ -18904,6 +19717,7 @@ type ResponseOutputItemUnion struct {
 		Arguments                respjson.Field
 		CallID                   respjson.Field
 		Name                     respjson.Field
+		Async                    respjson.Field
 		Caller                   respjson.Field
 		Namespace                respjson.Field
 		Output                   respjson.Field
@@ -18919,6 +19733,11 @@ type ResponseOutputItemUnion struct {
 		Result                   respjson.Field
 		Execution                respjson.Field
 		Tools                    respjson.Field
+		Background               respjson.Field
+		OutputFormat             respjson.Field
+		Quality                  respjson.Field
+		RevisedPrompt            respjson.Field
+		Size                     respjson.Field
 		ContainerID              respjson.Field
 		Outputs                  respjson.Field
 		Environment              respjson.Field
@@ -19296,7 +20115,22 @@ type ResponseOutputItemUnionOutput struct {
 }
 
 func (r *ResponseOutputItemUnionOutput) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
+	var decoded ResponseOutputItemUnionOutput
+	if err := apijson.UnmarshalRoot(data, &decoded); err != nil {
+		return err
+	}
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] != '{' && !bytes.Equal(trimmed, []byte("null")) {
+		if decoded.JSON.OfString.Valid() ||
+			decoded.JSON.OfOutputContentList.Valid() ||
+			decoded.JSON.OfResponseFunctionShellToolCallOutputOutputArray.Valid() {
+			*r = decoded
+			return nil
+		}
+		return fmt.Errorf("cannot unmarshal JSON into ResponseOutputItemUnionOutput: no matching inline variant")
+	}
+	*r = decoded
+	return nil
 }
 
 // ResponseOutputItemUnionAction is an implicit subunion of
@@ -19305,8 +20139,13 @@ func (r *ResponseOutputItemUnionOutput) UnmarshalJSON(data []byte) error {
 //
 // For type safety it is recommended to directly use a variant of the
 // [ResponseOutputItemUnion].
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfResponseOutputItemImageGenerationCallAction]
 type ResponseOutputItemUnionAction struct {
-	Type string `json:"type"`
+	// This field will be present if the value is a [string] instead of an object.
+	OfResponseOutputItemImageGenerationCallAction string `json:",inline"`
+	Type                                          string `json:"type"`
 	// This field is from variant [ResponseFunctionWebSearchActionUnion].
 	Queries []string `json:"queries"`
 	// This field is from variant [ResponseFunctionWebSearchActionUnion].
@@ -19343,33 +20182,47 @@ type ResponseOutputItemUnionAction struct {
 	// This field is from variant [ResponseFunctionShellToolCallAction].
 	MaxOutputLength int64 `json:"max_output_length"`
 	JSON            struct {
-		Type             respjson.Field
-		Queries          respjson.Field
-		Query            respjson.Field
-		Sources          respjson.Field
-		URL              respjson.Field
-		Pattern          respjson.Field
-		Button           respjson.Field
-		X                respjson.Field
-		Y                respjson.Field
-		Keys             respjson.Field
-		Path             respjson.Field
-		ScrollX          respjson.Field
-		ScrollY          respjson.Field
-		Text             respjson.Field
-		Command          respjson.Field
-		Env              respjson.Field
-		TimeoutMs        respjson.Field
-		User             respjson.Field
-		WorkingDirectory respjson.Field
-		Commands         respjson.Field
-		MaxOutputLength  respjson.Field
-		raw              string
+		OfResponseOutputItemImageGenerationCallAction respjson.Field
+		Type                                          respjson.Field
+		Queries                                       respjson.Field
+		Query                                         respjson.Field
+		Sources                                       respjson.Field
+		URL                                           respjson.Field
+		Pattern                                       respjson.Field
+		Button                                        respjson.Field
+		X                                             respjson.Field
+		Y                                             respjson.Field
+		Keys                                          respjson.Field
+		Path                                          respjson.Field
+		ScrollX                                       respjson.Field
+		ScrollY                                       respjson.Field
+		Text                                          respjson.Field
+		Command                                       respjson.Field
+		Env                                           respjson.Field
+		TimeoutMs                                     respjson.Field
+		User                                          respjson.Field
+		WorkingDirectory                              respjson.Field
+		Commands                                      respjson.Field
+		MaxOutputLength                               respjson.Field
+		raw                                           string
 	} `json:"-"`
 }
 
 func (r *ResponseOutputItemUnionAction) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
+	var decoded ResponseOutputItemUnionAction
+	if err := apijson.UnmarshalRoot(data, &decoded); err != nil {
+		return err
+	}
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] != '{' && !bytes.Equal(trimmed, []byte("null")) {
+		if decoded.JSON.OfResponseOutputItemImageGenerationCallAction.Valid() {
+			*r = decoded
+			return nil
+		}
+		return fmt.Errorf("cannot unmarshal JSON into ResponseOutputItemUnionAction: no matching inline variant")
+	}
+	*r = decoded
+	return nil
 }
 
 // ResponseOutputItemUnionTools is an implicit subunion of
@@ -19426,7 +20279,20 @@ type ResponseOutputItemUnionError struct {
 }
 
 func (r *ResponseOutputItemUnionError) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
+	var decoded ResponseOutputItemUnionError
+	if err := apijson.UnmarshalRoot(data, &decoded); err != nil {
+		return err
+	}
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) > 0 && trimmed[0] != '{' && !bytes.Equal(trimmed, []byte("null")) {
+		if decoded.JSON.OfString.Valid() {
+			*r = decoded
+			return nil
+		}
+		return fmt.Errorf("cannot unmarshal JSON into ResponseOutputItemUnionError: no matching inline variant")
+	}
+	*r = decoded
+	return nil
 }
 
 type ResponseOutputItemProgram struct {
@@ -19530,20 +20396,105 @@ type ResponseOutputItemImageGenerationCall struct {
 	Status string `json:"status" api:"required"`
 	// The type of the image generation call. Always `image_generation_call`.
 	Type constant.ImageGenerationCall `json:"type" default:"image_generation_call"`
+	// The action used for image generation.
+	//
+	// Any of "generate", "edit", "auto".
+	Action string `json:"action" api:"nullable"`
+	// The background setting used for generation.
+	//
+	// Any of "transparent", "opaque", "auto".
+	Background string `json:"background" api:"nullable"`
+	// Details of a moderation failure, when available.
+	Error ResponseOutputItemImageGenerationCallError `json:"error"`
+	// The output format used for generation.
+	//
+	// Any of "png", "webp", "jpeg".
+	OutputFormat string `json:"output_format" api:"nullable"`
+	// The quality of the image generated by the image generation tool call. One of
+	// `low`, `medium`, `high`, `xhigh`, `max`, or `auto`.
+	//
+	// Any of "low", "medium", "high", "xhigh", "max", "auto".
+	Quality string `json:"quality" api:"nullable"`
+	// The prompt that was used after any model prompt rewriting.
+	RevisedPrompt string `json:"revised_prompt" api:"nullable"`
+	// The image dimensions as a `WIDTHxHEIGHT` string, for example `1536x864`.
+	Size string `json:"size" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
-		ID          respjson.Field
-		Result      respjson.Field
-		Status      respjson.Field
-		Type        respjson.Field
-		ExtraFields map[string]respjson.Field
-		raw         string
+		ID            respjson.Field
+		Result        respjson.Field
+		Status        respjson.Field
+		Type          respjson.Field
+		Action        respjson.Field
+		Background    respjson.Field
+		Error         respjson.Field
+		OutputFormat  respjson.Field
+		Quality       respjson.Field
+		RevisedPrompt respjson.Field
+		Size          respjson.Field
+		ExtraFields   map[string]respjson.Field
+		raw           string
 	} `json:"-"`
 }
 
 // Returns the unmodified JSON received from the API
 func (r ResponseOutputItemImageGenerationCall) RawJSON() string { return r.JSON.raw }
 func (r *ResponseOutputItemImageGenerationCall) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Details of a moderation failure, when available.
+type ResponseOutputItemImageGenerationCallError struct {
+	// The error code.
+	Code string `json:"code" api:"required"`
+	// A description of the error.
+	Message string `json:"message" api:"required"`
+	// The related request parameter.
+	Param string `json:"param" api:"required"`
+	// The error type.
+	Type string `json:"type" api:"required"`
+	// Public details for a `moderation_blocked` error, when available.
+	ModerationDetails ResponseOutputItemImageGenerationCallErrorModerationDetails `json:"moderation_details"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Code              respjson.Field
+		Message           respjson.Field
+		Param             respjson.Field
+		Type              respjson.Field
+		ModerationDetails respjson.Field
+		ExtraFields       map[string]respjson.Field
+		raw               string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseOutputItemImageGenerationCallError) RawJSON() string { return r.JSON.raw }
+func (r *ResponseOutputItemImageGenerationCallError) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Public details for a `moderation_blocked` error, when available.
+type ResponseOutputItemImageGenerationCallErrorModerationDetails struct {
+	// Public moderation categories. New category values may be added over time.
+	Categories []string `json:"categories" api:"required"`
+	// The stage where moderation blocked the image generation call.
+	//
+	// Any of "input", "output", "unknown".
+	ModerationStage string `json:"moderation_stage" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Categories      respjson.Field
+		ModerationStage respjson.Field
+		ExtraFields     map[string]respjson.Field
+		raw             string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseOutputItemImageGenerationCallErrorModerationDetails) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponseOutputItemImageGenerationCallErrorModerationDetails) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -20061,15 +21012,6 @@ func (u *ResponseOutputMessageContentUnionParam) UnmarshalJSON(data []byte) erro
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ResponseOutputMessageContentUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfOutputText) {
-		return u.OfOutputText
-	} else if !param.IsOmitted(u.OfRefusal) {
-		return u.OfRefusal
-	}
-	return nil
-}
-
 // Returns a pointer to the underlying variant's property, if present.
 func (u ResponseOutputMessageContentUnionParam) GetAnnotations() []ResponseOutputTextAnnotationUnionParam {
 	if vt := u.OfOutputText; vt != nil {
@@ -20317,7 +21259,7 @@ type ResponseOutputTextAnnotationFileCitation struct {
 	FileID string `json:"file_id" api:"required"`
 	// The filename of the file cited.
 	Filename string `json:"filename" api:"required"`
-	// The index of the file in the list of files.
+	// The index in the output text at which to insert the file citation.
 	Index int64 `json:"index" api:"required"`
 	// The type of the file citation. Always `file_citation`.
 	Type constant.FileCitation `json:"type" default:"file_citation"`
@@ -20511,19 +21453,6 @@ func (u *ResponseOutputTextAnnotationUnionParam) UnmarshalJSON(data []byte) erro
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ResponseOutputTextAnnotationUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfFileCitation) {
-		return u.OfFileCitation
-	} else if !param.IsOmitted(u.OfURLCitation) {
-		return u.OfURLCitation
-	} else if !param.IsOmitted(u.OfContainerFileCitation) {
-		return u.OfContainerFileCitation
-	} else if !param.IsOmitted(u.OfFilePath) {
-		return u.OfFilePath
-	}
-	return nil
-}
-
 // Returns a pointer to the underlying variant's property, if present.
 func (u ResponseOutputTextAnnotationUnionParam) GetTitle() *string {
 	if vt := u.OfURLCitation; vt != nil {
@@ -20632,7 +21561,7 @@ type ResponseOutputTextAnnotationFileCitationParam struct {
 	FileID string `json:"file_id" api:"required"`
 	// The filename of the file cited.
 	Filename string `json:"filename" api:"required"`
-	// The index of the file in the list of files.
+	// The index in the output text at which to insert the file citation.
 	Index int64 `json:"index" api:"required"`
 	// The type of the file citation. Always `file_citation`.
 	//
@@ -20769,7 +21698,7 @@ func (r *ResponseOutputTextLogprobTopLogprobParam) UnmarshalJSON(data []byte) er
 
 // Emitted when an annotation is added to output text content.
 type ResponseOutputTextAnnotationAddedEvent struct {
-	// An annotation that applies to a span of output text.
+	// The annotation object being added. (See annotation schema for details.)
 	Annotation ResponseOutputTextAnnotationAddedEventAnnotationUnion `json:"annotation" api:"required"`
 	// The index of the annotation within the content part.
 	AnnotationIndex int64 `json:"annotation_index" api:"required"`
@@ -20919,7 +21848,7 @@ type ResponseOutputTextAnnotationAddedEventAnnotationFileCitation struct {
 	FileID string `json:"file_id" api:"required"`
 	// The filename of the file cited.
 	Filename string `json:"filename" api:"required"`
-	// The index of the file in the list of files.
+	// The index in the output text at which to insert the file citation.
 	Index int64 `json:"index" api:"required"`
 	// The type of the file citation. Always `file_citation`.
 	Type constant.FileCitation `json:"type" default:"file_citation"`
@@ -21034,7 +21963,7 @@ func (r *ResponseOutputTextAnnotationAddedEventAnnotationFilePath) UnmarshalJSON
 }
 
 // Reference to a prompt template and its variables.
-// [Learn more](https://platform.openai.com/docs/guides/text?api-mode=responses#reusable-prompts).
+// [Learn more](https://developers.openai.com/api/docs/guides/text?api-mode=responses#version-prompts-in-code).
 type ResponsePrompt struct {
 	// The unique identifier of the prompt template to use.
 	ID string `json:"id" api:"required"`
@@ -21158,7 +22087,7 @@ func (r *ResponsePromptVariableUnionPromptCacheBreakpoint) UnmarshalJSON(data []
 }
 
 // Reference to a prompt template and its variables.
-// [Learn more](https://platform.openai.com/docs/guides/text?api-mode=responses#reusable-prompts).
+// [Learn more](https://developers.openai.com/api/docs/guides/text?api-mode=responses#version-prompts-in-code).
 //
 // The property ID is required.
 type ResponsePromptParam struct {
@@ -21197,19 +22126,6 @@ func (u ResponsePromptVariableUnionParam) MarshalJSON() ([]byte, error) {
 }
 func (u *ResponsePromptVariableUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ResponsePromptVariableUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfString) {
-		return &u.OfString.Value
-	} else if !param.IsOmitted(u.OfInputText) {
-		return u.OfInputText
-	} else if !param.IsOmitted(u.OfInputImage) {
-		return u.OfInputImage
-	} else if !param.IsOmitted(u.OfInputFile) {
-		return u.OfInputFile
-	}
-	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
@@ -21354,7 +22270,7 @@ func (r *ResponseQueuedEvent) UnmarshalJSON(data []byte) error {
 // A description of the chain of thought used by a reasoning model while generating
 // a response. Be sure to include these items in your `input` to the Responses API
 // for subsequent turns of a conversation if you are manually
-// [managing context](https://platform.openai.com/docs/guides/conversation-state).
+// [managing context](https://developers.openai.com/api/docs/guides/conversation-state).
 type ResponseReasoningItem struct {
 	// The unique identifier of the reasoning content.
 	ID string `json:"id" api:"required"`
@@ -21463,7 +22379,7 @@ const (
 // A description of the chain of thought used by a reasoning model while generating
 // a response. Be sure to include these items in your `input` to the Responses API
 // for subsequent turns of a conversation if you are manually
-// [managing context](https://platform.openai.com/docs/guides/conversation-state).
+// [managing context](https://developers.openai.com/api/docs/guides/conversation-state).
 //
 // The properties ID, Summary, Type are required.
 type ResponseReasoningItemParam struct {
@@ -22198,6 +23114,1587 @@ const (
 	ResponseStatusIncomplete ResponseStatus = "incomplete"
 )
 
+// Emitted when steering input has been validated and queued. Acceptance means the
+// server owns the input, not that it has been applied. The successor's
+// `response.created` event is the commit point. If accepted input cannot be
+// committed, `response.steer.failed` returns it with the same steering ID.
+//
+// When the response stops for client-owned tool output or approval, the input
+// remains queued and `response.steer.pending` is emitted after
+// `response.completed`. Fill the pending event's `required_input` stubs with saved
+// results and send one matching explicit `response.create` per parent. Do not
+// resend accepted input while it is still queued.
+type ResponseSteerAcceptedEvent struct {
+	// The sequence number for this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The accepted steering submission.
+	Steer ResponseSteerAcceptedEventSteer `json:"steer" api:"required"`
+	// The event discriminator. Always `response.steer.accepted`.
+	Type constant.ResponseSteerAccepted `json:"type" default:"response.steer.accepted"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// target response's `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		SequenceNumber respjson.Field
+		Steer          respjson.Field
+		Type           respjson.Field
+		StreamID       respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerAcceptedEvent) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerAcceptedEvent) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The accepted steering submission.
+type ResponseSteerAcceptedEventSteer struct {
+	// The ID assigned to the steering submission.
+	ID string `json:"id" api:"required"`
+	// The ID of the response being steered.
+	PreviousResponseID string `json:"previous_response_id" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID                 respjson.Field
+		PreviousResponseID respjson.Field
+		ExtraFields        map[string]respjson.Field
+		raw                string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerAcceptedEventSteer) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerAcceptedEventSteer) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A machine-readable steering error code. Clients should handle unknown values
+// because additional codes may be introduced. Known values include:
+//
+//   - `response_not_found`: The target response is not available on this connection.
+//   - `invalid_input`: The event or input failed validation.
+//   - `steering_not_supported`: The model or response execution mode does not
+//     support steering.
+//   - `too_many_pending_steers`: Too much steering input is pending for the
+//     response.
+//   - `response_already_completed`: The response completed and is no longer
+//     accepting steering input.
+//   - `response_not_active`: The response is no longer accepting steering input.
+//   - `successor_creation_failed`: The successor response could not be created.
+type ResponseSteerErrorCode = string
+
+const (
+	ResponseSteerErrorCodeResponseNotFound         ResponseSteerErrorCode = "response_not_found"
+	ResponseSteerErrorCodeInvalidInput             ResponseSteerErrorCode = "invalid_input"
+	ResponseSteerErrorCodeSteeringNotSupported     ResponseSteerErrorCode = "steering_not_supported"
+	ResponseSteerErrorCodeTooManyPendingSteers     ResponseSteerErrorCode = "too_many_pending_steers"
+	ResponseSteerErrorCodeResponseAlreadyCompleted ResponseSteerErrorCode = "response_already_completed"
+	ResponseSteerErrorCodeResponseNotActive        ResponseSteerErrorCode = "response_not_active"
+	ResponseSteerErrorCodeSuccessorCreationFailed  ResponseSteerErrorCode = "successor_creation_failed"
+)
+
+// Queues user input to steer a response on this WebSocket connection. Input can
+// contain text, images, and files. Steering is supported only for single-agent
+// responses on models and execution modes that support steering. Responses bound
+// to a conversation or using automatic compaction do not support steering.
+//
+// A `response.steer.accepted` event acknowledges that the server owns the queued
+// input, not that it has been applied. The successor's `response.created` event is
+// the commit point. Input that cannot be committed is returned in
+// `response.steer.failed`.
+//
+// Steering may cause the active response to finish at a safe output boundary with
+// `response.incomplete` and `incomplete_details.reason` set to `steered`, followed
+// automatically by a successor `response.created`. Normal completion can also be
+// followed by an automatic successor. Automatic successors inherit the previous
+// response's settings and continue from it with the queued input.
+//
+// If the response stops for client-owned tool output or approval, accepted
+// steering input remains queued and `response.steer.pending` is emitted after
+// `response.completed`. Fill the `required_input` stubs from that event with saved
+// tool results or approval decisions, and send one explicit `response.create` per
+// parent with the same `previous_response_id` and WebSocket lane. Do not rerun
+// tools or resend accepted steering input. The queued input is prepended in
+// submission order to that request's input, and the explicit request retains its
+// own settings.
+//
+// This event accepts only `type`, `previous_response_id`, and `input`. Do not send
+// `stream_id`; the target response determines the WebSocket lane.
+//
+// The properties Input, PreviousResponseID, Type are required.
+type ResponseSteerEventParam struct {
+	// Input to queue for a continuation of the response. Uses the same string or
+	// input-item shape as `response.create.input`, with a non-empty array when
+	// supplying input items.
+	//
+	// Steering accepts only messages with the `user` role. Each message may contain
+	// only `type`, `role`, and `content`, with `content` as a string or an array of
+	// `input_text`, `input_image`, and `input_file` parts. The optional `type` must be
+	// `message`. Other roles, tool outputs, and item types are not supported for
+	// steering.
+	Input ResponseSteerInputUnionParam `json:"input,omitzero" api:"required"`
+	// The ID of the response to steer on this WebSocket connection.
+	PreviousResponseID string `json:"previous_response_id" api:"required"`
+	// The event discriminator. Always `response.steer`.
+	//
+	// This field can be elided, and will marshal its zero value as "response.steer".
+	Type constant.ResponseSteer `json:"type" default:"response.steer"`
+	paramObj
+}
+
+func (r ResponseSteerEventParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseSteerEventParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseSteerEventParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when steering input is rejected or cannot be committed to a successor
+// response. Returns the original, uncommitted input so the client can carry it
+// into `response.create` when appropriate. Invalid input must be corrected before
+// retrying.
+//
+// Failures after acceptance include the same steering ID. Failures before an ID is
+// allocated omit `steer.id`. A lost connection or missing acknowledgement leaves
+// the outcome unknown; it is not proof that the input was rejected.
+type ResponseSteerFailedEvent struct {
+	// Information about why the input could not be committed.
+	Error ResponseSteerFailedEventError `json:"error" api:"required"`
+	// The sequence number for this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The steering submission that could not be committed.
+	Steer ResponseSteerFailedEventSteer `json:"steer" api:"required"`
+	// The event discriminator. Always `response.steer.failed`.
+	Type constant.ResponseSteerFailed `json:"type" default:"response.steer.failed"`
+	// The WebSocket lane that emitted this event, when the target response is
+	// available and its `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Error          respjson.Field
+		SequenceNumber respjson.Field
+		Steer          respjson.Field
+		Type           respjson.Field
+		StreamID       respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerFailedEvent) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerFailedEvent) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Information about why the input could not be committed.
+type ResponseSteerFailedEventError struct {
+	// A machine-readable steering error code. Clients should handle unknown values
+	// because additional codes may be introduced. Known values include:
+	//
+	//   - `response_not_found`: The target response is not available on this connection.
+	//   - `invalid_input`: The event or input failed validation.
+	//   - `steering_not_supported`: The model or response execution mode does not
+	//     support steering.
+	//   - `too_many_pending_steers`: Too much steering input is pending for the
+	//     response.
+	//   - `response_already_completed`: The response completed and is no longer
+	//     accepting steering input.
+	//   - `response_not_active`: The response is no longer accepting steering input.
+	//   - `successor_creation_failed`: The successor response could not be created.
+	Code ResponseSteerErrorCode `json:"code" api:"required"`
+	// A human-readable description of the error.
+	Message string `json:"message" api:"required"`
+	// The error type. Always `invalid_request_error`.
+	Type constant.InvalidRequestError `json:"type" default:"invalid_request_error"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Code        respjson.Field
+		Message     respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerFailedEventError) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerFailedEventError) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The steering submission that could not be committed.
+type ResponseSteerFailedEventSteer struct {
+	// Input to queue for a continuation of the response. Uses the same string or
+	// input-item shape as `response.create.input`, with a non-empty array when
+	// supplying input items.
+	//
+	// Steering accepts only messages with the `user` role. Each message may contain
+	// only `type`, `role`, and `content`, with `content` as a string or an array of
+	// `input_text`, `input_image`, and `input_file` parts. The optional `type` must be
+	// `message`. Other roles, tool outputs, and item types are not supported for
+	// steering.
+	Input ResponseSteerInputUnion `json:"input" api:"required"`
+	// The ID of the response that was targeted for steering.
+	PreviousResponseID string `json:"previous_response_id" api:"required"`
+	// The ID assigned to the steering submission, if one was allocated.
+	ID string `json:"id"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Input              respjson.Field
+		PreviousResponseID respjson.Field
+		ID                 respjson.Field
+		ExtraFields        map[string]respjson.Field
+		raw                string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerFailedEventSteer) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerFailedEventSteer) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseSteerInputUnion contains all possible properties and values from
+// [string], [[]ResponseSteerInputResponseSteerInputItemListUnion].
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfString OfResponseSteerInputItemList]
+type ResponseSteerInputUnion struct {
+	// This field will be present if the value is a [string] instead of an object.
+	OfString string `json:",inline"`
+	// This field will be present if the value is a
+	// [[]ResponseSteerInputResponseSteerInputItemListUnion] instead of an object.
+	OfResponseSteerInputItemList []ResponseSteerInputResponseSteerInputItemListUnion `json:",inline"`
+	JSON                         struct {
+		OfString                     respjson.Field
+		OfResponseSteerInputItemList respjson.Field
+		raw                          string
+	} `json:"-"`
+}
+
+func (u ResponseSteerInputUnion) AsString() (v string) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerInputUnion) AsResponseSteerInputItemList() (v []ResponseSteerInputResponseSteerInputItemListUnion) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseSteerInputUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ResponseSteerInputUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this ResponseSteerInputUnion to a ResponseSteerInputUnionParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// ResponseSteerInputUnionParam.Overrides()
+func (r ResponseSteerInputUnion) ToParam() ResponseSteerInputUnionParam {
+	return param.Override[ResponseSteerInputUnionParam](json.RawMessage(r.RawJSON()))
+}
+
+// ResponseSteerInputResponseSteerInputItemListUnion contains all possible
+// properties and values from
+// [ResponseSteerInputResponseSteerInputItemListMessage],
+// [ResponseSteerInputResponseSteerInputItemListFunctionCallOutput].
+//
+// Use the [ResponseSteerInputResponseSteerInputItemListUnion.AsAny] method to
+// switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ResponseSteerInputResponseSteerInputItemListUnion struct {
+	OfResponseSteerInputResponseSteerInputItemListMessage            ResponseSteerInputResponseSteerInputItemListMessage            `json:",inline"`
+	OfResponseSteerInputResponseSteerInputItemListFunctionCallOutput ResponseSteerInputResponseSteerInputItemListFunctionCallOutput `json:",inline"`
+	Type                                                             string                                                         `json:"type"`
+	JSON                                                             struct {
+		OfResponseSteerInputResponseSteerInputItemListMessage            respjson.Field
+		OfResponseSteerInputResponseSteerInputItemListFunctionCallOutput respjson.Field
+		Type                                                             respjson.Field
+		raw                                                              string
+	} `json:"-"`
+}
+
+// anyResponseSteerInputResponseSteerInputItemList is implemented by each variant
+// of [ResponseSteerInputResponseSteerInputItemListUnion] to add type safety for
+// the return type of [ResponseSteerInputResponseSteerInputItemListUnion.AsAny]
+type anyResponseSteerInputResponseSteerInputItemList interface {
+	implResponseSteerInputResponseSteerInputItemListUnion()
+}
+
+func (ResponseSteerInputResponseSteerInputItemListMessage) implResponseSteerInputResponseSteerInputItemListUnion() {
+}
+func (ResponseSteerInputResponseSteerInputItemListFunctionCallOutput) implResponseSteerInputResponseSteerInputItemListUnion() {
+}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ResponseSteerInputResponseSteerInputItemListUnion.AsAny().(type) {
+//	case responses.ResponseSteerInputResponseSteerInputItemListMessage:
+//	case responses.ResponseSteerInputResponseSteerInputItemListFunctionCallOutput:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ResponseSteerInputResponseSteerInputItemListUnion) AsAny() anyResponseSteerInputResponseSteerInputItemList {
+	switch u.Type {
+	case "message":
+		return u.AsResponseSteerInputResponseSteerInputItemListMessage()
+	case "function_call_output":
+		return u.AsResponseSteerInputResponseSteerInputItemListFunctionCallOutput()
+	}
+	return nil
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListUnion) AsResponseSteerInputResponseSteerInputItemListMessage() (v ResponseSteerInputResponseSteerInputItemListMessage) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListUnion) AsResponseSteerInputResponseSteerInputItemListFunctionCallOutput() (v ResponseSteerInputResponseSteerInputItemListFunctionCallOutput) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseSteerInputResponseSteerInputItemListUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ResponseSteerInputResponseSteerInputItemListUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ResponseSteerInputResponseSteerInputItemListMessage struct {
+	// The message content, as an array of content parts.
+	Content ResponseSteerInputResponseSteerInputItemListItemMessageContentUnion `json:"content" api:"required"`
+	// The unique ID of this message item.
+	ID string `json:"id" api:"nullable"`
+	// The message role. Always `user`.
+	Role constant.User `json:"role" default:"user"`
+	// The status of the message item.
+	Status string `json:"status" api:"nullable"`
+	// The item type. Always `message`.
+	Type constant.Message `json:"type" default:"message"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Content     respjson.Field
+		ID          respjson.Field
+		Role        respjson.Field
+		Status      respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerInputResponseSteerInputItemListMessage) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerInputResponseSteerInputItemListMessage) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseSteerInputResponseSteerInputItemListItemMessageContentUnion contains all
+// possible properties and values from [[]ResponseSteerInputContentUnion],
+// [string].
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfArrayOfResponseSteerInputContentUnion OfString]
+type ResponseSteerInputResponseSteerInputItemListItemMessageContentUnion struct {
+	// This field will be present if the value is a [[]ResponseSteerInputContentUnion]
+	// instead of an object.
+	OfArrayOfResponseSteerInputContentUnion []ResponseSteerInputContentUnion `json:",inline"`
+	// This field will be present if the value is a [string] instead of an object.
+	OfString string `json:",inline"`
+	JSON     struct {
+		OfArrayOfResponseSteerInputContentUnion respjson.Field
+		OfString                                respjson.Field
+		raw                                     string
+	} `json:"-"`
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListItemMessageContentUnion) AsArrayOfResponseSteerInputContentUnion() (v []ResponseSteerInputContentUnion) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListItemMessageContentUnion) AsString() (v string) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseSteerInputResponseSteerInputItemListItemMessageContentUnion) RawJSON() string {
+	return u.JSON.raw
+}
+
+func (r *ResponseSteerInputResponseSteerInputItemListItemMessageContentUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The output of a function tool call.
+type ResponseSteerInputResponseSteerInputItemListFunctionCallOutput struct {
+	// The unique ID of the function tool call generated by the model.
+	CallID string `json:"call_id" api:"nullable"`
+	// The execution context that produced this tool call.
+	Caller ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion `json:"caller" api:"nullable"`
+	// The unique ID of the function tool call output. Populated when this item is
+	// returned via API.
+	ID string `json:"id" api:"nullable"`
+	// The name of the tool that produced the output.
+	Name string `json:"name" api:"nullable"`
+	// The namespace of the tool that produced the output.
+	Namespace string `json:"namespace" api:"nullable"`
+	// Text, image, or file output of the function tool call.
+	Output ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnion `json:"output" api:"required"`
+	// The status of the item. One of `in_progress`, `completed`, or `incomplete`.
+	// Populated when items are returned via API.
+	//
+	// Any of "in_progress", "completed", "incomplete".
+	Status string `json:"status" api:"nullable"`
+	// The type of the function tool call output. Always `function_call_output`.
+	Type constant.FunctionCallOutput `json:"type" default:"function_call_output"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CallID      respjson.Field
+		Caller      respjson.Field
+		ID          respjson.Field
+		Name        respjson.Field
+		Namespace   respjson.Field
+		Output      respjson.Field
+		Status      respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerInputResponseSteerInputItemListFunctionCallOutput) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponseSteerInputResponseSteerInputItemListFunctionCallOutput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnion
+// contains all possible properties and values from [string],
+// [ResponseFunctionCallOutputItemList].
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfString OfResponseFunctionCallOutputItemArray]
+type ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnion struct {
+	// This field will be present if the value is a [string] instead of an object.
+	OfString string `json:",inline"`
+	// This field will be present if the value is a
+	// [ResponseFunctionCallOutputItemList] instead of an object.
+	OfResponseFunctionCallOutputItemArray ResponseFunctionCallOutputItemList `json:",inline"`
+	JSON                                  struct {
+		OfString                              respjson.Field
+		OfResponseFunctionCallOutputItemArray respjson.Field
+		raw                                   string
+	} `json:"-"`
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnion) AsString() (v string) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnion) AsResponseFunctionCallOutputItemArray() (v ResponseFunctionCallOutputItemList) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnion) RawJSON() string {
+	return u.JSON.raw
+}
+
+func (r *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion
+// contains all possible properties and values from
+// [ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect],
+// [ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram].
+//
+// Use the
+// [ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion.AsAny]
+// method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion struct {
+	OfResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect  ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect  `json:",inline"`
+	OfResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram `json:",inline"`
+	Type                                                                          string                                                                      `json:"type"`
+	JSON                                                                          struct {
+		OfResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect  respjson.Field
+		OfResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram respjson.Field
+		Type                                                                          respjson.Field
+		raw                                                                           string
+	} `json:"-"`
+}
+
+// anyResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCaller is
+// implemented by each variant of
+// [ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion]
+// to add type safety for the return type of
+// [ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion.AsAny]
+type anyResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCaller interface {
+	implResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion()
+}
+
+func (ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect) implResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion() {
+}
+func (ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram) implResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion() {
+}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion.AsAny().(type) {
+//	case responses.ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect:
+//	case responses.ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion) AsAny() anyResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCaller {
+	switch u.Type {
+	case "direct":
+		return u.AsResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect()
+	case "program":
+		return u.AsResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram()
+	}
+	return nil
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion) AsResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect() (v ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion) AsResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram() (v ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion) RawJSON() string {
+	return u.JSON.raw
+}
+
+func (r *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The execution context that produced this tool call.
+type ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect struct {
+	// The caller type. Always `direct`.
+	Type constant.Direct `json:"type" default:"direct"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerDirect) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram struct {
+	// The call ID of the program item that produced this tool call.
+	CallerID string `json:"caller_id" api:"required"`
+	// The caller type. Always `program`.
+	Type constant.Program `json:"type" default:"program"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CallerID    respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponseSteerInputResponseSteerInputItemListFunctionCallOutputCallerProgram) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseSteerInputUnionParam struct {
+	OfString                     param.Opt[string]                                            `json:",omitzero,inline"`
+	OfResponseSteerInputItemList []ResponseSteerInputResponseSteerInputItemListItemUnionParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseSteerInputUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfString, u.OfResponseSteerInputItemList)
+}
+func (u *ResponseSteerInputUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *ResponseSteerInputUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfString) {
+		return &u.OfString.Value
+	} else if !param.IsOmitted(u.OfResponseSteerInputItemList) {
+		return &u.OfResponseSteerInputItemList
+	}
+	return nil
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseSteerInputResponseSteerInputItemListItemUnionParam struct {
+	OfMessage            *ResponseSteerInputResponseSteerInputItemListItemMessageParam            `json:",omitzero,inline"`
+	OfFunctionCallOutput *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListItemUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfMessage, u.OfFunctionCallOutput)
+}
+func (u *ResponseSteerInputResponseSteerInputItemListItemUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemUnionParam) GetContent() *ResponseSteerInputResponseSteerInputItemListItemMessageContentUnionParam {
+	if vt := u.OfMessage; vt != nil {
+		return &vt.Content
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemUnionParam) GetOutput() *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnionParam {
+	if vt := u.OfFunctionCallOutput; vt != nil {
+		return &vt.Output
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemUnionParam) GetCallID() *string {
+	if vt := u.OfFunctionCallOutput; vt != nil && vt.CallID.Valid() {
+		return &vt.CallID.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemUnionParam) GetCaller() *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnionParam {
+	if vt := u.OfFunctionCallOutput; vt != nil {
+		return &vt.Caller
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemUnionParam) GetName() *string {
+	if vt := u.OfFunctionCallOutput; vt != nil && vt.Name.Valid() {
+		return &vt.Name.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemUnionParam) GetNamespace() *string {
+	if vt := u.OfFunctionCallOutput; vt != nil && vt.Namespace.Valid() {
+		return &vt.Namespace.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemUnionParam) GetRole() *string {
+	if vt := u.OfMessage; vt != nil {
+		return (*string)(&vt.Role)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemUnionParam) GetType() *string {
+	if vt := u.OfMessage; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfFunctionCallOutput; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemUnionParam) GetID() *string {
+	if vt := u.OfMessage; vt != nil && vt.ID.Valid() {
+		return &vt.ID.Value
+	} else if vt := u.OfFunctionCallOutput; vt != nil && vt.ID.Valid() {
+		return &vt.ID.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemUnionParam) GetStatus() *string {
+	if vt := u.OfMessage; vt != nil && vt.Status.Valid() {
+		return &vt.Status.Value
+	} else if vt := u.OfFunctionCallOutput; vt != nil {
+		return (*string)(&vt.Status)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ResponseSteerInputResponseSteerInputItemListItemUnionParam](
+		"type",
+		apijson.Discriminator[ResponseSteerInputResponseSteerInputItemListItemMessageParam]("message"),
+		apijson.Discriminator[ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputParam]("function_call_output"),
+	)
+}
+
+// The properties Content, Role, Type are required.
+type ResponseSteerInputResponseSteerInputItemListItemMessageParam struct {
+	// The message content, as an array of content parts.
+	Content ResponseSteerInputResponseSteerInputItemListItemMessageContentUnionParam `json:"content,omitzero" api:"required"`
+	// The unique ID of this message item.
+	ID param.Opt[string] `json:"id,omitzero"`
+	// The status of the message item.
+	Status param.Opt[string] `json:"status,omitzero"`
+	// The message role. Always `user`.
+	//
+	// This field can be elided, and will marshal its zero value as "user".
+	Role constant.User `json:"role" default:"user"`
+	// The item type. Always `message`.
+	//
+	// This field can be elided, and will marshal its zero value as "message".
+	Type constant.Message `json:"type" default:"message"`
+	paramObj
+}
+
+func (r ResponseSteerInputResponseSteerInputItemListItemMessageParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseSteerInputResponseSteerInputItemListItemMessageParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseSteerInputResponseSteerInputItemListItemMessageParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseSteerInputResponseSteerInputItemListItemMessageContentUnionParam struct {
+	OfArrayOfSteerInputs []ResponseSteerInputContentUnionParam `json:",omitzero,inline"`
+	OfString             param.Opt[string]                     `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListItemMessageContentUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfArrayOfSteerInputs, u.OfString)
+}
+func (u *ResponseSteerInputResponseSteerInputItemListItemMessageContentUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// The output of a function tool call.
+//
+// The properties Output, Type are required.
+type ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputParam struct {
+	// Text, image, or file output of the function tool call.
+	Output ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnionParam `json:"output,omitzero" api:"required"`
+	// The unique ID of the function tool call output. Populated when this item is
+	// returned via API.
+	ID param.Opt[string] `json:"id,omitzero"`
+	// The unique ID of the function tool call generated by the model.
+	CallID param.Opt[string] `json:"call_id,omitzero"`
+	// The name of the tool that produced the output.
+	Name param.Opt[string] `json:"name,omitzero"`
+	// The namespace of the tool that produced the output.
+	Namespace param.Opt[string] `json:"namespace,omitzero"`
+	// The execution context that produced this tool call.
+	Caller ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnionParam `json:"caller,omitzero"`
+	// The status of the item. One of `in_progress`, `completed`, or `incomplete`.
+	// Populated when items are returned via API.
+	//
+	// Any of "in_progress", "completed", "incomplete".
+	Status string `json:"status,omitzero"`
+	// The type of the function tool call output. Always `function_call_output`.
+	//
+	// This field can be elided, and will marshal its zero value as
+	// "function_call_output".
+	Type constant.FunctionCallOutput `json:"type" default:"function_call_output"`
+	paramObj
+}
+
+func (r ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputParam](
+		"status", "in_progress", "completed", "incomplete",
+	)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnionParam struct {
+	OfString                              param.Opt[string]                       `json:",omitzero,inline"`
+	OfResponseFunctionCallOutputItemArray ResponseFunctionCallOutputItemListParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfString, u.OfResponseFunctionCallOutputItemArray)
+}
+func (u *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputOutputUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnionParam struct {
+	OfDirect  *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerDirectParam  `json:",omitzero,inline"`
+	OfProgram *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerProgramParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfDirect, u.OfProgram)
+}
+func (u *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnionParam) GetCallerID() *string {
+	if vt := u.OfProgram; vt != nil {
+		return &vt.CallerID
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnionParam) GetType() *string {
+	if vt := u.OfDirect; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfProgram; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerUnionParam](
+		"type",
+		apijson.Discriminator[ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerDirectParam]("direct"),
+		apijson.Discriminator[ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerProgramParam]("program"),
+	)
+}
+
+func NewResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerDirectParam() ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerDirectParam {
+	return ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerDirectParam{
+		Type: "direct",
+	}
+}
+
+// The execution context that produced this tool call.
+//
+// This struct has a constant value, construct it with
+// [NewResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerDirectParam].
+type ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerDirectParam struct {
+	// The caller type. Always `direct`.
+	Type constant.Direct `json:"type" default:"direct"`
+	paramObj
+}
+
+func (r ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerDirectParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerDirectParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerDirectParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The properties CallerID, Type are required.
+type ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerProgramParam struct {
+	// The call ID of the program item that produced this tool call.
+	CallerID string `json:"caller_id" api:"required"`
+	// The caller type. Always `program`.
+	//
+	// This field can be elided, and will marshal its zero value as "program".
+	Type constant.Program `json:"type" default:"program"`
+	paramObj
+}
+
+func (r ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerProgramParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerProgramParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseSteerInputResponseSteerInputItemListItemFunctionCallOutputCallerProgramParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseSteerInputContentUnion contains all possible properties and values from
+// [ResponseInputTextContent], [ResponseInputImageContent],
+// [ResponseInputFileContent].
+//
+// Use the [ResponseSteerInputContentUnion.AsAny] method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ResponseSteerInputContentUnion struct {
+	// This field is from variant [ResponseInputTextContent].
+	Text string `json:"text"`
+	// Any of "input_text", "input_image", "input_file".
+	Type string `json:"type"`
+	// This field is a union of [ResponseInputTextContentPromptCacheBreakpoint],
+	// [ResponseInputImageContentPromptCacheBreakpoint],
+	// [ResponseInputFileContentPromptCacheBreakpoint]
+	PromptCacheBreakpoint ResponseSteerInputContentUnionPromptCacheBreakpoint `json:"prompt_cache_breakpoint"`
+	Detail                string                                              `json:"detail"`
+	FileID                string                                              `json:"file_id"`
+	// This field is from variant [ResponseInputImageContent].
+	ImageURL string `json:"image_url"`
+	// This field is from variant [ResponseInputFileContent].
+	FileData string `json:"file_data"`
+	// This field is from variant [ResponseInputFileContent].
+	FileURL string `json:"file_url"`
+	// This field is from variant [ResponseInputFileContent].
+	Filename string `json:"filename"`
+	JSON     struct {
+		Text                  respjson.Field
+		Type                  respjson.Field
+		PromptCacheBreakpoint respjson.Field
+		Detail                respjson.Field
+		FileID                respjson.Field
+		ImageURL              respjson.Field
+		FileData              respjson.Field
+		FileURL               respjson.Field
+		Filename              respjson.Field
+		raw                   string
+	} `json:"-"`
+}
+
+// anyResponseSteerInputContent is implemented by each variant of
+// [ResponseSteerInputContentUnion] to add type safety for the return type of
+// [ResponseSteerInputContentUnion.AsAny]
+type anyResponseSteerInputContent interface {
+	implResponseSteerInputContentUnion()
+}
+
+func (ResponseInputTextContent) implResponseSteerInputContentUnion()  {}
+func (ResponseInputImageContent) implResponseSteerInputContentUnion() {}
+func (ResponseInputFileContent) implResponseSteerInputContentUnion()  {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ResponseSteerInputContentUnion.AsAny().(type) {
+//	case responses.ResponseInputTextContent:
+//	case responses.ResponseInputImageContent:
+//	case responses.ResponseInputFileContent:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ResponseSteerInputContentUnion) AsAny() anyResponseSteerInputContent {
+	switch u.Type {
+	case "input_text":
+		return u.AsInputText()
+	case "input_image":
+		return u.AsInputImage()
+	case "input_file":
+		return u.AsInputFile()
+	}
+	return nil
+}
+
+func (u ResponseSteerInputContentUnion) AsInputText() (v ResponseInputTextContent) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerInputContentUnion) AsInputImage() (v ResponseInputImageContent) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerInputContentUnion) AsInputFile() (v ResponseInputFileContent) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseSteerInputContentUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ResponseSteerInputContentUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseSteerInputContentUnionPromptCacheBreakpoint is an implicit subunion of
+// [ResponseSteerInputContentUnion].
+// ResponseSteerInputContentUnionPromptCacheBreakpoint provides convenient access
+// to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [ResponseSteerInputContentUnion].
+type ResponseSteerInputContentUnionPromptCacheBreakpoint struct {
+	// This field is from variant [ResponseInputTextContentPromptCacheBreakpoint].
+	Mode constant.Explicit `json:"mode"`
+	JSON struct {
+		Mode respjson.Field
+		raw  string
+	} `json:"-"`
+}
+
+func (r *ResponseSteerInputContentUnionPromptCacheBreakpoint) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this ResponseSteerInputContentUnion to a
+// ResponseSteerInputContentUnionParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// ResponseSteerInputContentUnionParam.Overrides()
+func (r ResponseSteerInputContentUnion) ToParam() ResponseSteerInputContentUnionParam {
+	return param.Override[ResponseSteerInputContentUnionParam](json.RawMessage(r.RawJSON()))
+}
+
+func ResponseSteerInputContentParamOfInputText(text string) ResponseSteerInputContentUnionParam {
+	var inputText ResponseInputTextContentParam
+	inputText.Text = text
+	return ResponseSteerInputContentUnionParam{OfInputText: &inputText}
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseSteerInputContentUnionParam struct {
+	OfInputText  *ResponseInputTextContentParam  `json:",omitzero,inline"`
+	OfInputImage *ResponseInputImageContentParam `json:",omitzero,inline"`
+	OfInputFile  *ResponseInputFileContentParam  `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseSteerInputContentUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfInputText, u.OfInputImage, u.OfInputFile)
+}
+func (u *ResponseSteerInputContentUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputContentUnionParam) GetText() *string {
+	if vt := u.OfInputText; vt != nil {
+		return &vt.Text
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputContentUnionParam) GetImageURL() *string {
+	if vt := u.OfInputImage; vt != nil && vt.ImageURL.Valid() {
+		return &vt.ImageURL.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputContentUnionParam) GetFileData() *string {
+	if vt := u.OfInputFile; vt != nil && vt.FileData.Valid() {
+		return &vt.FileData.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputContentUnionParam) GetFileURL() *string {
+	if vt := u.OfInputFile; vt != nil && vt.FileURL.Valid() {
+		return &vt.FileURL.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputContentUnionParam) GetFilename() *string {
+	if vt := u.OfInputFile; vt != nil && vt.Filename.Valid() {
+		return &vt.Filename.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputContentUnionParam) GetType() *string {
+	if vt := u.OfInputText; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfInputImage; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfInputFile; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputContentUnionParam) GetDetail() *string {
+	if vt := u.OfInputImage; vt != nil {
+		return (*string)(&vt.Detail)
+	} else if vt := u.OfInputFile; vt != nil {
+		return (*string)(&vt.Detail)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseSteerInputContentUnionParam) GetFileID() *string {
+	if vt := u.OfInputImage; vt != nil && vt.FileID.Valid() {
+		return &vt.FileID.Value
+	} else if vt := u.OfInputFile; vt != nil && vt.FileID.Valid() {
+		return &vt.FileID.Value
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u ResponseSteerInputContentUnionParam) GetPromptCacheBreakpoint() (res responseSteerInputContentUnionParamPromptCacheBreakpoint) {
+	if vt := u.OfInputText; vt != nil {
+		res.any = &vt.PromptCacheBreakpoint
+	} else if vt := u.OfInputImage; vt != nil {
+		res.any = &vt.PromptCacheBreakpoint
+	} else if vt := u.OfInputFile; vt != nil {
+		res.any = &vt.PromptCacheBreakpoint
+	}
+	return
+}
+
+// Can have the runtime types
+// [*ResponseInputTextContentPromptCacheBreakpointParam],
+// [*ResponseInputImageContentPromptCacheBreakpointParam],
+// [*ResponseInputFileContentPromptCacheBreakpointParam]
+type responseSteerInputContentUnionParamPromptCacheBreakpoint struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *responses.ResponseInputTextContentPromptCacheBreakpointParam:
+//	case *responses.ResponseInputImageContentPromptCacheBreakpointParam:
+//	case *responses.ResponseInputFileContentPromptCacheBreakpointParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u responseSteerInputContentUnionParamPromptCacheBreakpoint) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseSteerInputContentUnionParamPromptCacheBreakpoint) GetMode() *string {
+	switch vt := u.any.(type) {
+	case *ResponseInputTextContentPromptCacheBreakpointParam:
+		return (*string)(&vt.Mode)
+	case *ResponseInputImageContentPromptCacheBreakpointParam:
+		return (*string)(&vt.Mode)
+	case *ResponseInputFileContentPromptCacheBreakpointParam:
+		return (*string)(&vt.Mode)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ResponseSteerInputContentUnionParam](
+		"type",
+		apijson.Discriminator[ResponseInputTextContentParam]("input_text"),
+		apijson.Discriminator[ResponseInputImageContentParam]("input_image"),
+		apijson.Discriminator[ResponseInputFileContentParam]("input_file"),
+	)
+}
+
+// Emitted when accepted steering input remains queued after the target response
+// completes. The server still owns the input. Do not resend it. The successor's
+// `response.created` event is the commit point.
+//
+// When `reason` is `waiting_for_required_input`, this event follows
+// `response.completed` while the response waits for the tool results or approval
+// decisions identified by `required_input`. Copy those stubs, fill their result
+// fields using the ordinary `response.create` input schemas, and submit one
+// continuation per parent with the same `previous_response_id` and WebSocket lane.
+// Use saved results without rerunning tools. The queued steering input is
+// prepended in submission order to the continuation's input. That explicit request
+// retains its own settings.
+//
+// This notification is emitted at most once per steering submission. Multiple
+// submissions for the same parent can report the same required inputs; they do not
+// each require a separate continuation.
+type ResponseSteerPendingEvent struct {
+	// An extensible enum describing why accepted steering input is still queued.
+	// Clients should handle unknown values because additional reasons may be
+	// introduced. Known values include:
+	//
+	//   - `waiting_for_required_input`: The response is waiting for the tool results or
+	//     approval decisions identified by `required_input`.
+	Reason ResponseSteerPendingReason `json:"reason" api:"required"`
+	// Input stubs identifying outstanding client-owned tool results or approval
+	// decisions. Each stub contains identifying fields only; the client supplies the
+	// result before including it in `response.create`.
+	RequiredInput []ResponseSteerRequiredInputUnion `json:"required_input" api:"required"`
+	// The sequence number for this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The steering submission that remains queued.
+	Steer ResponseSteerPendingEventSteer `json:"steer" api:"required"`
+	// The event discriminator. Always `response.steer.pending`.
+	Type constant.ResponseSteerPending `json:"type" default:"response.steer.pending"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// target response's `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Reason         respjson.Field
+		RequiredInput  respjson.Field
+		SequenceNumber respjson.Field
+		Steer          respjson.Field
+		Type           respjson.Field
+		StreamID       respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerPendingEvent) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerPendingEvent) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// An extensible enum describing why accepted steering input is still queued.
+// Clients should handle unknown values because additional reasons may be
+// introduced. Known values include:
+//
+//   - `waiting_for_required_input`: The response is waiting for the tool results or
+//     approval decisions identified by `required_input`.
+type ResponseSteerPendingReason = string
+
+const (
+	ResponseSteerPendingReasonWaitingForRequiredInput ResponseSteerPendingReason = "waiting_for_required_input"
+)
+
+// The steering submission that remains queued.
+type ResponseSteerPendingEventSteer struct {
+	// The ID assigned to the steering submission.
+	ID string `json:"id" api:"required"`
+	// The ID of the response being steered.
+	PreviousResponseID string `json:"previous_response_id" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ID                 respjson.Field
+		PreviousResponseID respjson.Field
+		ExtraFields        map[string]respjson.Field
+		raw                string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerPendingEventSteer) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerPendingEventSteer) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseSteerRequiredInputUnion contains all possible properties and values from
+// [ResponseSteerRequiredInputFunctionCallOutput],
+// [ResponseSteerRequiredInputCustomToolCallOutput],
+// [ResponseSteerRequiredInputComputerCallOutput],
+// [ResponseSteerRequiredInputShellCallOutput],
+// [ResponseSteerRequiredInputApplyPatchCallOutput],
+// [ResponseSteerRequiredInputToolSearchOutput],
+// [ResponseSteerRequiredInputMcpApprovalResponse].
+//
+// Use the [ResponseSteerRequiredInputUnion.AsAny] method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ResponseSteerRequiredInputUnion struct {
+	OfResponseSteerRequiredInputFunctionCallOutput   ResponseSteerRequiredInputFunctionCallOutput   `json:",inline"`
+	OfResponseSteerRequiredInputCustomToolCallOutput ResponseSteerRequiredInputCustomToolCallOutput `json:",inline"`
+	OfResponseSteerRequiredInputComputerCallOutput   ResponseSteerRequiredInputComputerCallOutput   `json:",inline"`
+	OfResponseSteerRequiredInputShellCallOutput      ResponseSteerRequiredInputShellCallOutput      `json:",inline"`
+	OfResponseSteerRequiredInputApplyPatchCallOutput ResponseSteerRequiredInputApplyPatchCallOutput `json:",inline"`
+	OfResponseSteerRequiredInputToolSearchOutput     ResponseSteerRequiredInputToolSearchOutput     `json:",inline"`
+	OfResponseSteerRequiredInputMcpApprovalResponse  ResponseSteerRequiredInputMcpApprovalResponse  `json:",inline"`
+	Type                                             string                                         `json:"type"`
+	JSON                                             struct {
+		OfResponseSteerRequiredInputFunctionCallOutput   respjson.Field
+		OfResponseSteerRequiredInputCustomToolCallOutput respjson.Field
+		OfResponseSteerRequiredInputComputerCallOutput   respjson.Field
+		OfResponseSteerRequiredInputShellCallOutput      respjson.Field
+		OfResponseSteerRequiredInputApplyPatchCallOutput respjson.Field
+		OfResponseSteerRequiredInputToolSearchOutput     respjson.Field
+		OfResponseSteerRequiredInputMcpApprovalResponse  respjson.Field
+		Type                                             respjson.Field
+		raw                                              string
+	} `json:"-"`
+}
+
+// anyResponseSteerRequiredInput is implemented by each variant of
+// [ResponseSteerRequiredInputUnion] to add type safety for the return type of
+// [ResponseSteerRequiredInputUnion.AsAny]
+type anyResponseSteerRequiredInput interface {
+	implResponseSteerRequiredInputUnion()
+}
+
+func (ResponseSteerRequiredInputFunctionCallOutput) implResponseSteerRequiredInputUnion()   {}
+func (ResponseSteerRequiredInputCustomToolCallOutput) implResponseSteerRequiredInputUnion() {}
+func (ResponseSteerRequiredInputComputerCallOutput) implResponseSteerRequiredInputUnion()   {}
+func (ResponseSteerRequiredInputShellCallOutput) implResponseSteerRequiredInputUnion()      {}
+func (ResponseSteerRequiredInputApplyPatchCallOutput) implResponseSteerRequiredInputUnion() {}
+func (ResponseSteerRequiredInputToolSearchOutput) implResponseSteerRequiredInputUnion()     {}
+func (ResponseSteerRequiredInputMcpApprovalResponse) implResponseSteerRequiredInputUnion()  {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ResponseSteerRequiredInputUnion.AsAny().(type) {
+//	case responses.ResponseSteerRequiredInputFunctionCallOutput:
+//	case responses.ResponseSteerRequiredInputCustomToolCallOutput:
+//	case responses.ResponseSteerRequiredInputComputerCallOutput:
+//	case responses.ResponseSteerRequiredInputShellCallOutput:
+//	case responses.ResponseSteerRequiredInputApplyPatchCallOutput:
+//	case responses.ResponseSteerRequiredInputToolSearchOutput:
+//	case responses.ResponseSteerRequiredInputMcpApprovalResponse:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ResponseSteerRequiredInputUnion) AsAny() anyResponseSteerRequiredInput {
+	switch u.Type {
+	case "function_call_output":
+		return u.AsResponseSteerRequiredInputFunctionCallOutput()
+	case "custom_tool_call_output":
+		return u.AsResponseSteerRequiredInputCustomToolCallOutput()
+	case "computer_call_output":
+		return u.AsResponseSteerRequiredInputComputerCallOutput()
+	case "shell_call_output":
+		return u.AsResponseSteerRequiredInputShellCallOutput()
+	case "apply_patch_call_output":
+		return u.AsResponseSteerRequiredInputApplyPatchCallOutput()
+	case "tool_search_output":
+		return u.AsResponseSteerRequiredInputToolSearchOutput()
+	case "mcp_approval_response":
+		return u.AsResponseSteerRequiredInputMcpApprovalResponse()
+	}
+	return nil
+}
+
+func (u ResponseSteerRequiredInputUnion) AsResponseSteerRequiredInputFunctionCallOutput() (v ResponseSteerRequiredInputFunctionCallOutput) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerRequiredInputUnion) AsResponseSteerRequiredInputCustomToolCallOutput() (v ResponseSteerRequiredInputCustomToolCallOutput) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerRequiredInputUnion) AsResponseSteerRequiredInputComputerCallOutput() (v ResponseSteerRequiredInputComputerCallOutput) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerRequiredInputUnion) AsResponseSteerRequiredInputShellCallOutput() (v ResponseSteerRequiredInputShellCallOutput) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerRequiredInputUnion) AsResponseSteerRequiredInputApplyPatchCallOutput() (v ResponseSteerRequiredInputApplyPatchCallOutput) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerRequiredInputUnion) AsResponseSteerRequiredInputToolSearchOutput() (v ResponseSteerRequiredInputToolSearchOutput) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseSteerRequiredInputUnion) AsResponseSteerRequiredInputMcpApprovalResponse() (v ResponseSteerRequiredInputMcpApprovalResponse) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseSteerRequiredInputUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ResponseSteerRequiredInputUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Supply `output` using the function tool call output input schema.
+type ResponseSteerRequiredInputFunctionCallOutput struct {
+	CallID string                      `json:"call_id" api:"required"`
+	Name   string                      `json:"name" api:"required"`
+	Type   constant.FunctionCallOutput `json:"type" default:"function_call_output"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CallID      respjson.Field
+		Name        respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerRequiredInputFunctionCallOutput) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerRequiredInputFunctionCallOutput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Supply `output` using the custom tool call output input schema. The original
+// custom tool call supplies the tool's name.
+type ResponseSteerRequiredInputCustomToolCallOutput struct {
+	CallID string                        `json:"call_id" api:"required"`
+	Type   constant.CustomToolCallOutput `json:"type" default:"custom_tool_call_output"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CallID      respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerRequiredInputCustomToolCallOutput) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerRequiredInputCustomToolCallOutput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Supply `output` using the computer tool call output input schema, including any
+// required `acknowledged_safety_checks`.
+type ResponseSteerRequiredInputComputerCallOutput struct {
+	CallID string                      `json:"call_id" api:"required"`
+	Type   constant.ComputerCallOutput `json:"type" default:"computer_call_output"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CallID      respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerRequiredInputComputerCallOutput) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerRequiredInputComputerCallOutput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Supply `output` using the shell tool call output input schema. Each output entry
+// includes `stdout`, `stderr`, and `outcome`.
+type ResponseSteerRequiredInputShellCallOutput struct {
+	CallID string                   `json:"call_id" api:"required"`
+	Type   constant.ShellCallOutput `json:"type" default:"shell_call_output"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CallID      respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerRequiredInputShellCallOutput) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerRequiredInputShellCallOutput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Supply `status` and optional `output` using the apply patch tool call output
+// input schema.
+type ResponseSteerRequiredInputApplyPatchCallOutput struct {
+	CallID string                        `json:"call_id" api:"required"`
+	Type   constant.ApplyPatchCallOutput `json:"type" default:"apply_patch_call_output"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CallID      respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerRequiredInputApplyPatchCallOutput) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerRequiredInputApplyPatchCallOutput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Supply `tools` using the tool search output input schema, retaining
+// `execution: "client"`.
+type ResponseSteerRequiredInputToolSearchOutput struct {
+	CallID    string                    `json:"call_id" api:"required"`
+	Execution constant.Client           `json:"execution" default:"client"`
+	Type      constant.ToolSearchOutput `json:"type" default:"tool_search_output"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CallID      respjson.Field
+		Execution   respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerRequiredInputToolSearchOutput) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerRequiredInputToolSearchOutput) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Supply `approve` using the MCP approval response input schema. An optional
+// `reason` can be supplied when denying the request. The original approval request
+// identifies the tool and server.
+type ResponseSteerRequiredInputMcpApprovalResponse struct {
+	ApprovalRequestID string                       `json:"approval_request_id" api:"required"`
+	Type              constant.McpApprovalResponse `json:"type" default:"mcp_approval_response"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ApprovalRequestID respjson.Field
+		Type              respjson.Field
+		ExtraFields       map[string]respjson.Field
+		raw               string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseSteerRequiredInputMcpApprovalResponse) RawJSON() string { return r.JSON.raw }
+func (r *ResponseSteerRequiredInputMcpApprovalResponse) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // ResponseStreamEventUnion contains all possible properties and values from
 // [ResponseAudioDeltaEvent], [ResponseAudioDoneEvent],
 // [ResponseAudioTranscriptDeltaEvent], [ResponseAudioTranscriptDoneEvent],
@@ -22205,7 +24702,8 @@ const (
 // [ResponseCodeInterpreterCallCodeDoneEvent],
 // [ResponseCodeInterpreterCallCompletedEvent],
 // [ResponseCodeInterpreterCallInProgressEvent],
-// [ResponseCodeInterpreterCallInterpretingEvent], [ResponseCompletedEvent],
+// [ResponseCodeInterpreterCallInterpretingEvent],
+// [ResponseCompactionCompactingEvent], [ResponseCompletedEvent],
 // [ResponseContentPartAddedEvent], [ResponseContentPartDoneEvent],
 // [ResponseCreatedEvent], [ResponseErrorEvent],
 // [ResponseFileSearchCallCompletedEvent], [ResponseFileSearchCallInProgressEvent],
@@ -22213,6 +24711,7 @@ const (
 // [ResponseFunctionCallArgumentsDeltaEvent],
 // [ResponseFunctionCallArgumentsDoneEvent], [ResponseShellCallCommandAddedEvent],
 // [ResponseShellCallCommandDeltaEvent], [ResponseShellCallCommandDoneEvent],
+// [ResponseShellCallOutputContentDeltaEvent],
 // [ResponseShellCallOutputContentDoneEvent], [ResponseInProgressEvent],
 // [ResponseFailedEvent], [ResponseIncompleteEvent],
 // [ResponseOutputItemAddedEvent], [ResponseOutputItemDoneEvent],
@@ -22245,11 +24744,11 @@ type ResponseStreamEventUnion struct {
 	// "response.code_interpreter_call_code.done",
 	// "response.code_interpreter_call.completed",
 	// "response.code_interpreter_call.in_progress",
-	// "response.code_interpreter_call.interpreting", "response.completed",
-	// "response.content_part.added", "response.content_part.done", "response.created",
-	// "error", "response.file_search_call.completed",
-	// "response.file_search_call.in_progress", "response.file_search_call.searching",
-	// "response.function_call_arguments.delta",
+	// "response.code_interpreter_call.interpreting", "response.compaction.compacting",
+	// "response.completed", "response.content_part.added",
+	// "response.content_part.done", "response.created", "error",
+	// "response.file_search_call.completed", "response.file_search_call.in_progress",
+	// "response.file_search_call.searching", "response.function_call_arguments.delta",
 	// "response.function_call_arguments.done", "response.shell_call_command.added",
 	// "response.shell_call_command.delta", "response.shell_call_command.done",
 	// "response.shell_call_output_content.done", "response.in_progress",
@@ -22286,10 +24785,8 @@ type ResponseStreamEventUnion struct {
 	// This field is from variant [ResponseErrorEvent].
 	Message string `json:"message"`
 	// This field is from variant [ResponseErrorEvent].
-	Param     string `json:"param"`
-	Arguments string `json:"arguments"`
-	// This field is from variant [ResponseFunctionCallArgumentsDoneEvent].
-	Name         string `json:"name"`
+	Param        string `json:"param"`
+	Arguments    string `json:"arguments"`
 	Command      string `json:"command"`
 	CommandIndex int64  `json:"command_index"`
 	// This field is from variant [ResponseShellCallCommandDeltaEvent].
@@ -22338,7 +24835,6 @@ type ResponseStreamEventUnion struct {
 		Message           respjson.Field
 		Param             respjson.Field
 		Arguments         respjson.Field
-		Name              respjson.Field
 		Command           respjson.Field
 		CommandIndex      respjson.Field
 		Obfuscation       respjson.Field
@@ -22378,6 +24874,7 @@ func (ResponseCodeInterpreterCallCodeDoneEvent) implResponseStreamEventUnion()  
 func (ResponseCodeInterpreterCallCompletedEvent) implResponseStreamEventUnion()    {}
 func (ResponseCodeInterpreterCallInProgressEvent) implResponseStreamEventUnion()   {}
 func (ResponseCodeInterpreterCallInterpretingEvent) implResponseStreamEventUnion() {}
+func (ResponseCompactionCompactingEvent) implResponseStreamEventUnion()            {}
 func (ResponseCompletedEvent) implResponseStreamEventUnion()                       {}
 func (ResponseContentPartAddedEvent) implResponseStreamEventUnion()                {}
 func (ResponseContentPartDoneEvent) implResponseStreamEventUnion()                 {}
@@ -22391,6 +24888,7 @@ func (ResponseFunctionCallArgumentsDoneEvent) implResponseStreamEventUnion()    
 func (ResponseShellCallCommandAddedEvent) implResponseStreamEventUnion()           {}
 func (ResponseShellCallCommandDeltaEvent) implResponseStreamEventUnion()           {}
 func (ResponseShellCallCommandDoneEvent) implResponseStreamEventUnion()            {}
+func (ResponseShellCallOutputContentDeltaEvent) implResponseStreamEventUnion()     {}
 func (ResponseShellCallOutputContentDoneEvent) implResponseStreamEventUnion()      {}
 func (ResponseInProgressEvent) implResponseStreamEventUnion()                      {}
 func (ResponseFailedEvent) implResponseStreamEventUnion()                          {}
@@ -22439,6 +24937,7 @@ func (ResponseCustomToolCallInputDoneEvent) implResponseStreamEventUnion()      
 //	case responses.ResponseCodeInterpreterCallCompletedEvent:
 //	case responses.ResponseCodeInterpreterCallInProgressEvent:
 //	case responses.ResponseCodeInterpreterCallInterpretingEvent:
+//	case responses.ResponseCompactionCompactingEvent:
 //	case responses.ResponseCompletedEvent:
 //	case responses.ResponseContentPartAddedEvent:
 //	case responses.ResponseContentPartDoneEvent:
@@ -22452,6 +24951,7 @@ func (ResponseCustomToolCallInputDoneEvent) implResponseStreamEventUnion()      
 //	case responses.ResponseShellCallCommandAddedEvent:
 //	case responses.ResponseShellCallCommandDeltaEvent:
 //	case responses.ResponseShellCallCommandDoneEvent:
+//	case responses.ResponseShellCallOutputContentDeltaEvent:
 //	case responses.ResponseShellCallOutputContentDoneEvent:
 //	case responses.ResponseInProgressEvent:
 //	case responses.ResponseFailedEvent:
@@ -22510,6 +25010,8 @@ func (u ResponseStreamEventUnion) AsAny() anyResponseStreamEvent {
 		return u.AsResponseCodeInterpreterCallInProgress()
 	case "response.code_interpreter_call.interpreting":
 		return u.AsResponseCodeInterpreterCallInterpreting()
+	case "response.compaction.compacting":
+		return u.AsResponseCompactionCompacting()
 	case "response.completed":
 		return u.AsResponseCompleted()
 	case "response.content_part.added":
@@ -22536,6 +25038,8 @@ func (u ResponseStreamEventUnion) AsAny() anyResponseStreamEvent {
 		return u.AsResponseShellCallCommandDelta()
 	case "response.shell_call_command.done":
 		return u.AsResponseShellCallCommandDone()
+	case "response.shell_call_output_content.delta":
+		return u.AsResponseShellCallOutputContentDelta()
 	case "response.shell_call_output_content.done":
 		return u.AsResponseShellCallOutputContentDone()
 	case "response.in_progress":
@@ -22655,6 +25159,11 @@ func (u ResponseStreamEventUnion) AsResponseCodeInterpreterCallInterpreting() (v
 	return
 }
 
+func (u ResponseStreamEventUnion) AsResponseCompactionCompacting() (v ResponseCompactionCompactingEvent) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
 func (u ResponseStreamEventUnion) AsResponseCompleted() (v ResponseCompletedEvent) {
 	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
@@ -22716,6 +25225,11 @@ func (u ResponseStreamEventUnion) AsResponseShellCallCommandDelta() (v ResponseS
 }
 
 func (u ResponseStreamEventUnion) AsResponseShellCallCommandDone() (v ResponseShellCallCommandDoneEvent) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseStreamEventUnion) AsResponseShellCallOutputContentDelta() (v ResponseShellCallOutputContentDeltaEvent) {
 	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
 	return
 }
@@ -22964,14 +25478,14 @@ func (r *ResponseStreamEventUnionLogprobs) UnmarshalJSON(data []byte) error {
 // Configuration options for a text response from the model. Can be plain text or
 // structured JSON data. Learn more:
 //
-// - [Text inputs and outputs](https://platform.openai.com/docs/guides/text)
-// - [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)
+//   - [Text inputs and outputs](https://developers.openai.com/api/docs/guides/text)
+//   - [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 type ResponseTextConfig struct {
 	// An object specifying the format that the model must output.
 	//
 	// Configuring `{ "type": "json_schema" }` enables Structured Outputs, which
 	// ensures the model will match your supplied JSON schema. Learn more in the
-	// [Structured Outputs guide](https://platform.openai.com/docs/guides/structured-outputs).
+	// [Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs).
 	//
 	// The default format is `{ "type": "text" }` with no additional options.
 	//
@@ -23027,8 +25541,8 @@ const (
 // Configuration options for a text response from the model. Can be plain text or
 // structured JSON data. Learn more:
 //
-// - [Text inputs and outputs](https://platform.openai.com/docs/guides/text)
-// - [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)
+//   - [Text inputs and outputs](https://developers.openai.com/api/docs/guides/text)
+//   - [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 type ResponseTextConfigParam struct {
 	// Constrains the verbosity of the model's response. Lower values will result in
 	// more concise responses, while higher values will result in more verbose
@@ -23041,7 +25555,7 @@ type ResponseTextConfigParam struct {
 	//
 	// Configuring `{ "type": "json_schema" }` enables Structured Outputs, which
 	// ensures the model will match your supplied JSON schema. Learn more in the
-	// [Structured Outputs guide](https://platform.openai.com/docs/guides/structured-outputs).
+	// [Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs).
 	//
 	// The default format is `{ "type": "text" }` with no additional options.
 	//
@@ -23344,7 +25858,7 @@ const (
 
 type ResponseToolSearchOutputItemParamResp struct {
 	// The loaded tool definitions returned by the tool search output.
-	Tools []ToolUnion `json:"tools" api:"required"`
+	Tools []ResponseToolSearchOutputItemParamToolUnionResp `json:"tools" api:"required"`
 	// The item type. Always `tool_search_output`.
 	Type constant.ToolSearchOutput `json:"type" default:"tool_search_output"`
 	// The unique ID of this tool search output.
@@ -23388,6 +25902,1004 @@ func (r ResponseToolSearchOutputItemParamResp) ToParam() ResponseToolSearchOutpu
 	return param.Override[ResponseToolSearchOutputItemParam](json.RawMessage(r.RawJSON()))
 }
 
+// ResponseToolSearchOutputItemParamToolUnionResp contains all possible properties
+// and values from [FunctionTool], [FileSearchTool], [ComputerTool],
+// [ComputerUsePreviewTool], [WebSearchTool],
+// [ResponseToolSearchOutputItemParamToolMcp],
+// [ResponseToolSearchOutputItemParamToolCodeInterpreter],
+// [ResponseToolSearchOutputItemParamToolProgrammaticToolCalling],
+// [ResponseToolSearchOutputItemParamToolImageGeneration],
+// [ResponseToolSearchOutputItemParamToolLocalShell], [FunctionShellTool],
+// [CustomTool], [ToolSearchOutputNamespaceTool], [ToolSearchTool],
+// [WebSearchPreviewTool], [ApplyPatchTool].
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ResponseToolSearchOutputItemParamToolUnionResp struct {
+	Name       string `json:"name"`
+	Parameters any    `json:"parameters"`
+	// This field is from variant [FunctionTool].
+	Strict bool `json:"strict"`
+	// Any of "function", "file_search", "computer", "computer_use_preview", nil,
+	// "mcp", "code_interpreter", "programmatic_tool_calling", "image_generation",
+	// "local_shell", "shell", "custom", "namespace", "tool_search", nil,
+	// "apply_patch".
+	Type           string   `json:"type"`
+	AllowedCallers []string `json:"allowed_callers"`
+	Async          bool     `json:"async"`
+	DeferLoading   bool     `json:"defer_loading"`
+	Description    string   `json:"description"`
+	// This field is from variant [FunctionTool].
+	OutputSchema map[string]any `json:"output_schema"`
+	// This field is from variant [FileSearchTool].
+	VectorStoreIDs []string `json:"vector_store_ids"`
+	// This field is a union of [FileSearchToolFiltersUnion], [WebSearchToolFilters]
+	Filters ResponseToolSearchOutputItemParamToolUnionRespFilters `json:"filters"`
+	// This field is from variant [FileSearchTool].
+	MaxNumResults int64 `json:"max_num_results"`
+	// This field is from variant [FileSearchTool].
+	RankingOptions FileSearchToolRankingOptions `json:"ranking_options"`
+	// This field is from variant [ComputerUsePreviewTool].
+	DisplayHeight int64 `json:"display_height"`
+	// This field is from variant [ComputerUsePreviewTool].
+	DisplayWidth int64 `json:"display_width"`
+	// This field is a union of [ComputerUsePreviewToolEnvironment],
+	// [FunctionShellToolEnvironmentUnion]
+	Environment ResponseToolSearchOutputItemParamToolUnionRespEnvironment `json:"environment"`
+	// This field is from variant [WebSearchTool].
+	ExternalWebAccess bool   `json:"external_web_access"`
+	SearchContextSize string `json:"search_context_size"`
+	// This field is a union of [WebSearchToolUserLocation],
+	// [WebSearchPreviewToolUserLocation]
+	UserLocation ResponseToolSearchOutputItemParamToolUnionRespUserLocation `json:"user_location"`
+	// This field is from variant [ResponseToolSearchOutputItemParamToolMcp].
+	ServerLabel string `json:"server_label"`
+	// This field is from variant [ResponseToolSearchOutputItemParamToolMcp].
+	AllowedTools ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnionResp `json:"allowed_tools"`
+	// This field is from variant [ResponseToolSearchOutputItemParamToolMcp].
+	Authorization string `json:"authorization"`
+	// This field is from variant [ResponseToolSearchOutputItemParamToolMcp].
+	ConnectorID string `json:"connector_id"`
+	// This field is from variant [ResponseToolSearchOutputItemParamToolMcp].
+	Headers map[string]string `json:"headers"`
+	// This field is from variant [ResponseToolSearchOutputItemParamToolMcp].
+	RequireApproval ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnionResp `json:"require_approval"`
+	// This field is from variant [ResponseToolSearchOutputItemParamToolMcp].
+	ServerDescription string `json:"server_description"`
+	// This field is from variant [ResponseToolSearchOutputItemParamToolMcp].
+	ServerURL string `json:"server_url"`
+	// This field is from variant [ResponseToolSearchOutputItemParamToolMcp].
+	TunnelID string `json:"tunnel_id"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolCodeInterpreter].
+	Container ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnionResp `json:"container"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolImageGeneration].
+	Action string `json:"action"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolImageGeneration].
+	Background string `json:"background"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolImageGeneration].
+	InputFidelity string `json:"input_fidelity"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolImageGeneration].
+	InputImageMask ResponseToolSearchOutputItemParamToolImageGenerationInputImageMaskResp `json:"input_image_mask"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolImageGeneration].
+	Model string `json:"model"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolImageGeneration].
+	Moderation string `json:"moderation"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolImageGeneration].
+	OutputCompression int64 `json:"output_compression"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolImageGeneration].
+	OutputFormat string `json:"output_format"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolImageGeneration].
+	PartialImages int64 `json:"partial_images"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolImageGeneration].
+	Quality string `json:"quality"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolImageGeneration].
+	Size string `json:"size"`
+	// This field is from variant [CustomTool].
+	Format shared.CustomToolInputFormatUnion `json:"format"`
+	// This field is from variant [ToolSearchOutputNamespaceTool].
+	Tools []ToolSearchOutputNamespaceToolToolUnion `json:"tools"`
+	// This field is from variant [ToolSearchTool].
+	Execution ToolSearchToolExecution `json:"execution"`
+	// This field is from variant [WebSearchPreviewTool].
+	SearchContentTypes []string `json:"search_content_types"`
+	JSON               struct {
+		Name               respjson.Field
+		Parameters         respjson.Field
+		Strict             respjson.Field
+		Type               respjson.Field
+		AllowedCallers     respjson.Field
+		Async              respjson.Field
+		DeferLoading       respjson.Field
+		Description        respjson.Field
+		OutputSchema       respjson.Field
+		VectorStoreIDs     respjson.Field
+		Filters            respjson.Field
+		MaxNumResults      respjson.Field
+		RankingOptions     respjson.Field
+		DisplayHeight      respjson.Field
+		DisplayWidth       respjson.Field
+		Environment        respjson.Field
+		ExternalWebAccess  respjson.Field
+		SearchContextSize  respjson.Field
+		UserLocation       respjson.Field
+		ServerLabel        respjson.Field
+		AllowedTools       respjson.Field
+		Authorization      respjson.Field
+		ConnectorID        respjson.Field
+		Headers            respjson.Field
+		RequireApproval    respjson.Field
+		ServerDescription  respjson.Field
+		ServerURL          respjson.Field
+		TunnelID           respjson.Field
+		Container          respjson.Field
+		Action             respjson.Field
+		Background         respjson.Field
+		InputFidelity      respjson.Field
+		InputImageMask     respjson.Field
+		Model              respjson.Field
+		Moderation         respjson.Field
+		OutputCompression  respjson.Field
+		OutputFormat       respjson.Field
+		PartialImages      respjson.Field
+		Quality            respjson.Field
+		Size               respjson.Field
+		Format             respjson.Field
+		Tools              respjson.Field
+		Execution          respjson.Field
+		SearchContentTypes respjson.Field
+		raw                string
+	} `json:"-"`
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsFunction() (v FunctionTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsFileSearch() (v FileSearchTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsComputer() (v ComputerTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsComputerUsePreview() (v ComputerUsePreviewTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsWebSearch() (v WebSearchTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsMcp() (v ResponseToolSearchOutputItemParamToolMcp) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsCodeInterpreter() (v ResponseToolSearchOutputItemParamToolCodeInterpreter) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsProgrammaticToolCalling() (v ResponseToolSearchOutputItemParamToolProgrammaticToolCalling) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsImageGeneration() (v ResponseToolSearchOutputItemParamToolImageGeneration) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsLocalShell() (v ResponseToolSearchOutputItemParamToolLocalShell) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsShell() (v FunctionShellTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsCustom() (v CustomTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsNamespace() (v ToolSearchOutputNamespaceTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsToolSearch() (v ToolSearchTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsWebSearchPreview() (v WebSearchPreviewTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnionResp) AsApplyPatch() (v ApplyPatchTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseToolSearchOutputItemParamToolUnionResp) RawJSON() string { return u.JSON.raw }
+
+func (r *ResponseToolSearchOutputItemParamToolUnionResp) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseToolSearchOutputItemParamToolUnionRespFilters is an implicit subunion of
+// [ResponseToolSearchOutputItemParamToolUnionResp].
+// ResponseToolSearchOutputItemParamToolUnionRespFilters provides convenient access
+// to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [ResponseToolSearchOutputItemParamToolUnionResp].
+type ResponseToolSearchOutputItemParamToolUnionRespFilters struct {
+	// This field is from variant [FileSearchToolFiltersUnion].
+	Key  string `json:"key"`
+	Type string `json:"type"`
+	// This field is from variant [FileSearchToolFiltersUnion].
+	Value shared.ComparisonFilterValueUnion `json:"value"`
+	// This field is from variant [FileSearchToolFiltersUnion].
+	Filters []shared.CompoundFilterFilterUnion `json:"filters"`
+	// This field is from variant [WebSearchToolFilters].
+	AllowedDomains []string `json:"allowed_domains"`
+	JSON           struct {
+		Key            respjson.Field
+		Type           respjson.Field
+		Value          respjson.Field
+		Filters        respjson.Field
+		AllowedDomains respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+func (r *ResponseToolSearchOutputItemParamToolUnionRespFilters) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseToolSearchOutputItemParamToolUnionRespEnvironment is an implicit
+// subunion of [ResponseToolSearchOutputItemParamToolUnionResp].
+// ResponseToolSearchOutputItemParamToolUnionRespEnvironment provides convenient
+// access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [ResponseToolSearchOutputItemParamToolUnionResp].
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfComputerUsePreviewToolEnvironment]
+type ResponseToolSearchOutputItemParamToolUnionRespEnvironment struct {
+	// This field will be present if the value is a [ComputerUsePreviewToolEnvironment]
+	// instead of an object.
+	OfComputerUsePreviewToolEnvironment ComputerUsePreviewToolEnvironment `json:",inline"`
+	Type                                string                            `json:"type"`
+	// This field is from variant [FunctionShellToolEnvironmentUnion].
+	FileIDs []string `json:"file_ids"`
+	// This field is from variant [FunctionShellToolEnvironmentUnion].
+	MemoryLimit ContainerAutoMemoryLimit `json:"memory_limit"`
+	// This field is from variant [FunctionShellToolEnvironmentUnion].
+	NetworkPolicy ContainerAutoNetworkPolicyUnion `json:"network_policy"`
+	// This field is a union of [[]ContainerAutoSkillUnion], [[]LocalSkill]
+	Skills ResponseToolSearchOutputItemParamToolUnionRespEnvironmentSkills `json:"skills"`
+	// This field is from variant [FunctionShellToolEnvironmentUnion].
+	ContainerID string `json:"container_id"`
+	JSON        struct {
+		OfComputerUsePreviewToolEnvironment respjson.Field
+		Type                                respjson.Field
+		FileIDs                             respjson.Field
+		MemoryLimit                         respjson.Field
+		NetworkPolicy                       respjson.Field
+		Skills                              respjson.Field
+		ContainerID                         respjson.Field
+		raw                                 string
+	} `json:"-"`
+}
+
+func (r *ResponseToolSearchOutputItemParamToolUnionRespEnvironment) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseToolSearchOutputItemParamToolUnionRespEnvironmentSkills is an implicit
+// subunion of [ResponseToolSearchOutputItemParamToolUnionResp].
+// ResponseToolSearchOutputItemParamToolUnionRespEnvironmentSkills provides
+// convenient access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [ResponseToolSearchOutputItemParamToolUnionResp].
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfContainerAutoSkills OfLocalSkillArray]
+type ResponseToolSearchOutputItemParamToolUnionRespEnvironmentSkills struct {
+	// This field will be present if the value is a [[]ContainerAutoSkillUnion] instead
+	// of an object.
+	OfContainerAutoSkills []ContainerAutoSkillUnion `json:",inline"`
+	// This field will be present if the value is a [[]LocalSkill] instead of an
+	// object.
+	OfLocalSkillArray []LocalSkill `json:",inline"`
+	JSON              struct {
+		OfContainerAutoSkills respjson.Field
+		OfLocalSkillArray     respjson.Field
+		raw                   string
+	} `json:"-"`
+}
+
+func (r *ResponseToolSearchOutputItemParamToolUnionRespEnvironmentSkills) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseToolSearchOutputItemParamToolUnionRespUserLocation is an implicit
+// subunion of [ResponseToolSearchOutputItemParamToolUnionResp].
+// ResponseToolSearchOutputItemParamToolUnionRespUserLocation provides convenient
+// access to the sub-properties of the union.
+//
+// For type safety it is recommended to directly use a variant of the
+// [ResponseToolSearchOutputItemParamToolUnionResp].
+type ResponseToolSearchOutputItemParamToolUnionRespUserLocation struct {
+	City     string `json:"city"`
+	Country  string `json:"country"`
+	Region   string `json:"region"`
+	Timezone string `json:"timezone"`
+	Type     string `json:"type"`
+	JSON     struct {
+		City     respjson.Field
+		Country  respjson.Field
+		Region   respjson.Field
+		Timezone respjson.Field
+		Type     respjson.Field
+		raw      string
+	} `json:"-"`
+}
+
+func (r *ResponseToolSearchOutputItemParamToolUnionRespUserLocation) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Give the model access to additional tools via remote Model Context Protocol
+// (MCP) servers.
+// [Learn more about MCP](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
+type ResponseToolSearchOutputItemParamToolMcp struct {
+	// A label for this MCP server, used to identify it in tool calls.
+	ServerLabel string `json:"server_label" api:"required"`
+	// The type of the MCP tool. Always `mcp`.
+	Type constant.Mcp `json:"type" default:"mcp"`
+	// The tool invocation context(s).
+	//
+	// Any of "direct", "programmatic".
+	AllowedCallers []string `json:"allowed_callers" api:"nullable"`
+	// List of allowed tool names or a filter object.
+	AllowedTools ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnionResp `json:"allowed_tools" api:"nullable"`
+	// An OAuth access token that can be used with a remote MCP server, either with a
+	// custom MCP server URL or a service connector. Your application must handle the
+	// OAuth authorization flow and provide the token here.
+	Authorization string `json:"authorization"`
+	// Identifier for service connectors, like those available in ChatGPT. One of
+	// `server_url`, `connector_id`, or `tunnel_id` must be provided. Learn more about
+	// service connectors
+	// [here](https://developers.openai.com/api/docs/guides/tools-connectors-mcp#connectors).
+	//
+	// This field is deprecated for models released after September 1, 2026. Use
+	// `server_url` to connect to a remote MCP server, or `tunnel_id` to connect
+	// through a Secure MCP Tunnel.
+	//
+	// Currently supported `connector_id` values are:
+	//
+	// - Dropbox: `connector_dropbox`
+	// - Gmail: `connector_gmail`
+	// - Google Calendar: `connector_googlecalendar`
+	// - Google Drive: `connector_googledrive`
+	// - Microsoft Teams: `connector_microsoftteams`
+	// - Outlook Calendar: `connector_outlookcalendar`
+	// - Outlook Email: `connector_outlookemail`
+	// - SharePoint: `connector_sharepoint`
+	//
+	// Any of "connector_dropbox", "connector_gmail", "connector_googlecalendar",
+	// "connector_googledrive", "connector_microsoftteams",
+	// "connector_outlookcalendar", "connector_outlookemail", "connector_sharepoint".
+	//
+	// Deprecated: deprecated
+	ConnectorID string `json:"connector_id"`
+	// Whether this MCP tool is deferred and discovered via tool search.
+	DeferLoading bool `json:"defer_loading"`
+	// Optional HTTP headers to send to the MCP server. Use for authentication or other
+	// purposes.
+	Headers map[string]string `json:"headers" api:"nullable"`
+	// Specify which of the MCP server's tools require approval.
+	RequireApproval ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnionResp `json:"require_approval" api:"nullable"`
+	// Optional description of the MCP server, used to provide more context.
+	ServerDescription string `json:"server_description"`
+	// The URL for the MCP server. One of `server_url`, `connector_id`, or `tunnel_id`
+	// must be provided.
+	ServerURL string `json:"server_url" format:"uri"`
+	// The Secure MCP Tunnel ID to use instead of a direct server URL. One of
+	// `server_url`, `connector_id`, or `tunnel_id` must be provided.
+	TunnelID string `json:"tunnel_id"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ServerLabel       respjson.Field
+		Type              respjson.Field
+		AllowedCallers    respjson.Field
+		AllowedTools      respjson.Field
+		Authorization     respjson.Field
+		ConnectorID       respjson.Field
+		DeferLoading      respjson.Field
+		Headers           respjson.Field
+		RequireApproval   respjson.Field
+		ServerDescription respjson.Field
+		ServerURL         respjson.Field
+		TunnelID          respjson.Field
+		ExtraFields       map[string]respjson.Field
+		raw               string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseToolSearchOutputItemParamToolMcp) RawJSON() string { return r.JSON.raw }
+func (r *ResponseToolSearchOutputItemParamToolMcp) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnionResp contains all
+// possible properties and values from [[]string],
+// [ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilter].
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfMcpAllowedTools]
+type ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnionResp struct {
+	// This field will be present if the value is a [[]string] instead of an object.
+	OfMcpAllowedTools []string `json:",inline"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilter].
+	ReadOnly bool `json:"read_only"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilter].
+	ToolNames []string `json:"tool_names"`
+	JSON      struct {
+		OfMcpAllowedTools respjson.Field
+		ReadOnly          respjson.Field
+		ToolNames         respjson.Field
+		raw               string
+	} `json:"-"`
+}
+
+func (u ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnionResp) AsMcpAllowedTools() (v []string) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnionResp) AsMcpToolFilter() (v ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilter) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnionResp) RawJSON() string {
+	return u.JSON.raw
+}
+
+func (r *ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnionResp) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A filter object to specify which tools are allowed.
+type ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilter struct {
+	// Indicates whether or not a tool modifies data or is read-only. If an MCP server
+	// is
+	// [annotated with `readOnlyHint`](https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations-readonlyhint),
+	// it will match this filter.
+	ReadOnly bool `json:"read_only"`
+	// List of allowed tool names.
+	ToolNames []string `json:"tool_names"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ReadOnly    respjson.Field
+		ToolNames   respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilter) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilter) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnionResp contains all
+// possible properties and values from
+// [ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilter],
+// [string].
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfMcpToolApprovalSetting]
+type ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnionResp struct {
+	// This field will be present if the value is a [string] instead of an object.
+	OfMcpToolApprovalSetting string `json:",inline"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilter].
+	Always ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterAlwaysResp `json:"always"`
+	// This field is from variant
+	// [ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilter].
+	Never ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterNeverResp `json:"never"`
+	JSON  struct {
+		OfMcpToolApprovalSetting respjson.Field
+		Always                   respjson.Field
+		Never                    respjson.Field
+		raw                      string
+	} `json:"-"`
+}
+
+func (u ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnionResp) AsMcpToolApprovalFilter() (v ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilter) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnionResp) AsMcpToolApprovalSetting() (v string) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnionResp) RawJSON() string {
+	return u.JSON.raw
+}
+
+func (r *ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnionResp) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Specify which of the MCP server's tools require approval. Can be `always`,
+// `never`, or a filter object associated with tools that require approval.
+type ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilter struct {
+	// A filter object to specify which tools are allowed.
+	Always ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterAlwaysResp `json:"always"`
+	// A filter object to specify which tools are allowed.
+	Never ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterNeverResp `json:"never"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Always      respjson.Field
+		Never       respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilter) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilter) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A filter object to specify which tools are allowed.
+type ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterAlwaysResp struct {
+	// Indicates whether or not a tool modifies data or is read-only. If an MCP server
+	// is
+	// [annotated with `readOnlyHint`](https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations-readonlyhint),
+	// it will match this filter.
+	ReadOnly bool `json:"read_only"`
+	// List of allowed tool names.
+	ToolNames []string `json:"tool_names"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ReadOnly    respjson.Field
+		ToolNames   respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterAlwaysResp) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterAlwaysResp) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A filter object to specify which tools are allowed.
+type ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterNeverResp struct {
+	// Indicates whether or not a tool modifies data or is read-only. If an MCP server
+	// is
+	// [annotated with `readOnlyHint`](https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations-readonlyhint),
+	// it will match this filter.
+	ReadOnly bool `json:"read_only"`
+	// List of allowed tool names.
+	ToolNames []string `json:"tool_names"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ReadOnly    respjson.Field
+		ToolNames   respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterNeverResp) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterNeverResp) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Specify a single approval policy for all tools. One of `always` or `never`. When
+// set to `always`, all tools will require approval. When set to `never`, all tools
+// will not require approval.
+type ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalSetting string
+
+const (
+	ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalSettingAlways ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalSetting = "always"
+	ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalSettingNever  ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalSetting = "never"
+)
+
+// A tool that runs Python code to help generate a response to a prompt.
+type ResponseToolSearchOutputItemParamToolCodeInterpreter struct {
+	// The code interpreter container. Can be a container ID or an object that
+	// specifies uploaded file IDs to make available to your code, along with an
+	// optional `memory_limit` setting.
+	Container ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnionResp `json:"container" api:"required"`
+	// The type of the code interpreter tool. Always `code_interpreter`.
+	Type constant.CodeInterpreter `json:"type" default:"code_interpreter"`
+	// The tool invocation context(s).
+	//
+	// Any of "direct", "programmatic".
+	AllowedCallers []string `json:"allowed_callers" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Container      respjson.Field
+		Type           respjson.Field
+		AllowedCallers respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseToolSearchOutputItemParamToolCodeInterpreter) RawJSON() string { return r.JSON.raw }
+func (r *ResponseToolSearchOutputItemParamToolCodeInterpreter) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnionResp contains
+// all possible properties and values from [string],
+// [ToolCodeInterpreterContainerCodeInterpreterContainerAuto].
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+//
+// If the underlying value is not a json object, one of the following properties
+// will be valid: OfString]
+type ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnionResp struct {
+	// This field will be present if the value is a [string] instead of an object.
+	OfString string `json:",inline"`
+	// This field is from variant
+	// [ToolCodeInterpreterContainerCodeInterpreterContainerAuto].
+	Type constant.Auto `json:"type"`
+	// This field is from variant
+	// [ToolCodeInterpreterContainerCodeInterpreterContainerAuto].
+	FileIDs []string `json:"file_ids"`
+	// This field is from variant
+	// [ToolCodeInterpreterContainerCodeInterpreterContainerAuto].
+	MemoryLimit string `json:"memory_limit"`
+	// This field is from variant
+	// [ToolCodeInterpreterContainerCodeInterpreterContainerAuto].
+	NetworkPolicy ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp `json:"network_policy"`
+	JSON          struct {
+		OfString      respjson.Field
+		Type          respjson.Field
+		FileIDs       respjson.Field
+		MemoryLimit   respjson.Field
+		NetworkPolicy respjson.Field
+		raw           string
+	} `json:"-"`
+}
+
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnionResp) AsString() (v string) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnionResp) AsCodeInterpreterToolAuto() (v ToolCodeInterpreterContainerCodeInterpreterContainerAuto) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnionResp) RawJSON() string {
+	return u.JSON.raw
+}
+
+func (r *ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnionResp) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Configuration for a code interpreter container. Optionally specify the IDs of
+// the files to run the code on.
+type ToolCodeInterpreterContainerCodeInterpreterContainerAuto struct {
+	// Always `auto`.
+	Type constant.Auto `json:"type" default:"auto"`
+	// An optional list of uploaded files to make available to your code.
+	FileIDs []string `json:"file_ids"`
+	// The memory limit for the code interpreter container.
+	//
+	// Any of "1g", "4g", "16g", "64g".
+	MemoryLimit string `json:"memory_limit" api:"nullable"`
+	// Network access policy for the container.
+	NetworkPolicy ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp `json:"network_policy"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type          respjson.Field
+		FileIDs       respjson.Field
+		MemoryLimit   respjson.Field
+		NetworkPolicy respjson.Field
+		ExtraFields   map[string]respjson.Field
+		raw           string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ToolCodeInterpreterContainerCodeInterpreterContainerAuto) RawJSON() string { return r.JSON.raw }
+func (r *ToolCodeInterpreterContainerCodeInterpreterContainerAuto) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp
+// contains all possible properties and values from
+// [ContainerNetworkPolicyDisabled], [ContainerNetworkPolicyAllowlist].
+//
+// Use the
+// [ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp.AsAny]
+// method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp struct {
+	// Any of "disabled", "allowlist".
+	Type string `json:"type"`
+	// This field is from variant [ContainerNetworkPolicyAllowlist].
+	AllowedDomains []string `json:"allowed_domains"`
+	// This field is from variant [ContainerNetworkPolicyAllowlist].
+	DomainSecrets []ContainerNetworkPolicyDomainSecret `json:"domain_secrets"`
+	JSON          struct {
+		Type           respjson.Field
+		AllowedDomains respjson.Field
+		DomainSecrets  respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// anyResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyResp
+// is implemented by each variant of
+// [ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp]
+// to add type safety for the return type of
+// [ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp.AsAny]
+type anyResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyResp interface {
+	implResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp()
+}
+
+func (ContainerNetworkPolicyDisabled) implResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp() {
+}
+func (ContainerNetworkPolicyAllowlist) implResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp() {
+}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp.AsAny().(type) {
+//	case responses.ContainerNetworkPolicyDisabled:
+//	case responses.ContainerNetworkPolicyAllowlist:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp) AsAny() anyResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyResp {
+	switch u.Type {
+	case "disabled":
+		return u.AsDisabled()
+	case "allowlist":
+		return u.AsAllowlist()
+	}
+	return nil
+}
+
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp) AsDisabled() (v ContainerNetworkPolicyDisabled) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp) AsAllowlist() (v ContainerNetworkPolicyAllowlist) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp) RawJSON() string {
+	return u.JSON.raw
+}
+
+func (r *ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionResp) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ResponseToolSearchOutputItemParamToolProgrammaticToolCalling struct {
+	// The type of the tool. Always `programmatic_tool_calling`.
+	Type constant.ProgrammaticToolCalling `json:"type" default:"programmatic_tool_calling"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseToolSearchOutputItemParamToolProgrammaticToolCalling) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponseToolSearchOutputItemParamToolProgrammaticToolCalling) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A tool that generates images using the GPT image models.
+type ResponseToolSearchOutputItemParamToolImageGeneration struct {
+	// The type of the image generation tool. Always `image_generation`.
+	Type constant.ImageGeneration `json:"type" default:"image_generation"`
+	// Whether to generate a new image or edit an existing image. Default: `auto`.
+	//
+	// Any of "generate", "edit", "auto".
+	Action string `json:"action"`
+	// Allows to set transparency for the background of the generated image(s). Must be
+	// one of `transparent`, `opaque`, or `auto` (default value). When `auto` is used,
+	// the model will automatically determine the best background for the image.
+	//
+	// `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare`, including their `2026-09-08`
+	// snapshots, support `opaque` and `transparent` backgrounds. Transparent
+	// backgrounds are available for supported GPT Image models. For `gpt-image-2` and
+	// `gpt-image-2-2026-04-21`, this support is in preview. When using `transparent`,
+	// set the output format to `png` or `webp`.
+	//
+	// Any of "transparent", "opaque", "auto".
+	Background string `json:"background"`
+	// Control how much effort the model will exert to match the style and features,
+	// especially facial features, of input images. Supports `high` and `low` on
+	// `gpt-image-1` and `gpt-image-1.5`; `gpt-image-1-mini` supports only `low`. For
+	// `gpt-image-2`, omit this parameter. Defaults to `low` on supported models.
+	//
+	// Any of "high", "low".
+	InputFidelity string `json:"input_fidelity" api:"nullable"`
+	// Optional mask for inpainting. Contains `image_url` (string, optional) and
+	// `file_id` (string, optional).
+	InputImageMask ResponseToolSearchOutputItemParamToolImageGenerationInputImageMaskResp `json:"input_image_mask"`
+	// The image generation model to use. One of `gpt-image-1`, `gpt-image-1-mini`,
+	// `gpt-image-1.5`, `gpt-image-2`, `gpt-image-2-2026-04-21`,
+	// `gpt-image-2.5-sunburst`, `gpt-image-2.5-sunburst-2026-09-08`,
+	// `gpt-image-2.5-flare`, `gpt-image-2.5-flare-2026-09-08`, or
+	// `chatgpt-image-latest`. Default: `gpt-image-1`.
+	Model string `json:"model"`
+	// Moderation level for the generated image. Default: `auto`.
+	//
+	// Any of "auto", "low".
+	Moderation string `json:"moderation"`
+	// Compression level for the output image. Default: 100.
+	OutputCompression int64 `json:"output_compression"`
+	// The output format of the generated image. One of `png`, `webp`, or `jpeg`.
+	// Default: `png`.
+	//
+	// Any of "png", "webp", "jpeg".
+	OutputFormat string `json:"output_format"`
+	// Number of partial images to generate in streaming mode, from 0 (default value)
+	// to 3.
+	PartialImages int64 `json:"partial_images"`
+	// The quality of the generated image. The GPT image models support `low`,
+	// `medium`, and `high`. `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare`,
+	// including their `2026-09-08` snapshots, also support `xhigh` and `max`. Default:
+	// `auto`.
+	//
+	// Any of "low", "medium", "high", "xhigh", "max", "auto".
+	Quality string `json:"quality"`
+	// The size of the generated images. For `gpt-image-2`, `gpt-image-2-2026-04-21`,
+	// `gpt-image-2.5-sunburst`, `gpt-image-2.5-sunburst-2026-09-08`,
+	// `gpt-image-2.5-flare`, and `gpt-image-2.5-flare-2026-09-08`, arbitrary
+	// resolutions are supported as `WIDTHxHEIGHT` strings, for example `1536x864`.
+	// Width and height must both be divisible by 16 and the requested aspect ratio
+	// must be between 1:3 and 3:1. Resolutions above `2560x1440` are experimental, and
+	// the maximum supported resolution is `3840x2160`. The requested size must also
+	// satisfy the model's current pixel and edge limits. The standard sizes
+	// `1024x1024`, `1536x1024`, and `1024x1536` are supported by the GPT image models;
+	// `auto` is supported for models that allow automatic sizing.
+	Size string `json:"size"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type              respjson.Field
+		Action            respjson.Field
+		Background        respjson.Field
+		InputFidelity     respjson.Field
+		InputImageMask    respjson.Field
+		Model             respjson.Field
+		Moderation        respjson.Field
+		OutputCompression respjson.Field
+		OutputFormat      respjson.Field
+		PartialImages     respjson.Field
+		Quality           respjson.Field
+		Size              respjson.Field
+		ExtraFields       map[string]respjson.Field
+		raw               string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseToolSearchOutputItemParamToolImageGeneration) RawJSON() string { return r.JSON.raw }
+func (r *ResponseToolSearchOutputItemParamToolImageGeneration) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Optional mask for inpainting. Contains `image_url` (string, optional) and
+// `file_id` (string, optional).
+type ResponseToolSearchOutputItemParamToolImageGenerationInputImageMaskResp struct {
+	// File ID for the mask image.
+	FileID string `json:"file_id"`
+	// Base64-encoded mask image.
+	ImageURL string `json:"image_url"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		FileID      respjson.Field
+		ImageURL    respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseToolSearchOutputItemParamToolImageGenerationInputImageMaskResp) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponseToolSearchOutputItemParamToolImageGenerationInputImageMaskResp) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A tool that allows the model to execute shell commands in a local environment.
+type ResponseToolSearchOutputItemParamToolLocalShell struct {
+	// The type of the local shell tool. Always `local_shell`.
+	Type constant.LocalShell `json:"type" default:"local_shell"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponseToolSearchOutputItemParamToolLocalShell) RawJSON() string { return r.JSON.raw }
+func (r *ResponseToolSearchOutputItemParamToolLocalShell) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 // Whether tool search was executed by the server or by the client.
 type ResponseToolSearchOutputItemParamExecution string
 
@@ -23408,7 +26920,7 @@ const (
 // The properties Tools, Type are required.
 type ResponseToolSearchOutputItemParam struct {
 	// The loaded tool definitions returned by the tool search output.
-	Tools []ToolUnionParam `json:"tools,omitzero" api:"required"`
+	Tools []ResponseToolSearchOutputItemParamToolUnion `json:"tools,omitzero" api:"required"`
 	// The unique ID of this tool search output.
 	ID param.Opt[string] `json:"id,omitzero"`
 	// The unique ID of the tool search call generated by the model.
@@ -23434,6 +26946,1225 @@ func (r ResponseToolSearchOutputItemParam) MarshalJSON() (data []byte, err error
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ResponseToolSearchOutputItemParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseToolSearchOutputItemParamToolUnion struct {
+	OfFunction                *FunctionToolParam                                                 `json:",omitzero,inline"`
+	OfFileSearch              *FileSearchToolParam                                               `json:",omitzero,inline"`
+	OfComputer                *ComputerToolParam                                                 `json:",omitzero,inline"`
+	OfComputerUsePreview      *ComputerUsePreviewToolParam                                       `json:",omitzero,inline"`
+	OfWebSearch               *WebSearchToolParam                                                `json:",omitzero,inline"`
+	OfMcp                     *ResponseToolSearchOutputItemParamToolMcpParam                     `json:",omitzero,inline"`
+	OfCodeInterpreter         *ResponseToolSearchOutputItemParamToolCodeInterpreterParam         `json:",omitzero,inline"`
+	OfProgrammaticToolCalling *ResponseToolSearchOutputItemParamToolProgrammaticToolCallingParam `json:",omitzero,inline"`
+	OfImageGeneration         *ResponseToolSearchOutputItemParamToolImageGenerationParam         `json:",omitzero,inline"`
+	OfLocalShell              *ResponseToolSearchOutputItemParamToolLocalShellParam              `json:",omitzero,inline"`
+	OfShell                   *FunctionShellToolParam                                            `json:",omitzero,inline"`
+	OfCustom                  *CustomToolParam                                                   `json:",omitzero,inline"`
+	OfNamespace               *ToolSearchOutputNamespaceToolParam                                `json:",omitzero,inline"`
+	OfToolSearch              *ToolSearchToolParam                                               `json:",omitzero,inline"`
+	OfWebSearchPreview        *WebSearchPreviewToolParam                                         `json:",omitzero,inline"`
+	OfApplyPatch              *ApplyPatchToolParam                                               `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseToolSearchOutputItemParamToolUnion) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfFunction,
+		u.OfFileSearch,
+		u.OfComputer,
+		u.OfComputerUsePreview,
+		u.OfWebSearch,
+		u.OfMcp,
+		u.OfCodeInterpreter,
+		u.OfProgrammaticToolCalling,
+		u.OfImageGeneration,
+		u.OfLocalShell,
+		u.OfShell,
+		u.OfCustom,
+		u.OfNamespace,
+		u.OfToolSearch,
+		u.OfWebSearchPreview,
+		u.OfApplyPatch)
+}
+func (u *ResponseToolSearchOutputItemParamToolUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetStrict() *bool {
+	if vt := u.OfFunction; vt != nil && vt.Strict.Valid() {
+		return &vt.Strict.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetOutputSchema() map[string]any {
+	if vt := u.OfFunction; vt != nil {
+		return vt.OutputSchema
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetVectorStoreIDs() []string {
+	if vt := u.OfFileSearch; vt != nil {
+		return vt.VectorStoreIDs
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetMaxNumResults() *int64 {
+	if vt := u.OfFileSearch; vt != nil && vt.MaxNumResults.Valid() {
+		return &vt.MaxNumResults.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetRankingOptions() *FileSearchToolRankingOptionsParam {
+	if vt := u.OfFileSearch; vt != nil {
+		return &vt.RankingOptions
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetDisplayHeight() *int64 {
+	if vt := u.OfComputerUsePreview; vt != nil {
+		return &vt.DisplayHeight
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetDisplayWidth() *int64 {
+	if vt := u.OfComputerUsePreview; vt != nil {
+		return &vt.DisplayWidth
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetExternalWebAccess() *bool {
+	if vt := u.OfWebSearch; vt != nil && vt.ExternalWebAccess.Valid() {
+		return &vt.ExternalWebAccess.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetServerLabel() *string {
+	if vt := u.OfMcp; vt != nil {
+		return &vt.ServerLabel
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetAllowedTools() *ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnion {
+	if vt := u.OfMcp; vt != nil {
+		return &vt.AllowedTools
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetAuthorization() *string {
+	if vt := u.OfMcp; vt != nil && vt.Authorization.Valid() {
+		return &vt.Authorization.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetConnectorID() *string {
+	if vt := u.OfMcp; vt != nil {
+		return &vt.ConnectorID
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetHeaders() map[string]string {
+	if vt := u.OfMcp; vt != nil {
+		return vt.Headers
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetRequireApproval() *ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnion {
+	if vt := u.OfMcp; vt != nil {
+		return &vt.RequireApproval
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetServerDescription() *string {
+	if vt := u.OfMcp; vt != nil && vt.ServerDescription.Valid() {
+		return &vt.ServerDescription.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetServerURL() *string {
+	if vt := u.OfMcp; vt != nil && vt.ServerURL.Valid() {
+		return &vt.ServerURL.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetTunnelID() *string {
+	if vt := u.OfMcp; vt != nil && vt.TunnelID.Valid() {
+		return &vt.TunnelID.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetContainer() *ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnion {
+	if vt := u.OfCodeInterpreter; vt != nil {
+		return &vt.Container
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetAction() *string {
+	if vt := u.OfImageGeneration; vt != nil {
+		return &vt.Action
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetBackground() *string {
+	if vt := u.OfImageGeneration; vt != nil {
+		return &vt.Background
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetInputFidelity() *string {
+	if vt := u.OfImageGeneration; vt != nil {
+		return &vt.InputFidelity
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetInputImageMask() *ResponseToolSearchOutputItemParamToolImageGenerationInputImageMask {
+	if vt := u.OfImageGeneration; vt != nil {
+		return &vt.InputImageMask
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetModel() *string {
+	if vt := u.OfImageGeneration; vt != nil {
+		return &vt.Model
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetModeration() *string {
+	if vt := u.OfImageGeneration; vt != nil {
+		return &vt.Moderation
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetOutputCompression() *int64 {
+	if vt := u.OfImageGeneration; vt != nil && vt.OutputCompression.Valid() {
+		return &vt.OutputCompression.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetOutputFormat() *string {
+	if vt := u.OfImageGeneration; vt != nil {
+		return &vt.OutputFormat
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetPartialImages() *int64 {
+	if vt := u.OfImageGeneration; vt != nil && vt.PartialImages.Valid() {
+		return &vt.PartialImages.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetQuality() *string {
+	if vt := u.OfImageGeneration; vt != nil {
+		return &vt.Quality
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetSize() *string {
+	if vt := u.OfImageGeneration; vt != nil {
+		return &vt.Size
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetFormat() *shared.CustomToolInputFormatUnionParam {
+	if vt := u.OfCustom; vt != nil {
+		return &vt.Format
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetTools() []ToolSearchOutputNamespaceToolToolUnionParam {
+	if vt := u.OfNamespace; vt != nil {
+		return vt.Tools
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetExecution() *string {
+	if vt := u.OfToolSearch; vt != nil {
+		return (*string)(&vt.Execution)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetSearchContentTypes() []string {
+	if vt := u.OfWebSearchPreview; vt != nil {
+		return vt.SearchContentTypes
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetName() *string {
+	if vt := u.OfFunction; vt != nil {
+		return (*string)(&vt.Name)
+	} else if vt := u.OfCustom; vt != nil {
+		return (*string)(&vt.Name)
+	} else if vt := u.OfNamespace; vt != nil {
+		return (*string)(&vt.Name)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetType() *string {
+	if vt := u.OfFunction; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfFileSearch; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfComputer; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfComputerUsePreview; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfWebSearch; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfMcp; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfCodeInterpreter; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfProgrammaticToolCalling; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfImageGeneration; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfLocalShell; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfShell; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfCustom; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfNamespace; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfToolSearch; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfWebSearchPreview; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfApplyPatch; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetAsync() *bool {
+	if vt := u.OfFunction; vt != nil && vt.Async.Valid() {
+		return &vt.Async.Value
+	} else if vt := u.OfCustom; vt != nil && vt.Async.Valid() {
+		return &vt.Async.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetDeferLoading() *bool {
+	if vt := u.OfFunction; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
+	} else if vt := u.OfMcp; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
+	} else if vt := u.OfCustom; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetDescription() *string {
+	if vt := u.OfFunction; vt != nil && vt.Description.Valid() {
+		return &vt.Description.Value
+	} else if vt := u.OfCustom; vt != nil && vt.Description.Valid() {
+		return &vt.Description.Value
+	} else if vt := u.OfNamespace; vt != nil {
+		return (*string)(&vt.Description)
+	} else if vt := u.OfToolSearch; vt != nil && vt.Description.Valid() {
+		return &vt.Description.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetSearchContextSize() *string {
+	if vt := u.OfWebSearch; vt != nil {
+		return (*string)(&vt.SearchContextSize)
+	} else if vt := u.OfWebSearchPreview; vt != nil {
+		return (*string)(&vt.SearchContextSize)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u ResponseToolSearchOutputItemParamToolUnion) GetParameters() (res responseToolSearchOutputItemParamToolUnionParameters) {
+	if vt := u.OfFunction; vt != nil {
+		res.any = &vt.Parameters
+	} else if vt := u.OfToolSearch; vt != nil {
+		res.any = &vt.Parameters
+	}
+	return
+}
+
+// Can have the runtime types [*map[string]any], [*any]
+type responseToolSearchOutputItemParamToolUnionParameters struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *map[string]any:
+//	case *any:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u responseToolSearchOutputItemParamToolUnionParameters) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's AllowedCallers property, if
+// present.
+func (u ResponseToolSearchOutputItemParamToolUnion) GetAllowedCallers() []string {
+	if vt := u.OfFunction; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfMcp; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfCodeInterpreter; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfShell; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfCustom; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfApplyPatch; vt != nil {
+		return vt.AllowedCallers
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u ResponseToolSearchOutputItemParamToolUnion) GetFilters() (res responseToolSearchOutputItemParamToolUnionFilters) {
+	if vt := u.OfFileSearch; vt != nil {
+		res.any = vt.Filters.asAny()
+	} else if vt := u.OfWebSearch; vt != nil {
+		res.any = &vt.Filters
+	}
+	return
+}
+
+// Can have the runtime types [*shared.ComparisonFilterParam],
+// [*shared.CompoundFilterParam], [*WebSearchToolFiltersParam]
+type responseToolSearchOutputItemParamToolUnionFilters struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *shared.ComparisonFilterParam:
+//	case *shared.CompoundFilterParam:
+//	case *responses.WebSearchToolFiltersParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u responseToolSearchOutputItemParamToolUnionFilters) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionFilters) GetKey() *string {
+	switch vt := u.any.(type) {
+	case *shared.ComparisonFilterParam:
+		return &vt.Key
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionFilters) GetValue() *shared.ComparisonFilterValueUnionParam {
+	switch vt := u.any.(type) {
+	case *shared.ComparisonFilterParam:
+		return &vt.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionFilters) GetFilters() []shared.CompoundFilterFilterUnionParam {
+	switch vt := u.any.(type) {
+	case *shared.CompoundFilterParam:
+		return vt.Filters
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionFilters) GetAllowedDomains() []string {
+	switch vt := u.any.(type) {
+	case *WebSearchToolFiltersParam:
+		return vt.AllowedDomains
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionFilters) GetType() *string {
+	switch vt := u.any.(type) {
+	case *shared.ComparisonFilterParam:
+		return (*string)(&vt.Type)
+	case *shared.CompoundFilterParam:
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u ResponseToolSearchOutputItemParamToolUnion) GetEnvironment() (res responseToolSearchOutputItemParamToolUnionEnvironment) {
+	if vt := u.OfComputerUsePreview; vt != nil {
+		res.any = (*string)(&vt.Environment)
+	} else if vt := u.OfShell; vt != nil {
+		res.any = vt.Environment.asAny()
+	}
+	return
+}
+
+// Can have the runtime types [*string], [*ContainerAutoParam],
+// [*LocalEnvironmentParam], [*ContainerReferenceParam]
+type responseToolSearchOutputItemParamToolUnionEnvironment struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *string:
+//	case *responses.ContainerAutoParam:
+//	case *responses.LocalEnvironmentParam:
+//	case *responses.ContainerReferenceParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u responseToolSearchOutputItemParamToolUnionEnvironment) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionEnvironment) GetFileIDs() []string {
+	switch vt := u.any.(type) {
+	case *ContainerAutoParam:
+		return vt.FileIDs
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionEnvironment) GetMemoryLimit() *string {
+	switch vt := u.any.(type) {
+	case *ContainerAutoParam:
+		return (*string)(&vt.MemoryLimit)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionEnvironment) GetNetworkPolicy() *ContainerAutoNetworkPolicyUnionParam {
+	switch vt := u.any.(type) {
+	case *ContainerAutoParam:
+		return &vt.NetworkPolicy
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionEnvironment) GetContainerID() *string {
+	switch vt := u.any.(type) {
+	case *ContainerReferenceParam:
+		return &vt.ContainerID
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionEnvironment) GetType() *string {
+	switch vt := u.any.(type) {
+	case *ContainerAutoParam:
+		return (*string)(&vt.Type)
+	case *LocalEnvironmentParam:
+		return (*string)(&vt.Type)
+	case *ContainerReferenceParam:
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u responseToolSearchOutputItemParamToolUnionEnvironment) GetSkills() (res responseToolSearchOutputItemParamToolUnionEnvironmentSkills) {
+	switch vt := u.any.(type) {
+	case *ContainerAutoParam:
+		res.any = &vt.Skills
+	case *LocalEnvironmentParam:
+		res.any = &vt.Skills
+	}
+	return res
+}
+
+// Can have the runtime types [_[]ContainerAutoSkillUnionParam],
+// [_[]LocalSkillParam]
+type responseToolSearchOutputItemParamToolUnionEnvironmentSkills struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *[]responses.ContainerAutoSkillUnionParam:
+//	case *[]responses.LocalSkillParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u responseToolSearchOutputItemParamToolUnionEnvironmentSkills) AsAny() any { return u.any }
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u ResponseToolSearchOutputItemParamToolUnion) GetUserLocation() (res responseToolSearchOutputItemParamToolUnionUserLocation) {
+	if vt := u.OfWebSearch; vt != nil {
+		res.any = &vt.UserLocation
+	} else if vt := u.OfWebSearchPreview; vt != nil {
+		res.any = &vt.UserLocation
+	}
+	return
+}
+
+// Can have the runtime types [*WebSearchToolUserLocationParam],
+// [*WebSearchPreviewToolUserLocationParam]
+type responseToolSearchOutputItemParamToolUnionUserLocation struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *responses.WebSearchToolUserLocationParam:
+//	case *responses.WebSearchPreviewToolUserLocationParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u responseToolSearchOutputItemParamToolUnionUserLocation) AsAny() any { return u.any }
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionUserLocation) GetCity() *string {
+	switch vt := u.any.(type) {
+	case *WebSearchToolUserLocationParam:
+		return paramutil.AddrIfPresent(vt.City)
+	case *WebSearchPreviewToolUserLocationParam:
+		return paramutil.AddrIfPresent(vt.City)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionUserLocation) GetCountry() *string {
+	switch vt := u.any.(type) {
+	case *WebSearchToolUserLocationParam:
+		return paramutil.AddrIfPresent(vt.Country)
+	case *WebSearchPreviewToolUserLocationParam:
+		return paramutil.AddrIfPresent(vt.Country)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionUserLocation) GetRegion() *string {
+	switch vt := u.any.(type) {
+	case *WebSearchToolUserLocationParam:
+		return paramutil.AddrIfPresent(vt.Region)
+	case *WebSearchPreviewToolUserLocationParam:
+		return paramutil.AddrIfPresent(vt.Region)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionUserLocation) GetTimezone() *string {
+	switch vt := u.any.(type) {
+	case *WebSearchToolUserLocationParam:
+		return paramutil.AddrIfPresent(vt.Timezone)
+	case *WebSearchPreviewToolUserLocationParam:
+		return paramutil.AddrIfPresent(vt.Timezone)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u responseToolSearchOutputItemParamToolUnionUserLocation) GetType() *string {
+	switch vt := u.any.(type) {
+	case *WebSearchToolUserLocationParam:
+		return (*string)(&vt.Type)
+	case *WebSearchPreviewToolUserLocationParam:
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ResponseToolSearchOutputItemParamToolUnion](
+		"type",
+		apijson.Discriminator[FunctionToolParam]("function"),
+		apijson.Discriminator[FileSearchToolParam]("file_search"),
+		apijson.Discriminator[ComputerToolParam]("computer"),
+		apijson.Discriminator[ComputerUsePreviewToolParam]("computer_use_preview"),
+		apijson.Discriminator[WebSearchToolParam]("web_search"),
+		apijson.Discriminator[WebSearchToolParam]("web_search_2025_08_26"),
+		apijson.Discriminator[ResponseToolSearchOutputItemParamToolMcpParam]("mcp"),
+		apijson.Discriminator[ResponseToolSearchOutputItemParamToolCodeInterpreterParam]("code_interpreter"),
+		apijson.Discriminator[ResponseToolSearchOutputItemParamToolProgrammaticToolCallingParam]("programmatic_tool_calling"),
+		apijson.Discriminator[ResponseToolSearchOutputItemParamToolImageGenerationParam]("image_generation"),
+		apijson.Discriminator[ResponseToolSearchOutputItemParamToolLocalShellParam]("local_shell"),
+		apijson.Discriminator[FunctionShellToolParam]("shell"),
+		apijson.Discriminator[CustomToolParam]("custom"),
+		apijson.Discriminator[ToolSearchOutputNamespaceToolParam]("namespace"),
+		apijson.Discriminator[ToolSearchToolParam]("tool_search"),
+		apijson.Discriminator[WebSearchPreviewToolParam]("web_search_preview"),
+		apijson.Discriminator[WebSearchPreviewToolParam]("web_search_preview_2025_03_11"),
+		apijson.Discriminator[ApplyPatchToolParam]("apply_patch"),
+	)
+}
+
+// Give the model access to additional tools via remote Model Context Protocol
+// (MCP) servers.
+// [Learn more about MCP](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
+//
+// The properties ServerLabel, Type are required.
+type ResponseToolSearchOutputItemParamToolMcpParam struct {
+	// A label for this MCP server, used to identify it in tool calls.
+	ServerLabel string `json:"server_label" api:"required"`
+	// An OAuth access token that can be used with a remote MCP server, either with a
+	// custom MCP server URL or a service connector. Your application must handle the
+	// OAuth authorization flow and provide the token here.
+	Authorization param.Opt[string] `json:"authorization,omitzero"`
+	// Whether this MCP tool is deferred and discovered via tool search.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// Optional description of the MCP server, used to provide more context.
+	ServerDescription param.Opt[string] `json:"server_description,omitzero"`
+	// The URL for the MCP server. One of `server_url`, `connector_id`, or `tunnel_id`
+	// must be provided.
+	ServerURL param.Opt[string] `json:"server_url,omitzero" format:"uri"`
+	// The Secure MCP Tunnel ID to use instead of a direct server URL. One of
+	// `server_url`, `connector_id`, or `tunnel_id` must be provided.
+	TunnelID param.Opt[string] `json:"tunnel_id,omitzero"`
+	// The tool invocation context(s).
+	//
+	// Any of "direct", "programmatic".
+	AllowedCallers []string `json:"allowed_callers,omitzero"`
+	// List of allowed tool names or a filter object.
+	AllowedTools ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnion `json:"allowed_tools,omitzero"`
+	// Optional HTTP headers to send to the MCP server. Use for authentication or other
+	// purposes.
+	Headers map[string]string `json:"headers,omitzero"`
+	// Specify which of the MCP server's tools require approval.
+	RequireApproval ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnion `json:"require_approval,omitzero"`
+	// Identifier for service connectors, like those available in ChatGPT. One of
+	// `server_url`, `connector_id`, or `tunnel_id` must be provided. Learn more about
+	// service connectors
+	// [here](https://developers.openai.com/api/docs/guides/tools-connectors-mcp#connectors).
+	//
+	// This field is deprecated for models released after September 1, 2026. Use
+	// `server_url` to connect to a remote MCP server, or `tunnel_id` to connect
+	// through a Secure MCP Tunnel.
+	//
+	// Currently supported `connector_id` values are:
+	//
+	// - Dropbox: `connector_dropbox`
+	// - Gmail: `connector_gmail`
+	// - Google Calendar: `connector_googlecalendar`
+	// - Google Drive: `connector_googledrive`
+	// - Microsoft Teams: `connector_microsoftteams`
+	// - Outlook Calendar: `connector_outlookcalendar`
+	// - Outlook Email: `connector_outlookemail`
+	// - SharePoint: `connector_sharepoint`
+	//
+	// Any of "connector_dropbox", "connector_gmail", "connector_googlecalendar",
+	// "connector_googledrive", "connector_microsoftteams",
+	// "connector_outlookcalendar", "connector_outlookemail", "connector_sharepoint".
+	//
+	// Deprecated: deprecated
+	ConnectorID string `json:"connector_id,omitzero"`
+	// The type of the MCP tool. Always `mcp`.
+	//
+	// This field can be elided, and will marshal its zero value as "mcp".
+	Type constant.Mcp `json:"type" default:"mcp"`
+	paramObj
+}
+
+func (r ResponseToolSearchOutputItemParamToolMcpParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseToolSearchOutputItemParamToolMcpParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseToolSearchOutputItemParamToolMcpParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ResponseToolSearchOutputItemParamToolMcpParam](
+		"connector_id", "connector_dropbox", "connector_gmail", "connector_googlecalendar", "connector_googledrive", "connector_microsoftteams", "connector_outlookcalendar", "connector_outlookemail", "connector_sharepoint",
+	)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnion struct {
+	OfMcpAllowedTools []string                                                                `json:",omitzero,inline"`
+	OfMcpToolFilter   *ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilterParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnion) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfMcpAllowedTools, u.OfMcpToolFilter)
+}
+func (u *ResponseToolSearchOutputItemParamToolMcpAllowedToolsUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// A filter object to specify which tools are allowed.
+type ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilterParam struct {
+	// Indicates whether or not a tool modifies data or is read-only. If an MCP server
+	// is
+	// [annotated with `readOnlyHint`](https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations-readonlyhint),
+	// it will match this filter.
+	ReadOnly param.Opt[bool] `json:"read_only,omitzero"`
+	// List of allowed tool names.
+	ToolNames []string `json:"tool_names,omitzero"`
+	paramObj
+}
+
+func (r ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilterParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilterParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseToolSearchOutputItemParamToolMcpAllowedToolsMcpToolFilterParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnion struct {
+	OfMcpToolApprovalFilter *ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterParam `json:",omitzero,inline"`
+	// Check if union is this variant with
+	// !param.IsOmitted(union.OfMcpToolApprovalSetting)
+	OfMcpToolApprovalSetting param.Opt[string] `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnion) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfMcpToolApprovalFilter, u.OfMcpToolApprovalSetting)
+}
+func (u *ResponseToolSearchOutputItemParamToolMcpRequireApprovalUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Specify which of the MCP server's tools require approval. Can be `always`,
+// `never`, or a filter object associated with tools that require approval.
+type ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterParam struct {
+	// A filter object to specify which tools are allowed.
+	Always ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterAlways `json:"always,omitzero"`
+	// A filter object to specify which tools are allowed.
+	Never ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterNever `json:"never,omitzero"`
+	paramObj
+}
+
+func (r ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A filter object to specify which tools are allowed.
+type ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterAlways struct {
+	// Indicates whether or not a tool modifies data or is read-only. If an MCP server
+	// is
+	// [annotated with `readOnlyHint`](https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations-readonlyhint),
+	// it will match this filter.
+	ReadOnly param.Opt[bool] `json:"read_only,omitzero"`
+	// List of allowed tool names.
+	ToolNames []string `json:"tool_names,omitzero"`
+	paramObj
+}
+
+func (r ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterAlways) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterAlways
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterAlways) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A filter object to specify which tools are allowed.
+type ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterNever struct {
+	// Indicates whether or not a tool modifies data or is read-only. If an MCP server
+	// is
+	// [annotated with `readOnlyHint`](https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations-readonlyhint),
+	// it will match this filter.
+	ReadOnly param.Opt[bool] `json:"read_only,omitzero"`
+	// List of allowed tool names.
+	ToolNames []string `json:"tool_names,omitzero"`
+	paramObj
+}
+
+func (r ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterNever) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterNever
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseToolSearchOutputItemParamToolMcpRequireApprovalMcpToolApprovalFilterNever) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A tool that runs Python code to help generate a response to a prompt.
+//
+// The properties Container, Type are required.
+type ResponseToolSearchOutputItemParamToolCodeInterpreterParam struct {
+	// The code interpreter container. Can be a container ID or an object that
+	// specifies uploaded file IDs to make available to your code, along with an
+	// optional `memory_limit` setting.
+	Container ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnion `json:"container,omitzero" api:"required"`
+	// The tool invocation context(s).
+	//
+	// Any of "direct", "programmatic".
+	AllowedCallers []string `json:"allowed_callers,omitzero"`
+	// The type of the code interpreter tool. Always `code_interpreter`.
+	//
+	// This field can be elided, and will marshal its zero value as "code_interpreter".
+	Type constant.CodeInterpreter `json:"type" default:"code_interpreter"`
+	paramObj
+}
+
+func (r ResponseToolSearchOutputItemParamToolCodeInterpreterParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseToolSearchOutputItemParamToolCodeInterpreterParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseToolSearchOutputItemParamToolCodeInterpreterParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnion struct {
+	OfString                  param.Opt[string]                                              `json:",omitzero,inline"`
+	OfCodeInterpreterToolAuto *ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnion) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfString, u.OfCodeInterpreterToolAuto)
+}
+func (u *ResponseToolSearchOutputItemParamToolCodeInterpreterContainerUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Configuration for a code interpreter container. Optionally specify the IDs of
+// the files to run the code on.
+//
+// The property Type is required.
+type ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam struct {
+	// The memory limit for the code interpreter container.
+	//
+	// Any of "1g", "4g", "16g", "64g".
+	MemoryLimit string `json:"memory_limit,omitzero"`
+	// An optional list of uploaded files to make available to your code.
+	FileIDs []string `json:"file_ids,omitzero"`
+	// Network access policy for the container.
+	NetworkPolicy ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion `json:"network_policy,omitzero"`
+	// Always `auto`.
+	//
+	// This field can be elided, and will marshal its zero value as "auto".
+	Type constant.Auto `json:"type" default:"auto"`
+	paramObj
+}
+
+func (r ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam) MarshalJSON() (data []byte, err error) {
+	type shadow ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam](
+		"memory_limit", "1g", "4g", "16g", "64g",
+	)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion struct {
+	OfDisabled  *ContainerNetworkPolicyDisabledParam  `json:",omitzero,inline"`
+	OfAllowlist *ContainerNetworkPolicyAllowlistParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfDisabled, u.OfAllowlist)
+}
+func (u *ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) GetAllowedDomains() []string {
+	if vt := u.OfAllowlist; vt != nil {
+		return vt.AllowedDomains
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) GetDomainSecrets() []ContainerNetworkPolicyDomainSecretParam {
+	if vt := u.OfAllowlist; vt != nil {
+		return vt.DomainSecrets
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) GetType() *string {
+	if vt := u.OfDisabled; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfAllowlist; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ResponseToolSearchOutputItemParamToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion](
+		"type",
+		apijson.Discriminator[ContainerNetworkPolicyDisabledParam]("disabled"),
+		apijson.Discriminator[ContainerNetworkPolicyAllowlistParam]("allowlist"),
+	)
+}
+
+func NewResponseToolSearchOutputItemParamToolProgrammaticToolCallingParam() ResponseToolSearchOutputItemParamToolProgrammaticToolCallingParam {
+	return ResponseToolSearchOutputItemParamToolProgrammaticToolCallingParam{
+		Type: "programmatic_tool_calling",
+	}
+}
+
+// This struct has a constant value, construct it with
+// [NewResponseToolSearchOutputItemParamToolProgrammaticToolCallingParam].
+type ResponseToolSearchOutputItemParamToolProgrammaticToolCallingParam struct {
+	// The type of the tool. Always `programmatic_tool_calling`.
+	Type constant.ProgrammaticToolCalling `json:"type" default:"programmatic_tool_calling"`
+	paramObj
+}
+
+func (r ResponseToolSearchOutputItemParamToolProgrammaticToolCallingParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseToolSearchOutputItemParamToolProgrammaticToolCallingParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseToolSearchOutputItemParamToolProgrammaticToolCallingParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A tool that generates images using the GPT image models.
+//
+// The property Type is required.
+type ResponseToolSearchOutputItemParamToolImageGenerationParam struct {
+	// Compression level for the output image. Default: 100.
+	OutputCompression param.Opt[int64] `json:"output_compression,omitzero"`
+	// Number of partial images to generate in streaming mode, from 0 (default value)
+	// to 3.
+	PartialImages param.Opt[int64] `json:"partial_images,omitzero"`
+	// Control how much effort the model will exert to match the style and features,
+	// especially facial features, of input images. Supports `high` and `low` on
+	// `gpt-image-1` and `gpt-image-1.5`; `gpt-image-1-mini` supports only `low`. For
+	// `gpt-image-2`, omit this parameter. Defaults to `low` on supported models.
+	//
+	// Any of "high", "low".
+	InputFidelity string `json:"input_fidelity,omitzero"`
+	// Whether to generate a new image or edit an existing image. Default: `auto`.
+	//
+	// Any of "generate", "edit", "auto".
+	Action string `json:"action,omitzero"`
+	// Allows to set transparency for the background of the generated image(s). Must be
+	// one of `transparent`, `opaque`, or `auto` (default value). When `auto` is used,
+	// the model will automatically determine the best background for the image.
+	//
+	// `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare`, including their `2026-09-08`
+	// snapshots, support `opaque` and `transparent` backgrounds. Transparent
+	// backgrounds are available for supported GPT Image models. For `gpt-image-2` and
+	// `gpt-image-2-2026-04-21`, this support is in preview. When using `transparent`,
+	// set the output format to `png` or `webp`.
+	//
+	// Any of "transparent", "opaque", "auto".
+	Background string `json:"background,omitzero"`
+	// Optional mask for inpainting. Contains `image_url` (string, optional) and
+	// `file_id` (string, optional).
+	InputImageMask ResponseToolSearchOutputItemParamToolImageGenerationInputImageMask `json:"input_image_mask,omitzero"`
+	// The image generation model to use. One of `gpt-image-1`, `gpt-image-1-mini`,
+	// `gpt-image-1.5`, `gpt-image-2`, `gpt-image-2-2026-04-21`,
+	// `gpt-image-2.5-sunburst`, `gpt-image-2.5-sunburst-2026-09-08`,
+	// `gpt-image-2.5-flare`, `gpt-image-2.5-flare-2026-09-08`, or
+	// `chatgpt-image-latest`. Default: `gpt-image-1`.
+	Model string `json:"model,omitzero"`
+	// Moderation level for the generated image. Default: `auto`.
+	//
+	// Any of "auto", "low".
+	Moderation string `json:"moderation,omitzero"`
+	// The output format of the generated image. One of `png`, `webp`, or `jpeg`.
+	// Default: `png`.
+	//
+	// Any of "png", "webp", "jpeg".
+	OutputFormat string `json:"output_format,omitzero"`
+	// The quality of the generated image. The GPT image models support `low`,
+	// `medium`, and `high`. `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare`,
+	// including their `2026-09-08` snapshots, also support `xhigh` and `max`. Default:
+	// `auto`.
+	//
+	// Any of "low", "medium", "high", "xhigh", "max", "auto".
+	Quality string `json:"quality,omitzero"`
+	// The size of the generated images. For `gpt-image-2`, `gpt-image-2-2026-04-21`,
+	// `gpt-image-2.5-sunburst`, `gpt-image-2.5-sunburst-2026-09-08`,
+	// `gpt-image-2.5-flare`, and `gpt-image-2.5-flare-2026-09-08`, arbitrary
+	// resolutions are supported as `WIDTHxHEIGHT` strings, for example `1536x864`.
+	// Width and height must both be divisible by 16 and the requested aspect ratio
+	// must be between 1:3 and 3:1. Resolutions above `2560x1440` are experimental, and
+	// the maximum supported resolution is `3840x2160`. The requested size must also
+	// satisfy the model's current pixel and edge limits. The standard sizes
+	// `1024x1024`, `1536x1024`, and `1024x1536` are supported by the GPT image models;
+	// `auto` is supported for models that allow automatic sizing.
+	Size string `json:"size,omitzero"`
+	// The type of the image generation tool. Always `image_generation`.
+	//
+	// This field can be elided, and will marshal its zero value as "image_generation".
+	Type constant.ImageGeneration `json:"type" default:"image_generation"`
+	paramObj
+}
+
+func (r ResponseToolSearchOutputItemParamToolImageGenerationParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseToolSearchOutputItemParamToolImageGenerationParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseToolSearchOutputItemParamToolImageGenerationParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ResponseToolSearchOutputItemParamToolImageGenerationParam](
+		"action", "generate", "edit", "auto",
+	)
+	apijson.RegisterFieldValidator[ResponseToolSearchOutputItemParamToolImageGenerationParam](
+		"background", "transparent", "opaque", "auto",
+	)
+	apijson.RegisterFieldValidator[ResponseToolSearchOutputItemParamToolImageGenerationParam](
+		"input_fidelity", "high", "low",
+	)
+	apijson.RegisterFieldValidator[ResponseToolSearchOutputItemParamToolImageGenerationParam](
+		"moderation", "auto", "low",
+	)
+	apijson.RegisterFieldValidator[ResponseToolSearchOutputItemParamToolImageGenerationParam](
+		"output_format", "png", "webp", "jpeg",
+	)
+	apijson.RegisterFieldValidator[ResponseToolSearchOutputItemParamToolImageGenerationParam](
+		"quality", "low", "medium", "high", "xhigh", "max", "auto",
+	)
+}
+
+// Optional mask for inpainting. Contains `image_url` (string, optional) and
+// `file_id` (string, optional).
+type ResponseToolSearchOutputItemParamToolImageGenerationInputImageMask struct {
+	// File ID for the mask image.
+	FileID param.Opt[string] `json:"file_id,omitzero"`
+	// Base64-encoded mask image.
+	ImageURL param.Opt[string] `json:"image_url,omitzero"`
+	paramObj
+}
+
+func (r ResponseToolSearchOutputItemParamToolImageGenerationInputImageMask) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseToolSearchOutputItemParamToolImageGenerationInputImageMask
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseToolSearchOutputItemParamToolImageGenerationInputImageMask) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func NewResponseToolSearchOutputItemParamToolLocalShellParam() ResponseToolSearchOutputItemParamToolLocalShellParam {
+	return ResponseToolSearchOutputItemParamToolLocalShellParam{
+		Type: "local_shell",
+	}
+}
+
+// A tool that allows the model to execute shell commands in a local environment.
+//
+// This struct has a constant value, construct it with
+// [NewResponseToolSearchOutputItemParamToolLocalShellParam].
+type ResponseToolSearchOutputItemParamToolLocalShellParam struct {
+	// The type of the local shell tool. Always `local_shell`.
+	Type constant.LocalShell `json:"type" default:"local_shell"`
+	paramObj
+}
+
+func (r ResponseToolSearchOutputItemParamToolLocalShellParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseToolSearchOutputItemParamToolLocalShellParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseToolSearchOutputItemParamToolLocalShellParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -23473,7 +28204,7 @@ type ResponseUsageInputTokensDetails struct {
 	// The number of input tokens that were written to the cache.
 	CacheWriteTokens int64 `json:"cache_write_tokens" api:"required"`
 	// The number of tokens that were retrieved from the cache.
-	// [More on prompt caching](https://platform.openai.com/docs/guides/prompt-caching).
+	// [More on prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching).
 	CachedTokens int64 `json:"cached_tokens" api:"required"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
@@ -23589,6 +28320,4150 @@ func (r *ResponseWebSearchCallSearchingEvent) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
+func ResponsesClientEventParamOfResponseSteer[
+	T string | []ResponseSteerInputResponseSteerInputItemListItemUnionParam,
+](input T, previousResponseID string) ResponsesClientEventUnionParam {
+	var responseSteer ResponseSteerEventParam
+	switch v := any(input).(type) {
+	case string:
+		responseSteer.Input.OfString = param.NewOpt(v)
+	case []ResponseSteerInputResponseSteerInputItemListItemUnionParam:
+		responseSteer.Input.OfResponseSteerInputItemList = v
+	}
+	responseSteer.PreviousResponseID = previousResponseID
+	return ResponsesClientEventUnionParam{OfResponseSteer: &responseSteer}
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponsesClientEventUnionParam struct {
+	OfResponseCreate *ResponsesClientEventResponseCreateParam `json:",omitzero,inline"`
+	OfResponseSteer  *ResponseSteerEventParam                 `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponsesClientEventUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfResponseCreate, u.OfResponseSteer)
+}
+func (u *ResponsesClientEventUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetAccessPrograms() *ResponsesClientEventResponseCreateAccessProgramsParam {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.AccessPrograms
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetBackground() *bool {
+	if vt := u.OfResponseCreate; vt != nil && vt.Background.Valid() {
+		return &vt.Background.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetContextManagement() []ResponsesClientEventResponseCreateContextManagementParam {
+	if vt := u.OfResponseCreate; vt != nil {
+		return vt.ContextManagement
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetConversation() *ResponsesClientEventResponseCreateConversationUnionParam {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.Conversation
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetInclude() []ResponseIncludable {
+	if vt := u.OfResponseCreate; vt != nil {
+		return vt.Include
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetInstructions() *string {
+	if vt := u.OfResponseCreate; vt != nil && vt.Instructions.Valid() {
+		return &vt.Instructions.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetMaxOutputTokens() *int64 {
+	if vt := u.OfResponseCreate; vt != nil && vt.MaxOutputTokens.Valid() {
+		return &vt.MaxOutputTokens.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetMaxToolCalls() *int64 {
+	if vt := u.OfResponseCreate; vt != nil && vt.MaxToolCalls.Valid() {
+		return &vt.MaxToolCalls.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetMetadata() shared.Metadata {
+	if vt := u.OfResponseCreate; vt != nil {
+		return vt.Metadata
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetModel() *shared.ResponsesModel {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.Model
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetModeration() *ResponsesClientEventResponseCreateModerationParam {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.Moderation
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetParallelToolCalls() *bool {
+	if vt := u.OfResponseCreate; vt != nil && vt.ParallelToolCalls.Valid() {
+		return &vt.ParallelToolCalls.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetPrompt() *ResponsePromptParam {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.Prompt
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetPromptCacheKey() *string {
+	if vt := u.OfResponseCreate; vt != nil && vt.PromptCacheKey.Valid() {
+		return &vt.PromptCacheKey.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetPromptCacheOptions() *ResponsesClientEventResponseCreatePromptCacheOptionsParam {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.PromptCacheOptions
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetPromptCacheRetention() *string {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.PromptCacheRetention
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetReasoning() *shared.ReasoningParam {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.Reasoning
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetSafetyIdentifier() *string {
+	if vt := u.OfResponseCreate; vt != nil && vt.SafetyIdentifier.Valid() {
+		return &vt.SafetyIdentifier.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetServiceTier() *string {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.ServiceTier
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetStore() *bool {
+	if vt := u.OfResponseCreate; vt != nil && vt.Store.Valid() {
+		return &vt.Store.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetStream() *bool {
+	if vt := u.OfResponseCreate; vt != nil && vt.Stream.Valid() {
+		return &vt.Stream.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetStreamID() *string {
+	if vt := u.OfResponseCreate; vt != nil && vt.StreamID.Valid() {
+		return &vt.StreamID.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetStreamOptions() *ResponsesClientEventResponseCreateStreamOptionsParam {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.StreamOptions
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetTemperature() *float64 {
+	if vt := u.OfResponseCreate; vt != nil && vt.Temperature.Valid() {
+		return &vt.Temperature.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetText() *ResponseTextConfigParam {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.Text
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetToolChoice() *ResponsesClientEventResponseCreateToolChoiceUnionParam {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.ToolChoice
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetTools() []ToolUnionParam {
+	if vt := u.OfResponseCreate; vt != nil {
+		return vt.Tools
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetTopLogprobs() *int64 {
+	if vt := u.OfResponseCreate; vt != nil && vt.TopLogprobs.Valid() {
+		return &vt.TopLogprobs.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetTopP() *float64 {
+	if vt := u.OfResponseCreate; vt != nil && vt.TopP.Valid() {
+		return &vt.TopP.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetTruncation() *string {
+	if vt := u.OfResponseCreate; vt != nil {
+		return &vt.Truncation
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetUser() *string {
+	if vt := u.OfResponseCreate; vt != nil && vt.User.Valid() {
+		return &vt.User.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetType() *string {
+	if vt := u.OfResponseCreate; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfResponseSteer; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventUnionParam) GetPreviousResponseID() *string {
+	if vt := u.OfResponseCreate; vt != nil && vt.PreviousResponseID.Valid() {
+		return &vt.PreviousResponseID.Value
+	} else if vt := u.OfResponseSteer; vt != nil {
+		return (*string)(&vt.PreviousResponseID)
+	}
+	return nil
+}
+
+// Returns a subunion which exports methods to access subproperties
+//
+// Or use AsAny() to get the underlying value
+func (u ResponsesClientEventUnionParam) GetInput() (res responsesClientEventUnionParamInput) {
+	if vt := u.OfResponseCreate; vt != nil {
+		res.any = vt.Input.asAny()
+	} else if vt := u.OfResponseSteer; vt != nil {
+		res.any = vt.Input.asAny()
+	}
+	return
+}
+
+// Can have the runtime types [*string], [*ResponseInputParam],
+// [\*[]ResponseSteerInputResponseSteerInputItemListItemUnionParam]
+type responsesClientEventUnionParamInput struct{ any }
+
+// Use the following switch statement to get the type of the union:
+//
+//	switch u.AsAny().(type) {
+//	case *string:
+//	case *responses.ResponseInputParam:
+//	case *[]responses.ResponseSteerInputResponseSteerInputItemListItemUnionParam:
+//	default:
+//	    fmt.Errorf("not present")
+//	}
+func (u responsesClientEventUnionParamInput) AsAny() any { return u.any }
+
+func init() {
+	apijson.RegisterUnion[ResponsesClientEventUnionParam](
+		"type",
+		apijson.Discriminator[ResponsesClientEventResponseCreateParam]("response.create"),
+		apijson.Discriminator[ResponseSteerEventParam]("response.steer"),
+	)
+}
+
+// Client event for creating a response over a persistent WebSocket connection.
+// This payload uses the same top-level fields as `POST /v1/responses`, plus
+// WebSocket-only envelope metadata.
+//
+// Notes:
+//
+// - `stream` is implicit over WebSocket and should not be sent.
+// - `background` is not supported over WebSocket.
+// - `stream_id` is WebSocket-only and is not part of `POST /v1/responses`.
+//
+// The property Type is required.
+type ResponsesClientEventResponseCreateParam struct {
+	// A system (or developer) message inserted into the model's context.
+	//
+	// When using along with `previous_response_id`, the instructions from a previous
+	// response will not be carried over to the next response. This makes it simple to
+	// swap out system (or developer) messages in new responses.
+	Instructions param.Opt[string] `json:"instructions,omitzero"`
+	// An upper bound for the number of tokens that can be generated for a response,
+	// including visible output tokens and
+	// [reasoning tokens](https://developers.openai.com/api/docs/guides/reasoning).
+	MaxOutputTokens param.Opt[int64] `json:"max_output_tokens,omitzero"`
+	// The maximum number of total calls to built-in tools that can be processed in a
+	// response. This maximum number applies across all built-in tool calls, not per
+	// individual tool. Any further attempts to call a tool by the model will be
+	// ignored.
+	MaxToolCalls param.Opt[int64] `json:"max_tool_calls,omitzero"`
+	// Whether to allow the model to run tool calls in parallel.
+	ParallelToolCalls param.Opt[bool] `json:"parallel_tool_calls,omitzero"`
+	// The unique ID of the previous response to the model. Use this to create
+	// multi-turn conversations. Learn more about
+	// [conversation state](https://developers.openai.com/api/docs/guides/conversation-state).
+	// Cannot be used in conjunction with `conversation`.
+	PreviousResponseID param.Opt[string] `json:"previous_response_id,omitzero"`
+	// Used by OpenAI to cache responses for similar requests to optimize your cache
+	// hit rates. Replaces the `user` field.
+	// [Learn more](https://developers.openai.com/api/docs/guides/prompt-caching).
+	PromptCacheKey param.Opt[string] `json:"prompt_cache_key,omitzero"`
+	// A stable identifier used to help detect users of your application that may be
+	// violating OpenAI's usage policies. The IDs should be a string that uniquely
+	// identifies each user, with a maximum length of 128 characters. We recommend
+	// hashing their username or email address, in order to avoid sending us any
+	// identifying information.
+	// [Learn more](https://developers.openai.com/api/docs/guides/safety-best-practices#implement-safety-identifiers).
+	SafetyIdentifier param.Opt[string] `json:"safety_identifier,omitzero"`
+	// Whether to store the generated model response for later retrieval via API.
+	// Defaults to true when omitted. If set to true, response data will be stored for
+	// at least 30 days, subject to the
+	// [data retention exceptions](https://developers.openai.com/api/docs/guides/your-data#v1responses).
+	Store param.Opt[bool] `json:"store,omitzero"`
+	// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will
+	// make the output more random, while lower values like 0.2 will make it more
+	// focused and deterministic. We generally recommend altering this or `top_p` but
+	// not both.
+	Temperature param.Opt[float64] `json:"temperature,omitzero"`
+	// An integer between 0 and 20 specifying the maximum number of most likely tokens
+	// to return at each token position, each with an associated log probability. In
+	// some cases, the number of returned tokens may be fewer than requested.
+	TopLogprobs param.Opt[int64] `json:"top_logprobs,omitzero"`
+	// An alternative to sampling with temperature, called nucleus sampling, where the
+	// model considers the results of the tokens with top_p probability mass. So 0.1
+	// means only the tokens comprising the top 10% probability mass are considered.
+	//
+	// We generally recommend altering this or `temperature` but not both.
+	TopP param.Opt[float64] `json:"top_p,omitzero"`
+	// Whether to run the model response in the background.
+	// [Learn more](https://developers.openai.com/api/docs/guides/background).
+	Background param.Opt[bool] `json:"background,omitzero"`
+	// If set to true, the model response data will be streamed to the client as it is
+	// generated using
+	// [server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#Event_stream_format).
+	// See the
+	// [Streaming section below](https://developers.openai.com/api/reference/resources/responses/streaming-events)
+	// for more information.
+	Stream param.Opt[bool] `json:"stream,omitzero"`
+	// Specify additional output data to include in the model response. Currently
+	// supported values are:
+	//
+	//   - `web_search_call.action.sources`: Include the sources of the web search tool
+	//     call.
+	//   - `code_interpreter_call.outputs`: Includes the outputs of python code execution
+	//     in code interpreter tool call items.
+	//   - `computer_call_output.output.image_url`: Include image urls from the computer
+	//     call output.
+	//   - `file_search_call.results`: Include the search results of the file search tool
+	//     call.
+	//   - `message.input_image.image_url`: Include image urls from the input message.
+	//   - `message.output_text.logprobs`: Include logprobs with assistant messages.
+	//   - `reasoning.encrypted_content`: Includes an encrypted version of reasoning
+	//     tokens in reasoning item outputs. This enables reasoning items to be used in
+	//     multi-turn conversations when using the Responses API statelessly (like when
+	//     the `store` parameter is set to `false`, or when an organization is enrolled
+	//     in the zero data retention program).
+	Include []ResponseIncludable `json:"include,omitzero"`
+	// The WebSocket lane for this response. Requests with the same `stream_id` are
+	// processed FIFO, and events for the response echo the same `stream_id`.
+	//
+	// `stream_id` controls routing; `previous_response_id` controls conversation
+	// lineage, so a new lane can fork from a response created on another lane.
+	StreamID param.Opt[string] `json:"stream_id,omitzero"`
+	// This field is being replaced by `safety_identifier` and `prompt_cache_key`. Use
+	// `prompt_cache_key` instead to maintain caching optimizations. A stable
+	// identifier for your end-users. Used to boost cache hit rates by better bucketing
+	// similar requests and to help OpenAI detect and prevent abuse.
+	// [Learn more](https://developers.openai.com/api/docs/guides/safety-best-practices#implement-safety-identifiers).
+	//
+	// Deprecated: deprecated
+	User param.Opt[string] `json:"user,omitzero"`
+	// Context management configuration for this request.
+	ContextManagement []ResponsesClientEventResponseCreateContextManagementParam `json:"context_management,omitzero"`
+	// The conversation that this response belongs to. Items from this conversation are
+	// prepended to `input_items` for this response request. Input items and output
+	// items from this response are automatically added to this conversation after this
+	// response completes.
+	Conversation ResponsesClientEventResponseCreateConversationUnionParam `json:"conversation,omitzero"`
+	// Set of 16 key-value pairs that can be attached to an object. This can be useful
+	// for storing additional information about the object in a structured format, and
+	// querying for objects via API or the dashboard.
+	//
+	// Keys are strings with a maximum length of 64 characters. Values are strings with
+	// a maximum length of 512 characters.
+	Metadata shared.Metadata `json:"metadata,omitzero"`
+	// Configuration for running moderation on the input and output of this response.
+	Moderation ResponsesClientEventResponseCreateModerationParam `json:"moderation,omitzero"`
+	// Reference to a prompt template and its variables.
+	// [Learn more](https://developers.openai.com/api/docs/guides/text?api-mode=responses#version-prompts-in-code).
+	Prompt ResponsePromptParam `json:"prompt,omitzero"`
+	// Deprecated. Use `prompt_cache_options.ttl` instead.
+	//
+	// The retention policy for the prompt cache. Set to `24h` to enable extended
+	// prompt caching, which keeps cached prefixes active for longer, up to a maximum
+	// of 24 hours.
+	// [Learn more](https://developers.openai.com/api/docs/guides/prompt-caching#prompt-cache-retention).
+	// This field expresses a maximum retention policy, while
+	// `prompt_cache_options.ttl` expresses a minimum cache lifetime. The two fields
+	// are independent and do not interact. For `gpt-5.5`, `gpt-5.5-pro`, and future
+	// models, only `24h` is supported.
+	//
+	// For older models that support both `in_memory` and `24h`, the default depends on
+	// your organization's data retention policy:
+	//
+	//   - Organizations without ZDR enabled default to `24h`.
+	//   - Organizations with ZDR enabled default to `in_memory` when
+	//     `prompt_cache_retention` is not specified.
+	//
+	// Any of "in_memory", "24h".
+	//
+	// Deprecated: deprecated
+	PromptCacheRetention string `json:"prompt_cache_retention,omitzero"`
+	// Specifies the processing type used for serving the request.
+	//
+	//   - If set to 'auto', then the request will be processed with the service tier
+	//     configured in the Project settings. Unless otherwise configured, the Project
+	//     will use 'default'.
+	//   - If set to 'default', then the request will be processed with the standard
+	//     pricing and performance for the selected model.
+	//   - If set to
+	//     '[flex](https://developers.openai.com/api/docs/guides/flex-processing)', then
+	//     the request will be processed with the Flex Processing service tier.
+	//   - To opt-in to
+	//     [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode) at the
+	//     request level, include the `service_tier=fast` or `service_tier=priority`
+	//     parameter for Responses or Chat Completions. The response will show
+	//     `service_tier=priority` regardless of if you specify `service_tier=fast` or
+	//     `priority` in your request.
+	//   - If set to 'ultrafast', then the request will be processed with the
+	//     access-controlled Ultrafast Processing service tier. This tier is currently
+	//     available for `gpt-5.6-sol`; a response served through it will show
+	//     `service_tier=ultrafast`.
+	//   - When not set, the default behavior is 'auto'.
+	//
+	// When the `service_tier` parameter is set, the response body will include the
+	// `service_tier` value based on the processing mode actually used to serve the
+	// request. This response value may be different from the value set in the
+	// parameter.
+	//
+	// Any of "auto", "default", "flex", "scale", "priority", "fast", "ultrafast".
+	ServiceTier string `json:"service_tier,omitzero"`
+	// Options for streaming responses. Only set this when you set `stream: true`.
+	StreamOptions ResponsesClientEventResponseCreateStreamOptionsParam `json:"stream_options,omitzero"`
+	// The truncation strategy to use for the model response.
+	//
+	//   - `auto`: If the input to this Response exceeds the model's context window size,
+	//     the model will truncate the response to fit the context window by dropping
+	//     items from the beginning of the conversation.
+	//   - `disabled` (default): If the input size will exceed the context window size
+	//     for a model, the request will fail with a 400 error.
+	//
+	// Any of "auto", "disabled".
+	//
+	// Deprecated: deprecated
+	Truncation string `json:"truncation,omitzero"`
+	// Domain-specific access programs to use for this request.
+	AccessPrograms ResponsesClientEventResponseCreateAccessProgramsParam `json:"access_programs,omitzero"`
+	// Text, image, or file inputs to the model, used to generate a response.
+	//
+	// Learn more:
+	//
+	//   - [Text inputs and outputs](https://developers.openai.com/api/docs/guides/text)
+	//   - [Image inputs](https://developers.openai.com/api/docs/guides/images-vision)
+	//   - [File inputs](https://developers.openai.com/api/docs/guides/file-inputs)
+	//   - [Conversation state](https://developers.openai.com/api/docs/guides/conversation-state)
+	//   - [Function calling](https://developers.openai.com/api/docs/guides/function-calling)
+	Input ResponsesClientEventResponseCreateInputUnionParam `json:"input,omitzero"`
+	// Model ID used to generate the response, like `gpt-6-astra`. OpenAI offers a wide
+	// range of models with different capabilities, performance characteristics, and
+	// price points. Refer to the
+	// [model guide](https://developers.openai.com/api/docs/models) to browse and
+	// compare available models.
+	Model shared.ResponsesModel `json:"model,omitzero"`
+	// Options for prompt caching. Supported for `gpt-5.6` and later models. By
+	// default, OpenAI automatically chooses one implicit cache breakpoint. You can add
+	// explicit breakpoints to content blocks with `prompt_cache_breakpoint`. Each
+	// request can write up to four breakpoints. For cache matching, OpenAI considers
+	// up to the latest 80 breakpoints in the conversation, without a content-block
+	// lookback limit. Set `mode` to `explicit` to disable the implicit breakpoint. The
+	// `ttl` defaults to `30m`, which is currently the only supported value. See the
+	// [prompt caching guide](https://developers.openai.com/api/docs/guides/prompt-caching)
+	// for current details.
+	PromptCacheOptions ResponsesClientEventResponseCreatePromptCacheOptionsParam `json:"prompt_cache_options,omitzero"`
+	// Configuration options for
+	// [reasoning models](https://developers.openai.com/api/docs/guides/reasoning).
+	Reasoning shared.ReasoningParam `json:"reasoning,omitzero"`
+	// Configuration options for a text response from the model. Can be plain text or
+	// structured JSON data. Learn more:
+	//
+	//   - [Text inputs and outputs](https://developers.openai.com/api/docs/guides/text)
+	//   - [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
+	Text ResponseTextConfigParam `json:"text,omitzero"`
+	// How the model should select which tool (or tools) to use when generating a
+	// response. See the `tools` parameter to see how to specify which tools the model
+	// can call.
+	ToolChoice ResponsesClientEventResponseCreateToolChoiceUnionParam `json:"tool_choice,omitzero"`
+	// An array of tools the model may call while generating a response. You can
+	// specify which tool to use by setting the `tool_choice` parameter.
+	//
+	// We support the following categories of tools:
+	//
+	//   - **Built-in tools**: Tools that are provided by OpenAI that extend the model's
+	//     capabilities, like
+	//     [web search](https://developers.openai.com/api/docs/guides/tools-web-search)
+	//     or
+	//     [file search](https://developers.openai.com/api/docs/guides/tools-file-search).
+	//     Learn more about
+	//     [built-in tools](https://developers.openai.com/api/docs/guides/tools).
+	//   - **MCP Tools**: Integrations with third-party systems via custom MCP servers or
+	//     predefined connectors such as Google Drive and SharePoint. Learn more about
+	//     [MCP Tools](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
+	//   - **Function calls (custom tools)**: Functions that are defined by you, enabling
+	//     the model to call your own code with strongly typed arguments and outputs.
+	//     Learn more about
+	//     [function calling](https://developers.openai.com/api/docs/guides/function-calling).
+	//     You can also use custom tools to call your own code.
+	Tools []ToolUnionParam `json:"tools,omitzero"`
+	// The type of the client event. Always `response.create`.
+	//
+	// This field can be elided, and will marshal its zero value as "response.create".
+	Type constant.ResponseCreate `json:"type" default:"response.create"`
+	paramObj
+}
+
+func (r ResponsesClientEventResponseCreateParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponsesClientEventResponseCreateParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponsesClientEventResponseCreateParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ResponsesClientEventResponseCreateParam](
+		"prompt_cache_retention", "in_memory", "24h",
+	)
+	apijson.RegisterFieldValidator[ResponsesClientEventResponseCreateParam](
+		"service_tier", "auto", "default", "flex", "scale", "priority", "fast", "ultrafast",
+	)
+	apijson.RegisterFieldValidator[ResponsesClientEventResponseCreateParam](
+		"truncation", "auto", "disabled",
+	)
+}
+
+// Domain-specific access programs to use for this request.
+type ResponsesClientEventResponseCreateAccessProgramsParam struct {
+	// The Cyber access program to use for this request. Supported values are
+	// `standard`, `daybreak_blue`, and `daybreak_red`. If omitted, the API resolves
+	// the program from the model's Cyber tier and your organization and project
+	// access, subject to model-specific eligibility restrictions. By default, models
+	// without a Cyber tier use Standard. Blue-tier models use Daybreak Blue when
+	// authorized; otherwise they fall back to Standard unless the model requires
+	// Daybreak access. Red-tier models use Daybreak Red and require authorization.
+	// Requests that require unavailable Daybreak access return 403. An implicit
+	// Standard fallback is represented by null in the response's access_programs
+	// field, rather than an explicit Standard selection.
+	//
+	// Any of "standard", "daybreak_blue", "daybreak_red".
+	Cyber string `json:"cyber,omitzero"`
+	paramObj
+}
+
+func (r ResponsesClientEventResponseCreateAccessProgramsParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponsesClientEventResponseCreateAccessProgramsParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponsesClientEventResponseCreateAccessProgramsParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ResponsesClientEventResponseCreateAccessProgramsParam](
+		"cyber", "standard", "daybreak_blue", "daybreak_red",
+	)
+}
+
+// The property Type is required.
+type ResponsesClientEventResponseCreateContextManagementParam struct {
+	// The context management entry type. Currently only 'compaction' is supported.
+	Type string `json:"type" api:"required"`
+	// Token threshold at which compaction should be triggered for this entry.
+	CompactThreshold param.Opt[int64] `json:"compact_threshold,omitzero"`
+	paramObj
+}
+
+func (r ResponsesClientEventResponseCreateContextManagementParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponsesClientEventResponseCreateContextManagementParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponsesClientEventResponseCreateContextManagementParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponsesClientEventResponseCreateConversationUnionParam struct {
+	OfString               param.Opt[string]          `json:",omitzero,inline"`
+	OfResponseConversation *ResponseConversationParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponsesClientEventResponseCreateConversationUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfString, u.OfResponseConversation)
+}
+func (u *ResponsesClientEventResponseCreateConversationUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponsesClientEventResponseCreateInputUnionParam struct {
+	OfString   param.Opt[string]   `json:",omitzero,inline"`
+	OfResponse *ResponseInputParam `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponsesClientEventResponseCreateInputUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfString, u.OfResponse)
+}
+func (u *ResponsesClientEventResponseCreateInputUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+func (u *ResponsesClientEventResponseCreateInputUnionParam) asAny() any {
+	if !param.IsOmitted(u.OfString) {
+		return &u.OfString.Value
+	} else if !param.IsOmitted(u.OfResponse) {
+		return u.OfResponse
+	}
+	return nil
+}
+
+// Configuration for running moderation on the input and output of this response.
+//
+// The property Model is required.
+type ResponsesClientEventResponseCreateModerationParam struct {
+	// The moderation model to use for moderated completions, e.g.
+	// 'omni-moderation-latest'.
+	Model string `json:"model" api:"required"`
+	// The policy to apply to moderated response input and output.
+	Policy ResponsesClientEventResponseCreateModerationPolicyParam `json:"policy,omitzero"`
+	paramObj
+}
+
+func (r ResponsesClientEventResponseCreateModerationParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponsesClientEventResponseCreateModerationParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponsesClientEventResponseCreateModerationParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The policy to apply to moderated response input and output.
+type ResponsesClientEventResponseCreateModerationPolicyParam struct {
+	// The moderation policy for the response input.
+	Input ResponsesClientEventResponseCreateModerationPolicyInputParam `json:"input,omitzero"`
+	// The moderation policy for the response output.
+	Output ResponsesClientEventResponseCreateModerationPolicyOutputParam `json:"output,omitzero"`
+	paramObj
+}
+
+func (r ResponsesClientEventResponseCreateModerationPolicyParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponsesClientEventResponseCreateModerationPolicyParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponsesClientEventResponseCreateModerationPolicyParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// The moderation policy for the response input.
+//
+// The property Mode is required.
+type ResponsesClientEventResponseCreateModerationPolicyInputParam struct {
+	// Any of "score", "block".
+	Mode string `json:"mode,omitzero" api:"required"`
+	paramObj
+}
+
+func (r ResponsesClientEventResponseCreateModerationPolicyInputParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponsesClientEventResponseCreateModerationPolicyInputParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponsesClientEventResponseCreateModerationPolicyInputParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ResponsesClientEventResponseCreateModerationPolicyInputParam](
+		"mode", "score", "block",
+	)
+}
+
+// The moderation policy for the response output.
+//
+// The property Mode is required.
+type ResponsesClientEventResponseCreateModerationPolicyOutputParam struct {
+	// Any of "score", "block".
+	Mode string `json:"mode,omitzero" api:"required"`
+	paramObj
+}
+
+func (r ResponsesClientEventResponseCreateModerationPolicyOutputParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponsesClientEventResponseCreateModerationPolicyOutputParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponsesClientEventResponseCreateModerationPolicyOutputParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ResponsesClientEventResponseCreateModerationPolicyOutputParam](
+		"mode", "score", "block",
+	)
+}
+
+// Options for prompt caching. Supported for `gpt-5.6` and later models. By
+// default, OpenAI automatically chooses one implicit cache breakpoint. You can add
+// explicit breakpoints to content blocks with `prompt_cache_breakpoint`. Each
+// request can write up to four breakpoints. For cache matching, OpenAI considers
+// up to the latest 80 breakpoints in the conversation, without a content-block
+// lookback limit. Set `mode` to `explicit` to disable the implicit breakpoint. The
+// `ttl` defaults to `30m`, which is currently the only supported value. See the
+// [prompt caching guide](https://developers.openai.com/api/docs/guides/prompt-caching)
+// for current details.
+type ResponsesClientEventResponseCreatePromptCacheOptionsParam struct {
+	// The ID of a response to compare when diagnosing prompt cache reuse. Supplying
+	// this field requests prompt cache diagnostics when the feature is enabled.
+	ComparisonResponseID param.Opt[string] `json:"comparison_response_id,omitzero"`
+	// Prepares the prompt cache without generating output. Defaults to `false`. When
+	// set to `true`, overrides the `generate` field to `false`.
+	Prewarm param.Opt[bool] `json:"prewarm,omitzero"`
+	// Controls whether OpenAI automatically creates an implicit cache breakpoint.
+	// Defaults to `implicit`. With `implicit`, OpenAI creates one implicit breakpoint
+	// and writes up to the latest three explicit breakpoints in the request. With
+	// `explicit`, OpenAI does not create an implicit breakpoint and writes up to the
+	// latest four explicit breakpoints. If there are no explicit breakpoints, the
+	// request does not use prompt caching.
+	//
+	// Any of "implicit", "explicit".
+	Mode string `json:"mode,omitzero"`
+	// The minimum lifetime applied to every implicit and explicit cache breakpoint
+	// written by the request. Defaults to `30m`, which is currently the only supported
+	// value. The backend may retain cache entries for longer.
+	//
+	// Any of "30m".
+	Ttl string `json:"ttl,omitzero"`
+	paramObj
+}
+
+func (r ResponsesClientEventResponseCreatePromptCacheOptionsParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponsesClientEventResponseCreatePromptCacheOptionsParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponsesClientEventResponseCreatePromptCacheOptionsParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ResponsesClientEventResponseCreatePromptCacheOptionsParam](
+		"mode", "implicit", "explicit",
+	)
+	apijson.RegisterFieldValidator[ResponsesClientEventResponseCreatePromptCacheOptionsParam](
+		"ttl", "30m",
+	)
+}
+
+// Options for streaming responses. Only set this when you set `stream: true`.
+type ResponsesClientEventResponseCreateStreamOptionsParam struct {
+	// When true, stream obfuscation will be enabled. Stream obfuscation adds random
+	// characters to an `obfuscation` field on streaming delta events to normalize
+	// payload sizes as a mitigation to certain side-channel attacks. These obfuscation
+	// fields are included by default, but add a small amount of overhead to the data
+	// stream. You can set `include_obfuscation` to false to optimize for bandwidth if
+	// you trust the network links between your application and the OpenAI API.
+	IncludeObfuscation param.Opt[bool] `json:"include_obfuscation,omitzero"`
+	paramObj
+}
+
+func (r ResponsesClientEventResponseCreateStreamOptionsParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponsesClientEventResponseCreateStreamOptionsParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponsesClientEventResponseCreateStreamOptionsParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ResponsesClientEventResponseCreateToolChoiceUnionParam struct {
+	// Check if union is this variant with !param.IsOmitted(union.OfToolChoiceMode)
+	OfToolChoiceMode               param.Opt[ToolChoiceOptions]                                                      `json:",omitzero,inline"`
+	OfAllowedTools                 *ToolChoiceAllowedParam                                                           `json:",omitzero,inline"`
+	OfHostedTool                   *ToolChoiceTypesParam                                                             `json:",omitzero,inline"`
+	OfFunctionTool                 *ToolChoiceFunctionParam                                                          `json:",omitzero,inline"`
+	OfMcpTool                      *ToolChoiceMcpParam                                                               `json:",omitzero,inline"`
+	OfCustomTool                   *ToolChoiceCustomParam                                                            `json:",omitzero,inline"`
+	OfProgrammaticToolCalling      *ResponsesClientEventResponseCreateToolChoiceSpecificProgrammaticToolCallingParam `json:",omitzero,inline"`
+	OfSpecificApplyPatchToolChoice *ToolChoiceApplyPatchParam                                                        `json:",omitzero,inline"`
+	OfSpecificShellToolChoice      *ToolChoiceShellParam                                                             `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ResponsesClientEventResponseCreateToolChoiceUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfToolChoiceMode,
+		u.OfAllowedTools,
+		u.OfHostedTool,
+		u.OfFunctionTool,
+		u.OfMcpTool,
+		u.OfCustomTool,
+		u.OfProgrammaticToolCalling,
+		u.OfSpecificApplyPatchToolChoice,
+		u.OfSpecificShellToolChoice)
+}
+func (u *ResponsesClientEventResponseCreateToolChoiceUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventResponseCreateToolChoiceUnionParam) GetMode() *string {
+	if vt := u.OfAllowedTools; vt != nil {
+		return (*string)(&vt.Mode)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventResponseCreateToolChoiceUnionParam) GetTools() []map[string]any {
+	if vt := u.OfAllowedTools; vt != nil {
+		return vt.Tools
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventResponseCreateToolChoiceUnionParam) GetServerLabel() *string {
+	if vt := u.OfMcpTool; vt != nil {
+		return &vt.ServerLabel
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventResponseCreateToolChoiceUnionParam) GetType() *string {
+	if vt := u.OfAllowedTools; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfHostedTool; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfFunctionTool; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfMcpTool; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfCustomTool; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfProgrammaticToolCalling; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfSpecificApplyPatchToolChoice; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfSpecificShellToolChoice; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ResponsesClientEventResponseCreateToolChoiceUnionParam) GetName() *string {
+	if vt := u.OfFunctionTool; vt != nil {
+		return (*string)(&vt.Name)
+	} else if vt := u.OfMcpTool; vt != nil && vt.Name.Valid() {
+		return &vt.Name.Value
+	} else if vt := u.OfCustomTool; vt != nil {
+		return (*string)(&vt.Name)
+	}
+	return nil
+}
+
+func NewResponsesClientEventResponseCreateToolChoiceSpecificProgrammaticToolCallingParam() ResponsesClientEventResponseCreateToolChoiceSpecificProgrammaticToolCallingParam {
+	return ResponsesClientEventResponseCreateToolChoiceSpecificProgrammaticToolCallingParam{
+		Type: "programmatic_tool_calling",
+	}
+}
+
+// This struct has a constant value, construct it with
+// [NewResponsesClientEventResponseCreateToolChoiceSpecificProgrammaticToolCallingParam].
+type ResponsesClientEventResponseCreateToolChoiceSpecificProgrammaticToolCallingParam struct {
+	// The tool to call. Always `programmatic_tool_calling`.
+	Type constant.ProgrammaticToolCalling `json:"type" default:"programmatic_tool_calling"`
+	paramObj
+}
+
+func (r ResponsesClientEventResponseCreateToolChoiceSpecificProgrammaticToolCallingParam) MarshalJSON() (data []byte, err error) {
+	type shadow ResponsesClientEventResponseCreateToolChoiceSpecificProgrammaticToolCallingParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponsesClientEventResponseCreateToolChoiceSpecificProgrammaticToolCallingParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ResponsesServerEventUnion contains all possible properties and values from
+// [ResponsesServerEventResponseAudioWsDelta],
+// [ResponsesServerEventResponseAudioWsDone],
+// [ResponsesServerEventResponseAudioTranscriptWsDelta],
+// [ResponsesServerEventResponseAudioTranscriptWsDone],
+// [ResponsesServerEventResponseCodeInterpreterCallCodeWsDelta],
+// [ResponsesServerEventResponseCodeInterpreterCallCodeWsDone],
+// [ResponsesServerEventResponseCodeInterpreterCallWsCompleted],
+// [ResponsesServerEventResponseCodeInterpreterCallInWsProgress],
+// [ResponsesServerEventResponseCodeInterpreterCallWsInterpreting],
+// [ResponsesServerEventResponseCompactionWsCompacting],
+// [ResponsesServerEventResponseWsCompleted],
+// [ResponsesServerEventResponseContentPartWsAdded],
+// [ResponsesServerEventResponseContentPartWsDone],
+// [ResponsesServerEventResponseWsCreated],
+// [ResponsesServerEventResponseFileSearchCallWsCompleted],
+// [ResponsesServerEventResponseFileSearchCallInWsProgress],
+// [ResponsesServerEventResponseFileSearchCallWsSearching],
+// [ResponsesServerEventResponseFunctionCallArgumentsWsDelta],
+// [ResponsesServerEventResponseFunctionCallArgumentsWsDone],
+// [ResponsesServerEventResponseShellCallCommandWsAdded],
+// [ResponsesServerEventResponseShellCallCommandWsDelta],
+// [ResponsesServerEventResponseShellCallCommandWsDone],
+// [ResponsesServerEventResponseShellCallOutputContentWsDelta],
+// [ResponsesServerEventResponseShellCallOutputContentWsDone],
+// [ResponsesServerEventResponseInWsProgress],
+// [ResponsesServerEventResponseWsFailed],
+// [ResponsesServerEventResponseWsIncomplete],
+// [ResponsesServerEventResponseOutputItemWsAdded],
+// [ResponsesServerEventResponseOutputItemWsDone],
+// [ResponsesServerEventResponseReasoningSummaryPartWsAdded],
+// [ResponsesServerEventResponseReasoningSummaryPartWsDone],
+// [ResponsesServerEventResponseReasoningSummaryTextWsDelta],
+// [ResponsesServerEventResponseReasoningSummaryTextWsDone],
+// [ResponsesServerEventResponseReasoningTextWsDelta],
+// [ResponsesServerEventResponseReasoningTextWsDone],
+// [ResponsesServerEventResponseRefusalWsDelta],
+// [ResponsesServerEventResponseRefusalWsDone],
+// [ResponsesServerEventResponseTextWsDelta],
+// [ResponsesServerEventResponseTextWsDone],
+// [ResponsesServerEventResponseWebSearchCallWsCompleted],
+// [ResponsesServerEventResponseWebSearchCallInWsProgress],
+// [ResponsesServerEventResponseWebSearchCallWsSearching],
+// [ResponsesServerEventResponseImageGenCallWsCompleted],
+// [ResponsesServerEventResponseImageGenCallWsGenerating],
+// [ResponsesServerEventResponseImageGenCallInWsProgress],
+// [ResponsesServerEventResponseImageGenCallPartialWsImage],
+// [ResponsesServerEventResponseMcpCallArgumentsWsDelta],
+// [ResponsesServerEventResponseMcpCallArgumentsWsDone],
+// [ResponsesServerEventResponseMcpCallWsCompleted],
+// [ResponsesServerEventResponseMcpCallWsFailed],
+// [ResponsesServerEventResponseMcpCallInWsProgress],
+// [ResponsesServerEventResponseMcpListToolsWsCompleted],
+// [ResponsesServerEventResponseMcpListToolsWsFailed],
+// [ResponsesServerEventResponseMcpListToolsInWsProgress],
+// [ResponsesServerEventResponseOutputTextAnnotationWsAdded],
+// [ResponsesServerEventResponseWsQueued],
+// [ResponsesServerEventResponseCustomToolCallInputWsDelta],
+// [ResponsesServerEventResponseCustomToolCallInputWsDone],
+// [ResponsesServerEventResponseWsError], [ResponseSteerAcceptedEvent],
+// [ResponseSteerPendingEvent], [ResponseSteerFailedEvent].
+//
+// Use the [ResponsesServerEventUnion.AsAny] method to switch on the variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ResponsesServerEventUnion struct {
+	OfResponsesServerEventResponseAudioWsDelta                      ResponsesServerEventResponseAudioWsDelta                      `json:",inline"`
+	OfResponsesServerEventResponseAudioWsDone                       ResponsesServerEventResponseAudioWsDone                       `json:",inline"`
+	OfResponsesServerEventResponseAudioTranscriptWsDelta            ResponsesServerEventResponseAudioTranscriptWsDelta            `json:",inline"`
+	OfResponsesServerEventResponseAudioTranscriptWsDone             ResponsesServerEventResponseAudioTranscriptWsDone             `json:",inline"`
+	OfResponsesServerEventResponseCodeInterpreterCallCodeWsDelta    ResponsesServerEventResponseCodeInterpreterCallCodeWsDelta    `json:",inline"`
+	OfResponsesServerEventResponseCodeInterpreterCallCodeWsDone     ResponsesServerEventResponseCodeInterpreterCallCodeWsDone     `json:",inline"`
+	OfResponsesServerEventResponseCodeInterpreterCallWsCompleted    ResponsesServerEventResponseCodeInterpreterCallWsCompleted    `json:",inline"`
+	OfResponsesServerEventResponseCodeInterpreterCallInWsProgress   ResponsesServerEventResponseCodeInterpreterCallInWsProgress   `json:",inline"`
+	OfResponsesServerEventResponseCodeInterpreterCallWsInterpreting ResponsesServerEventResponseCodeInterpreterCallWsInterpreting `json:",inline"`
+	OfResponsesServerEventResponseCompactionWsCompacting            ResponsesServerEventResponseCompactionWsCompacting            `json:",inline"`
+	OfResponsesServerEventResponseWsCompleted                       ResponsesServerEventResponseWsCompleted                       `json:",inline"`
+	OfResponsesServerEventResponseContentPartWsAdded                ResponsesServerEventResponseContentPartWsAdded                `json:",inline"`
+	OfResponsesServerEventResponseContentPartWsDone                 ResponsesServerEventResponseContentPartWsDone                 `json:",inline"`
+	OfResponsesServerEventResponseWsCreated                         ResponsesServerEventResponseWsCreated                         `json:",inline"`
+	OfResponsesServerEventResponseFileSearchCallWsCompleted         ResponsesServerEventResponseFileSearchCallWsCompleted         `json:",inline"`
+	OfResponsesServerEventResponseFileSearchCallInWsProgress        ResponsesServerEventResponseFileSearchCallInWsProgress        `json:",inline"`
+	OfResponsesServerEventResponseFileSearchCallWsSearching         ResponsesServerEventResponseFileSearchCallWsSearching         `json:",inline"`
+	OfResponsesServerEventResponseFunctionCallArgumentsWsDelta      ResponsesServerEventResponseFunctionCallArgumentsWsDelta      `json:",inline"`
+	OfResponsesServerEventResponseFunctionCallArgumentsWsDone       ResponsesServerEventResponseFunctionCallArgumentsWsDone       `json:",inline"`
+	OfResponsesServerEventResponseShellCallCommandWsAdded           ResponsesServerEventResponseShellCallCommandWsAdded           `json:",inline"`
+	OfResponsesServerEventResponseShellCallCommandWsDelta           ResponsesServerEventResponseShellCallCommandWsDelta           `json:",inline"`
+	OfResponsesServerEventResponseShellCallCommandWsDone            ResponsesServerEventResponseShellCallCommandWsDone            `json:",inline"`
+	OfResponsesServerEventResponseShellCallOutputContentWsDelta     ResponsesServerEventResponseShellCallOutputContentWsDelta     `json:",inline"`
+	OfResponsesServerEventResponseShellCallOutputContentWsDone      ResponsesServerEventResponseShellCallOutputContentWsDone      `json:",inline"`
+	OfResponsesServerEventResponseInWsProgress                      ResponsesServerEventResponseInWsProgress                      `json:",inline"`
+	OfResponsesServerEventResponseWsFailed                          ResponsesServerEventResponseWsFailed                          `json:",inline"`
+	OfResponsesServerEventResponseWsIncomplete                      ResponsesServerEventResponseWsIncomplete                      `json:",inline"`
+	OfResponsesServerEventResponseOutputItemWsAdded                 ResponsesServerEventResponseOutputItemWsAdded                 `json:",inline"`
+	OfResponsesServerEventResponseOutputItemWsDone                  ResponsesServerEventResponseOutputItemWsDone                  `json:",inline"`
+	OfResponsesServerEventResponseReasoningSummaryPartWsAdded       ResponsesServerEventResponseReasoningSummaryPartWsAdded       `json:",inline"`
+	OfResponsesServerEventResponseReasoningSummaryPartWsDone        ResponsesServerEventResponseReasoningSummaryPartWsDone        `json:",inline"`
+	OfResponsesServerEventResponseReasoningSummaryTextWsDelta       ResponsesServerEventResponseReasoningSummaryTextWsDelta       `json:",inline"`
+	OfResponsesServerEventResponseReasoningSummaryTextWsDone        ResponsesServerEventResponseReasoningSummaryTextWsDone        `json:",inline"`
+	OfResponsesServerEventResponseReasoningTextWsDelta              ResponsesServerEventResponseReasoningTextWsDelta              `json:",inline"`
+	OfResponsesServerEventResponseReasoningTextWsDone               ResponsesServerEventResponseReasoningTextWsDone               `json:",inline"`
+	OfResponsesServerEventResponseRefusalWsDelta                    ResponsesServerEventResponseRefusalWsDelta                    `json:",inline"`
+	OfResponsesServerEventResponseRefusalWsDone                     ResponsesServerEventResponseRefusalWsDone                     `json:",inline"`
+	OfResponsesServerEventResponseTextWsDelta                       ResponsesServerEventResponseTextWsDelta                       `json:",inline"`
+	OfResponsesServerEventResponseTextWsDone                        ResponsesServerEventResponseTextWsDone                        `json:",inline"`
+	OfResponsesServerEventResponseWebSearchCallWsCompleted          ResponsesServerEventResponseWebSearchCallWsCompleted          `json:",inline"`
+	OfResponsesServerEventResponseWebSearchCallInWsProgress         ResponsesServerEventResponseWebSearchCallInWsProgress         `json:",inline"`
+	OfResponsesServerEventResponseWebSearchCallWsSearching          ResponsesServerEventResponseWebSearchCallWsSearching          `json:",inline"`
+	OfResponsesServerEventResponseImageGenCallWsCompleted           ResponsesServerEventResponseImageGenCallWsCompleted           `json:",inline"`
+	OfResponsesServerEventResponseImageGenCallWsGenerating          ResponsesServerEventResponseImageGenCallWsGenerating          `json:",inline"`
+	OfResponsesServerEventResponseImageGenCallInWsProgress          ResponsesServerEventResponseImageGenCallInWsProgress          `json:",inline"`
+	OfResponsesServerEventResponseImageGenCallPartialWsImage        ResponsesServerEventResponseImageGenCallPartialWsImage        `json:",inline"`
+	OfResponsesServerEventResponseMcpCallArgumentsWsDelta           ResponsesServerEventResponseMcpCallArgumentsWsDelta           `json:",inline"`
+	OfResponsesServerEventResponseMcpCallArgumentsWsDone            ResponsesServerEventResponseMcpCallArgumentsWsDone            `json:",inline"`
+	OfResponsesServerEventResponseMcpCallWsCompleted                ResponsesServerEventResponseMcpCallWsCompleted                `json:",inline"`
+	OfResponsesServerEventResponseMcpCallWsFailed                   ResponsesServerEventResponseMcpCallWsFailed                   `json:",inline"`
+	OfResponsesServerEventResponseMcpCallInWsProgress               ResponsesServerEventResponseMcpCallInWsProgress               `json:",inline"`
+	OfResponsesServerEventResponseMcpListToolsWsCompleted           ResponsesServerEventResponseMcpListToolsWsCompleted           `json:",inline"`
+	OfResponsesServerEventResponseMcpListToolsWsFailed              ResponsesServerEventResponseMcpListToolsWsFailed              `json:",inline"`
+	OfResponsesServerEventResponseMcpListToolsInWsProgress          ResponsesServerEventResponseMcpListToolsInWsProgress          `json:",inline"`
+	OfResponsesServerEventResponseOutputTextAnnotationWsAdded       ResponsesServerEventResponseOutputTextAnnotationWsAdded       `json:",inline"`
+	OfResponsesServerEventResponseWsQueued                          ResponsesServerEventResponseWsQueued                          `json:",inline"`
+	OfResponsesServerEventResponseCustomToolCallInputWsDelta        ResponsesServerEventResponseCustomToolCallInputWsDelta        `json:",inline"`
+	OfResponsesServerEventResponseCustomToolCallInputWsDone         ResponsesServerEventResponseCustomToolCallInputWsDone         `json:",inline"`
+	OfResponsesServerEventResponseWsError                           ResponsesServerEventResponseWsError                           `json:",inline"`
+	OfResponseSteerAcceptedEvent                                    ResponseSteerAcceptedEvent                                    `json:",inline"`
+	OfResponseSteerPendingEvent                                     ResponseSteerPendingEvent                                     `json:",inline"`
+	OfResponseSteerFailedEvent                                      ResponseSteerFailedEvent                                      `json:",inline"`
+	Type                                                            string                                                        `json:"type"`
+	JSON                                                            struct {
+		OfResponsesServerEventResponseAudioWsDelta                      respjson.Field
+		OfResponsesServerEventResponseAudioWsDone                       respjson.Field
+		OfResponsesServerEventResponseAudioTranscriptWsDelta            respjson.Field
+		OfResponsesServerEventResponseAudioTranscriptWsDone             respjson.Field
+		OfResponsesServerEventResponseCodeInterpreterCallCodeWsDelta    respjson.Field
+		OfResponsesServerEventResponseCodeInterpreterCallCodeWsDone     respjson.Field
+		OfResponsesServerEventResponseCodeInterpreterCallWsCompleted    respjson.Field
+		OfResponsesServerEventResponseCodeInterpreterCallInWsProgress   respjson.Field
+		OfResponsesServerEventResponseCodeInterpreterCallWsInterpreting respjson.Field
+		OfResponsesServerEventResponseCompactionWsCompacting            respjson.Field
+		OfResponsesServerEventResponseWsCompleted                       respjson.Field
+		OfResponsesServerEventResponseContentPartWsAdded                respjson.Field
+		OfResponsesServerEventResponseContentPartWsDone                 respjson.Field
+		OfResponsesServerEventResponseWsCreated                         respjson.Field
+		OfResponsesServerEventResponseFileSearchCallWsCompleted         respjson.Field
+		OfResponsesServerEventResponseFileSearchCallInWsProgress        respjson.Field
+		OfResponsesServerEventResponseFileSearchCallWsSearching         respjson.Field
+		OfResponsesServerEventResponseFunctionCallArgumentsWsDelta      respjson.Field
+		OfResponsesServerEventResponseFunctionCallArgumentsWsDone       respjson.Field
+		OfResponsesServerEventResponseShellCallCommandWsAdded           respjson.Field
+		OfResponsesServerEventResponseShellCallCommandWsDelta           respjson.Field
+		OfResponsesServerEventResponseShellCallCommandWsDone            respjson.Field
+		OfResponsesServerEventResponseShellCallOutputContentWsDelta     respjson.Field
+		OfResponsesServerEventResponseShellCallOutputContentWsDone      respjson.Field
+		OfResponsesServerEventResponseInWsProgress                      respjson.Field
+		OfResponsesServerEventResponseWsFailed                          respjson.Field
+		OfResponsesServerEventResponseWsIncomplete                      respjson.Field
+		OfResponsesServerEventResponseOutputItemWsAdded                 respjson.Field
+		OfResponsesServerEventResponseOutputItemWsDone                  respjson.Field
+		OfResponsesServerEventResponseReasoningSummaryPartWsAdded       respjson.Field
+		OfResponsesServerEventResponseReasoningSummaryPartWsDone        respjson.Field
+		OfResponsesServerEventResponseReasoningSummaryTextWsDelta       respjson.Field
+		OfResponsesServerEventResponseReasoningSummaryTextWsDone        respjson.Field
+		OfResponsesServerEventResponseReasoningTextWsDelta              respjson.Field
+		OfResponsesServerEventResponseReasoningTextWsDone               respjson.Field
+		OfResponsesServerEventResponseRefusalWsDelta                    respjson.Field
+		OfResponsesServerEventResponseRefusalWsDone                     respjson.Field
+		OfResponsesServerEventResponseTextWsDelta                       respjson.Field
+		OfResponsesServerEventResponseTextWsDone                        respjson.Field
+		OfResponsesServerEventResponseWebSearchCallWsCompleted          respjson.Field
+		OfResponsesServerEventResponseWebSearchCallInWsProgress         respjson.Field
+		OfResponsesServerEventResponseWebSearchCallWsSearching          respjson.Field
+		OfResponsesServerEventResponseImageGenCallWsCompleted           respjson.Field
+		OfResponsesServerEventResponseImageGenCallWsGenerating          respjson.Field
+		OfResponsesServerEventResponseImageGenCallInWsProgress          respjson.Field
+		OfResponsesServerEventResponseImageGenCallPartialWsImage        respjson.Field
+		OfResponsesServerEventResponseMcpCallArgumentsWsDelta           respjson.Field
+		OfResponsesServerEventResponseMcpCallArgumentsWsDone            respjson.Field
+		OfResponsesServerEventResponseMcpCallWsCompleted                respjson.Field
+		OfResponsesServerEventResponseMcpCallWsFailed                   respjson.Field
+		OfResponsesServerEventResponseMcpCallInWsProgress               respjson.Field
+		OfResponsesServerEventResponseMcpListToolsWsCompleted           respjson.Field
+		OfResponsesServerEventResponseMcpListToolsWsFailed              respjson.Field
+		OfResponsesServerEventResponseMcpListToolsInWsProgress          respjson.Field
+		OfResponsesServerEventResponseOutputTextAnnotationWsAdded       respjson.Field
+		OfResponsesServerEventResponseWsQueued                          respjson.Field
+		OfResponsesServerEventResponseCustomToolCallInputWsDelta        respjson.Field
+		OfResponsesServerEventResponseCustomToolCallInputWsDone         respjson.Field
+		OfResponsesServerEventResponseWsError                           respjson.Field
+		OfResponseSteerAcceptedEvent                                    respjson.Field
+		OfResponseSteerPendingEvent                                     respjson.Field
+		OfResponseSteerFailedEvent                                      respjson.Field
+		Type                                                            respjson.Field
+		raw                                                             string
+	} `json:"-"`
+}
+
+// anyResponsesServerEvent is implemented by each variant of
+// [ResponsesServerEventUnion] to add type safety for the return type of
+// [ResponsesServerEventUnion.AsAny]
+type anyResponsesServerEvent interface {
+	implResponsesServerEventUnion()
+}
+
+func (ResponsesServerEventResponseAudioWsDelta) implResponsesServerEventUnion()                    {}
+func (ResponsesServerEventResponseAudioWsDone) implResponsesServerEventUnion()                     {}
+func (ResponsesServerEventResponseAudioTranscriptWsDelta) implResponsesServerEventUnion()          {}
+func (ResponsesServerEventResponseAudioTranscriptWsDone) implResponsesServerEventUnion()           {}
+func (ResponsesServerEventResponseCodeInterpreterCallCodeWsDelta) implResponsesServerEventUnion()  {}
+func (ResponsesServerEventResponseCodeInterpreterCallCodeWsDone) implResponsesServerEventUnion()   {}
+func (ResponsesServerEventResponseCodeInterpreterCallWsCompleted) implResponsesServerEventUnion()  {}
+func (ResponsesServerEventResponseCodeInterpreterCallInWsProgress) implResponsesServerEventUnion() {}
+func (ResponsesServerEventResponseCodeInterpreterCallWsInterpreting) implResponsesServerEventUnion() {
+}
+func (ResponsesServerEventResponseCompactionWsCompacting) implResponsesServerEventUnion()        {}
+func (ResponsesServerEventResponseWsCompleted) implResponsesServerEventUnion()                   {}
+func (ResponsesServerEventResponseContentPartWsAdded) implResponsesServerEventUnion()            {}
+func (ResponsesServerEventResponseContentPartWsDone) implResponsesServerEventUnion()             {}
+func (ResponsesServerEventResponseWsCreated) implResponsesServerEventUnion()                     {}
+func (ResponsesServerEventResponseFileSearchCallWsCompleted) implResponsesServerEventUnion()     {}
+func (ResponsesServerEventResponseFileSearchCallInWsProgress) implResponsesServerEventUnion()    {}
+func (ResponsesServerEventResponseFileSearchCallWsSearching) implResponsesServerEventUnion()     {}
+func (ResponsesServerEventResponseFunctionCallArgumentsWsDelta) implResponsesServerEventUnion()  {}
+func (ResponsesServerEventResponseFunctionCallArgumentsWsDone) implResponsesServerEventUnion()   {}
+func (ResponsesServerEventResponseShellCallCommandWsAdded) implResponsesServerEventUnion()       {}
+func (ResponsesServerEventResponseShellCallCommandWsDelta) implResponsesServerEventUnion()       {}
+func (ResponsesServerEventResponseShellCallCommandWsDone) implResponsesServerEventUnion()        {}
+func (ResponsesServerEventResponseShellCallOutputContentWsDelta) implResponsesServerEventUnion() {}
+func (ResponsesServerEventResponseShellCallOutputContentWsDone) implResponsesServerEventUnion()  {}
+func (ResponsesServerEventResponseInWsProgress) implResponsesServerEventUnion()                  {}
+func (ResponsesServerEventResponseWsFailed) implResponsesServerEventUnion()                      {}
+func (ResponsesServerEventResponseWsIncomplete) implResponsesServerEventUnion()                  {}
+func (ResponsesServerEventResponseOutputItemWsAdded) implResponsesServerEventUnion()             {}
+func (ResponsesServerEventResponseOutputItemWsDone) implResponsesServerEventUnion()              {}
+func (ResponsesServerEventResponseReasoningSummaryPartWsAdded) implResponsesServerEventUnion()   {}
+func (ResponsesServerEventResponseReasoningSummaryPartWsDone) implResponsesServerEventUnion()    {}
+func (ResponsesServerEventResponseReasoningSummaryTextWsDelta) implResponsesServerEventUnion()   {}
+func (ResponsesServerEventResponseReasoningSummaryTextWsDone) implResponsesServerEventUnion()    {}
+func (ResponsesServerEventResponseReasoningTextWsDelta) implResponsesServerEventUnion()          {}
+func (ResponsesServerEventResponseReasoningTextWsDone) implResponsesServerEventUnion()           {}
+func (ResponsesServerEventResponseRefusalWsDelta) implResponsesServerEventUnion()                {}
+func (ResponsesServerEventResponseRefusalWsDone) implResponsesServerEventUnion()                 {}
+func (ResponsesServerEventResponseTextWsDelta) implResponsesServerEventUnion()                   {}
+func (ResponsesServerEventResponseTextWsDone) implResponsesServerEventUnion()                    {}
+func (ResponsesServerEventResponseWebSearchCallWsCompleted) implResponsesServerEventUnion()      {}
+func (ResponsesServerEventResponseWebSearchCallInWsProgress) implResponsesServerEventUnion()     {}
+func (ResponsesServerEventResponseWebSearchCallWsSearching) implResponsesServerEventUnion()      {}
+func (ResponsesServerEventResponseImageGenCallWsCompleted) implResponsesServerEventUnion()       {}
+func (ResponsesServerEventResponseImageGenCallWsGenerating) implResponsesServerEventUnion()      {}
+func (ResponsesServerEventResponseImageGenCallInWsProgress) implResponsesServerEventUnion()      {}
+func (ResponsesServerEventResponseImageGenCallPartialWsImage) implResponsesServerEventUnion()    {}
+func (ResponsesServerEventResponseMcpCallArgumentsWsDelta) implResponsesServerEventUnion()       {}
+func (ResponsesServerEventResponseMcpCallArgumentsWsDone) implResponsesServerEventUnion()        {}
+func (ResponsesServerEventResponseMcpCallWsCompleted) implResponsesServerEventUnion()            {}
+func (ResponsesServerEventResponseMcpCallWsFailed) implResponsesServerEventUnion()               {}
+func (ResponsesServerEventResponseMcpCallInWsProgress) implResponsesServerEventUnion()           {}
+func (ResponsesServerEventResponseMcpListToolsWsCompleted) implResponsesServerEventUnion()       {}
+func (ResponsesServerEventResponseMcpListToolsWsFailed) implResponsesServerEventUnion()          {}
+func (ResponsesServerEventResponseMcpListToolsInWsProgress) implResponsesServerEventUnion()      {}
+func (ResponsesServerEventResponseOutputTextAnnotationWsAdded) implResponsesServerEventUnion()   {}
+func (ResponsesServerEventResponseWsQueued) implResponsesServerEventUnion()                      {}
+func (ResponsesServerEventResponseCustomToolCallInputWsDelta) implResponsesServerEventUnion()    {}
+func (ResponsesServerEventResponseCustomToolCallInputWsDone) implResponsesServerEventUnion()     {}
+func (ResponsesServerEventResponseWsError) implResponsesServerEventUnion()                       {}
+func (ResponseSteerAcceptedEvent) implResponsesServerEventUnion()                                {}
+func (ResponseSteerPendingEvent) implResponsesServerEventUnion()                                 {}
+func (ResponseSteerFailedEvent) implResponsesServerEventUnion()                                  {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ResponsesServerEventUnion.AsAny().(type) {
+//	case responses.ResponsesServerEventResponseAudioWsDelta:
+//	case responses.ResponsesServerEventResponseAudioWsDone:
+//	case responses.ResponsesServerEventResponseAudioTranscriptWsDelta:
+//	case responses.ResponsesServerEventResponseAudioTranscriptWsDone:
+//	case responses.ResponsesServerEventResponseCodeInterpreterCallCodeWsDelta:
+//	case responses.ResponsesServerEventResponseCodeInterpreterCallCodeWsDone:
+//	case responses.ResponsesServerEventResponseCodeInterpreterCallWsCompleted:
+//	case responses.ResponsesServerEventResponseCodeInterpreterCallInWsProgress:
+//	case responses.ResponsesServerEventResponseCodeInterpreterCallWsInterpreting:
+//	case responses.ResponsesServerEventResponseCompactionWsCompacting:
+//	case responses.ResponsesServerEventResponseWsCompleted:
+//	case responses.ResponsesServerEventResponseContentPartWsAdded:
+//	case responses.ResponsesServerEventResponseContentPartWsDone:
+//	case responses.ResponsesServerEventResponseWsCreated:
+//	case responses.ResponsesServerEventResponseFileSearchCallWsCompleted:
+//	case responses.ResponsesServerEventResponseFileSearchCallInWsProgress:
+//	case responses.ResponsesServerEventResponseFileSearchCallWsSearching:
+//	case responses.ResponsesServerEventResponseFunctionCallArgumentsWsDelta:
+//	case responses.ResponsesServerEventResponseFunctionCallArgumentsWsDone:
+//	case responses.ResponsesServerEventResponseShellCallCommandWsAdded:
+//	case responses.ResponsesServerEventResponseShellCallCommandWsDelta:
+//	case responses.ResponsesServerEventResponseShellCallCommandWsDone:
+//	case responses.ResponsesServerEventResponseShellCallOutputContentWsDelta:
+//	case responses.ResponsesServerEventResponseShellCallOutputContentWsDone:
+//	case responses.ResponsesServerEventResponseInWsProgress:
+//	case responses.ResponsesServerEventResponseWsFailed:
+//	case responses.ResponsesServerEventResponseWsIncomplete:
+//	case responses.ResponsesServerEventResponseOutputItemWsAdded:
+//	case responses.ResponsesServerEventResponseOutputItemWsDone:
+//	case responses.ResponsesServerEventResponseReasoningSummaryPartWsAdded:
+//	case responses.ResponsesServerEventResponseReasoningSummaryPartWsDone:
+//	case responses.ResponsesServerEventResponseReasoningSummaryTextWsDelta:
+//	case responses.ResponsesServerEventResponseReasoningSummaryTextWsDone:
+//	case responses.ResponsesServerEventResponseReasoningTextWsDelta:
+//	case responses.ResponsesServerEventResponseReasoningTextWsDone:
+//	case responses.ResponsesServerEventResponseRefusalWsDelta:
+//	case responses.ResponsesServerEventResponseRefusalWsDone:
+//	case responses.ResponsesServerEventResponseTextWsDelta:
+//	case responses.ResponsesServerEventResponseTextWsDone:
+//	case responses.ResponsesServerEventResponseWebSearchCallWsCompleted:
+//	case responses.ResponsesServerEventResponseWebSearchCallInWsProgress:
+//	case responses.ResponsesServerEventResponseWebSearchCallWsSearching:
+//	case responses.ResponsesServerEventResponseImageGenCallWsCompleted:
+//	case responses.ResponsesServerEventResponseImageGenCallWsGenerating:
+//	case responses.ResponsesServerEventResponseImageGenCallInWsProgress:
+//	case responses.ResponsesServerEventResponseImageGenCallPartialWsImage:
+//	case responses.ResponsesServerEventResponseMcpCallArgumentsWsDelta:
+//	case responses.ResponsesServerEventResponseMcpCallArgumentsWsDone:
+//	case responses.ResponsesServerEventResponseMcpCallWsCompleted:
+//	case responses.ResponsesServerEventResponseMcpCallWsFailed:
+//	case responses.ResponsesServerEventResponseMcpCallInWsProgress:
+//	case responses.ResponsesServerEventResponseMcpListToolsWsCompleted:
+//	case responses.ResponsesServerEventResponseMcpListToolsWsFailed:
+//	case responses.ResponsesServerEventResponseMcpListToolsInWsProgress:
+//	case responses.ResponsesServerEventResponseOutputTextAnnotationWsAdded:
+//	case responses.ResponsesServerEventResponseWsQueued:
+//	case responses.ResponsesServerEventResponseCustomToolCallInputWsDelta:
+//	case responses.ResponsesServerEventResponseCustomToolCallInputWsDone:
+//	case responses.ResponsesServerEventResponseWsError:
+//	case responses.ResponseSteerAcceptedEvent:
+//	case responses.ResponseSteerPendingEvent:
+//	case responses.ResponseSteerFailedEvent:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ResponsesServerEventUnion) AsAny() anyResponsesServerEvent {
+	switch u.Type {
+	case "response.audio.delta":
+		return u.AsResponseAudioDelta()
+	case "response.audio.done":
+		return u.AsResponseAudioDone()
+	case "response.audio.transcript.delta":
+		return u.AsResponseAudioTranscriptDelta()
+	case "response.audio.transcript.done":
+		return u.AsResponseAudioTranscriptDone()
+	case "response.code_interpreter_call_code.delta":
+		return u.AsResponseCodeInterpreterCallCodeDelta()
+	case "response.code_interpreter_call_code.done":
+		return u.AsResponseCodeInterpreterCallCodeDone()
+	case "response.code_interpreter_call.completed":
+		return u.AsResponseCodeInterpreterCallCompleted()
+	case "response.code_interpreter_call.in_progress":
+		return u.AsResponseCodeInterpreterCallInProgress()
+	case "response.code_interpreter_call.interpreting":
+		return u.AsResponseCodeInterpreterCallInterpreting()
+	case "response.compaction.compacting":
+		return u.AsResponseCompactionCompacting()
+	case "response.completed":
+		return u.AsResponseCompleted()
+	case "response.content_part.added":
+		return u.AsResponseContentPartAdded()
+	case "response.content_part.done":
+		return u.AsResponseContentPartDone()
+	case "response.created":
+		return u.AsResponseCreated()
+	case "response.file_search_call.completed":
+		return u.AsResponseFileSearchCallCompleted()
+	case "response.file_search_call.in_progress":
+		return u.AsResponseFileSearchCallInProgress()
+	case "response.file_search_call.searching":
+		return u.AsResponseFileSearchCallSearching()
+	case "response.function_call_arguments.delta":
+		return u.AsResponseFunctionCallArgumentsDelta()
+	case "response.function_call_arguments.done":
+		return u.AsResponseFunctionCallArgumentsDone()
+	case "response.shell_call_command.added":
+		return u.AsResponseShellCallCommandAdded()
+	case "response.shell_call_command.delta":
+		return u.AsResponseShellCallCommandDelta()
+	case "response.shell_call_command.done":
+		return u.AsResponseShellCallCommandDone()
+	case "response.shell_call_output_content.delta":
+		return u.AsResponseShellCallOutputContentDelta()
+	case "response.shell_call_output_content.done":
+		return u.AsResponseShellCallOutputContentDone()
+	case "response.in_progress":
+		return u.AsResponseInProgress()
+	case "response.failed":
+		return u.AsResponseFailed()
+	case "response.incomplete":
+		return u.AsResponseIncomplete()
+	case "response.output_item.added":
+		return u.AsResponseOutputItemAdded()
+	case "response.output_item.done":
+		return u.AsResponseOutputItemDone()
+	case "response.reasoning_summary_part.added":
+		return u.AsResponseReasoningSummaryPartAdded()
+	case "response.reasoning_summary_part.done":
+		return u.AsResponseReasoningSummaryPartDone()
+	case "response.reasoning_summary_text.delta":
+		return u.AsResponseReasoningSummaryTextDelta()
+	case "response.reasoning_summary_text.done":
+		return u.AsResponseReasoningSummaryTextDone()
+	case "response.reasoning_text.delta":
+		return u.AsResponseReasoningTextDelta()
+	case "response.reasoning_text.done":
+		return u.AsResponseReasoningTextDone()
+	case "response.refusal.delta":
+		return u.AsResponseRefusalDelta()
+	case "response.refusal.done":
+		return u.AsResponseRefusalDone()
+	case "response.output_text.delta":
+		return u.AsResponseOutputTextDelta()
+	case "response.output_text.done":
+		return u.AsResponseOutputTextDone()
+	case "response.web_search_call.completed":
+		return u.AsResponseWebSearchCallCompleted()
+	case "response.web_search_call.in_progress":
+		return u.AsResponseWebSearchCallInProgress()
+	case "response.web_search_call.searching":
+		return u.AsResponseWebSearchCallSearching()
+	case "response.image_generation_call.completed":
+		return u.AsResponseImageGenerationCallCompleted()
+	case "response.image_generation_call.generating":
+		return u.AsResponseImageGenerationCallGenerating()
+	case "response.image_generation_call.in_progress":
+		return u.AsResponseImageGenerationCallInProgress()
+	case "response.image_generation_call.partial_image":
+		return u.AsResponseImageGenerationCallPartialImage()
+	case "response.mcp_call_arguments.delta":
+		return u.AsResponseMcpCallArgumentsDelta()
+	case "response.mcp_call_arguments.done":
+		return u.AsResponseMcpCallArgumentsDone()
+	case "response.mcp_call.completed":
+		return u.AsResponseMcpCallCompleted()
+	case "response.mcp_call.failed":
+		return u.AsResponseMcpCallFailed()
+	case "response.mcp_call.in_progress":
+		return u.AsResponseMcpCallInProgress()
+	case "response.mcp_list_tools.completed":
+		return u.AsResponseMcpListToolsCompleted()
+	case "response.mcp_list_tools.failed":
+		return u.AsResponseMcpListToolsFailed()
+	case "response.mcp_list_tools.in_progress":
+		return u.AsResponseMcpListToolsInProgress()
+	case "response.output_text.annotation.added":
+		return u.AsResponseOutputTextAnnotationAdded()
+	case "response.queued":
+		return u.AsResponseQueued()
+	case "response.custom_tool_call_input.delta":
+		return u.AsResponseCustomToolCallInputDelta()
+	case "response.custom_tool_call_input.done":
+		return u.AsResponseCustomToolCallInputDone()
+	case "error":
+		return u.AsResponsesServerEventResponseWsError()
+	case "response.steer.accepted":
+		return u.AsResponseSteerAcceptedEvent()
+	case "response.steer.pending":
+		return u.AsResponseSteerPendingEvent()
+	case "response.steer.failed":
+		return u.AsResponseSteerFailedEvent()
+	}
+	return nil
+}
+
+func (u ResponsesServerEventUnion) AsResponseAudioDelta() (v ResponsesServerEventResponseAudioWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseAudioDone() (v ResponsesServerEventResponseAudioWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseAudioTranscriptDelta() (v ResponsesServerEventResponseAudioTranscriptWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseAudioTranscriptDone() (v ResponsesServerEventResponseAudioTranscriptWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseCodeInterpreterCallCodeDelta() (v ResponsesServerEventResponseCodeInterpreterCallCodeWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseCodeInterpreterCallCodeDone() (v ResponsesServerEventResponseCodeInterpreterCallCodeWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseCodeInterpreterCallCompleted() (v ResponsesServerEventResponseCodeInterpreterCallWsCompleted) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseCodeInterpreterCallInProgress() (v ResponsesServerEventResponseCodeInterpreterCallInWsProgress) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseCodeInterpreterCallInterpreting() (v ResponsesServerEventResponseCodeInterpreterCallWsInterpreting) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseCompactionCompacting() (v ResponsesServerEventResponseCompactionWsCompacting) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseCompleted() (v ResponsesServerEventResponseWsCompleted) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseContentPartAdded() (v ResponsesServerEventResponseContentPartWsAdded) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseContentPartDone() (v ResponsesServerEventResponseContentPartWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseCreated() (v ResponsesServerEventResponseWsCreated) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseFileSearchCallCompleted() (v ResponsesServerEventResponseFileSearchCallWsCompleted) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseFileSearchCallInProgress() (v ResponsesServerEventResponseFileSearchCallInWsProgress) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseFileSearchCallSearching() (v ResponsesServerEventResponseFileSearchCallWsSearching) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseFunctionCallArgumentsDelta() (v ResponsesServerEventResponseFunctionCallArgumentsWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseFunctionCallArgumentsDone() (v ResponsesServerEventResponseFunctionCallArgumentsWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseShellCallCommandAdded() (v ResponsesServerEventResponseShellCallCommandWsAdded) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseShellCallCommandDelta() (v ResponsesServerEventResponseShellCallCommandWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseShellCallCommandDone() (v ResponsesServerEventResponseShellCallCommandWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseShellCallOutputContentDelta() (v ResponsesServerEventResponseShellCallOutputContentWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseShellCallOutputContentDone() (v ResponsesServerEventResponseShellCallOutputContentWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseInProgress() (v ResponsesServerEventResponseInWsProgress) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseFailed() (v ResponsesServerEventResponseWsFailed) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseIncomplete() (v ResponsesServerEventResponseWsIncomplete) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseOutputItemAdded() (v ResponsesServerEventResponseOutputItemWsAdded) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseOutputItemDone() (v ResponsesServerEventResponseOutputItemWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseReasoningSummaryPartAdded() (v ResponsesServerEventResponseReasoningSummaryPartWsAdded) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseReasoningSummaryPartDone() (v ResponsesServerEventResponseReasoningSummaryPartWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseReasoningSummaryTextDelta() (v ResponsesServerEventResponseReasoningSummaryTextWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseReasoningSummaryTextDone() (v ResponsesServerEventResponseReasoningSummaryTextWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseReasoningTextDelta() (v ResponsesServerEventResponseReasoningTextWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseReasoningTextDone() (v ResponsesServerEventResponseReasoningTextWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseRefusalDelta() (v ResponsesServerEventResponseRefusalWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseRefusalDone() (v ResponsesServerEventResponseRefusalWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseOutputTextDelta() (v ResponsesServerEventResponseTextWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseOutputTextDone() (v ResponsesServerEventResponseTextWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseWebSearchCallCompleted() (v ResponsesServerEventResponseWebSearchCallWsCompleted) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseWebSearchCallInProgress() (v ResponsesServerEventResponseWebSearchCallInWsProgress) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseWebSearchCallSearching() (v ResponsesServerEventResponseWebSearchCallWsSearching) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseImageGenerationCallCompleted() (v ResponsesServerEventResponseImageGenCallWsCompleted) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseImageGenerationCallGenerating() (v ResponsesServerEventResponseImageGenCallWsGenerating) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseImageGenerationCallInProgress() (v ResponsesServerEventResponseImageGenCallInWsProgress) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseImageGenerationCallPartialImage() (v ResponsesServerEventResponseImageGenCallPartialWsImage) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseMcpCallArgumentsDelta() (v ResponsesServerEventResponseMcpCallArgumentsWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseMcpCallArgumentsDone() (v ResponsesServerEventResponseMcpCallArgumentsWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseMcpCallCompleted() (v ResponsesServerEventResponseMcpCallWsCompleted) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseMcpCallFailed() (v ResponsesServerEventResponseMcpCallWsFailed) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseMcpCallInProgress() (v ResponsesServerEventResponseMcpCallInWsProgress) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseMcpListToolsCompleted() (v ResponsesServerEventResponseMcpListToolsWsCompleted) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseMcpListToolsFailed() (v ResponsesServerEventResponseMcpListToolsWsFailed) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseMcpListToolsInProgress() (v ResponsesServerEventResponseMcpListToolsInWsProgress) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseOutputTextAnnotationAdded() (v ResponsesServerEventResponseOutputTextAnnotationWsAdded) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseQueued() (v ResponsesServerEventResponseWsQueued) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseCustomToolCallInputDelta() (v ResponsesServerEventResponseCustomToolCallInputWsDelta) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseCustomToolCallInputDone() (v ResponsesServerEventResponseCustomToolCallInputWsDone) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponsesServerEventResponseWsError() (v ResponsesServerEventResponseWsError) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseSteerAcceptedEvent() (v ResponseSteerAcceptedEvent) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseSteerPendingEvent() (v ResponseSteerPendingEvent) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ResponsesServerEventUnion) AsResponseSteerFailedEvent() (v ResponseSteerFailedEvent) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ResponsesServerEventUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ResponsesServerEventUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// unmarshalWebsocketEvent decodes only the event selected by its type. Public
+// UnmarshalJSON keeps the existing general-purpose union decoding behavior.
+func (r *ResponsesServerEventUnion) unmarshalWebsocketEvent(data []byte) error {
+	var envelope struct {
+		Type json.RawMessage `json:"type"`
+	}
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return err
+	}
+	var eventType string
+	if err := json.Unmarshal(envelope.Type, &eventType); err != nil {
+		return err
+	}
+	*r = ResponsesServerEventUnion{Type: eventType}
+	r.JSON.raw = string(data)
+	r.JSON.Type = respjson.NewField(string(envelope.Type))
+	switch eventType {
+	case "response.audio.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseAudioWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseAudioWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.audio.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseAudioWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseAudioWsDone = respjson.NewField(r.JSON.raw)
+	case "response.audio.transcript.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseAudioTranscriptWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseAudioTranscriptWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.audio.transcript.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseAudioTranscriptWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseAudioTranscriptWsDone = respjson.NewField(r.JSON.raw)
+	case "response.code_interpreter_call_code.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseCodeInterpreterCallCodeWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseCodeInterpreterCallCodeWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.code_interpreter_call_code.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseCodeInterpreterCallCodeWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseCodeInterpreterCallCodeWsDone = respjson.NewField(r.JSON.raw)
+	case "response.code_interpreter_call.completed":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseCodeInterpreterCallWsCompleted); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseCodeInterpreterCallWsCompleted = respjson.NewField(r.JSON.raw)
+	case "response.code_interpreter_call.in_progress":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseCodeInterpreterCallInWsProgress); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseCodeInterpreterCallInWsProgress = respjson.NewField(r.JSON.raw)
+	case "response.code_interpreter_call.interpreting":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseCodeInterpreterCallWsInterpreting); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseCodeInterpreterCallWsInterpreting = respjson.NewField(r.JSON.raw)
+	case "response.compaction.compacting":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseCompactionWsCompacting); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseCompactionWsCompacting = respjson.NewField(r.JSON.raw)
+	case "response.completed":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseWsCompleted); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseWsCompleted = respjson.NewField(r.JSON.raw)
+	case "response.content_part.added":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseContentPartWsAdded); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseContentPartWsAdded = respjson.NewField(r.JSON.raw)
+	case "response.content_part.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseContentPartWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseContentPartWsDone = respjson.NewField(r.JSON.raw)
+	case "response.created":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseWsCreated); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseWsCreated = respjson.NewField(r.JSON.raw)
+	case "response.file_search_call.completed":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseFileSearchCallWsCompleted); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseFileSearchCallWsCompleted = respjson.NewField(r.JSON.raw)
+	case "response.file_search_call.in_progress":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseFileSearchCallInWsProgress); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseFileSearchCallInWsProgress = respjson.NewField(r.JSON.raw)
+	case "response.file_search_call.searching":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseFileSearchCallWsSearching); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseFileSearchCallWsSearching = respjson.NewField(r.JSON.raw)
+	case "response.function_call_arguments.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseFunctionCallArgumentsWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseFunctionCallArgumentsWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.function_call_arguments.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseFunctionCallArgumentsWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseFunctionCallArgumentsWsDone = respjson.NewField(r.JSON.raw)
+	case "response.shell_call_command.added":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseShellCallCommandWsAdded); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseShellCallCommandWsAdded = respjson.NewField(r.JSON.raw)
+	case "response.shell_call_command.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseShellCallCommandWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseShellCallCommandWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.shell_call_command.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseShellCallCommandWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseShellCallCommandWsDone = respjson.NewField(r.JSON.raw)
+	case "response.shell_call_output_content.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseShellCallOutputContentWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseShellCallOutputContentWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.shell_call_output_content.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseShellCallOutputContentWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseShellCallOutputContentWsDone = respjson.NewField(r.JSON.raw)
+	case "response.in_progress":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseInWsProgress); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseInWsProgress = respjson.NewField(r.JSON.raw)
+	case "response.failed":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseWsFailed); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseWsFailed = respjson.NewField(r.JSON.raw)
+	case "response.incomplete":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseWsIncomplete); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseWsIncomplete = respjson.NewField(r.JSON.raw)
+	case "response.output_item.added":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseOutputItemWsAdded); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseOutputItemWsAdded = respjson.NewField(r.JSON.raw)
+	case "response.output_item.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseOutputItemWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseOutputItemWsDone = respjson.NewField(r.JSON.raw)
+	case "response.reasoning_summary_part.added":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseReasoningSummaryPartWsAdded); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseReasoningSummaryPartWsAdded = respjson.NewField(r.JSON.raw)
+	case "response.reasoning_summary_part.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseReasoningSummaryPartWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseReasoningSummaryPartWsDone = respjson.NewField(r.JSON.raw)
+	case "response.reasoning_summary_text.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseReasoningSummaryTextWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseReasoningSummaryTextWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.reasoning_summary_text.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseReasoningSummaryTextWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseReasoningSummaryTextWsDone = respjson.NewField(r.JSON.raw)
+	case "response.reasoning_text.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseReasoningTextWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseReasoningTextWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.reasoning_text.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseReasoningTextWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseReasoningTextWsDone = respjson.NewField(r.JSON.raw)
+	case "response.refusal.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseRefusalWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseRefusalWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.refusal.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseRefusalWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseRefusalWsDone = respjson.NewField(r.JSON.raw)
+	case "response.output_text.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseTextWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseTextWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.output_text.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseTextWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseTextWsDone = respjson.NewField(r.JSON.raw)
+	case "response.web_search_call.completed":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseWebSearchCallWsCompleted); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseWebSearchCallWsCompleted = respjson.NewField(r.JSON.raw)
+	case "response.web_search_call.in_progress":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseWebSearchCallInWsProgress); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseWebSearchCallInWsProgress = respjson.NewField(r.JSON.raw)
+	case "response.web_search_call.searching":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseWebSearchCallWsSearching); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseWebSearchCallWsSearching = respjson.NewField(r.JSON.raw)
+	case "response.image_generation_call.completed":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseImageGenCallWsCompleted); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseImageGenCallWsCompleted = respjson.NewField(r.JSON.raw)
+	case "response.image_generation_call.generating":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseImageGenCallWsGenerating); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseImageGenCallWsGenerating = respjson.NewField(r.JSON.raw)
+	case "response.image_generation_call.in_progress":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseImageGenCallInWsProgress); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseImageGenCallInWsProgress = respjson.NewField(r.JSON.raw)
+	case "response.image_generation_call.partial_image":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseImageGenCallPartialWsImage); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseImageGenCallPartialWsImage = respjson.NewField(r.JSON.raw)
+	case "response.mcp_call_arguments.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseMcpCallArgumentsWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseMcpCallArgumentsWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.mcp_call_arguments.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseMcpCallArgumentsWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseMcpCallArgumentsWsDone = respjson.NewField(r.JSON.raw)
+	case "response.mcp_call.completed":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseMcpCallWsCompleted); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseMcpCallWsCompleted = respjson.NewField(r.JSON.raw)
+	case "response.mcp_call.failed":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseMcpCallWsFailed); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseMcpCallWsFailed = respjson.NewField(r.JSON.raw)
+	case "response.mcp_call.in_progress":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseMcpCallInWsProgress); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseMcpCallInWsProgress = respjson.NewField(r.JSON.raw)
+	case "response.mcp_list_tools.completed":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseMcpListToolsWsCompleted); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseMcpListToolsWsCompleted = respjson.NewField(r.JSON.raw)
+	case "response.mcp_list_tools.failed":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseMcpListToolsWsFailed); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseMcpListToolsWsFailed = respjson.NewField(r.JSON.raw)
+	case "response.mcp_list_tools.in_progress":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseMcpListToolsInWsProgress); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseMcpListToolsInWsProgress = respjson.NewField(r.JSON.raw)
+	case "response.output_text.annotation.added":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseOutputTextAnnotationWsAdded); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseOutputTextAnnotationWsAdded = respjson.NewField(r.JSON.raw)
+	case "response.queued":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseWsQueued); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseWsQueued = respjson.NewField(r.JSON.raw)
+	case "response.custom_tool_call_input.delta":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseCustomToolCallInputWsDelta); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseCustomToolCallInputWsDelta = respjson.NewField(r.JSON.raw)
+	case "response.custom_tool_call_input.done":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseCustomToolCallInputWsDone); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseCustomToolCallInputWsDone = respjson.NewField(r.JSON.raw)
+	case "error":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponsesServerEventResponseWsError); err != nil {
+			return err
+		}
+		r.JSON.OfResponsesServerEventResponseWsError = respjson.NewField(r.JSON.raw)
+	case "response.steer.accepted":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponseSteerAcceptedEvent); err != nil {
+			return err
+		}
+		r.JSON.OfResponseSteerAcceptedEvent = respjson.NewField(r.JSON.raw)
+	case "response.steer.pending":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponseSteerPendingEvent); err != nil {
+			return err
+		}
+		r.JSON.OfResponseSteerPendingEvent = respjson.NewField(r.JSON.raw)
+	case "response.steer.failed":
+		if err := apijson.UnmarshalRoot(data, &r.OfResponseSteerFailedEvent); err != nil {
+			return err
+		}
+		r.JSON.OfResponseSteerFailedEvent = respjson.NewField(r.JSON.raw)
+	}
+	return nil
+}
+
+// Emitted when there is a partial audio response.
+type ResponsesServerEventResponseAudioWsDelta struct {
+	// A chunk of Base64 encoded response audio bytes.
+	Delta string `json:"delta" api:"required"`
+	// A sequence number for this chunk of the stream response.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.audio.delta`.
+	Type constant.ResponseAudioDelta `json:"type" default:"response.audio.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Delta          respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseAudioWsDelta) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseAudioWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when the audio response is complete.
+type ResponsesServerEventResponseAudioWsDone struct {
+	// The sequence number of the delta.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.audio.done`.
+	Type constant.ResponseAudioDone `json:"type" default:"response.audio.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseAudioWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseAudioWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when there is a partial transcript of audio.
+type ResponsesServerEventResponseAudioTranscriptWsDelta struct {
+	// The partial transcript of the audio response.
+	Delta string `json:"delta" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.audio.transcript.delta`.
+	Type constant.ResponseAudioTranscriptDelta `json:"type" default:"response.audio.transcript.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Delta          respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseAudioTranscriptWsDelta) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseAudioTranscriptWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when the full audio transcript is completed.
+type ResponsesServerEventResponseAudioTranscriptWsDone struct {
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.audio.transcript.done`.
+	Type constant.ResponseAudioTranscriptDone `json:"type" default:"response.audio.transcript.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseAudioTranscriptWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseAudioTranscriptWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a partial code snippet is streamed by the code interpreter.
+type ResponsesServerEventResponseCodeInterpreterCallCodeWsDelta struct {
+	// The partial code snippet being streamed by the code interpreter.
+	Delta string `json:"delta" api:"required"`
+	// The unique identifier of the code interpreter tool call item.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response for which the code is being
+	// streamed.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event, used to order streaming events.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.code_interpreter_call_code.delta`.
+	Type constant.ResponseCodeInterpreterCallCodeDelta `json:"type" default:"response.code_interpreter_call_code.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Delta          respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseCodeInterpreterCallCodeWsDelta) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponsesServerEventResponseCodeInterpreterCallCodeWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when the code snippet is finalized by the code interpreter.
+type ResponsesServerEventResponseCodeInterpreterCallCodeWsDone struct {
+	// The final code snippet output by the code interpreter.
+	Code string `json:"code" api:"required"`
+	// The unique identifier of the code interpreter tool call item.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response for which the code is finalized.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event, used to order streaming events.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.code_interpreter_call_code.done`.
+	Type constant.ResponseCodeInterpreterCallCodeDone `json:"type" default:"response.code_interpreter_call_code.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Code           respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseCodeInterpreterCallCodeWsDone) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponsesServerEventResponseCodeInterpreterCallCodeWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when the code interpreter call is completed.
+type ResponsesServerEventResponseCodeInterpreterCallWsCompleted struct {
+	// The unique identifier of the code interpreter tool call item.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response for which the code interpreter call
+	// is completed.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event, used to order streaming events.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.code_interpreter_call.completed`.
+	Type constant.ResponseCodeInterpreterCallCompleted `json:"type" default:"response.code_interpreter_call.completed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseCodeInterpreterCallWsCompleted) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponsesServerEventResponseCodeInterpreterCallWsCompleted) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a code interpreter call is in progress.
+type ResponsesServerEventResponseCodeInterpreterCallInWsProgress struct {
+	// The unique identifier of the code interpreter tool call item.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response for which the code interpreter call
+	// is in progress.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event, used to order streaming events.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.code_interpreter_call.in_progress`.
+	Type constant.ResponseCodeInterpreterCallInProgress `json:"type" default:"response.code_interpreter_call.in_progress"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseCodeInterpreterCallInWsProgress) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponsesServerEventResponseCodeInterpreterCallInWsProgress) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when the code interpreter is actively interpreting the code snippet.
+type ResponsesServerEventResponseCodeInterpreterCallWsInterpreting struct {
+	// The unique identifier of the code interpreter tool call item.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response for which the code interpreter is
+	// interpreting code.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event, used to order streaming events.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.code_interpreter_call.interpreting`.
+	Type constant.ResponseCodeInterpreterCallInterpreting `json:"type" default:"response.code_interpreter_call.interpreting"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseCodeInterpreterCallWsInterpreting) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponsesServerEventResponseCodeInterpreterCallWsInterpreting) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when new summary content is sampled for a compaction trigger. Contains
+// no summary content.
+type ResponsesServerEventResponseCompactionWsCompacting struct {
+	// The ID of the compaction output item.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the compaction output item.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the event that was emitted.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event, always `response.compaction.compacting`.
+	Type constant.ResponseCompactionCompacting `json:"type" default:"response.compaction.compacting"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseCompactionWsCompacting) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseCompactionWsCompacting) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when the model response is complete.
+type ResponsesServerEventResponseWsCompleted struct {
+	// Properties of the completed response.
+	Response Response `json:"response" api:"required"`
+	// The sequence number for this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.completed`.
+	Type constant.ResponseCompleted `json:"type" default:"response.completed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Response       respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWsCompleted) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseWsCompleted) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a new content part is added.
+type ResponsesServerEventResponseContentPartWsAdded struct {
+	// The index of the content part that was added.
+	ContentIndex int64 `json:"content_index" api:"required"`
+	// The ID of the output item that the content part was added to.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that the content part was added to.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The content part that was added.
+	Part ResponseContentPartAddedEventPartUnion `json:"part" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.content_part.added`.
+	Type constant.ResponseContentPartAdded `json:"type" default:"response.content_part.added"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ContentIndex   respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		Part           respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseContentPartWsAdded) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseContentPartWsAdded) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a content part is done.
+type ResponsesServerEventResponseContentPartWsDone struct {
+	// The index of the content part that is done.
+	ContentIndex int64 `json:"content_index" api:"required"`
+	// The ID of the output item that the content part was added to.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that the content part was added to.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The content part that is done.
+	Part ResponseContentPartDoneEventPartUnion `json:"part" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.content_part.done`.
+	Type constant.ResponseContentPartDone `json:"type" default:"response.content_part.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ContentIndex   respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		Part           respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseContentPartWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseContentPartWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// An event that is emitted when a response is created.
+type ResponsesServerEventResponseWsCreated struct {
+	// The response that was created.
+	Response Response `json:"response" api:"required"`
+	// The sequence number for this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.created`.
+	Type constant.ResponseCreated `json:"type" default:"response.created"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Response       respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWsCreated) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseWsCreated) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a file search call is completed (results found).
+type ResponsesServerEventResponseFileSearchCallWsCompleted struct {
+	// The ID of the output item that the file search call is initiated.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that the file search call is initiated.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.file_search_call.completed`.
+	Type constant.ResponseFileSearchCallCompleted `json:"type" default:"response.file_search_call.completed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseFileSearchCallWsCompleted) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseFileSearchCallWsCompleted) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a file search call is initiated.
+type ResponsesServerEventResponseFileSearchCallInWsProgress struct {
+	// The ID of the output item that the file search call is initiated.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that the file search call is initiated.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.file_search_call.in_progress`.
+	Type constant.ResponseFileSearchCallInProgress `json:"type" default:"response.file_search_call.in_progress"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseFileSearchCallInWsProgress) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseFileSearchCallInWsProgress) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a file search is currently searching.
+type ResponsesServerEventResponseFileSearchCallWsSearching struct {
+	// The ID of the output item that the file search call is initiated.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that the file search call is searching.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.file_search_call.searching`.
+	Type constant.ResponseFileSearchCallSearching `json:"type" default:"response.file_search_call.searching"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseFileSearchCallWsSearching) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseFileSearchCallWsSearching) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when there is a partial function-call arguments delta.
+type ResponsesServerEventResponseFunctionCallArgumentsWsDelta struct {
+	// The function-call arguments delta that is added.
+	Delta string `json:"delta" api:"required"`
+	// The ID of the output item that the function-call arguments delta is added to.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that the function-call arguments delta is added to.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.function_call_arguments.delta`.
+	Type constant.ResponseFunctionCallArgumentsDelta `json:"type" default:"response.function_call_arguments.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Delta          respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseFunctionCallArgumentsWsDelta) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseFunctionCallArgumentsWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when function-call arguments are finalized.
+type ResponsesServerEventResponseFunctionCallArgumentsWsDone struct {
+	// The function-call arguments.
+	Arguments string `json:"arguments" api:"required"`
+	// The ID of the item.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string                                     `json:"stream_id"`
+	Type     constant.ResponseFunctionCallArgumentsDone `json:"type" default:"response.function_call_arguments.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Arguments      respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseFunctionCallArgumentsWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseFunctionCallArgumentsWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A streaming event that indicated a shell command was added to a tool call.
+type ResponsesServerEventResponseShellCallCommandWsAdded struct {
+	// The shell command that was added.
+	Command string `json:"command" api:"required"`
+	// The index of the shell command that was added.
+	CommandIndex int64 `json:"command_index" api:"required"`
+	// The index of the output item that was updated.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the event that was emitted.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event, always `response.shell_call_command.added`.
+	Type constant.ResponseShellCallCommandAdded `json:"type" default:"response.shell_call_command.added"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Command        respjson.Field
+		CommandIndex   respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseShellCallCommandWsAdded) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseShellCallCommandWsAdded) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A streaming event that indicated a shell command was incrementally updated.
+type ResponsesServerEventResponseShellCallCommandWsDelta struct {
+	// The index of the shell command that was updated.
+	CommandIndex int64 `json:"command_index" api:"required"`
+	// The shell command delta that was appended.
+	Delta string `json:"delta" api:"required"`
+	// An obfuscation string that was added to pad the event payload.
+	Obfuscation string `json:"obfuscation"`
+	// The index of the output item that was updated.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the event that was emitted.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event, always `response.shell_call_command.delta`.
+	Type constant.ResponseShellCallCommandDelta `json:"type" default:"response.shell_call_command.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CommandIndex   respjson.Field
+		Delta          respjson.Field
+		Obfuscation    respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseShellCallCommandWsDelta) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseShellCallCommandWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A streaming event that indicated a shell command was completed.
+type ResponsesServerEventResponseShellCallCommandWsDone struct {
+	// The final shell command that was emitted.
+	Command string `json:"command" api:"required"`
+	// The index of the shell command that was completed.
+	CommandIndex int64 `json:"command_index" api:"required"`
+	// The index of the output item that was updated.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the event that was emitted.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event, always `response.shell_call_command.done`.
+	Type constant.ResponseShellCallCommandDone `json:"type" default:"response.shell_call_command.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Command        respjson.Field
+		CommandIndex   respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseShellCallCommandWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseShellCallCommandWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A streaming event that indicated shell call output was incrementally added.
+type ResponsesServerEventResponseShellCallOutputContentWsDelta struct {
+	// The index of the shell command that produced output.
+	CommandIndex int64 `json:"command_index" api:"required"`
+	// The stdout/stderr delta that was emitted.
+	Delta ResponseShellCallOutputContentDeltaEventDelta `json:"delta" api:"required"`
+	// The ID of the output item that was updated.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that was updated.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the event that was emitted.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event, always `response.shell_call_output_content.delta`.
+	Type constant.ResponseShellCallOutputContentDelta `json:"type" default:"response.shell_call_output_content.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CommandIndex   respjson.Field
+		Delta          respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseShellCallOutputContentWsDelta) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponsesServerEventResponseShellCallOutputContentWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// A streaming event that indicated shell call output was completed.
+type ResponsesServerEventResponseShellCallOutputContentWsDone struct {
+	// The index of the shell command that produced output.
+	CommandIndex int64 `json:"command_index" api:"required"`
+	// The ID of the output item that was updated.
+	ItemID string `json:"item_id" api:"required"`
+	// The output contents emitted for the shell command.
+	Output []ResponseShellCallOutputContentDoneEventOutput `json:"output" api:"required"`
+	// The index of the output item that was updated.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the event that was emitted.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event, always `response.shell_call_output_content.done`.
+	Type constant.ResponseShellCallOutputContentDone `json:"type" default:"response.shell_call_output_content.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		CommandIndex   respjson.Field
+		ItemID         respjson.Field
+		Output         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseShellCallOutputContentWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseShellCallOutputContentWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when the response is in progress.
+type ResponsesServerEventResponseInWsProgress struct {
+	// The response that is in progress.
+	Response Response `json:"response" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.in_progress`.
+	Type constant.ResponseInProgress `json:"type" default:"response.in_progress"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Response       respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseInWsProgress) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseInWsProgress) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// An event that is emitted when a response fails.
+type ResponsesServerEventResponseWsFailed struct {
+	// The response that failed.
+	Response Response `json:"response" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.failed`.
+	Type constant.ResponseFailed `json:"type" default:"response.failed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Response       respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWsFailed) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseWsFailed) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// An event that is emitted when a response finishes as incomplete.
+//
+// Over WebSocket, steering can finish a response with
+// `response.incomplete_details.reason` set to `steered`, followed automatically by
+// a successor `response.created` that commits the queued steering input.
+type ResponsesServerEventResponseWsIncomplete struct {
+	// The response that was incomplete.
+	Response Response `json:"response" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.incomplete`.
+	Type constant.ResponseIncomplete `json:"type" default:"response.incomplete"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Response       respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWsIncomplete) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseWsIncomplete) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a new output item is added.
+type ResponsesServerEventResponseOutputItemWsAdded struct {
+	// The output item that was added. For reasoning items, `encrypted_content` may be
+	// incomplete while the item is in progress. Use the reasoning item from the
+	// corresponding `response.output_item.done` event when passing it as input to a
+	// subsequent request.
+	Item ResponseOutputItemUnion `json:"item" api:"required"`
+	// The index of the output item that was added.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.output_item.added`.
+	Type constant.ResponseOutputItemAdded `json:"type" default:"response.output_item.added"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Item           respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseOutputItemWsAdded) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseOutputItemWsAdded) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when an output item is marked done.
+type ResponsesServerEventResponseOutputItemWsDone struct {
+	// The output item that was marked done.
+	Item ResponseOutputItemUnion `json:"item" api:"required"`
+	// The index of the output item that was marked done.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.output_item.done`.
+	Type constant.ResponseOutputItemDone `json:"type" default:"response.output_item.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Item           respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseOutputItemWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseOutputItemWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a new reasoning summary part is added.
+type ResponsesServerEventResponseReasoningSummaryPartWsAdded struct {
+	// The ID of the item this summary part is associated with.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item this summary part is associated with.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The summary part that was added.
+	Part ResponseReasoningSummaryPartAddedEventPart `json:"part" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The index of the summary part within the reasoning summary.
+	SummaryIndex int64 `json:"summary_index" api:"required"`
+	// The type of the event. Always `response.reasoning_summary_part.added`.
+	Type constant.ResponseReasoningSummaryPartAdded `json:"type" default:"response.reasoning_summary_part.added"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		Part           respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		SummaryIndex   respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseReasoningSummaryPartWsAdded) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseReasoningSummaryPartWsAdded) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a reasoning summary part is completed.
+type ResponsesServerEventResponseReasoningSummaryPartWsDone struct {
+	// The ID of the item this summary part is associated with.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item this summary part is associated with.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The completed summary part.
+	Part ResponseReasoningSummaryPartDoneEventPart `json:"part" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The completion status of the summary part. Omitted when the part completed
+	// normally and set to `incomplete` when generation was interrupted.
+	//
+	// Any of "incomplete".
+	Status ResponseReasoningSummaryPartDoneEventStatus `json:"status"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The index of the summary part within the reasoning summary.
+	SummaryIndex int64 `json:"summary_index" api:"required"`
+	// The type of the event. Always `response.reasoning_summary_part.done`.
+	Type constant.ResponseReasoningSummaryPartDone `json:"type" default:"response.reasoning_summary_part.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		Part           respjson.Field
+		SequenceNumber respjson.Field
+		Status         respjson.Field
+		StreamID       respjson.Field
+		SummaryIndex   respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseReasoningSummaryPartWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseReasoningSummaryPartWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a delta is added to a reasoning summary text.
+type ResponsesServerEventResponseReasoningSummaryTextWsDelta struct {
+	// The text delta that was added to the summary.
+	Delta string `json:"delta" api:"required"`
+	// The ID of the item this summary text delta is associated with.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item this summary text delta is associated with.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The index of the summary part within the reasoning summary.
+	SummaryIndex int64 `json:"summary_index" api:"required"`
+	// The type of the event. Always `response.reasoning_summary_text.delta`.
+	Type constant.ResponseReasoningSummaryTextDelta `json:"type" default:"response.reasoning_summary_text.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Delta          respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		SummaryIndex   respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseReasoningSummaryTextWsDelta) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseReasoningSummaryTextWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a reasoning summary text is completed.
+type ResponsesServerEventResponseReasoningSummaryTextWsDone struct {
+	// The ID of the item this summary text is associated with.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item this summary text is associated with.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The index of the summary part within the reasoning summary.
+	SummaryIndex int64 `json:"summary_index" api:"required"`
+	// The full text of the completed reasoning summary.
+	Text string `json:"text" api:"required"`
+	// The type of the event. Always `response.reasoning_summary_text.done`.
+	Type constant.ResponseReasoningSummaryTextDone `json:"type" default:"response.reasoning_summary_text.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		SummaryIndex   respjson.Field
+		Text           respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseReasoningSummaryTextWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseReasoningSummaryTextWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a delta is added to a reasoning text.
+type ResponsesServerEventResponseReasoningTextWsDelta struct {
+	// The index of the reasoning content part this delta is associated with.
+	ContentIndex int64 `json:"content_index" api:"required"`
+	// The text delta that was added to the reasoning content.
+	Delta string `json:"delta" api:"required"`
+	// The ID of the item this reasoning text delta is associated with.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item this reasoning text delta is associated with.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.reasoning_text.delta`.
+	Type constant.ResponseReasoningTextDelta `json:"type" default:"response.reasoning_text.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ContentIndex   respjson.Field
+		Delta          respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseReasoningTextWsDelta) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseReasoningTextWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a reasoning text is completed.
+type ResponsesServerEventResponseReasoningTextWsDone struct {
+	// The index of the reasoning content part.
+	ContentIndex int64 `json:"content_index" api:"required"`
+	// The ID of the item this reasoning text is associated with.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item this reasoning text is associated with.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The full text of the completed reasoning content.
+	Text string `json:"text" api:"required"`
+	// The type of the event. Always `response.reasoning_text.done`.
+	Type constant.ResponseReasoningTextDone `json:"type" default:"response.reasoning_text.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ContentIndex   respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Text           respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseReasoningTextWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseReasoningTextWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when there is a partial refusal text.
+type ResponsesServerEventResponseRefusalWsDelta struct {
+	// The index of the content part that the refusal text is added to.
+	ContentIndex int64 `json:"content_index" api:"required"`
+	// The refusal text that is added.
+	Delta string `json:"delta" api:"required"`
+	// The ID of the output item that the refusal text is added to.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that the refusal text is added to.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.refusal.delta`.
+	Type constant.ResponseRefusalDelta `json:"type" default:"response.refusal.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ContentIndex   respjson.Field
+		Delta          respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseRefusalWsDelta) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseRefusalWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when refusal text is finalized.
+type ResponsesServerEventResponseRefusalWsDone struct {
+	// The index of the content part that the refusal text is finalized.
+	ContentIndex int64 `json:"content_index" api:"required"`
+	// The ID of the output item that the refusal text is finalized.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that the refusal text is finalized.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The refusal text that is finalized.
+	Refusal string `json:"refusal" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.refusal.done`.
+	Type constant.ResponseRefusalDone `json:"type" default:"response.refusal.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ContentIndex   respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		Refusal        respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseRefusalWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseRefusalWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when there is an additional text delta.
+type ResponsesServerEventResponseTextWsDelta struct {
+	// The index of the content part that the text delta was added to.
+	ContentIndex int64 `json:"content_index" api:"required"`
+	// The text delta that was added.
+	Delta string `json:"delta" api:"required"`
+	// The ID of the output item that the text delta was added to.
+	ItemID string `json:"item_id" api:"required"`
+	// The log probabilities of the tokens in the delta.
+	Logprobs []ResponseTextDeltaEventLogprob `json:"logprobs" api:"required"`
+	// The index of the output item that the text delta was added to.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number for this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.output_text.delta`.
+	Type constant.ResponseOutputTextDelta `json:"type" default:"response.output_text.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ContentIndex   respjson.Field
+		Delta          respjson.Field
+		ItemID         respjson.Field
+		Logprobs       respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseTextWsDelta) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseTextWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when text content is finalized.
+type ResponsesServerEventResponseTextWsDone struct {
+	// The index of the content part that the text content is finalized.
+	ContentIndex int64 `json:"content_index" api:"required"`
+	// The ID of the output item that the text content is finalized.
+	ItemID string `json:"item_id" api:"required"`
+	// The log probabilities of the tokens in the delta.
+	Logprobs []ResponseTextDoneEventLogprob `json:"logprobs" api:"required"`
+	// The index of the output item that the text content is finalized.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number for this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The text content that is finalized.
+	Text string `json:"text" api:"required"`
+	// The type of the event. Always `response.output_text.done`.
+	Type constant.ResponseOutputTextDone `json:"type" default:"response.output_text.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ContentIndex   respjson.Field
+		ItemID         respjson.Field
+		Logprobs       respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Text           respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseTextWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseTextWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a web search call is completed.
+type ResponsesServerEventResponseWebSearchCallWsCompleted struct {
+	// Unique ID for the output item associated with the web search call.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that the web search call is associated with.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the web search call being processed.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.web_search_call.completed`.
+	Type constant.ResponseWebSearchCallCompleted `json:"type" default:"response.web_search_call.completed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWebSearchCallWsCompleted) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseWebSearchCallWsCompleted) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a web search call is initiated.
+type ResponsesServerEventResponseWebSearchCallInWsProgress struct {
+	// Unique ID for the output item associated with the web search call.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that the web search call is associated with.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the web search call being processed.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.web_search_call.in_progress`.
+	Type constant.ResponseWebSearchCallInProgress `json:"type" default:"response.web_search_call.in_progress"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWebSearchCallInWsProgress) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseWebSearchCallInWsProgress) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a web search call is executing.
+type ResponsesServerEventResponseWebSearchCallWsSearching struct {
+	// Unique ID for the output item associated with the web search call.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that the web search call is associated with.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the web search call being processed.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `response.web_search_call.searching`.
+	Type constant.ResponseWebSearchCallSearching `json:"type" default:"response.web_search_call.searching"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWebSearchCallWsSearching) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseWebSearchCallWsSearching) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when an image generation tool call has completed and the final image is
+// available.
+type ResponsesServerEventResponseImageGenCallWsCompleted struct {
+	// The unique identifier of the image generation item being processed.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response's output array.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.image_generation_call.completed'.
+	Type constant.ResponseImageGenerationCallCompleted `json:"type" default:"response.image_generation_call.completed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseImageGenCallWsCompleted) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseImageGenCallWsCompleted) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when an image generation tool call is actively generating an image
+// (intermediate state).
+type ResponsesServerEventResponseImageGenCallWsGenerating struct {
+	// The unique identifier of the image generation item being processed.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response's output array.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the image generation item being processed.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.image_generation_call.generating'.
+	Type constant.ResponseImageGenerationCallGenerating `json:"type" default:"response.image_generation_call.generating"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseImageGenCallWsGenerating) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseImageGenCallWsGenerating) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when an image generation tool call is in progress.
+type ResponsesServerEventResponseImageGenCallInWsProgress struct {
+	// The unique identifier of the image generation item being processed.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response's output array.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of the image generation item being processed.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.image_generation_call.in_progress'.
+	Type constant.ResponseImageGenerationCallInProgress `json:"type" default:"response.image_generation_call.in_progress"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseImageGenCallInWsProgress) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseImageGenCallInWsProgress) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a partial image is available during image generation streaming.
+type ResponsesServerEventResponseImageGenCallPartialWsImage struct {
+	// The background setting that was used.
+	Background string `json:"background"`
+	// The unique identifier of the image generation item being processed.
+	ItemID string `json:"item_id" api:"required"`
+	// The output format that was used.
+	OutputFormat string `json:"output_format"`
+	// The index of the output item in the response's output array.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// Base64-encoded partial image data, suitable for rendering as an image.
+	PartialImageB64 string `json:"partial_image_b64" api:"required"`
+	// 0-based index for the partial image (backend is 1-based, but this is 0-based for
+	// the user).
+	PartialImageIndex int64 `json:"partial_image_index" api:"required"`
+	// The image quality that was used.
+	Quality string `json:"quality"`
+	// The sequence number of the image generation item being processed.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The image size that was used.
+	Size string `json:"size"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.image_generation_call.partial_image'.
+	Type constant.ResponseImageGenerationCallPartialImage `json:"type" default:"response.image_generation_call.partial_image"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Background        respjson.Field
+		ItemID            respjson.Field
+		OutputFormat      respjson.Field
+		OutputIndex       respjson.Field
+		PartialImageB64   respjson.Field
+		PartialImageIndex respjson.Field
+		Quality           respjson.Field
+		SequenceNumber    respjson.Field
+		Size              respjson.Field
+		StreamID          respjson.Field
+		Type              respjson.Field
+		ExtraFields       map[string]respjson.Field
+		raw               string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseImageGenCallPartialWsImage) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseImageGenCallPartialWsImage) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when there is a delta (partial update) to the arguments of an MCP tool
+// call.
+type ResponsesServerEventResponseMcpCallArgumentsWsDelta struct {
+	// A JSON string containing the partial update to the arguments for the MCP tool
+	// call.
+	Delta string `json:"delta" api:"required"`
+	// The unique identifier of the MCP tool call item being processed.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response's output array.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.mcp_call_arguments.delta'.
+	Type constant.ResponseMcpCallArgumentsDelta `json:"type" default:"response.mcp_call_arguments.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Delta          respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseMcpCallArgumentsWsDelta) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseMcpCallArgumentsWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when the arguments for an MCP tool call are finalized.
+type ResponsesServerEventResponseMcpCallArgumentsWsDone struct {
+	// A JSON string containing the finalized arguments for the MCP tool call.
+	Arguments string `json:"arguments" api:"required"`
+	// The unique identifier of the MCP tool call item being processed.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response's output array.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.mcp_call_arguments.done'.
+	Type constant.ResponseMcpCallArgumentsDone `json:"type" default:"response.mcp_call_arguments.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Arguments      respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseMcpCallArgumentsWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseMcpCallArgumentsWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when an MCP tool call has completed successfully.
+type ResponsesServerEventResponseMcpCallWsCompleted struct {
+	// The ID of the MCP tool call item that completed.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that completed.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.mcp_call.completed'.
+	Type constant.ResponseMcpCallCompleted `json:"type" default:"response.mcp_call.completed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseMcpCallWsCompleted) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseMcpCallWsCompleted) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when an MCP tool call has failed.
+type ResponsesServerEventResponseMcpCallWsFailed struct {
+	// The ID of the MCP tool call item that failed.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that failed.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.mcp_call.failed'.
+	Type constant.ResponseMcpCallFailed `json:"type" default:"response.mcp_call.failed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseMcpCallWsFailed) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseMcpCallWsFailed) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when an MCP tool call is in progress.
+type ResponsesServerEventResponseMcpCallInWsProgress struct {
+	// The unique identifier of the MCP tool call item being processed.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response's output array.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.mcp_call.in_progress'.
+	Type constant.ResponseMcpCallInProgress `json:"type" default:"response.mcp_call.in_progress"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseMcpCallInWsProgress) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseMcpCallInWsProgress) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when the list of available MCP tools has been successfully retrieved.
+type ResponsesServerEventResponseMcpListToolsWsCompleted struct {
+	// The ID of the MCP tool call item that produced this output.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that was processed.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.mcp_list_tools.completed'.
+	Type constant.ResponseMcpListToolsCompleted `json:"type" default:"response.mcp_list_tools.completed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseMcpListToolsWsCompleted) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseMcpListToolsWsCompleted) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when the attempt to list available MCP tools has failed.
+type ResponsesServerEventResponseMcpListToolsWsFailed struct {
+	// The ID of the MCP tool call item that failed.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that failed.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.mcp_list_tools.failed'.
+	Type constant.ResponseMcpListToolsFailed `json:"type" default:"response.mcp_list_tools.failed"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseMcpListToolsWsFailed) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseMcpListToolsWsFailed) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when the system is in the process of retrieving the list of available
+// MCP tools.
+type ResponsesServerEventResponseMcpListToolsInWsProgress struct {
+	// The ID of the MCP tool call item that is being processed.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item that is being processed.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.mcp_list_tools.in_progress'.
+	Type constant.ResponseMcpListToolsInProgress `json:"type" default:"response.mcp_list_tools.in_progress"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseMcpListToolsInWsProgress) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseMcpListToolsInWsProgress) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when an annotation is added to output text content.
+type ResponsesServerEventResponseOutputTextAnnotationWsAdded struct {
+	// The annotation object being added. (See annotation schema for details.)
+	Annotation ResponseOutputTextAnnotationAddedEventAnnotationUnion `json:"annotation" api:"required"`
+	// The index of the annotation within the content part.
+	AnnotationIndex int64 `json:"annotation_index" api:"required"`
+	// The index of the content part within the output item.
+	ContentIndex int64 `json:"content_index" api:"required"`
+	// The unique identifier of the item to which the annotation is being added.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output item in the response's output array.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.output_text.annotation.added'.
+	Type constant.ResponseOutputTextAnnotationAdded `json:"type" default:"response.output_text.annotation.added"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Annotation      respjson.Field
+		AnnotationIndex respjson.Field
+		ContentIndex    respjson.Field
+		ItemID          respjson.Field
+		OutputIndex     respjson.Field
+		SequenceNumber  respjson.Field
+		StreamID        respjson.Field
+		Type            respjson.Field
+		ExtraFields     map[string]respjson.Field
+		raw             string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseOutputTextAnnotationWsAdded) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseOutputTextAnnotationWsAdded) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when a response is queued and waiting to be processed.
+type ResponsesServerEventResponseWsQueued struct {
+	// The full response object that is queued.
+	Response Response `json:"response" api:"required"`
+	// The sequence number for this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always 'response.queued'.
+	Type constant.ResponseQueued `json:"type" default:"response.queued"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Response       respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWsQueued) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseWsQueued) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Event representing a delta (partial update) to the input of a custom tool call.
+type ResponsesServerEventResponseCustomToolCallInputWsDelta struct {
+	// The incremental input data (delta) for the custom tool call.
+	Delta string `json:"delta" api:"required"`
+	// Unique identifier for the API item associated with this event.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output this delta applies to.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The event type identifier.
+	Type constant.ResponseCustomToolCallInputDelta `json:"type" default:"response.custom_tool_call_input.delta"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Delta          respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseCustomToolCallInputWsDelta) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseCustomToolCallInputWsDelta) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Event indicating that input for a custom tool call is complete.
+type ResponsesServerEventResponseCustomToolCallInputWsDone struct {
+	// The complete input data for the custom tool call.
+	Input string `json:"input" api:"required"`
+	// Unique identifier for the API item associated with this event.
+	ItemID string `json:"item_id" api:"required"`
+	// The index of the output this event applies to.
+	OutputIndex int64 `json:"output_index" api:"required"`
+	// The sequence number of this event.
+	SequenceNumber int64 `json:"sequence_number" api:"required"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The event type identifier.
+	Type constant.ResponseCustomToolCallInputDone `json:"type" default:"response.custom_tool_call_input.done"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Input          respjson.Field
+		ItemID         respjson.Field
+		OutputIndex    respjson.Field
+		SequenceNumber respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseCustomToolCallInputWsDone) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseCustomToolCallInputWsDone) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Emitted when an error occurs while processing a Responses WebSocket request.
+type ResponsesServerEventResponseWsError struct {
+	// Details about the error.
+	Error ResponsesServerEventResponseWsErrorError `json:"error" api:"required"`
+	// The sequence number of an error emitted by the response stream.
+	SequenceNumber int64 `json:"sequence_number"`
+	// The HTTP status code associated with a WebSocket protocol error.
+	Status int64 `json:"status"`
+	// The WebSocket lane that emitted this event. This field is present when the
+	// originating `response.create` event supplied a `stream_id`.
+	StreamID string `json:"stream_id"`
+	// The type of the event. Always `error`.
+	Type constant.Error `json:"type" default:"error"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Error          respjson.Field
+		SequenceNumber respjson.Field
+		Status         respjson.Field
+		StreamID       respjson.Field
+		Type           respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWsError) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseWsError) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Details about the error.
+type ResponsesServerEventResponseWsErrorError struct {
+	// The error code that was emitted, if any.
+	Code string `json:"code" api:"required"`
+	// The human-readable error message that was emitted.
+	Message string `json:"message" api:"required"`
+	// The parameter name that was associated with the error, if any.
+	Param string `json:"param" api:"required"`
+	// The error type that was emitted.
+	Type string `json:"type" api:"required"`
+	// The response headers that were emitted with the error, if any.
+	Headers      map[string]string                                    `json:"headers"`
+	Misalignment ResponsesServerEventResponseWsErrorErrorMisalignment `json:"misalignment"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Code         respjson.Field
+		Message      respjson.Field
+		Param        respjson.Field
+		Type         respjson.Field
+		Headers      respjson.Field
+		Misalignment respjson.Field
+		ExtraFields  map[string]respjson.Field
+		raw          string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWsErrorError) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseWsErrorError) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ResponsesServerEventResponseWsErrorErrorMisalignment struct {
+	// The public explanation for this block.
+	DetailedExplanation string `json:"detailed_explanation"`
+	// An optional classification; clients must accept additional values.
+	ErrorType string `json:"error_type"`
+	// An opaque target for explicitly continuing this review, or null when
+	// unavailable.
+	ReviewTarget string `json:"review_target" api:"nullable"`
+	// An optional public continuation instruction.
+	Steer ResponsesServerEventResponseWsErrorErrorMisalignmentSteer `json:"steer"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		DetailedExplanation respjson.Field
+		ErrorType           respjson.Field
+		ReviewTarget        respjson.Field
+		Steer               respjson.Field
+		ExtraFields         map[string]respjson.Field
+		raw                 string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWsErrorErrorMisalignment) RawJSON() string { return r.JSON.raw }
+func (r *ResponsesServerEventResponseWsErrorErrorMisalignment) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// An optional public continuation instruction.
+type ResponsesServerEventResponseWsErrorErrorMisalignmentSteer struct {
+	// The public continuation instruction.
+	Message string `json:"message" api:"required"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Message     respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ResponsesServerEventResponseWsErrorErrorMisalignmentSteer) RawJSON() string {
+	return r.JSON.raw
+}
+func (r *ResponsesServerEventResponseWsErrorErrorMisalignmentSteer) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
 type SkillReference struct {
 	// The ID of the referenced skill.
 	SkillID string `json:"skill_id" api:"required"`
@@ -23648,8 +32523,6 @@ func (r *SkillReferenceParam) UnmarshalJSON(data []byte) error {
 // [ToolImageGeneration], [ToolLocalShell], [FunctionShellTool], [CustomTool],
 // [NamespaceTool], [ToolSearchTool], [WebSearchPreviewTool], [ApplyPatchTool].
 //
-// Use the [ToolUnion.AsAny] method to switch on the variant.
-//
 // Use the methods beginning with 'As' to cast the union to one of its variants.
 type ToolUnion struct {
 	Name       string `json:"name"`
@@ -23662,6 +32535,7 @@ type ToolUnion struct {
 	// "apply_patch".
 	Type           string   `json:"type"`
 	AllowedCallers []string `json:"allowed_callers"`
+	Async          bool     `json:"async"`
 	DeferLoading   bool     `json:"defer_loading"`
 	Description    string   `json:"description"`
 	// This field is from variant [FunctionTool].
@@ -23743,6 +32617,7 @@ type ToolUnion struct {
 		Strict             respjson.Field
 		Type               respjson.Field
 		AllowedCallers     respjson.Field
+		Async              respjson.Field
 		DeferLoading       respjson.Field
 		Description        respjson.Field
 		OutputSchema       respjson.Field
@@ -23883,7 +32758,7 @@ type ToolUnionFilters struct {
 	// This field is from variant [FileSearchToolFiltersUnion].
 	Value shared.ComparisonFilterValueUnion `json:"value"`
 	// This field is from variant [FileSearchToolFiltersUnion].
-	Filters []shared.ComparisonFilter `json:"filters"`
+	Filters []shared.CompoundFilterFilterUnion `json:"filters"`
 	// This field is from variant [WebSearchToolFilters].
 	AllowedDomains []string `json:"allowed_domains"`
 	JSON           struct {
@@ -24001,7 +32876,7 @@ func (r ToolUnion) ToParam() ToolUnionParam {
 
 // Give the model access to additional tools via remote Model Context Protocol
 // (MCP) servers.
-// [Learn more about MCP](https://platform.openai.com/docs/guides/tools-remote-mcp).
+// [Learn more about MCP](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
 type ToolMcp struct {
 	// A label for this MCP server, used to identify it in tool calls.
 	ServerLabel string `json:"server_label" api:"required"`
@@ -24020,7 +32895,11 @@ type ToolMcp struct {
 	// Identifier for service connectors, like those available in ChatGPT. One of
 	// `server_url`, `connector_id`, or `tunnel_id` must be provided. Learn more about
 	// service connectors
-	// [here](https://platform.openai.com/docs/guides/tools-remote-mcp#connectors).
+	// [here](https://developers.openai.com/api/docs/guides/tools-connectors-mcp#connectors).
+	//
+	// This field is deprecated for models released after September 1, 2026. Use
+	// `server_url` to connect to a remote MCP server, or `tunnel_id` to connect
+	// through a Secure MCP Tunnel.
 	//
 	// Currently supported `connector_id` values are:
 	//
@@ -24036,6 +32915,8 @@ type ToolMcp struct {
 	// Any of "connector_dropbox", "connector_gmail", "connector_googlecalendar",
 	// "connector_googledrive", "connector_microsoftteams",
 	// "connector_outlookcalendar", "connector_outlookemail", "connector_sharepoint".
+	//
+	// Deprecated: deprecated
 	ConnectorID string `json:"connector_id"`
 	// Whether this MCP tool is deferred and discovered via tool search.
 	DeferLoading bool `json:"defer_loading"`
@@ -24336,111 +33217,6 @@ func (r *ToolCodeInterpreterContainerUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// Configuration for a code interpreter container. Optionally specify the IDs of
-// the files to run the code on.
-type ToolCodeInterpreterContainerCodeInterpreterContainerAuto struct {
-	// Always `auto`.
-	Type constant.Auto `json:"type" default:"auto"`
-	// An optional list of uploaded files to make available to your code.
-	FileIDs []string `json:"file_ids"`
-	// The memory limit for the code interpreter container.
-	//
-	// Any of "1g", "4g", "16g", "64g".
-	MemoryLimit string `json:"memory_limit" api:"nullable"`
-	// Network access policy for the container.
-	NetworkPolicy ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion `json:"network_policy"`
-	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
-	JSON struct {
-		Type          respjson.Field
-		FileIDs       respjson.Field
-		MemoryLimit   respjson.Field
-		NetworkPolicy respjson.Field
-		ExtraFields   map[string]respjson.Field
-		raw           string
-	} `json:"-"`
-}
-
-// Returns the unmodified JSON received from the API
-func (r ToolCodeInterpreterContainerCodeInterpreterContainerAuto) RawJSON() string { return r.JSON.raw }
-func (r *ToolCodeInterpreterContainerCodeInterpreterContainerAuto) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
-// ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion contains
-// all possible properties and values from [ContainerNetworkPolicyDisabled],
-// [ContainerNetworkPolicyAllowlist].
-//
-// Use the
-// [ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion.AsAny]
-// method to switch on the variant.
-//
-// Use the methods beginning with 'As' to cast the union to one of its variants.
-type ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion struct {
-	// Any of "disabled", "allowlist".
-	Type string `json:"type"`
-	// This field is from variant [ContainerNetworkPolicyAllowlist].
-	AllowedDomains []string `json:"allowed_domains"`
-	// This field is from variant [ContainerNetworkPolicyAllowlist].
-	DomainSecrets []ContainerNetworkPolicyDomainSecret `json:"domain_secrets"`
-	JSON          struct {
-		Type           respjson.Field
-		AllowedDomains respjson.Field
-		DomainSecrets  respjson.Field
-		raw            string
-	} `json:"-"`
-}
-
-// anyToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicy is
-// implemented by each variant of
-// [ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion] to add
-// type safety for the return type of
-// [ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion.AsAny]
-type anyToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicy interface {
-	implToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion()
-}
-
-func (ContainerNetworkPolicyDisabled) implToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion() {
-}
-func (ContainerNetworkPolicyAllowlist) implToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion() {
-}
-
-// Use the following switch statement to find the correct variant
-//
-//	switch variant := ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion.AsAny().(type) {
-//	case responses.ContainerNetworkPolicyDisabled:
-//	case responses.ContainerNetworkPolicyAllowlist:
-//	default:
-//	  fmt.Errorf("no variant present")
-//	}
-func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) AsAny() anyToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicy {
-	switch u.Type {
-	case "disabled":
-		return u.AsDisabled()
-	case "allowlist":
-		return u.AsAllowlist()
-	}
-	return nil
-}
-
-func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) AsDisabled() (v ContainerNetworkPolicyDisabled) {
-	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
-	return
-}
-
-func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) AsAllowlist() (v ContainerNetworkPolicyAllowlist) {
-	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
-	return
-}
-
-// Returns the unmodified JSON received from the API
-func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) RawJSON() string {
-	return u.JSON.raw
-}
-
-func (r *ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnion) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
 type ToolProgrammaticToolCalling struct {
 	// The type of the tool. Always `programmatic_tool_calling`.
 	Type constant.ProgrammaticToolCalling `json:"type" default:"programmatic_tool_calling"`
@@ -24466,32 +33242,33 @@ type ToolImageGeneration struct {
 	//
 	// Any of "generate", "edit", "auto".
 	Action string `json:"action"`
-	// Allows to set transparency for the background of the generated image(s). This
-	// parameter is only supported for GPT image models that support transparent
-	// backgrounds. Must be one of `transparent`, `opaque`, or `auto` (default value).
-	// When `auto` is used, the model will automatically determine the best background
-	// for the image.
+	// Allows to set transparency for the background of the generated image(s). Must be
+	// one of `transparent`, `opaque`, or `auto` (default value). When `auto` is used,
+	// the model will automatically determine the best background for the image.
 	//
-	// `gpt-image-2` and `gpt-image-2-2026-04-21` do not support transparent
-	// backgrounds. Requests with `background` set to `transparent` will return an
-	// error for these models; use `opaque` or `auto` instead.
-	//
-	// If `transparent`, the output format needs to support transparency, so it should
-	// be set to either `png` (default value) or `webp`.
+	// `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare`, including their `2026-09-08`
+	// snapshots, support `opaque` and `transparent` backgrounds. Transparent
+	// backgrounds are available for supported GPT Image models. For `gpt-image-2` and
+	// `gpt-image-2-2026-04-21`, this support is in preview. When using `transparent`,
+	// set the output format to `png` or `webp`.
 	//
 	// Any of "transparent", "opaque", "auto".
 	Background string `json:"background"`
 	// Control how much effort the model will exert to match the style and features,
-	// especially facial features, of input images. This parameter is only supported
-	// for `gpt-image-1` and `gpt-image-1.5` and later models, unsupported for
-	// `gpt-image-1-mini`. Supports `high` and `low`. Defaults to `low`.
+	// especially facial features, of input images. Supports `high` and `low` on
+	// `gpt-image-1` and `gpt-image-1.5`; `gpt-image-1-mini` supports only `low`. For
+	// `gpt-image-2`, omit this parameter. Defaults to `low` on supported models.
 	//
 	// Any of "high", "low".
 	InputFidelity string `json:"input_fidelity" api:"nullable"`
 	// Optional mask for inpainting. Contains `image_url` (string, optional) and
 	// `file_id` (string, optional).
 	InputImageMask ToolImageGenerationInputImageMask `json:"input_image_mask"`
-	// The image generation model to use. Default: `gpt-image-1`.
+	// The image generation model to use. One of `gpt-image-1`, `gpt-image-1-mini`,
+	// `gpt-image-1.5`, `gpt-image-2`, `gpt-image-2-2026-04-21`,
+	// `gpt-image-2.5-sunburst`, `gpt-image-2.5-sunburst-2026-09-08`,
+	// `gpt-image-2.5-flare`, `gpt-image-2.5-flare-2026-09-08`, or
+	// `chatgpt-image-latest`. Default: `gpt-image-1`.
 	Model string `json:"model"`
 	// Moderation level for the generated image. Default: `auto`.
 	//
@@ -24507,22 +33284,23 @@ type ToolImageGeneration struct {
 	// Number of partial images to generate in streaming mode, from 0 (default value)
 	// to 3.
 	PartialImages int64 `json:"partial_images"`
-	// The quality of the generated image. One of `low`, `medium`, `high`, or `auto`.
-	// Default: `auto`.
+	// The quality of the generated image. The GPT image models support `low`,
+	// `medium`, and `high`. `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare`,
+	// including their `2026-09-08` snapshots, also support `xhigh` and `max`. Default:
+	// `auto`.
 	//
-	// Any of "low", "medium", "high", "auto".
+	// Any of "low", "medium", "high", "xhigh", "max", "auto".
 	Quality string `json:"quality"`
-	// The size of the generated images. For `gpt-image-2` and
-	// `gpt-image-2-2026-04-21`, arbitrary resolutions are supported as `WIDTHxHEIGHT`
-	// strings, for example `1536x864`. Width and height must both be divisible by 16
-	// and the requested aspect ratio must be between 1:3 and 3:1. Resolutions above
-	// `2560x1440` are experimental, and the maximum supported resolution is
-	// `3840x2160`. The requested size must also satisfy the model's current pixel and
-	// edge limits. The standard sizes `1024x1024`, `1536x1024`, and `1024x1536` are
-	// supported by the GPT image models; `auto` is supported for models that allow
-	// automatic sizing. For `dall-e-2`, use one of `256x256`, `512x512`, or
-	// `1024x1024`. For `dall-e-3`, use one of `1024x1024`, `1792x1024`, or
-	// `1024x1792`.
+	// The size of the generated images. For `gpt-image-2`, `gpt-image-2-2026-04-21`,
+	// `gpt-image-2.5-sunburst`, `gpt-image-2.5-sunburst-2026-09-08`,
+	// `gpt-image-2.5-flare`, and `gpt-image-2.5-flare-2026-09-08`, arbitrary
+	// resolutions are supported as `WIDTHxHEIGHT` strings, for example `1536x864`.
+	// Width and height must both be divisible by 16 and the requested aspect ratio
+	// must be between 1:3 and 3:1. Resolutions above `2560x1440` are experimental, and
+	// the maximum supported resolution is `3840x2160`. The requested size must also
+	// satisfy the model's current pixel and edge limits. The standard sizes
+	// `1024x1024`, `1536x1024`, and `1024x1536` are supported by the GPT image models;
+	// `auto` is supported for models that allow automatic sizing.
 	Size string `json:"size"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
@@ -24699,43 +33477,6 @@ func (u ToolUnionParam) MarshalJSON() ([]byte, error) {
 }
 func (u *ToolUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ToolUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfFunction) {
-		return u.OfFunction
-	} else if !param.IsOmitted(u.OfFileSearch) {
-		return u.OfFileSearch
-	} else if !param.IsOmitted(u.OfComputer) {
-		return u.OfComputer
-	} else if !param.IsOmitted(u.OfComputerUsePreview) {
-		return u.OfComputerUsePreview
-	} else if !param.IsOmitted(u.OfWebSearch) {
-		return u.OfWebSearch
-	} else if !param.IsOmitted(u.OfMcp) {
-		return u.OfMcp
-	} else if !param.IsOmitted(u.OfCodeInterpreter) {
-		return u.OfCodeInterpreter
-	} else if !param.IsOmitted(u.OfProgrammaticToolCalling) {
-		return u.OfProgrammaticToolCalling
-	} else if !param.IsOmitted(u.OfImageGeneration) {
-		return u.OfImageGeneration
-	} else if !param.IsOmitted(u.OfLocalShell) {
-		return u.OfLocalShell
-	} else if !param.IsOmitted(u.OfShell) {
-		return u.OfShell
-	} else if !param.IsOmitted(u.OfCustom) {
-		return u.OfCustom
-	} else if !param.IsOmitted(u.OfNamespace) {
-		return u.OfNamespace
-	} else if !param.IsOmitted(u.OfToolSearch) {
-		return u.OfToolSearch
-	} else if !param.IsOmitted(u.OfWebSearchPreview) {
-		return u.OfWebSearchPreview
-	} else if !param.IsOmitted(u.OfApplyPatch) {
-		return u.OfApplyPatch
-	}
-	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
@@ -25053,6 +33794,16 @@ func (u ToolUnionParam) GetType() *string {
 }
 
 // Returns a pointer to the underlying variant's property, if present.
+func (u ToolUnionParam) GetAsync() *bool {
+	if vt := u.OfFunction; vt != nil && vt.Async.Valid() {
+		return &vt.Async.Value
+	} else if vt := u.OfCustom; vt != nil && vt.Async.Valid() {
+		return &vt.Async.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
 func (u ToolUnionParam) GetDeferLoading() *bool {
 	if vt := u.OfFunction; vt != nil && vt.DeferLoading.Valid() {
 		return &vt.DeferLoading.Value
@@ -25162,8 +33913,8 @@ func (u toolUnionParamFilters) AsAny() any { return u.any }
 // Returns a pointer to the underlying variant's property, if present.
 func (u toolUnionParamFilters) GetKey() *string {
 	switch vt := u.any.(type) {
-	case *FileSearchToolFiltersUnionParam:
-		return vt.GetKey()
+	case *shared.ComparisonFilterParam:
+		return &vt.Key
 	}
 	return nil
 }
@@ -25171,17 +33922,17 @@ func (u toolUnionParamFilters) GetKey() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u toolUnionParamFilters) GetValue() *shared.ComparisonFilterValueUnionParam {
 	switch vt := u.any.(type) {
-	case *FileSearchToolFiltersUnionParam:
-		return vt.GetValue()
+	case *shared.ComparisonFilterParam:
+		return &vt.Value
 	}
 	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
-func (u toolUnionParamFilters) GetFilters() []shared.ComparisonFilterParam {
+func (u toolUnionParamFilters) GetFilters() []shared.CompoundFilterFilterUnionParam {
 	switch vt := u.any.(type) {
-	case *FileSearchToolFiltersUnionParam:
-		return vt.GetFilters()
+	case *shared.CompoundFilterParam:
+		return vt.Filters
 	}
 	return nil
 }
@@ -25198,8 +33949,10 @@ func (u toolUnionParamFilters) GetAllowedDomains() []string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u toolUnionParamFilters) GetType() *string {
 	switch vt := u.any.(type) {
-	case *FileSearchToolFiltersUnionParam:
-		return vt.GetType()
+	case *shared.ComparisonFilterParam:
+		return (*string)(&vt.Type)
+	case *shared.CompoundFilterParam:
+		return (*string)(&vt.Type)
 	}
 	return nil
 }
@@ -25235,8 +33988,8 @@ func (u toolUnionParamEnvironment) AsAny() any { return u.any }
 // Returns a pointer to the underlying variant's property, if present.
 func (u toolUnionParamEnvironment) GetFileIDs() []string {
 	switch vt := u.any.(type) {
-	case *FunctionShellToolEnvironmentUnionParam:
-		return vt.GetFileIDs()
+	case *ContainerAutoParam:
+		return vt.FileIDs
 	}
 	return nil
 }
@@ -25244,8 +33997,8 @@ func (u toolUnionParamEnvironment) GetFileIDs() []string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u toolUnionParamEnvironment) GetMemoryLimit() *string {
 	switch vt := u.any.(type) {
-	case *FunctionShellToolEnvironmentUnionParam:
-		return vt.GetMemoryLimit()
+	case *ContainerAutoParam:
+		return (*string)(&vt.MemoryLimit)
 	}
 	return nil
 }
@@ -25253,8 +34006,8 @@ func (u toolUnionParamEnvironment) GetMemoryLimit() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u toolUnionParamEnvironment) GetNetworkPolicy() *ContainerAutoNetworkPolicyUnionParam {
 	switch vt := u.any.(type) {
-	case *FunctionShellToolEnvironmentUnionParam:
-		return vt.GetNetworkPolicy()
+	case *ContainerAutoParam:
+		return &vt.NetworkPolicy
 	}
 	return nil
 }
@@ -25262,8 +34015,8 @@ func (u toolUnionParamEnvironment) GetNetworkPolicy() *ContainerAutoNetworkPolic
 // Returns a pointer to the underlying variant's property, if present.
 func (u toolUnionParamEnvironment) GetContainerID() *string {
 	switch vt := u.any.(type) {
-	case *FunctionShellToolEnvironmentUnionParam:
-		return vt.GetContainerID()
+	case *ContainerReferenceParam:
+		return &vt.ContainerID
 	}
 	return nil
 }
@@ -25271,8 +34024,12 @@ func (u toolUnionParamEnvironment) GetContainerID() *string {
 // Returns a pointer to the underlying variant's property, if present.
 func (u toolUnionParamEnvironment) GetType() *string {
 	switch vt := u.any.(type) {
-	case *FunctionShellToolEnvironmentUnionParam:
-		return vt.GetType()
+	case *ContainerAutoParam:
+		return (*string)(&vt.Type)
+	case *LocalEnvironmentParam:
+		return (*string)(&vt.Type)
+	case *ContainerReferenceParam:
+		return (*string)(&vt.Type)
 	}
 	return nil
 }
@@ -25282,8 +34039,10 @@ func (u toolUnionParamEnvironment) GetType() *string {
 // Or use AsAny() to get the underlying value
 func (u toolUnionParamEnvironment) GetSkills() (res toolUnionParamEnvironmentSkills) {
 	switch vt := u.any.(type) {
-	case *FunctionShellToolEnvironmentUnionParam:
-		res.any = vt.GetSkills()
+	case *ContainerAutoParam:
+		res.any = &vt.Skills
+	case *LocalEnvironmentParam:
+		res.any = &vt.Skills
 	}
 	return res
 }
@@ -25409,7 +34168,7 @@ func init() {
 
 // Give the model access to additional tools via remote Model Context Protocol
 // (MCP) servers.
-// [Learn more about MCP](https://platform.openai.com/docs/guides/tools-remote-mcp).
+// [Learn more about MCP](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
 //
 // The properties ServerLabel, Type are required.
 type ToolMcpParam struct {
@@ -25443,7 +34202,11 @@ type ToolMcpParam struct {
 	// Identifier for service connectors, like those available in ChatGPT. One of
 	// `server_url`, `connector_id`, or `tunnel_id` must be provided. Learn more about
 	// service connectors
-	// [here](https://platform.openai.com/docs/guides/tools-remote-mcp#connectors).
+	// [here](https://developers.openai.com/api/docs/guides/tools-connectors-mcp#connectors).
+	//
+	// This field is deprecated for models released after September 1, 2026. Use
+	// `server_url` to connect to a remote MCP server, or `tunnel_id` to connect
+	// through a Secure MCP Tunnel.
 	//
 	// Currently supported `connector_id` values are:
 	//
@@ -25459,6 +34222,8 @@ type ToolMcpParam struct {
 	// Any of "connector_dropbox", "connector_gmail", "connector_googlecalendar",
 	// "connector_googledrive", "connector_microsoftteams",
 	// "connector_outlookcalendar", "connector_outlookemail", "connector_sharepoint".
+	//
+	// Deprecated: deprecated
 	ConnectorID string `json:"connector_id,omitzero"`
 	// The type of the MCP tool. Always `mcp`.
 	//
@@ -25497,15 +34262,6 @@ func (u *ToolMcpAllowedToolsUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ToolMcpAllowedToolsUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfMcpAllowedTools) {
-		return &u.OfMcpAllowedTools
-	} else if !param.IsOmitted(u.OfMcpToolFilter) {
-		return u.OfMcpToolFilter
-	}
-	return nil
-}
-
 // A filter object to specify which tools are allowed.
 type ToolMcpAllowedToolsMcpToolFilterParam struct {
 	// Indicates whether or not a tool modifies data or is read-only. If an MCP server
@@ -25542,15 +34298,6 @@ func (u ToolMcpRequireApprovalUnionParam) MarshalJSON() ([]byte, error) {
 }
 func (u *ToolMcpRequireApprovalUnionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ToolMcpRequireApprovalUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfMcpToolApprovalFilter) {
-		return u.OfMcpToolApprovalFilter
-	} else if !param.IsOmitted(u.OfMcpToolApprovalSetting) {
-		return &u.OfMcpToolApprovalSetting
-	}
-	return nil
 }
 
 // Specify which of the MCP server's tools require approval. Can be `always`,
@@ -25654,108 +34401,6 @@ func (u *ToolCodeInterpreterContainerUnionParam) UnmarshalJSON(data []byte) erro
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ToolCodeInterpreterContainerUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfString) {
-		return &u.OfString.Value
-	} else if !param.IsOmitted(u.OfCodeInterpreterToolAuto) {
-		return u.OfCodeInterpreterToolAuto
-	}
-	return nil
-}
-
-// Configuration for a code interpreter container. Optionally specify the IDs of
-// the files to run the code on.
-//
-// The property Type is required.
-type ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam struct {
-	// The memory limit for the code interpreter container.
-	//
-	// Any of "1g", "4g", "16g", "64g".
-	MemoryLimit string `json:"memory_limit,omitzero"`
-	// An optional list of uploaded files to make available to your code.
-	FileIDs []string `json:"file_ids,omitzero"`
-	// Network access policy for the container.
-	NetworkPolicy ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam `json:"network_policy,omitzero"`
-	// Always `auto`.
-	//
-	// This field can be elided, and will marshal its zero value as "auto".
-	Type constant.Auto `json:"type" default:"auto"`
-	paramObj
-}
-
-func (r ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam) MarshalJSON() (data []byte, err error) {
-	type shadow ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam
-	return param.MarshalObject(r, (*shadow)(&r))
-}
-func (r *ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, r)
-}
-
-func init() {
-	apijson.RegisterFieldValidator[ToolCodeInterpreterContainerCodeInterpreterContainerAutoParam](
-		"memory_limit", "1g", "4g", "16g", "64g",
-	)
-}
-
-// Only one field can be non-zero.
-//
-// Use [param.IsOmitted] to confirm if a field is set.
-type ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam struct {
-	OfDisabled  *ContainerNetworkPolicyDisabledParam  `json:",omitzero,inline"`
-	OfAllowlist *ContainerNetworkPolicyAllowlistParam `json:",omitzero,inline"`
-	paramUnion
-}
-
-func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) MarshalJSON() ([]byte, error) {
-	return param.MarshalUnion(u, u.OfDisabled, u.OfAllowlist)
-}
-func (u *ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) UnmarshalJSON(data []byte) error {
-	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) asAny() any {
-	if !param.IsOmitted(u.OfDisabled) {
-		return u.OfDisabled
-	} else if !param.IsOmitted(u.OfAllowlist) {
-		return u.OfAllowlist
-	}
-	return nil
-}
-
-// Returns a pointer to the underlying variant's property, if present.
-func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) GetAllowedDomains() []string {
-	if vt := u.OfAllowlist; vt != nil {
-		return vt.AllowedDomains
-	}
-	return nil
-}
-
-// Returns a pointer to the underlying variant's property, if present.
-func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) GetDomainSecrets() []ContainerNetworkPolicyDomainSecretParam {
-	if vt := u.OfAllowlist; vt != nil {
-		return vt.DomainSecrets
-	}
-	return nil
-}
-
-// Returns a pointer to the underlying variant's property, if present.
-func (u ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam) GetType() *string {
-	if vt := u.OfDisabled; vt != nil {
-		return (*string)(&vt.Type)
-	} else if vt := u.OfAllowlist; vt != nil {
-		return (*string)(&vt.Type)
-	}
-	return nil
-}
-
-func init() {
-	apijson.RegisterUnion[ToolCodeInterpreterContainerCodeInterpreterToolAutoNetworkPolicyUnionParam](
-		"type",
-		apijson.Discriminator[ContainerNetworkPolicyDisabledParam]("disabled"),
-		apijson.Discriminator[ContainerNetworkPolicyAllowlistParam]("allowlist"),
-	)
-}
-
 func NewToolProgrammaticToolCallingParam() ToolProgrammaticToolCallingParam {
 	return ToolProgrammaticToolCallingParam{
 		Type: "programmatic_tool_calling",
@@ -25788,9 +34433,9 @@ type ToolImageGenerationParam struct {
 	// to 3.
 	PartialImages param.Opt[int64] `json:"partial_images,omitzero"`
 	// Control how much effort the model will exert to match the style and features,
-	// especially facial features, of input images. This parameter is only supported
-	// for `gpt-image-1` and `gpt-image-1.5` and later models, unsupported for
-	// `gpt-image-1-mini`. Supports `high` and `low`. Defaults to `low`.
+	// especially facial features, of input images. Supports `high` and `low` on
+	// `gpt-image-1` and `gpt-image-1.5`; `gpt-image-1-mini` supports only `low`. For
+	// `gpt-image-2`, omit this parameter. Defaults to `low` on supported models.
 	//
 	// Any of "high", "low".
 	InputFidelity string `json:"input_fidelity,omitzero"`
@@ -25798,25 +34443,26 @@ type ToolImageGenerationParam struct {
 	//
 	// Any of "generate", "edit", "auto".
 	Action string `json:"action,omitzero"`
-	// Allows to set transparency for the background of the generated image(s). This
-	// parameter is only supported for GPT image models that support transparent
-	// backgrounds. Must be one of `transparent`, `opaque`, or `auto` (default value).
-	// When `auto` is used, the model will automatically determine the best background
-	// for the image.
+	// Allows to set transparency for the background of the generated image(s). Must be
+	// one of `transparent`, `opaque`, or `auto` (default value). When `auto` is used,
+	// the model will automatically determine the best background for the image.
 	//
-	// `gpt-image-2` and `gpt-image-2-2026-04-21` do not support transparent
-	// backgrounds. Requests with `background` set to `transparent` will return an
-	// error for these models; use `opaque` or `auto` instead.
-	//
-	// If `transparent`, the output format needs to support transparency, so it should
-	// be set to either `png` (default value) or `webp`.
+	// `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare`, including their `2026-09-08`
+	// snapshots, support `opaque` and `transparent` backgrounds. Transparent
+	// backgrounds are available for supported GPT Image models. For `gpt-image-2` and
+	// `gpt-image-2-2026-04-21`, this support is in preview. When using `transparent`,
+	// set the output format to `png` or `webp`.
 	//
 	// Any of "transparent", "opaque", "auto".
 	Background string `json:"background,omitzero"`
 	// Optional mask for inpainting. Contains `image_url` (string, optional) and
 	// `file_id` (string, optional).
 	InputImageMask ToolImageGenerationInputImageMaskParam `json:"input_image_mask,omitzero"`
-	// The image generation model to use. Default: `gpt-image-1`.
+	// The image generation model to use. One of `gpt-image-1`, `gpt-image-1-mini`,
+	// `gpt-image-1.5`, `gpt-image-2`, `gpt-image-2-2026-04-21`,
+	// `gpt-image-2.5-sunburst`, `gpt-image-2.5-sunburst-2026-09-08`,
+	// `gpt-image-2.5-flare`, `gpt-image-2.5-flare-2026-09-08`, or
+	// `chatgpt-image-latest`. Default: `gpt-image-1`.
 	Model string `json:"model,omitzero"`
 	// Moderation level for the generated image. Default: `auto`.
 	//
@@ -25827,22 +34473,23 @@ type ToolImageGenerationParam struct {
 	//
 	// Any of "png", "webp", "jpeg".
 	OutputFormat string `json:"output_format,omitzero"`
-	// The quality of the generated image. One of `low`, `medium`, `high`, or `auto`.
-	// Default: `auto`.
+	// The quality of the generated image. The GPT image models support `low`,
+	// `medium`, and `high`. `gpt-image-2.5-sunburst` and `gpt-image-2.5-flare`,
+	// including their `2026-09-08` snapshots, also support `xhigh` and `max`. Default:
+	// `auto`.
 	//
-	// Any of "low", "medium", "high", "auto".
+	// Any of "low", "medium", "high", "xhigh", "max", "auto".
 	Quality string `json:"quality,omitzero"`
-	// The size of the generated images. For `gpt-image-2` and
-	// `gpt-image-2-2026-04-21`, arbitrary resolutions are supported as `WIDTHxHEIGHT`
-	// strings, for example `1536x864`. Width and height must both be divisible by 16
-	// and the requested aspect ratio must be between 1:3 and 3:1. Resolutions above
-	// `2560x1440` are experimental, and the maximum supported resolution is
-	// `3840x2160`. The requested size must also satisfy the model's current pixel and
-	// edge limits. The standard sizes `1024x1024`, `1536x1024`, and `1024x1536` are
-	// supported by the GPT image models; `auto` is supported for models that allow
-	// automatic sizing. For `dall-e-2`, use one of `256x256`, `512x512`, or
-	// `1024x1024`. For `dall-e-3`, use one of `1024x1024`, `1792x1024`, or
-	// `1024x1792`.
+	// The size of the generated images. For `gpt-image-2`, `gpt-image-2-2026-04-21`,
+	// `gpt-image-2.5-sunburst`, `gpt-image-2.5-sunburst-2026-09-08`,
+	// `gpt-image-2.5-flare`, and `gpt-image-2.5-flare-2026-09-08`, arbitrary
+	// resolutions are supported as `WIDTHxHEIGHT` strings, for example `1536x864`.
+	// Width and height must both be divisible by 16 and the requested aspect ratio
+	// must be between 1:3 and 3:1. Resolutions above `2560x1440` are experimental, and
+	// the maximum supported resolution is `3840x2160`. The requested size must also
+	// satisfy the model's current pixel and edge limits. The standard sizes
+	// `1024x1024`, `1536x1024`, and `1024x1536` are supported by the GPT image models;
+	// `auto` is supported for models that allow automatic sizing.
 	Size string `json:"size,omitzero"`
 	// The type of the image generation tool. Always `image_generation`.
 	//
@@ -25876,7 +34523,7 @@ func init() {
 		"output_format", "png", "webp", "jpeg",
 	)
 	apijson.RegisterFieldValidator[ToolImageGenerationParam](
-		"quality", "low", "medium", "high", "auto",
+		"quality", "low", "medium", "high", "xhigh", "max", "auto",
 	)
 }
 
@@ -26306,10 +34953,10 @@ func (r *ToolChoiceShellParam) UnmarshalJSON(data []byte) error {
 }
 
 // Indicates that the model should use a built-in tool to generate a response.
-// [Learn more about built-in tools](https://platform.openai.com/docs/guides/tools).
+// [Learn more about built-in tools](https://developers.openai.com/api/docs/guides/tools).
 type ToolChoiceTypes struct {
 	// The type of hosted tool the model should to use. Learn more about
-	// [built-in tools](https://platform.openai.com/docs/guides/tools).
+	// [built-in tools](https://developers.openai.com/api/docs/guides/tools).
 	//
 	// Allowed values are:
 	//
@@ -26349,7 +34996,7 @@ func (r ToolChoiceTypes) ToParam() ToolChoiceTypesParam {
 }
 
 // The type of hosted tool the model should to use. Learn more about
-// [built-in tools](https://platform.openai.com/docs/guides/tools).
+// [built-in tools](https://developers.openai.com/api/docs/guides/tools).
 //
 // Allowed values are:
 //
@@ -26374,12 +35021,12 @@ const (
 )
 
 // Indicates that the model should use a built-in tool to generate a response.
-// [Learn more about built-in tools](https://platform.openai.com/docs/guides/tools).
+// [Learn more about built-in tools](https://developers.openai.com/api/docs/guides/tools).
 //
 // The property Type is required.
 type ToolChoiceTypesParam struct {
 	// The type of hosted tool the model should to use. Learn more about
-	// [built-in tools](https://platform.openai.com/docs/guides/tools).
+	// [built-in tools](https://developers.openai.com/api/docs/guides/tools).
 	//
 	// Allowed values are:
 	//
@@ -26403,6 +35050,347 @@ func (r ToolChoiceTypesParam) MarshalJSON() (data []byte, err error) {
 	return param.MarshalObject(r, (*shadow)(&r))
 }
 func (r *ToolChoiceTypesParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Groups function/custom tools under a shared namespace.
+type ToolSearchOutputNamespaceTool struct {
+	// A description of the namespace shown to the model.
+	Description string `json:"description" api:"required"`
+	// The namespace name used in tool calls (for example, `crm`).
+	Name string `json:"name" api:"required"`
+	// The function/custom tools loaded inside this namespace.
+	Tools []ToolSearchOutputNamespaceToolToolUnion `json:"tools" api:"required"`
+	// The type of the tool. Always `namespace`.
+	Type constant.Namespace `json:"type" default:"namespace"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Description respjson.Field
+		Name        respjson.Field
+		Tools       respjson.Field
+		Type        respjson.Field
+		ExtraFields map[string]respjson.Field
+		raw         string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ToolSearchOutputNamespaceTool) RawJSON() string { return r.JSON.raw }
+func (r *ToolSearchOutputNamespaceTool) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// ToParam converts this ToolSearchOutputNamespaceTool to a
+// ToolSearchOutputNamespaceToolParam.
+//
+// Warning: the fields of the param type will not be present. ToParam should only
+// be used at the last possible moment before sending a request. Test for this with
+// ToolSearchOutputNamespaceToolParam.Overrides()
+func (r ToolSearchOutputNamespaceTool) ToParam() ToolSearchOutputNamespaceToolParam {
+	return param.Override[ToolSearchOutputNamespaceToolParam](json.RawMessage(r.RawJSON()))
+}
+
+// ToolSearchOutputNamespaceToolToolUnion contains all possible properties and
+// values from [ToolSearchOutputNamespaceToolToolFunction], [CustomTool].
+//
+// Use the [ToolSearchOutputNamespaceToolToolUnion.AsAny] method to switch on the
+// variant.
+//
+// Use the methods beginning with 'As' to cast the union to one of its variants.
+type ToolSearchOutputNamespaceToolToolUnion struct {
+	Name string `json:"name"`
+	// Any of "function", "custom".
+	Type           string   `json:"type"`
+	AllowedCallers []string `json:"allowed_callers"`
+	Async          bool     `json:"async"`
+	DeferLoading   bool     `json:"defer_loading"`
+	Description    string   `json:"description"`
+	// This field is from variant [ToolSearchOutputNamespaceToolToolFunction].
+	OutputSchema map[string]any `json:"output_schema"`
+	// This field is from variant [ToolSearchOutputNamespaceToolToolFunction].
+	Parameters any `json:"parameters"`
+	// This field is from variant [ToolSearchOutputNamespaceToolToolFunction].
+	Strict bool `json:"strict"`
+	// This field is from variant [CustomTool].
+	Format shared.CustomToolInputFormatUnion `json:"format"`
+	JSON   struct {
+		Name           respjson.Field
+		Type           respjson.Field
+		AllowedCallers respjson.Field
+		Async          respjson.Field
+		DeferLoading   respjson.Field
+		Description    respjson.Field
+		OutputSchema   respjson.Field
+		Parameters     respjson.Field
+		Strict         respjson.Field
+		Format         respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// anyToolSearchOutputNamespaceToolTool is implemented by each variant of
+// [ToolSearchOutputNamespaceToolToolUnion] to add type safety for the return type
+// of [ToolSearchOutputNamespaceToolToolUnion.AsAny]
+type anyToolSearchOutputNamespaceToolTool interface {
+	implToolSearchOutputNamespaceToolToolUnion()
+}
+
+func (ToolSearchOutputNamespaceToolToolFunction) implToolSearchOutputNamespaceToolToolUnion() {}
+func (CustomTool) implToolSearchOutputNamespaceToolToolUnion()                                {}
+
+// Use the following switch statement to find the correct variant
+//
+//	switch variant := ToolSearchOutputNamespaceToolToolUnion.AsAny().(type) {
+//	case responses.ToolSearchOutputNamespaceToolToolFunction:
+//	case responses.CustomTool:
+//	default:
+//	  fmt.Errorf("no variant present")
+//	}
+func (u ToolSearchOutputNamespaceToolToolUnion) AsAny() anyToolSearchOutputNamespaceToolTool {
+	switch u.Type {
+	case "function":
+		return u.AsFunction()
+	case "custom":
+		return u.AsCustom()
+	}
+	return nil
+}
+
+func (u ToolSearchOutputNamespaceToolToolUnion) AsFunction() (v ToolSearchOutputNamespaceToolToolFunction) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+func (u ToolSearchOutputNamespaceToolToolUnion) AsCustom() (v CustomTool) {
+	_ = apijson.UnmarshalRoot(json.RawMessage(u.JSON.raw), &v)
+	return
+}
+
+// Returns the unmodified JSON received from the API
+func (u ToolSearchOutputNamespaceToolToolUnion) RawJSON() string { return u.JSON.raw }
+
+func (r *ToolSearchOutputNamespaceToolToolUnion) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+type ToolSearchOutputNamespaceToolToolFunction struct {
+	// The name of the loaded function tool.
+	Name string            `json:"name" api:"required"`
+	Type constant.Function `json:"type" default:"function"`
+	// The tool invocation context(s).
+	//
+	// Any of "direct", "programmatic".
+	AllowedCallers []string `json:"allowed_callers" api:"nullable"`
+	// Whether the tool response can be returned asynchronously versus immediately
+	// returned on next response creation.
+	Async bool `json:"async"`
+	// Whether this function should be deferred and discovered via tool search.
+	DeferLoading bool   `json:"defer_loading"`
+	Description  string `json:"description" api:"nullable"`
+	// A JSON Schema describing the JSON value encoded in string outputs for this
+	// function tool. This does not describe content-array outputs.
+	OutputSchema map[string]any `json:"output_schema" api:"nullable"`
+	Parameters   any            `json:"parameters" api:"nullable"`
+	// Whether to enforce strict parameter validation. If omitted, Responses attempts
+	// to use strict validation when the schema is compatible, and falls back to
+	// non-strict validation otherwise.
+	Strict bool `json:"strict" api:"nullable"`
+	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
+	JSON struct {
+		Name           respjson.Field
+		Type           respjson.Field
+		AllowedCallers respjson.Field
+		Async          respjson.Field
+		DeferLoading   respjson.Field
+		Description    respjson.Field
+		OutputSchema   respjson.Field
+		Parameters     respjson.Field
+		Strict         respjson.Field
+		ExtraFields    map[string]respjson.Field
+		raw            string
+	} `json:"-"`
+}
+
+// Returns the unmodified JSON received from the API
+func (r ToolSearchOutputNamespaceToolToolFunction) RawJSON() string { return r.JSON.raw }
+func (r *ToolSearchOutputNamespaceToolToolFunction) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Groups function/custom tools under a shared namespace.
+//
+// The properties Description, Name, Tools, Type are required.
+type ToolSearchOutputNamespaceToolParam struct {
+	// A description of the namespace shown to the model.
+	Description string `json:"description" api:"required"`
+	// The namespace name used in tool calls (for example, `crm`).
+	Name string `json:"name" api:"required"`
+	// The function/custom tools loaded inside this namespace.
+	Tools []ToolSearchOutputNamespaceToolToolUnionParam `json:"tools,omitzero" api:"required"`
+	// The type of the tool. Always `namespace`.
+	//
+	// This field can be elided, and will marshal its zero value as "namespace".
+	Type constant.Namespace `json:"type" default:"namespace"`
+	paramObj
+}
+
+func (r ToolSearchOutputNamespaceToolParam) MarshalJSON() (data []byte, err error) {
+	type shadow ToolSearchOutputNamespaceToolParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ToolSearchOutputNamespaceToolParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+// Only one field can be non-zero.
+//
+// Use [param.IsOmitted] to confirm if a field is set.
+type ToolSearchOutputNamespaceToolToolUnionParam struct {
+	OfFunction *ToolSearchOutputNamespaceToolToolFunctionParam `json:",omitzero,inline"`
+	OfCustom   *CustomToolParam                                `json:",omitzero,inline"`
+	paramUnion
+}
+
+func (u ToolSearchOutputNamespaceToolToolUnionParam) MarshalJSON() ([]byte, error) {
+	return param.MarshalUnion(u, u.OfFunction, u.OfCustom)
+}
+func (u *ToolSearchOutputNamespaceToolToolUnionParam) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, u)
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolSearchOutputNamespaceToolToolUnionParam) GetOutputSchema() map[string]any {
+	if vt := u.OfFunction; vt != nil {
+		return vt.OutputSchema
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolSearchOutputNamespaceToolToolUnionParam) GetParameters() *any {
+	if vt := u.OfFunction; vt != nil {
+		return &vt.Parameters
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolSearchOutputNamespaceToolToolUnionParam) GetStrict() *bool {
+	if vt := u.OfFunction; vt != nil && vt.Strict.Valid() {
+		return &vt.Strict.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolSearchOutputNamespaceToolToolUnionParam) GetFormat() *shared.CustomToolInputFormatUnionParam {
+	if vt := u.OfCustom; vt != nil {
+		return &vt.Format
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolSearchOutputNamespaceToolToolUnionParam) GetName() *string {
+	if vt := u.OfFunction; vt != nil {
+		return (*string)(&vt.Name)
+	} else if vt := u.OfCustom; vt != nil {
+		return (*string)(&vt.Name)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolSearchOutputNamespaceToolToolUnionParam) GetType() *string {
+	if vt := u.OfFunction; vt != nil {
+		return (*string)(&vt.Type)
+	} else if vt := u.OfCustom; vt != nil {
+		return (*string)(&vt.Type)
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolSearchOutputNamespaceToolToolUnionParam) GetAsync() *bool {
+	if vt := u.OfFunction; vt != nil && vt.Async.Valid() {
+		return &vt.Async.Value
+	} else if vt := u.OfCustom; vt != nil && vt.Async.Valid() {
+		return &vt.Async.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolSearchOutputNamespaceToolToolUnionParam) GetDeferLoading() *bool {
+	if vt := u.OfFunction; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
+	} else if vt := u.OfCustom; vt != nil && vt.DeferLoading.Valid() {
+		return &vt.DeferLoading.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's property, if present.
+func (u ToolSearchOutputNamespaceToolToolUnionParam) GetDescription() *string {
+	if vt := u.OfFunction; vt != nil && vt.Description.Valid() {
+		return &vt.Description.Value
+	} else if vt := u.OfCustom; vt != nil && vt.Description.Valid() {
+		return &vt.Description.Value
+	}
+	return nil
+}
+
+// Returns a pointer to the underlying variant's AllowedCallers property, if
+// present.
+func (u ToolSearchOutputNamespaceToolToolUnionParam) GetAllowedCallers() []string {
+	if vt := u.OfFunction; vt != nil {
+		return vt.AllowedCallers
+	} else if vt := u.OfCustom; vt != nil {
+		return vt.AllowedCallers
+	}
+	return nil
+}
+
+func init() {
+	apijson.RegisterUnion[ToolSearchOutputNamespaceToolToolUnionParam](
+		"type",
+		apijson.Discriminator[ToolSearchOutputNamespaceToolToolFunctionParam]("function"),
+		apijson.Discriminator[CustomToolParam]("custom"),
+	)
+}
+
+// The properties Name, Type are required.
+type ToolSearchOutputNamespaceToolToolFunctionParam struct {
+	// The name of the loaded function tool.
+	Name        string            `json:"name" api:"required"`
+	Description param.Opt[string] `json:"description,omitzero"`
+	// Whether to enforce strict parameter validation. If omitted, Responses attempts
+	// to use strict validation when the schema is compatible, and falls back to
+	// non-strict validation otherwise.
+	Strict param.Opt[bool] `json:"strict,omitzero"`
+	// Whether the tool response can be returned asynchronously versus immediately
+	// returned on next response creation.
+	Async param.Opt[bool] `json:"async,omitzero"`
+	// Whether this function should be deferred and discovered via tool search.
+	DeferLoading param.Opt[bool] `json:"defer_loading,omitzero"`
+	// The tool invocation context(s).
+	//
+	// Any of "direct", "programmatic".
+	AllowedCallers []string `json:"allowed_callers,omitzero"`
+	// A JSON Schema describing the JSON value encoded in string outputs for this
+	// function tool. This does not describe content-array outputs.
+	OutputSchema map[string]any `json:"output_schema,omitzero"`
+	Parameters   any            `json:"parameters,omitzero"`
+	// This field can be elided, and will marshal its zero value as "function".
+	Type constant.Function `json:"type" default:"function"`
+	paramObj
+}
+
+func (r ToolSearchOutputNamespaceToolToolFunctionParam) MarshalJSON() (data []byte, err error) {
+	type shadow ToolSearchOutputNamespaceToolToolFunctionParam
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ToolSearchOutputNamespaceToolToolFunctionParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
@@ -26481,7 +35469,7 @@ func (r *ToolSearchToolParam) UnmarshalJSON(data []byte) error {
 
 // This tool searches the web for relevant results to use in a response. Learn more
 // about the
-// [web search tool](https://platform.openai.com/docs/guides/tools-web-search).
+// [web search tool](https://developers.openai.com/api/docs/guides/tools-web-search).
 type WebSearchPreviewTool struct {
 	// The type of the web search tool. One of `web_search_preview` or
 	// `web_search_preview_2025_03_11`.
@@ -26495,7 +35483,9 @@ type WebSearchPreviewTool struct {
 	//
 	// Any of "low", "medium", "high".
 	SearchContextSize WebSearchPreviewToolSearchContextSize `json:"search_context_size"`
-	// The user's location.
+	// The approximate location of the user. If omitted or null, defaults to the United
+	// States. To avoid this fallback, pass `{"type": "approximate"}` without location
+	// fields. To localize results, provide the relevant location fields.
 	UserLocation WebSearchPreviewToolUserLocation `json:"user_location" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
@@ -26542,7 +35532,9 @@ const (
 	WebSearchPreviewToolSearchContextSizeHigh   WebSearchPreviewToolSearchContextSize = "high"
 )
 
-// The user's location.
+// The approximate location of the user. If omitted or null, defaults to the United
+// States. To avoid this fallback, pass `{"type": "approximate"}` without location
+// fields. To localize results, provide the relevant location fields.
 type WebSearchPreviewToolUserLocation struct {
 	// The type of location approximation. Always `approximate`.
 	Type constant.Approximate `json:"type" default:"approximate"`
@@ -26576,7 +35568,7 @@ func (r *WebSearchPreviewToolUserLocation) UnmarshalJSON(data []byte) error {
 
 // This tool searches the web for relevant results to use in a response. Learn more
 // about the
-// [web search tool](https://platform.openai.com/docs/guides/tools-web-search).
+// [web search tool](https://developers.openai.com/api/docs/guides/tools-web-search).
 //
 // The property Type is required.
 type WebSearchPreviewToolParam struct {
@@ -26585,7 +35577,9 @@ type WebSearchPreviewToolParam struct {
 	//
 	// Any of "web_search_preview", "web_search_preview_2025_03_11".
 	Type WebSearchPreviewToolType `json:"type,omitzero" api:"required"`
-	// The user's location.
+	// The approximate location of the user. If omitted or null, defaults to the United
+	// States. To avoid this fallback, pass `{"type": "approximate"}` without location
+	// fields. To localize results, provide the relevant location fields.
 	UserLocation WebSearchPreviewToolUserLocationParam `json:"user_location,omitzero"`
 	// Any of "text", "image".
 	SearchContentTypes []string `json:"search_content_types,omitzero"`
@@ -26605,7 +35599,9 @@ func (r *WebSearchPreviewToolParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// The user's location.
+// The approximate location of the user. If omitted or null, defaults to the United
+// States. To avoid this fallback, pass `{"type": "approximate"}` without location
+// fields. To localize results, provide the relevant location fields.
 //
 // The property Type is required.
 type WebSearchPreviewToolUserLocationParam struct {
@@ -26635,7 +35631,7 @@ func (r *WebSearchPreviewToolUserLocationParam) UnmarshalJSON(data []byte) error
 }
 
 // Search the Internet for sources related to the prompt. Learn more about the
-// [web search tool](https://platform.openai.com/docs/guides/tools-web-search).
+// [web search tool](https://developers.openai.com/api/docs/guides/tools-web-search).
 type WebSearchTool struct {
 	// The type of the web search tool. One of `web_search` or `web_search_2025_08_26`.
 	//
@@ -26652,7 +35648,9 @@ type WebSearchTool struct {
 	//
 	// Any of "low", "medium", "high".
 	SearchContextSize WebSearchToolSearchContextSize `json:"search_context_size"`
-	// The approximate location of the user.
+	// The approximate location of the user. If omitted or null, defaults to the United
+	// States. To avoid this fallback, pass `{"type": "approximate"}` without location
+	// fields. To localize results, provide the relevant location fields.
 	UserLocation WebSearchToolUserLocation `json:"user_location" api:"nullable"`
 	// JSON contains metadata for fields, check presence with [respjson.Field.Valid].
 	JSON struct {
@@ -26720,7 +35718,9 @@ const (
 	WebSearchToolSearchContextSizeHigh   WebSearchToolSearchContextSize = "high"
 )
 
-// The approximate location of the user.
+// The approximate location of the user. If omitted or null, defaults to the United
+// States. To avoid this fallback, pass `{"type": "approximate"}` without location
+// fields. To localize results, provide the relevant location fields.
 type WebSearchToolUserLocation struct {
 	// Free text input for the city of the user, e.g. `San Francisco`.
 	City string `json:"city" api:"nullable"`
@@ -26755,7 +35755,7 @@ func (r *WebSearchToolUserLocation) UnmarshalJSON(data []byte) error {
 }
 
 // Search the Internet for sources related to the prompt. Learn more about the
-// [web search tool](https://platform.openai.com/docs/guides/tools-web-search).
+// [web search tool](https://developers.openai.com/api/docs/guides/tools-web-search).
 //
 // The property Type is required.
 type WebSearchToolParam struct {
@@ -26769,7 +35769,9 @@ type WebSearchToolParam struct {
 	ExternalWebAccess param.Opt[bool] `json:"external_web_access,omitzero"`
 	// Filters for the search.
 	Filters WebSearchToolFiltersParam `json:"filters,omitzero"`
-	// The approximate location of the user.
+	// The approximate location of the user. If omitted or null, defaults to the United
+	// States. To avoid this fallback, pass `{"type": "approximate"}` without location
+	// fields. To localize results, provide the relevant location fields.
 	UserLocation WebSearchToolUserLocationParam `json:"user_location,omitzero"`
 	// High level guidance for the amount of context window space to use for the
 	// search. One of `low`, `medium`, or `high`. `medium` is the default.
@@ -26805,7 +35807,9 @@ func (r *WebSearchToolFiltersParam) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// The approximate location of the user.
+// The approximate location of the user. If omitted or null, defaults to the United
+// States. To avoid this fallback, pass `{"type": "approximate"}` without location
+// fields. To localize results, provide the relevant location fields.
 type WebSearchToolUserLocationParam struct {
 	// Free text input for the city of the user, e.g. `San Francisco`.
 	City param.Opt[string] `json:"city,omitzero"`
@@ -26840,7 +35844,7 @@ func init() {
 
 type ResponseNewParams struct {
 	// Whether to run the model response in the background.
-	// [Learn more](https://platform.openai.com/docs/guides/background).
+	// [Learn more](https://developers.openai.com/api/docs/guides/background).
 	Background param.Opt[bool] `json:"background,omitzero"`
 	// A system (or developer) message inserted into the model's context.
 	//
@@ -26850,7 +35854,7 @@ type ResponseNewParams struct {
 	Instructions param.Opt[string] `json:"instructions,omitzero"`
 	// An upper bound for the number of tokens that can be generated for a response,
 	// including visible output tokens and
-	// [reasoning tokens](https://platform.openai.com/docs/guides/reasoning).
+	// [reasoning tokens](https://developers.openai.com/api/docs/guides/reasoning).
 	MaxOutputTokens param.Opt[int64] `json:"max_output_tokens,omitzero"`
 	// The maximum number of total calls to built-in tools that can be processed in a
 	// response. This maximum number applies across all built-in tool calls, not per
@@ -26861,21 +35865,24 @@ type ResponseNewParams struct {
 	ParallelToolCalls param.Opt[bool] `json:"parallel_tool_calls,omitzero"`
 	// The unique ID of the previous response to the model. Use this to create
 	// multi-turn conversations. Learn more about
-	// [conversation state](https://platform.openai.com/docs/guides/conversation-state).
+	// [conversation state](https://developers.openai.com/api/docs/guides/conversation-state).
 	// Cannot be used in conjunction with `conversation`.
 	PreviousResponseID param.Opt[string] `json:"previous_response_id,omitzero"`
 	// Used by OpenAI to cache responses for similar requests to optimize your cache
 	// hit rates. Replaces the `user` field.
-	// [Learn more](https://platform.openai.com/docs/guides/prompt-caching).
+	// [Learn more](https://developers.openai.com/api/docs/guides/prompt-caching).
 	PromptCacheKey param.Opt[string] `json:"prompt_cache_key,omitzero"`
 	// A stable identifier used to help detect users of your application that may be
 	// violating OpenAI's usage policies. The IDs should be a string that uniquely
-	// identifies each user, with a maximum length of 64 characters. We recommend
+	// identifies each user, with a maximum length of 128 characters. We recommend
 	// hashing their username or email address, in order to avoid sending us any
 	// identifying information.
-	// [Learn more](https://platform.openai.com/docs/guides/safety-best-practices#safety-identifiers).
+	// [Learn more](https://developers.openai.com/api/docs/guides/safety-best-practices#implement-safety-identifiers).
 	SafetyIdentifier param.Opt[string] `json:"safety_identifier,omitzero"`
 	// Whether to store the generated model response for later retrieval via API.
+	// Defaults to true when omitted. If set to true, response data will be stored for
+	// at least 30 days, subject to the
+	// [data retention exceptions](https://developers.openai.com/api/docs/guides/your-data#v1responses).
 	Store param.Opt[bool] `json:"store,omitzero"`
 	// What sampling temperature to use, between 0 and 2. Higher values like 0.8 will
 	// make the output more random, while lower values like 0.2 will make it more
@@ -26896,7 +35903,7 @@ type ResponseNewParams struct {
 	// `prompt_cache_key` instead to maintain caching optimizations. A stable
 	// identifier for your end-users. Used to boost cache hit rates by better bucketing
 	// similar requests and to help OpenAI detect and prevent abuse.
-	// [Learn more](https://platform.openai.com/docs/guides/safety-best-practices#safety-identifiers).
+	// [Learn more](https://developers.openai.com/api/docs/guides/safety-best-practices#implement-safety-identifiers).
 	User param.Opt[string] `json:"user,omitzero"`
 	// Context management configuration for this request.
 	ContextManagement []ResponseNewParamsContextManagement `json:"context_management,omitzero"`
@@ -26934,14 +35941,14 @@ type ResponseNewParams struct {
 	// Configuration for running moderation on the input and output of this response.
 	Moderation ResponseNewParamsModeration `json:"moderation,omitzero"`
 	// Reference to a prompt template and its variables.
-	// [Learn more](https://platform.openai.com/docs/guides/text?api-mode=responses#reusable-prompts).
+	// [Learn more](https://developers.openai.com/api/docs/guides/text?api-mode=responses#version-prompts-in-code).
 	Prompt ResponsePromptParam `json:"prompt,omitzero"`
 	// Deprecated. Use `prompt_cache_options.ttl` instead.
 	//
 	// The retention policy for the prompt cache. Set to `24h` to enable extended
 	// prompt caching, which keeps cached prefixes active for longer, up to a maximum
 	// of 24 hours.
-	// [Learn more](https://platform.openai.com/docs/guides/prompt-caching#prompt-cache-retention).
+	// [Learn more](https://developers.openai.com/api/docs/guides/prompt-caching#prompt-cache-retention).
 	// This field expresses a maximum retention policy, while
 	// `prompt_cache_options.ttl` expresses a minimum cache lifetime. The two fields
 	// are independent and do not interact. For `gpt-5.5`, `gpt-5.5-pro`, and future
@@ -26963,13 +35970,15 @@ type ResponseNewParams struct {
 	//     will use 'default'.
 	//   - If set to 'default', then the request will be processed with the standard
 	//     pricing and performance for the selected model.
-	//   - If set to '[flex](https://platform.openai.com/docs/guides/flex-processing)',
-	//     then the request will be processed with the Flex Processing service tier.
-	//   - To opt-in to [Fast mode](/api/docs/guides/fast-mode) at the request level,
-	//     include the `service_tier=fast` or `service_tier=priority` parameter for
-	//     Responses or Chat Completions. The response will show `service_tier=priority`
-	//     regardless of if you specify `service_tier=fast` or `priority` in your
-	//     request.
+	//   - If set to
+	//     '[flex](https://developers.openai.com/api/docs/guides/flex-processing)', then
+	//     the request will be processed with the Flex Processing service tier.
+	//   - To opt-in to
+	//     [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode) at the
+	//     request level, include the `service_tier=fast` or `service_tier=priority`
+	//     parameter for Responses or Chat Completions. The response will show
+	//     `service_tier=priority` regardless of if you specify `service_tier=fast` or
+	//     `priority` in your request.
 	//   - If set to 'ultrafast', then the request will be processed with the
 	//     access-controlled Ultrafast Processing service tier. This tier is currently
 	//     available for `gpt-5.6-sol`; a response served through it will show
@@ -26995,21 +36004,23 @@ type ResponseNewParams struct {
 	//
 	// Any of "auto", "disabled".
 	Truncation ResponseNewParamsTruncation `json:"truncation,omitzero"`
+	// Domain-specific access programs to use for this request.
+	AccessPrograms ResponseNewParamsAccessPrograms `json:"access_programs,omitzero"`
 	// Text, image, or file inputs to the model, used to generate a response.
 	//
 	// Learn more:
 	//
-	// - [Text inputs and outputs](https://platform.openai.com/docs/guides/text)
-	// - [Image inputs](https://platform.openai.com/docs/guides/images)
-	// - [File inputs](https://platform.openai.com/docs/guides/pdf-files)
-	// - [Conversation state](https://platform.openai.com/docs/guides/conversation-state)
-	// - [Function calling](https://platform.openai.com/docs/guides/function-calling)
+	//   - [Text inputs and outputs](https://developers.openai.com/api/docs/guides/text)
+	//   - [Image inputs](https://developers.openai.com/api/docs/guides/images-vision)
+	//   - [File inputs](https://developers.openai.com/api/docs/guides/file-inputs)
+	//   - [Conversation state](https://developers.openai.com/api/docs/guides/conversation-state)
+	//   - [Function calling](https://developers.openai.com/api/docs/guides/function-calling)
 	Input ResponseNewParamsInputUnion `json:"input,omitzero"`
-	// Model ID used to generate the response, like `gpt-4o` or `o3`. OpenAI offers a
-	// wide range of models with different capabilities, performance characteristics,
-	// and price points. Refer to the
-	// [model guide](https://platform.openai.com/docs/models) to browse and compare
-	// available models.
+	// Model ID used to generate the response, like `gpt-6-astra`. OpenAI offers a wide
+	// range of models with different capabilities, performance characteristics, and
+	// price points. Refer to the
+	// [model guide](https://developers.openai.com/api/docs/models) to browse and
+	// compare available models.
 	Model shared.ResponsesModel `json:"model,omitzero"`
 	// Options for prompt caching. Supported for `gpt-5.6` and later models. By
 	// default, OpenAI automatically chooses one implicit cache breakpoint. You can add
@@ -27018,19 +36029,17 @@ type ResponseNewParams struct {
 	// up to the latest 80 breakpoints in the conversation, without a content-block
 	// lookback limit. Set `mode` to `explicit` to disable the implicit breakpoint. The
 	// `ttl` defaults to `30m`, which is currently the only supported value. See the
-	// [prompt caching guide](https://platform.openai.com/docs/guides/prompt-caching)
+	// [prompt caching guide](https://developers.openai.com/api/docs/guides/prompt-caching)
 	// for current details.
 	PromptCacheOptions ResponseNewParamsPromptCacheOptions `json:"prompt_cache_options,omitzero"`
-	// **gpt-5 and o-series models only**
-	//
 	// Configuration options for
-	// [reasoning models](https://platform.openai.com/docs/guides/reasoning).
+	// [reasoning models](https://developers.openai.com/api/docs/guides/reasoning).
 	Reasoning shared.ReasoningParam `json:"reasoning,omitzero"`
 	// Configuration options for a text response from the model. Can be plain text or
 	// structured JSON data. Learn more:
 	//
-	// - [Text inputs and outputs](https://platform.openai.com/docs/guides/text)
-	// - [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs)
+	//   - [Text inputs and outputs](https://developers.openai.com/api/docs/guides/text)
+	//   - [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 	Text ResponseTextConfigParam `json:"text,omitzero"`
 	// How the model should select which tool (or tools) to use when generating a
 	// response. See the `tools` parameter to see how to specify which tools the model
@@ -27043,17 +36052,18 @@ type ResponseNewParams struct {
 	//
 	//   - **Built-in tools**: Tools that are provided by OpenAI that extend the model's
 	//     capabilities, like
-	//     [web search](https://platform.openai.com/docs/guides/tools-web-search) or
-	//     [file search](https://platform.openai.com/docs/guides/tools-file-search).
+	//     [web search](https://developers.openai.com/api/docs/guides/tools-web-search)
+	//     or
+	//     [file search](https://developers.openai.com/api/docs/guides/tools-file-search).
 	//     Learn more about
-	//     [built-in tools](https://platform.openai.com/docs/guides/tools).
+	//     [built-in tools](https://developers.openai.com/api/docs/guides/tools).
 	//   - **MCP Tools**: Integrations with third-party systems via custom MCP servers or
 	//     predefined connectors such as Google Drive and SharePoint. Learn more about
-	//     [MCP Tools](https://platform.openai.com/docs/guides/tools-connectors-mcp).
+	//     [MCP Tools](https://developers.openai.com/api/docs/guides/tools-connectors-mcp).
 	//   - **Function calls (custom tools)**: Functions that are defined by you, enabling
 	//     the model to call your own code with strongly typed arguments and outputs.
 	//     Learn more about
-	//     [function calling](https://platform.openai.com/docs/guides/function-calling).
+	//     [function calling](https://developers.openai.com/api/docs/guides/function-calling).
 	//     You can also use custom tools to call your own code.
 	Tools []ToolUnionParam `json:"tools,omitzero"`
 	paramObj
@@ -27065,6 +36075,38 @@ func (r ResponseNewParams) MarshalJSON() (data []byte, err error) {
 }
 func (r *ResponseNewParams) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
+}
+
+// Domain-specific access programs to use for this request.
+type ResponseNewParamsAccessPrograms struct {
+	// The Cyber access program to use for this request. Supported values are
+	// `standard`, `daybreak_blue`, and `daybreak_red`. If omitted, the API resolves
+	// the program from the model's Cyber tier and your organization and project
+	// access, subject to model-specific eligibility restrictions. By default, models
+	// without a Cyber tier use Standard. Blue-tier models use Daybreak Blue when
+	// authorized; otherwise they fall back to Standard unless the model requires
+	// Daybreak access. Red-tier models use Daybreak Red and require authorization.
+	// Requests that require unavailable Daybreak access return 403. An implicit
+	// Standard fallback is represented by null in the response's access_programs
+	// field, rather than an explicit Standard selection.
+	//
+	// Any of "standard", "daybreak_blue", "daybreak_red".
+	Cyber string `json:"cyber,omitzero"`
+	paramObj
+}
+
+func (r ResponseNewParamsAccessPrograms) MarshalJSON() (data []byte, err error) {
+	type shadow ResponseNewParamsAccessPrograms
+	return param.MarshalObject(r, (*shadow)(&r))
+}
+func (r *ResponseNewParamsAccessPrograms) UnmarshalJSON(data []byte) error {
+	return apijson.UnmarshalRoot(data, r)
+}
+
+func init() {
+	apijson.RegisterFieldValidator[ResponseNewParamsAccessPrograms](
+		"cyber", "standard", "daybreak_blue", "daybreak_red",
+	)
 }
 
 // The property Type is required.
@@ -27100,15 +36142,6 @@ func (u *ResponseNewParamsConversationUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ResponseNewParamsConversationUnion) asAny() any {
-	if !param.IsOmitted(u.OfString) {
-		return &u.OfString.Value
-	} else if !param.IsOmitted(u.OfConversationObject) {
-		return u.OfConversationObject
-	}
-	return nil
-}
-
 // Only one field can be non-zero.
 //
 // Use [param.IsOmitted] to confirm if a field is set.
@@ -27123,15 +36156,6 @@ func (u ResponseNewParamsInputUnion) MarshalJSON() ([]byte, error) {
 }
 func (u *ResponseNewParamsInputUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ResponseNewParamsInputUnion) asAny() any {
-	if !param.IsOmitted(u.OfString) {
-		return &u.OfString.Value
-	} else if !param.IsOmitted(u.OfInputItemList) {
-		return &u.OfInputItemList
-	}
-	return nil
 }
 
 // Configuration for running moderation on the input and output of this response.
@@ -27224,9 +36248,15 @@ func init() {
 // up to the latest 80 breakpoints in the conversation, without a content-block
 // lookback limit. Set `mode` to `explicit` to disable the implicit breakpoint. The
 // `ttl` defaults to `30m`, which is currently the only supported value. See the
-// [prompt caching guide](https://platform.openai.com/docs/guides/prompt-caching)
+// [prompt caching guide](https://developers.openai.com/api/docs/guides/prompt-caching)
 // for current details.
 type ResponseNewParamsPromptCacheOptions struct {
+	// The ID of a response to compare when diagnosing prompt cache reuse. Supplying
+	// this field requests prompt cache diagnostics when the feature is enabled.
+	ComparisonResponseID param.Opt[string] `json:"comparison_response_id,omitzero"`
+	// Prepares the prompt cache without generating output. Defaults to `false`. When
+	// set to `true`, overrides the `generate` field to `false`.
+	Prewarm param.Opt[bool] `json:"prewarm,omitzero"`
 	// Controls whether OpenAI automatically creates an implicit cache breakpoint.
 	// Defaults to `implicit`. With `implicit`, OpenAI creates one implicit breakpoint
 	// and writes up to the latest three explicit breakpoints in the request. With
@@ -27267,7 +36297,7 @@ func init() {
 // The retention policy for the prompt cache. Set to `24h` to enable extended
 // prompt caching, which keeps cached prefixes active for longer, up to a maximum
 // of 24 hours.
-// [Learn more](https://platform.openai.com/docs/guides/prompt-caching#prompt-cache-retention).
+// [Learn more](https://developers.openai.com/api/docs/guides/prompt-caching#prompt-cache-retention).
 // This field expresses a maximum retention policy, while
 // `prompt_cache_options.ttl` expresses a minimum cache lifetime. The two fields
 // are independent and do not interact. For `gpt-5.5`, `gpt-5.5-pro`, and future
@@ -27293,13 +36323,15 @@ const (
 //     will use 'default'.
 //   - If set to 'default', then the request will be processed with the standard
 //     pricing and performance for the selected model.
-//   - If set to '[flex](https://platform.openai.com/docs/guides/flex-processing)',
-//     then the request will be processed with the Flex Processing service tier.
-//   - To opt-in to [Fast mode](/api/docs/guides/fast-mode) at the request level,
-//     include the `service_tier=fast` or `service_tier=priority` parameter for
-//     Responses or Chat Completions. The response will show `service_tier=priority`
-//     regardless of if you specify `service_tier=fast` or `priority` in your
-//     request.
+//   - If set to
+//     '[flex](https://developers.openai.com/api/docs/guides/flex-processing)', then
+//     the request will be processed with the Flex Processing service tier.
+//   - To opt-in to
+//     [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode) at the
+//     request level, include the `service_tier=fast` or `service_tier=priority`
+//     parameter for Responses or Chat Completions. The response will show
+//     `service_tier=priority` regardless of if you specify `service_tier=fast` or
+//     `priority` in your request.
 //   - If set to 'ultrafast', then the request will be processed with the
 //     access-controlled Ultrafast Processing service tier. This tier is currently
 //     available for `gpt-5.6-sol`; a response served through it will show
@@ -27372,29 +36404,6 @@ func (u ResponseNewParamsToolChoiceUnion) MarshalJSON() ([]byte, error) {
 }
 func (u *ResponseNewParamsToolChoiceUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
-}
-
-func (u *ResponseNewParamsToolChoiceUnion) asAny() any {
-	if !param.IsOmitted(u.OfToolChoiceMode) {
-		return &u.OfToolChoiceMode
-	} else if !param.IsOmitted(u.OfAllowedTools) {
-		return u.OfAllowedTools
-	} else if !param.IsOmitted(u.OfHostedTool) {
-		return u.OfHostedTool
-	} else if !param.IsOmitted(u.OfFunctionTool) {
-		return u.OfFunctionTool
-	} else if !param.IsOmitted(u.OfMcpTool) {
-		return u.OfMcpTool
-	} else if !param.IsOmitted(u.OfCustomTool) {
-		return u.OfCustomTool
-	} else if !param.IsOmitted(u.OfResponseNewsToolChoiceSpecificProgrammaticToolCallingParam) {
-		return u.OfResponseNewsToolChoiceSpecificProgrammaticToolCallingParam
-	} else if !param.IsOmitted(u.OfSpecificApplyPatchToolChoice) {
-		return u.OfSpecificApplyPatchToolChoice
-	} else if !param.IsOmitted(u.OfSpecificShellToolChoice) {
-		return u.OfSpecificShellToolChoice
-	}
-	return nil
 }
 
 // Returns a pointer to the underlying variant's property, if present.
@@ -27516,11 +36525,11 @@ func (r ResponseGetParams) URLQuery() (v url.Values, err error) {
 }
 
 type ResponseCompactParams struct {
-	// Model ID used to generate the response, like `gpt-5` or `o3`. OpenAI offers a
-	// wide range of models with different capabilities, performance characteristics,
-	// and price points. Refer to the
-	// [model guide](https://platform.openai.com/docs/models) to browse and compare
-	// available models.
+	// Model ID used to generate the response, like `gpt-6-astra`. OpenAI offers a wide
+	// range of models with different capabilities, performance characteristics, and
+	// price points. Refer to the
+	// [model guide](https://developers.openai.com/api/docs/models) to browse and
+	// compare available models.
 	Model ResponseCompactParamsModel `json:"model,omitzero" api:"required"`
 	// A system (or developer) message inserted into the model's context. When used
 	// along with `previous_response_id`, the instructions from a previous response
@@ -27529,7 +36538,7 @@ type ResponseCompactParams struct {
 	Instructions param.Opt[string] `json:"instructions,omitzero"`
 	// The unique ID of the previous response to the model. Use this to create
 	// multi-turn conversations. Learn more about
-	// [conversation state](https://platform.openai.com/docs/guides/conversation-state).
+	// [conversation state](https://developers.openai.com/api/docs/guides/conversation-state).
 	// Cannot be used in conjunction with `conversation`.
 	PreviousResponseID param.Opt[string] `json:"previous_response_id,omitzero"`
 	// A key to use when reading from or writing to the prompt cache.
@@ -27543,7 +36552,7 @@ type ResponseCompactParams struct {
 	// up to the latest 80 breakpoints in the conversation, without a content-block
 	// lookback limit. Set `mode` to `explicit` to disable the implicit breakpoint. The
 	// `ttl` defaults to `30m`, which is currently the only supported value. See the
-	// [prompt caching guide](https://platform.openai.com/docs/guides/prompt-caching)
+	// [prompt caching guide](https://developers.openai.com/api/docs/guides/prompt-caching)
 	// for current details.
 	PromptCacheOptions ResponseCompactParamsPromptCacheOptions `json:"prompt_cache_options,omitzero"`
 	// How long to retain a prompt cache entry created by this request.
@@ -27555,16 +36564,17 @@ type ResponseCompactParams struct {
 	// Project settings. Unless otherwise configured, the Project will use 'default'. -
 	// If set to 'default', then the request will be processed with the standard
 	// pricing and performance for the selected model. - If set to
-	// '[flex](https://platform.openai.com/docs/guides/flex-processing)', then the
-	// request will be processed with the Flex Processing service tier. - To opt-in to
-	// [Fast mode](/api/docs/guides/fast-mode) at the request level, include the
-	// `service_tier=fast` or `service_tier=priority` parameter for Responses or Chat
-	// Completions. The response will show `service_tier=priority` regardless of if you
-	// specify `service_tier=fast` or `priority` in your request. - When not set, the
-	// default behavior is 'auto'. When the `service_tier` parameter is set, the
-	// response body will include the `service_tier` value based on the processing mode
-	// actually used to serve the request. This response value may be different from
-	// the value set in the parameter.
+	// '[flex](https://developers.openai.com/api/docs/guides/flex-processing)', then
+	// the request will be processed with the Flex Processing service tier. - To opt-in
+	// to [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode) at the
+	// request level, include the `service_tier=fast` or `service_tier=priority`
+	// parameter for Responses or Chat Completions. For models with a dedicated Fast
+	// tier, either value resolves to `service_tier=fast`; for other models, either
+	// value resolves to `service_tier=priority`. - When not set, the default behavior
+	// is 'auto'. When the `service_tier` parameter is set, the response body will
+	// include the `service_tier` value based on the processing mode actually used to
+	// serve the request. This response value may be different from the value set in
+	// the parameter.
 	//
 	// Any of "auto", "default", "fast", "flex", "priority".
 	ServiceTier ResponseCompactParamsServiceTier `json:"service_tier,omitzero"`
@@ -27579,116 +36589,376 @@ func (r *ResponseCompactParams) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, r)
 }
 
-// Model ID used to generate the response, like `gpt-5` or `o3`. OpenAI offers a
-// wide range of models with different capabilities, performance characteristics,
-// and price points. Refer to the
-// [model guide](https://platform.openai.com/docs/models) to browse and compare
-// available models.
+// Model ID used to generate the response, like `gpt-6-astra`. OpenAI offers a wide
+// range of models with different capabilities, performance characteristics, and
+// price points. Refer to the
+// [model guide](https://developers.openai.com/api/docs/models) to browse and
+// compare available models.
 type ResponseCompactParamsModel string
 
 const (
-	ResponseCompactParamsModelGPT5_6Sol                        ResponseCompactParamsModel = "gpt-5.6-sol"
-	ResponseCompactParamsModelGPT5_6Terra                      ResponseCompactParamsModel = "gpt-5.6-terra"
-	ResponseCompactParamsModelGPT5_6Luna                       ResponseCompactParamsModel = "gpt-5.6-luna"
-	ResponseCompactParamsModelGPT5_5                           ResponseCompactParamsModel = "gpt-5.5"
-	ResponseCompactParamsModelGPT5_5_2026_04_23                ResponseCompactParamsModel = "gpt-5.5-2026-04-23"
-	ResponseCompactParamsModelGPT5_4                           ResponseCompactParamsModel = "gpt-5.4"
-	ResponseCompactParamsModelGPT5_4Mini                       ResponseCompactParamsModel = "gpt-5.4-mini"
-	ResponseCompactParamsModelGPT5_4Nano                       ResponseCompactParamsModel = "gpt-5.4-nano"
-	ResponseCompactParamsModelGPT5_4Mini2026_03_17             ResponseCompactParamsModel = "gpt-5.4-mini-2026-03-17"
-	ResponseCompactParamsModelGPT5_4Nano2026_03_17             ResponseCompactParamsModel = "gpt-5.4-nano-2026-03-17"
-	ResponseCompactParamsModelGPT5_3ChatLatest                 ResponseCompactParamsModel = "gpt-5.3-chat-latest"
-	ResponseCompactParamsModelGPT5_2                           ResponseCompactParamsModel = "gpt-5.2"
-	ResponseCompactParamsModelGPT5_2_2025_12_11                ResponseCompactParamsModel = "gpt-5.2-2025-12-11"
-	ResponseCompactParamsModelGPT5_2ChatLatest                 ResponseCompactParamsModel = "gpt-5.2-chat-latest"
-	ResponseCompactParamsModelGPT5_2Pro                        ResponseCompactParamsModel = "gpt-5.2-pro"
-	ResponseCompactParamsModelGPT5_2Pro2025_12_11              ResponseCompactParamsModel = "gpt-5.2-pro-2025-12-11"
-	ResponseCompactParamsModelGPT5_1                           ResponseCompactParamsModel = "gpt-5.1"
-	ResponseCompactParamsModelGPT5_1_2025_11_13                ResponseCompactParamsModel = "gpt-5.1-2025-11-13"
-	ResponseCompactParamsModelGPT5_1Codex                      ResponseCompactParamsModel = "gpt-5.1-codex"
-	ResponseCompactParamsModelGPT5_1Mini                       ResponseCompactParamsModel = "gpt-5.1-mini"
-	ResponseCompactParamsModelGPT5_1ChatLatest                 ResponseCompactParamsModel = "gpt-5.1-chat-latest"
-	ResponseCompactParamsModelGPT5                             ResponseCompactParamsModel = "gpt-5"
-	ResponseCompactParamsModelGPT5Mini                         ResponseCompactParamsModel = "gpt-5-mini"
-	ResponseCompactParamsModelGPT5Nano                         ResponseCompactParamsModel = "gpt-5-nano"
-	ResponseCompactParamsModelGPT5_2025_08_07                  ResponseCompactParamsModel = "gpt-5-2025-08-07"
-	ResponseCompactParamsModelGPT5Mini2025_08_07               ResponseCompactParamsModel = "gpt-5-mini-2025-08-07"
-	ResponseCompactParamsModelGPT5Nano2025_08_07               ResponseCompactParamsModel = "gpt-5-nano-2025-08-07"
-	ResponseCompactParamsModelGPT5ChatLatest                   ResponseCompactParamsModel = "gpt-5-chat-latest"
-	ResponseCompactParamsModelGPT4_1                           ResponseCompactParamsModel = "gpt-4.1"
-	ResponseCompactParamsModelGPT4_1Mini                       ResponseCompactParamsModel = "gpt-4.1-mini"
-	ResponseCompactParamsModelGPT4_1Nano                       ResponseCompactParamsModel = "gpt-4.1-nano"
-	ResponseCompactParamsModelGPT4_1_2025_04_14                ResponseCompactParamsModel = "gpt-4.1-2025-04-14"
-	ResponseCompactParamsModelGPT4_1Mini2025_04_14             ResponseCompactParamsModel = "gpt-4.1-mini-2025-04-14"
-	ResponseCompactParamsModelGPT4_1Nano2025_04_14             ResponseCompactParamsModel = "gpt-4.1-nano-2025-04-14"
-	ResponseCompactParamsModelO4Mini                           ResponseCompactParamsModel = "o4-mini"
-	ResponseCompactParamsModelO4Mini2025_04_16                 ResponseCompactParamsModel = "o4-mini-2025-04-16"
-	ResponseCompactParamsModelO3                               ResponseCompactParamsModel = "o3"
-	ResponseCompactParamsModelO3_2025_04_16                    ResponseCompactParamsModel = "o3-2025-04-16"
-	ResponseCompactParamsModelO3Mini                           ResponseCompactParamsModel = "o3-mini"
-	ResponseCompactParamsModelO3Mini2025_01_31                 ResponseCompactParamsModel = "o3-mini-2025-01-31"
-	ResponseCompactParamsModelO1                               ResponseCompactParamsModel = "o1"
-	ResponseCompactParamsModelO1_2024_12_17                    ResponseCompactParamsModel = "o1-2024-12-17"
-	ResponseCompactParamsModelO1Preview                        ResponseCompactParamsModel = "o1-preview"
-	ResponseCompactParamsModelO1Preview2024_09_12              ResponseCompactParamsModel = "o1-preview-2024-09-12"
-	ResponseCompactParamsModelO1Mini                           ResponseCompactParamsModel = "o1-mini"
-	ResponseCompactParamsModelO1Mini2024_09_12                 ResponseCompactParamsModel = "o1-mini-2024-09-12"
-	ResponseCompactParamsModelGPT4o                            ResponseCompactParamsModel = "gpt-4o"
-	ResponseCompactParamsModelGPT4o2024_11_20                  ResponseCompactParamsModel = "gpt-4o-2024-11-20"
-	ResponseCompactParamsModelGPT4o2024_08_06                  ResponseCompactParamsModel = "gpt-4o-2024-08-06"
-	ResponseCompactParamsModelGPT4o2024_05_13                  ResponseCompactParamsModel = "gpt-4o-2024-05-13"
-	ResponseCompactParamsModelGPT4oAudioPreview                ResponseCompactParamsModel = "gpt-4o-audio-preview"
-	ResponseCompactParamsModelGPT4oAudioPreview2024_10_01      ResponseCompactParamsModel = "gpt-4o-audio-preview-2024-10-01"
-	ResponseCompactParamsModelGPT4oAudioPreview2024_12_17      ResponseCompactParamsModel = "gpt-4o-audio-preview-2024-12-17"
-	ResponseCompactParamsModelGPT4oAudioPreview2025_06_03      ResponseCompactParamsModel = "gpt-4o-audio-preview-2025-06-03"
-	ResponseCompactParamsModelGPT4oMiniAudioPreview            ResponseCompactParamsModel = "gpt-4o-mini-audio-preview"
-	ResponseCompactParamsModelGPT4oMiniAudioPreview2024_12_17  ResponseCompactParamsModel = "gpt-4o-mini-audio-preview-2024-12-17"
-	ResponseCompactParamsModelGPT4oSearchPreview               ResponseCompactParamsModel = "gpt-4o-search-preview"
-	ResponseCompactParamsModelGPT4oMiniSearchPreview           ResponseCompactParamsModel = "gpt-4o-mini-search-preview"
-	ResponseCompactParamsModelGPT4oSearchPreview2025_03_11     ResponseCompactParamsModel = "gpt-4o-search-preview-2025-03-11"
+	ResponseCompactParamsModelGPT6Astra         ResponseCompactParamsModel = "gpt-6-astra"
+	ResponseCompactParamsModelGPT6_1Sol         ResponseCompactParamsModel = "gpt-6.1-sol"
+	ResponseCompactParamsModelGPT6Sol           ResponseCompactParamsModel = "gpt-6-sol"
+	ResponseCompactParamsModelGPT6Luna          ResponseCompactParamsModel = "gpt-6-luna"
+	ResponseCompactParamsModelGPT5_6Sol         ResponseCompactParamsModel = "gpt-5.6-sol"
+	ResponseCompactParamsModelGPT5_6Terra       ResponseCompactParamsModel = "gpt-5.6-terra"
+	ResponseCompactParamsModelGPT5_6Luna        ResponseCompactParamsModel = "gpt-5.6-luna"
+	ResponseCompactParamsModelGPT5_5            ResponseCompactParamsModel = "gpt-5.5"
+	ResponseCompactParamsModelGPT5_5_2026_04_23 ResponseCompactParamsModel = "gpt-5.5-2026-04-23"
+	ResponseCompactParamsModelGPT5_4            ResponseCompactParamsModel = "gpt-5.4"
+	ResponseCompactParamsModelGPT5_4Mini        ResponseCompactParamsModel = "gpt-5.4-mini"
+	// Deprecated: Announced shutdown date: 2027-04-01. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5_4Nano           ResponseCompactParamsModel = "gpt-5.4-nano"
+	ResponseCompactParamsModelGPT5_4Mini2026_03_17 ResponseCompactParamsModel = "gpt-5.4-mini-2026-03-17"
+	ResponseCompactParamsModelGPT5_4Nano2026_03_17 ResponseCompactParamsModel = "gpt-5.4-nano-2026-03-17"
+	// Deprecated: Announced shutdown date: 2026-08-10. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5_3ChatLatest  ResponseCompactParamsModel = "gpt-5.3-chat-latest"
+	ResponseCompactParamsModelGPT5_2            ResponseCompactParamsModel = "gpt-5.2"
+	ResponseCompactParamsModelGPT5_2_2025_12_11 ResponseCompactParamsModel = "gpt-5.2-2025-12-11"
+	// Deprecated: Announced shutdown date: 2026-08-10. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5_2ChatLatest    ResponseCompactParamsModel = "gpt-5.2-chat-latest"
+	ResponseCompactParamsModelGPT5_2Pro           ResponseCompactParamsModel = "gpt-5.2-pro"
+	ResponseCompactParamsModelGPT5_2Pro2025_12_11 ResponseCompactParamsModel = "gpt-5.2-pro-2025-12-11"
+	// Deprecated: Announced shutdown date: 2027-04-01. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5_1            ResponseCompactParamsModel = "gpt-5.1"
+	ResponseCompactParamsModelGPT5_1_2025_11_13 ResponseCompactParamsModel = "gpt-5.1-2025-11-13"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5_1Codex ResponseCompactParamsModel = "gpt-5.1-codex"
+	// Deprecated: Not a supported model ID. Retained for SDK compatibility.
+	ResponseCompactParamsModelGPT5_1Mini ResponseCompactParamsModel = "gpt-5.1-mini"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5_1ChatLatest ResponseCompactParamsModel = "gpt-5.1-chat-latest"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5 ResponseCompactParamsModel = "gpt-5"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5Mini ResponseCompactParamsModel = "gpt-5-mini"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5Nano ResponseCompactParamsModel = "gpt-5-nano"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5_2025_08_07 ResponseCompactParamsModel = "gpt-5-2025-08-07"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5Mini2025_08_07 ResponseCompactParamsModel = "gpt-5-mini-2025-08-07"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5Nano2025_08_07 ResponseCompactParamsModel = "gpt-5-nano-2025-08-07"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5ChatLatest ResponseCompactParamsModel = "gpt-5-chat-latest"
+	// Deprecated: Announced shutdown date: 2027-01-14. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_1 ResponseCompactParamsModel = "gpt-4.1"
+	// Deprecated: Announced shutdown date: 2027-01-14. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_1Mini ResponseCompactParamsModel = "gpt-4.1-mini"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_1Nano ResponseCompactParamsModel = "gpt-4.1-nano"
+	// Deprecated: Announced shutdown date: 2027-01-14. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_1_2025_04_14 ResponseCompactParamsModel = "gpt-4.1-2025-04-14"
+	// Deprecated: Announced shutdown date: 2027-01-14. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_1Mini2025_04_14 ResponseCompactParamsModel = "gpt-4.1-mini-2025-04-14"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_1Nano2025_04_14 ResponseCompactParamsModel = "gpt-4.1-nano-2025-04-14"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO4Mini ResponseCompactParamsModel = "o4-mini"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO4Mini2025_04_16 ResponseCompactParamsModel = "o4-mini-2025-04-16"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO3 ResponseCompactParamsModel = "o3"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO3_2025_04_16 ResponseCompactParamsModel = "o3-2025-04-16"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO3Mini ResponseCompactParamsModel = "o3-mini"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO3Mini2025_01_31 ResponseCompactParamsModel = "o3-mini-2025-01-31"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO1 ResponseCompactParamsModel = "o1"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO1_2024_12_17 ResponseCompactParamsModel = "o1-2024-12-17"
+	// Deprecated: Announced shutdown date: 2025-07-28. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO1Preview ResponseCompactParamsModel = "o1-preview"
+	// Deprecated: Announced shutdown date: 2025-07-28. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO1Preview2024_09_12 ResponseCompactParamsModel = "o1-preview-2024-09-12"
+	// Deprecated: Announced shutdown date: 2025-10-27. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO1Mini ResponseCompactParamsModel = "o1-mini"
+	// Deprecated: Announced shutdown date: 2025-10-27. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO1Mini2024_09_12 ResponseCompactParamsModel = "o1-mini-2024-09-12"
+	// Deprecated: Announced shutdown date: 2027-01-14. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4o ResponseCompactParamsModel = "gpt-4o"
+	// Deprecated: Announced shutdown date: 2027-01-14. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4o2024_11_20 ResponseCompactParamsModel = "gpt-4o-2024-11-20"
+	// Deprecated: Announced shutdown date: 2027-01-14. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4o2024_08_06 ResponseCompactParamsModel = "gpt-4o-2024-08-06"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4o2024_05_13 ResponseCompactParamsModel = "gpt-4o-2024-05-13"
+	// Deprecated: Announced shutdown date: 2027-01-20. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPTAudioMini ResponseCompactParamsModel = "gpt-audio-mini"
+	// Deprecated: Announced shutdown date: 2027-01-20. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPTAudioMini2025_12_15 ResponseCompactParamsModel = "gpt-audio-mini-2025-12-15"
+	// Deprecated: Announced shutdown date: 2026-05-07. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4oAudioPreview ResponseCompactParamsModel = "gpt-4o-audio-preview"
+	// Deprecated: Announced shutdown date: 2025-10-10. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4oAudioPreview2024_10_01 ResponseCompactParamsModel = "gpt-4o-audio-preview-2024-10-01"
+	// Deprecated: Announced shutdown date: 2026-05-07. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4oAudioPreview2024_12_17 ResponseCompactParamsModel = "gpt-4o-audio-preview-2024-12-17"
+	// Deprecated: Announced shutdown date: 2026-05-07. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4oAudioPreview2025_06_03 ResponseCompactParamsModel = "gpt-4o-audio-preview-2025-06-03"
+	// Deprecated: Announced shutdown date: 2026-05-07. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4oMiniAudioPreview ResponseCompactParamsModel = "gpt-4o-mini-audio-preview"
+	// Deprecated: Announced shutdown date: 2026-05-07. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4oMiniAudioPreview2024_12_17 ResponseCompactParamsModel = "gpt-4o-mini-audio-preview-2024-12-17"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4oSearchPreview ResponseCompactParamsModel = "gpt-4o-search-preview"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4oMiniSearchPreview ResponseCompactParamsModel = "gpt-4o-mini-search-preview"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4oSearchPreview2025_03_11 ResponseCompactParamsModel = "gpt-4o-search-preview-2025-03-11"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
 	ResponseCompactParamsModelGPT4oMiniSearchPreview2025_03_11 ResponseCompactParamsModel = "gpt-4o-mini-search-preview-2025-03-11"
-	ResponseCompactParamsModelChatgpt4oLatest                  ResponseCompactParamsModel = "chatgpt-4o-latest"
-	ResponseCompactParamsModelCodexMiniLatest                  ResponseCompactParamsModel = "codex-mini-latest"
-	ResponseCompactParamsModelGPT4oMini                        ResponseCompactParamsModel = "gpt-4o-mini"
-	ResponseCompactParamsModelGPT4oMini2024_07_18              ResponseCompactParamsModel = "gpt-4o-mini-2024-07-18"
-	ResponseCompactParamsModelGPT4Turbo                        ResponseCompactParamsModel = "gpt-4-turbo"
-	ResponseCompactParamsModelGPT4Turbo2024_04_09              ResponseCompactParamsModel = "gpt-4-turbo-2024-04-09"
-	ResponseCompactParamsModelGPT4_0125Preview                 ResponseCompactParamsModel = "gpt-4-0125-preview"
-	ResponseCompactParamsModelGPT4TurboPreview                 ResponseCompactParamsModel = "gpt-4-turbo-preview"
-	ResponseCompactParamsModelGPT4_1106Preview                 ResponseCompactParamsModel = "gpt-4-1106-preview"
-	ResponseCompactParamsModelGPT4VisionPreview                ResponseCompactParamsModel = "gpt-4-vision-preview"
-	ResponseCompactParamsModelGPT4                             ResponseCompactParamsModel = "gpt-4"
-	ResponseCompactParamsModelGPT4_0314                        ResponseCompactParamsModel = "gpt-4-0314"
-	ResponseCompactParamsModelGPT4_0613                        ResponseCompactParamsModel = "gpt-4-0613"
-	ResponseCompactParamsModelGPT4_32k                         ResponseCompactParamsModel = "gpt-4-32k"
-	ResponseCompactParamsModelGPT4_32k0314                     ResponseCompactParamsModel = "gpt-4-32k-0314"
-	ResponseCompactParamsModelGPT4_32k0613                     ResponseCompactParamsModel = "gpt-4-32k-0613"
-	ResponseCompactParamsModelGPT3_5Turbo                      ResponseCompactParamsModel = "gpt-3.5-turbo"
-	ResponseCompactParamsModelGPT3_5Turbo16k                   ResponseCompactParamsModel = "gpt-3.5-turbo-16k"
-	ResponseCompactParamsModelGPT3_5Turbo0301                  ResponseCompactParamsModel = "gpt-3.5-turbo-0301"
-	ResponseCompactParamsModelGPT3_5Turbo0613                  ResponseCompactParamsModel = "gpt-3.5-turbo-0613"
-	ResponseCompactParamsModelGPT3_5Turbo1106                  ResponseCompactParamsModel = "gpt-3.5-turbo-1106"
-	ResponseCompactParamsModelGPT3_5Turbo0125                  ResponseCompactParamsModel = "gpt-3.5-turbo-0125"
-	ResponseCompactParamsModelGPT3_5Turbo16k0613               ResponseCompactParamsModel = "gpt-3.5-turbo-16k-0613"
-	ResponseCompactParamsModelO1Pro                            ResponseCompactParamsModel = "o1-pro"
-	ResponseCompactParamsModelO1Pro2025_03_19                  ResponseCompactParamsModel = "o1-pro-2025-03-19"
-	ResponseCompactParamsModelO3Pro                            ResponseCompactParamsModel = "o3-pro"
-	ResponseCompactParamsModelO3Pro2025_06_10                  ResponseCompactParamsModel = "o3-pro-2025-06-10"
-	ResponseCompactParamsModelO3DeepResearch                   ResponseCompactParamsModel = "o3-deep-research"
-	ResponseCompactParamsModelO3DeepResearch2025_06_26         ResponseCompactParamsModel = "o3-deep-research-2025-06-26"
-	ResponseCompactParamsModelO4MiniDeepResearch               ResponseCompactParamsModel = "o4-mini-deep-research"
-	ResponseCompactParamsModelO4MiniDeepResearch2025_06_26     ResponseCompactParamsModel = "o4-mini-deep-research-2025-06-26"
-	ResponseCompactParamsModelComputerUsePreview               ResponseCompactParamsModel = "computer-use-preview"
-	ResponseCompactParamsModelComputerUsePreview2025_03_11     ResponseCompactParamsModel = "computer-use-preview-2025-03-11"
-	ResponseCompactParamsModelGPT5_5Pro                        ResponseCompactParamsModel = "gpt-5.5-pro"
-	ResponseCompactParamsModelGPT5_5Pro2026_04_23              ResponseCompactParamsModel = "gpt-5.5-pro-2026-04-23"
-	ResponseCompactParamsModelGPT5Codex                        ResponseCompactParamsModel = "gpt-5-codex"
-	ResponseCompactParamsModelGPT5Pro                          ResponseCompactParamsModel = "gpt-5-pro"
-	ResponseCompactParamsModelGPT5Pro2025_10_06                ResponseCompactParamsModel = "gpt-5-pro-2025-10-06"
-	ResponseCompactParamsModelGPT5_1CodexMax                   ResponseCompactParamsModel = "gpt-5.1-codex-max"
-	ResponseCompactParamsModelGPTDaybreakBlueLatest            ResponseCompactParamsModel = "gpt-daybreak-blue-latest"
-	ResponseCompactParamsModelGPTDaybreakRedLatest             ResponseCompactParamsModel = "gpt-daybreak-red-latest"
-	ResponseCompactParamsModelGPT5_6Cyber                      ResponseCompactParamsModel = "gpt-5.6-cyber"
+	// Deprecated: Announced shutdown date: 2026-02-17. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelChatgpt4oLatest ResponseCompactParamsModel = "chatgpt-4o-latest"
+	// Deprecated: Announced shutdown date: 2026-02-12. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelCodexMiniLatest ResponseCompactParamsModel = "codex-mini-latest"
+	// Deprecated: Announced shutdown date: 2027-01-14. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4oMini ResponseCompactParamsModel = "gpt-4o-mini"
+	// Deprecated: Announced shutdown date: 2027-01-14. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4oMini2024_07_18 ResponseCompactParamsModel = "gpt-4o-mini-2024-07-18"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4Turbo ResponseCompactParamsModel = "gpt-4-turbo"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4Turbo2024_04_09 ResponseCompactParamsModel = "gpt-4-turbo-2024-04-09"
+	// Deprecated: Announced shutdown date: 2026-03-26. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_0125Preview ResponseCompactParamsModel = "gpt-4-0125-preview"
+	// Deprecated: Announced shutdown date: 2026-03-26. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4TurboPreview ResponseCompactParamsModel = "gpt-4-turbo-preview"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_1106Preview ResponseCompactParamsModel = "gpt-4-1106-preview"
+	// Deprecated: Announced shutdown date: 2024-12-06. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4VisionPreview ResponseCompactParamsModel = "gpt-4-vision-preview"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4 ResponseCompactParamsModel = "gpt-4"
+	// Deprecated: Announced shutdown date: 2026-03-26. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_0314 ResponseCompactParamsModel = "gpt-4-0314"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_0613 ResponseCompactParamsModel = "gpt-4-0613"
+	// Deprecated: Announced shutdown date: 2025-06-06. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_32k ResponseCompactParamsModel = "gpt-4-32k"
+	// Deprecated: Announced shutdown date: 2025-06-06. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_32k0314 ResponseCompactParamsModel = "gpt-4-32k-0314"
+	// Deprecated: Announced shutdown date: 2025-06-06. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT4_32k0613 ResponseCompactParamsModel = "gpt-4-32k-0613"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT3_5Turbo ResponseCompactParamsModel = "gpt-3.5-turbo"
+	// Deprecated: Announced shutdown date: 2024-09-13. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT3_5Turbo16k ResponseCompactParamsModel = "gpt-3.5-turbo-16k"
+	// Deprecated: Announced shutdown date: 2024-09-13. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT3_5Turbo0301 ResponseCompactParamsModel = "gpt-3.5-turbo-0301"
+	// Deprecated: Announced shutdown date: 2024-09-13. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT3_5Turbo0613 ResponseCompactParamsModel = "gpt-3.5-turbo-0613"
+	// Deprecated: Announced shutdown date: 2026-09-28. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT3_5Turbo1106 ResponseCompactParamsModel = "gpt-3.5-turbo-1106"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT3_5Turbo0125 ResponseCompactParamsModel = "gpt-3.5-turbo-0125"
+	// Deprecated: Announced shutdown date: 2024-09-13. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT3_5Turbo16k0613 ResponseCompactParamsModel = "gpt-3.5-turbo-16k-0613"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO1Pro ResponseCompactParamsModel = "o1-pro"
+	// Deprecated: Announced shutdown date: 2026-10-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO1Pro2025_03_19 ResponseCompactParamsModel = "o1-pro-2025-03-19"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO3Pro ResponseCompactParamsModel = "o3-pro"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO3Pro2025_06_10 ResponseCompactParamsModel = "o3-pro-2025-06-10"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO3DeepResearch ResponseCompactParamsModel = "o3-deep-research"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO3DeepResearch2025_06_26 ResponseCompactParamsModel = "o3-deep-research-2025-06-26"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO4MiniDeepResearch ResponseCompactParamsModel = "o4-mini-deep-research"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelO4MiniDeepResearch2025_06_26 ResponseCompactParamsModel = "o4-mini-deep-research-2025-06-26"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelComputerUsePreview ResponseCompactParamsModel = "computer-use-preview"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelComputerUsePreview2025_03_11 ResponseCompactParamsModel = "computer-use-preview-2025-03-11"
+	ResponseCompactParamsModelGPT5_5Pro                    ResponseCompactParamsModel = "gpt-5.5-pro"
+	ResponseCompactParamsModelGPT5_5Pro2026_04_23          ResponseCompactParamsModel = "gpt-5.5-pro-2026-04-23"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5Codex ResponseCompactParamsModel = "gpt-5-codex"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5Pro ResponseCompactParamsModel = "gpt-5-pro"
+	// Deprecated: Announced shutdown date: 2026-12-11. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5Pro2025_10_06 ResponseCompactParamsModel = "gpt-5-pro-2025-10-06"
+	// Deprecated: Announced shutdown date: 2026-07-23. See
+	// https://developers.openai.com/api/docs/deprecations for details and recommended
+	// replacements.
+	ResponseCompactParamsModelGPT5_1CodexMax        ResponseCompactParamsModel = "gpt-5.1-codex-max"
+	ResponseCompactParamsModelGPTDaybreakBlueLatest ResponseCompactParamsModel = "gpt-daybreak-blue-latest"
+	ResponseCompactParamsModelGPTDaybreakRedLatest  ResponseCompactParamsModel = "gpt-daybreak-red-latest"
+	ResponseCompactParamsModelGPT5_6Cyber           ResponseCompactParamsModel = "gpt-5.6-cyber"
+	ResponseCompactParamsModelGPTRosalindResearch   ResponseCompactParamsModel = "gpt-rosalind-research"
 )
 
 // Only one field can be non-zero.
@@ -27707,15 +36977,6 @@ func (u *ResponseCompactParamsInputUnion) UnmarshalJSON(data []byte) error {
 	return apijson.UnmarshalRoot(data, u)
 }
 
-func (u *ResponseCompactParamsInputUnion) asAny() any {
-	if !param.IsOmitted(u.OfString) {
-		return &u.OfString.Value
-	} else if !param.IsOmitted(u.OfResponseInputItemArray) {
-		return &u.OfResponseInputItemArray
-	}
-	return nil
-}
-
 // Options for prompt caching. Supported for `gpt-5.6` and later models. By
 // default, OpenAI automatically chooses one implicit cache breakpoint. You can add
 // explicit breakpoints to content blocks with `prompt_cache_breakpoint`. Each
@@ -27723,7 +36984,7 @@ func (u *ResponseCompactParamsInputUnion) asAny() any {
 // up to the latest 80 breakpoints in the conversation, without a content-block
 // lookback limit. Set `mode` to `explicit` to disable the implicit breakpoint. The
 // `ttl` defaults to `30m`, which is currently the only supported value. See the
-// [prompt caching guide](https://platform.openai.com/docs/guides/prompt-caching)
+// [prompt caching guide](https://developers.openai.com/api/docs/guides/prompt-caching)
 // for current details.
 type ResponseCompactParamsPromptCacheOptions struct {
 	// Controls whether OpenAI automatically creates an implicit cache breakpoint.
@@ -27774,16 +37035,17 @@ const (
 // Project settings. Unless otherwise configured, the Project will use 'default'. -
 // If set to 'default', then the request will be processed with the standard
 // pricing and performance for the selected model. - If set to
-// '[flex](https://platform.openai.com/docs/guides/flex-processing)', then the
-// request will be processed with the Flex Processing service tier. - To opt-in to
-// [Fast mode](/api/docs/guides/fast-mode) at the request level, include the
-// `service_tier=fast` or `service_tier=priority` parameter for Responses or Chat
-// Completions. The response will show `service_tier=priority` regardless of if you
-// specify `service_tier=fast` or `priority` in your request. - When not set, the
-// default behavior is 'auto'. When the `service_tier` parameter is set, the
-// response body will include the `service_tier` value based on the processing mode
-// actually used to serve the request. This response value may be different from
-// the value set in the parameter.
+// '[flex](https://developers.openai.com/api/docs/guides/flex-processing)', then
+// the request will be processed with the Flex Processing service tier. - To opt-in
+// to [Fast mode](https://developers.openai.com/api/docs/guides/fast-mode) at the
+// request level, include the `service_tier=fast` or `service_tier=priority`
+// parameter for Responses or Chat Completions. For models with a dedicated Fast
+// tier, either value resolves to `service_tier=fast`; for other models, either
+// value resolves to `service_tier=priority`. - When not set, the default behavior
+// is 'auto'. When the `service_tier` parameter is set, the response body will
+// include the `service_tier` value based on the processing mode actually used to
+// serve the request. This response value may be different from the value set in
+// the parameter.
 type ResponseCompactParamsServiceTier string
 
 const (

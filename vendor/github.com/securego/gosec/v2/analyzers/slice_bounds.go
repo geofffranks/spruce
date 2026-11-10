@@ -20,6 +20,7 @@ import (
 	"go/token"
 	"go/types"
 	"maps"
+	"math"
 	"sync"
 
 	"golang.org/x/tools/go/analysis"
@@ -54,6 +55,19 @@ func newSliceBoundsAnalyzer(id string, description string) *analysis.Analyzer {
 type valOffset struct {
 	val    ssa.Value
 	offset int
+}
+
+// nilLenGuard records an "if len(nilSliceConst) == N" guard found anywhere in
+// a function, keyed by the specific *ssa.Const instance the len() call was
+// made on (see resolveNilSliceAccesses). Distinct nil-typed variables get
+// distinct *ssa.Const objects from Go's SSA builder even when their type is
+// identical -- verified empirically, not assumed -- so keying by the const's
+// own identity correctly separates "var a []int; var b []int" without
+// needing type-level disambiguation.
+type nilLenGuard struct {
+	ifInstr *ssa.If
+	binop   *ssa.BinOp
+	value   int
 }
 
 type sliceBoundsState struct {
@@ -159,9 +173,26 @@ func runSliceBounds(pass *analysis.Pass) (result any, err error) {
 	var violations []ssa.Instruction
 	for _, mcall := range ssaResult.SSA.SrcFuncs {
 		state.Reset()
+		// Per-function: nil-slice-constant accesses deferred for guard
+		// resolution, and the "len(nilConst) == N" guards found to resolve
+		// them against -- both keyed by the specific *ssa.Const instance
+		// involved, which Go's SSA builder allocates one-per-variable (see
+		// nilLenGuard), so a guard on one nil-typed variable can never be
+		// looked up against a different variable's access even when they
+		// share a type. See resolveNilSliceAccesses.
+		nilSliceAccesses := map[*ssa.Const][]*ssa.IndexAddr{}
+		nilLenGuards := map[*ssa.Const][]nilLenGuard{}
 		for _, block := range mcall.DomPreorder() {
 			for _, instr := range block.Instrs {
 				switch instr := instr.(type) {
+				case *ssa.Call:
+					if nilConst, ok := nilSliceLenArg(instr); ok {
+						if ifref, binop := extractSliceIfLenCondition(instr); ifref != nil && binop != nil {
+							if bnd, value, err := extractBinOpBound(binop); err == nil && bnd == bounded {
+								nilLenGuards[nilConst] = append(nilLenGuards[nilConst], nilLenGuard{ifInstr: ifref, binop: binop, value: value})
+							}
+						}
+					}
 				case *ssa.Alloc:
 					if sliceCap, ok := extractArrayLen(instr.Type()); ok {
 						allocRefs := instr.Referrers()
@@ -178,7 +209,7 @@ func runSliceBounds(pass *analysis.Pass) (result any, err error) {
 											violations = append(violations, slice)
 										}
 									} else {
-										if !isSliceInsideBounds(0, sliceCap, l, h) {
+										if !isSliceInsideBounds(sliceCap, l, h) {
 											violations = append(violations, slice)
 										}
 									}
@@ -220,14 +251,12 @@ func runSliceBounds(pass *analysis.Pass) (result any, err error) {
 					case *ssa.Const:
 						if _, ok := indexInstr.Type().Underlying().(*types.Slice); ok {
 							if indexInstr.Value == nil {
-								issues[instr] = newIssue(
-									pass.Analyzer.Name,
-									"slice index out of range",
-									pass.Fset,
-									instr.Pos(),
-									issue.Low,
-									issue.High)
-
+								// Defer: a "len(nilConst) == N" guard covering this
+								// exact const (checked once the whole function has
+								// been scanned, see resolveNilSliceAccesses) can
+								// prove it safe, the same way #1746 already trusts
+								// such a guard for make()/literal-backed slices.
+								nilSliceAccesses[indexInstr] = append(nilSliceAccesses[indexInstr], instr)
 								break
 							}
 						}
@@ -246,10 +275,32 @@ func runSliceBounds(pass *analysis.Pass) (result any, err error) {
 								}
 							}
 						}
+					case *ssa.Call:
+						if instr.Pos() > 0 {
+							if sliceLen, ok := staticAppendCallLen(indexInstr); ok {
+								var isOutOfRange bool
+								if idxVal, ok := GetConstantInt64(instr.Index); ok && !isSliceIndexInsideBounds(sliceLen, int(idxVal)) {
+									isOutOfRange = true
+								} else if indexValue, err := state.extractIntValueIndexAddr(instr, sliceLen); err == nil && !isSliceIndexInsideBounds(sliceLen, indexValue) {
+									isOutOfRange = true
+								}
+								if isOutOfRange {
+									issues[instr] = newIssue(
+										pass.Analyzer.Name,
+										"slice index out of range",
+										pass.Fset,
+										instr.Pos(),
+										issue.Low,
+										issue.High)
+								}
+								collectSliceLenGuards(indexInstr, ifs)
+							}
+						}
 					}
 				}
 			}
 		}
+		resolveNilSliceAccesses(pass, nilSliceAccesses, nilLenGuards, issues)
 	}
 
 	for ifref, binop := range ifs {
@@ -281,6 +332,36 @@ func runSliceBounds(pass *analysis.Pass) (result any, err error) {
 			if i == 1 {
 				bound = invBound(bound)
 			}
+
+			// Inequality guards need slice identity and index-value checks. Walk
+			// every issue in the CFG region dominated by this successor so an
+			// outer len() guard also applies after nested branch joins.
+			if bound == upperUnbounded || bound == unbounded {
+				guardedSlice := lenConditionSlice(binop)
+				minLen, hasMinLen := minimumLenForBranch(binop, i)
+				if guardedSlice != nil && hasMinLen {
+					for instr := range issues {
+						instrBlock := instr.Block()
+						if instrBlock == nil || !block.Dominates(instrBlock) {
+							continue
+						}
+						switch tinstr := instr.(type) {
+						case *ssa.Slice:
+							if tinstr.X == guardedSlice && sliceWithinAssertedLen(tinstr, minLen) {
+								delete(issues, instr)
+							}
+						case *ssa.IndexAddr:
+							if tinstr.X == guardedSlice {
+								if indexValue, ok := GetConstantInt64(tinstr.Index); ok &&
+									isSliceIndexInsideBounds(minLen, int(indexValue)) {
+									delete(issues, instr)
+								}
+							}
+						}
+					}
+				}
+			}
+
 			var processBlock func(block *ssa.BasicBlock, depth int)
 			processBlock = func(block *ssa.BasicBlock, depth int) {
 				if depth == MaxDepth {
@@ -293,12 +374,13 @@ func runSliceBounds(pass *analysis.Pass) (result any, err error) {
 						case lowerUnbounded:
 							break
 						case upperUnbounded, unbounded:
-							delete(issues, instr)
+							// Handled above with branch dominance, slice identity,
+							// and a proven minimum length.
 						case upperBounded:
 							switch tinstr := instr.(type) {
 							case *ssa.Slice:
 								_, _, m := GetSliceBounds(tinstr)
-								if !isLenBound && isSliceInsideBounds(0, value, m, value) {
+								if !isLenBound && isSliceInsideBounds(value, m, value) {
 									delete(issues, instr)
 								}
 							case *ssa.IndexAddr:
@@ -319,13 +401,17 @@ func runSliceBounds(pass *analysis.Pass) (result any, err error) {
 						case bounded:
 							switch tinstr := instr.(type) {
 							case *ssa.Slice:
-								_, _, m := GetSliceBounds(tinstr)
-								if isSliceInsideBounds(value, value, m, value) {
+								// Equality only establishes a length in the then branch.
+								if i == 0 && sliceWithinAssertedLen(tinstr, assertedLen(binop, value)) {
 									delete(issues, instr)
 								}
 							case *ssa.IndexAddr:
+								// invBound maps bounded to itself, so the "else" successor
+								// is walked with the same bound and value even though it
+								// only proves the length is *not* the asserted one. Trust
+								// the asserted length in the "then" successor alone.
 								if indexValue, ok := GetConstantInt64(tinstr.Index); ok {
-									if int(indexValue) == value {
+									if i == 0 && isSliceIndexInsideBounds(assertedLen(binop, value), int(indexValue)) {
 										delete(issues, instr)
 									}
 								}
@@ -547,7 +633,9 @@ func (s *sliceBoundsState) trackSliceBounds(depth int, sliceCap int, slice ssa.N
 					*localViolations = append(*localViolations, refinstr)
 				}
 			case *ssa.Call:
-				if ifref, cond := extractSliceIfLenCondition(refinstr); ifref != nil && cond != nil {
+				if addedLen, ok := staticAppendGrowth(refinstr, slice); ok {
+					s.trackSliceBounds(depth, sliceCap+addedLen, refinstr, localViolations, localIfs)
+				} else if ifref, cond := extractSliceIfLenCondition(refinstr); ifref != nil && cond != nil {
 					localIfs[*ifref] = cond
 				} else {
 					parPos := -1
@@ -781,7 +869,7 @@ func (s *sliceBoundsState) checkAllSlicesBounds(depth int, sliceCap int, slice *
 			*violations = append(*violations, slice)
 		}
 	} else {
-		if !isSliceInsideBounds(0, sliceCap, sliceLow, sliceHigh) {
+		if !isSliceInsideBounds(sliceCap, sliceLow, sliceHigh) {
 			*violations = append(*violations, slice)
 		}
 	}
@@ -805,6 +893,145 @@ func (s *sliceBoundsState) checkAllSlicesBounds(depth int, sliceCap int, slice *
 				l, h, maxIdx := GetSliceBounds(r)
 				newCap := ComputeSliceNewCap(l, h, maxIdx, sliceCap)
 				s.trackSliceBounds(depth, newCap, r, violations, ifs)
+			}
+		}
+	}
+}
+
+// staticAppendGrowth reports the guaranteed number of elements append()
+// adds to slice, when call is append(slice, ...) and the appended count
+// is statically determinable. Returns false when it isn't (e.g. spreading
+// a slice of unknown length) -- no growth is assumed in that case.
+func staticAppendGrowth(call *ssa.Call, slice ssa.Node) (int, bool) {
+	sliceVal, ok := slice.(ssa.Value)
+	if !ok {
+		return 0, false
+	}
+	args := call.Call.Args
+	if len(args) != 2 || args[0] != sliceVal {
+		return 0, false
+	}
+	return appendGrowth(call)
+}
+
+func appendGrowth(call *ssa.Call) (int, bool) {
+	return appendGrowthDepth(call, 0)
+}
+
+func appendGrowthDepth(call *ssa.Call, depth int) (int, bool) {
+	if call == nil || depth >= MaxDepth {
+		return 0, false
+	}
+	builtin, ok := call.Call.Value.(*ssa.Builtin)
+	if !ok || builtin.Name() != "append" || len(call.Call.Args) < 2 {
+		return 0, false
+	}
+	args := call.Call.Args
+	if len(args) == 2 {
+		// append(s) with zero variadic arguments lowers to append(s, nil...):
+		// args[1] is a *ssa.Const placeholder for the empty variadic slice, never a
+		// *ssa.Slice value, so it has to be recognized here rather than falling
+		// through to staticSliceLen (which would reject it as indeterminable).
+		if _, isConst := args[1].(*ssa.Const); isConst {
+			return 0, true
+		}
+		return staticSliceLenDepth(args[1], depth+1)
+	}
+	return len(args) - 1, true
+}
+
+// staticAppendCallLen computes the guaranteed length of a slice resulting from an append() call
+// when both the base slice and appended elements have statically known lengths.
+func staticAppendCallLen(call *ssa.Call) (int, bool) {
+	return staticAppendCallLenDepth(call, 0)
+}
+
+func staticAppendCallLenDepth(call *ssa.Call, depth int) (int, bool) {
+	if call == nil || depth >= MaxDepth {
+		return 0, false
+	}
+	builtin, ok := call.Call.Value.(*ssa.Builtin)
+	if !ok || builtin.Name() != "append" || len(call.Call.Args) < 2 {
+		return 0, false
+	}
+	baseLen, ok := staticSliceLenDepth(call.Call.Args[0], depth+1)
+	if !ok {
+		return 0, false
+	}
+	growth, ok := appendGrowthDepth(call, depth+1)
+	if !ok {
+		return 0, false
+	}
+	if baseLen < 0 || growth < 0 || baseLen > math.MaxInt-growth {
+		return 0, false
+	}
+	return baseLen + growth, true
+}
+
+// staticSliceLen returns v's guaranteed length (not capacity) when v is a
+// slice value with statically known bounds.
+func staticSliceLen(v ssa.Value) (int, bool) {
+	return staticSliceLenDepth(v, 0)
+}
+
+func staticSliceLenDepth(v ssa.Value, depth int) (int, bool) {
+	if v == nil || depth >= MaxDepth {
+		return 0, false
+	}
+	switch val := v.(type) {
+	case *ssa.Const:
+		if val.Value == nil {
+			if _, ok := val.Type().Underlying().(*types.Slice); ok {
+				return 0, true
+			}
+		}
+	case *ssa.Call:
+		return staticAppendCallLenDepth(val, depth+1)
+	case *ssa.Convert:
+		if strConst, ok := val.X.(*ssa.Const); ok && strConst.Value != nil && strConst.Value.Kind() == constant.String {
+			return len(constant.StringVal(strConst.Value)), true
+		}
+	case *ssa.Slice:
+		alloc, ok := val.X.(*ssa.Alloc)
+		if !ok {
+			return 0, false
+		}
+		arrLen, ok := extractArrayLen(alloc.Type())
+		if !ok {
+			return 0, false
+		}
+		low, high := GetSliceRange(val)
+		if high == -1 {
+			high = int64(arrLen)
+		}
+		if low < 0 || high < low || int(high) > arrLen {
+			return 0, false
+		}
+		if val.Max != nil {
+			if maxVal, ok := GetConstantInt64(val.Max); ok {
+				if maxVal < high || int(maxVal) > arrLen {
+					return 0, false
+				}
+			}
+		}
+		return int(high - low), true
+	}
+	return 0, false
+}
+
+// collectSliceLenGuards gathers len(sliceVal) guards associated with sliceVal.
+func collectSliceLenGuards(sliceVal ssa.Value, ifs map[ssa.If]*ssa.BinOp) {
+	if sliceVal == nil || ifs == nil {
+		return
+	}
+	refs := sliceVal.Referrers()
+	if refs == nil {
+		return
+	}
+	for _, ref := range *refs {
+		if call, ok := ref.(*ssa.Call); ok {
+			if ifref, cond := extractSliceIfLenCondition(call); ifref != nil && cond != nil {
+				ifs[*ifref] = cond
 			}
 		}
 	}
@@ -840,6 +1067,71 @@ func extractSliceIfLenCondition(call *ssa.Call) (*ssa.If, *ssa.BinOp) {
 	return nil, nil
 }
 
+// nilSliceLenArg reports whether call is a builtin len() invocation whose
+// single argument is a nil slice constant, returning that constant.
+func nilSliceLenArg(call *ssa.Call) (*ssa.Const, bool) {
+	builtin, ok := call.Call.Value.(*ssa.Builtin)
+	if !ok || builtin.Name() != "len" || len(call.Call.Args) != 1 {
+		return nil, false
+	}
+	c, ok := call.Call.Args[0].(*ssa.Const)
+	if !ok || c.Value != nil {
+		return nil, false
+	}
+	if _, ok := c.Type().Underlying().(*types.Slice); !ok {
+		return nil, false
+	}
+	return c, true
+}
+
+// resolveNilSliceAccesses decides, for every nil-slice-constant access
+// deferred while walking a function, whether an "if len(nilConst) == N"
+// guard already proves it safe -- mirroring the trust #1746 established for
+// make()/literal-backed slices ("if the guard asserts a length, and the
+// index fits within it, the access is safe") -- or whether it must still be
+// flagged.
+//
+// Both maps are keyed by the specific *ssa.Const the access/guard involves
+// (Go's SSA builder allocates a distinct nil constant per variable, verified
+// empirically -- "var a []int; var b []int" never share one), so a guard on
+// one variable can only ever be looked up against that same variable's own
+// accesses. A guard is trusted only when it is the sole one recorded for its
+// const *and* its safe (then) successor block dominates the access -- real
+// control-flow reachability, so a guard can't reach across an unrelated
+// branch. Zero or multiple guards for a given const fall back to flagging
+// every access of that const unconditionally, exactly as before this change
+// (multiple guards on the very same variable, e.g. re-checked after a
+// mutation, is the one remaining case this doesn't attempt to reason about).
+func resolveNilSliceAccesses(pass *analysis.Pass, accessesByConst map[*ssa.Const][]*ssa.IndexAddr, guardsByConst map[*ssa.Const][]nilLenGuard, issues map[ssa.Instruction]*issue.Issue) {
+	for c, accesses := range accessesByConst {
+		guards := guardsByConst[c]
+		var thenBlock *ssa.BasicBlock
+		var assertedLength int
+		if len(guards) == 1 {
+			if ifBlock := guards[0].ifInstr.Block(); ifBlock != nil && len(ifBlock.Succs) > 0 {
+				thenBlock = ifBlock.Succs[0]
+				assertedLength = assertedLen(guards[0].binop, guards[0].value)
+			}
+		}
+		for _, access := range accesses {
+			if thenBlock != nil {
+				if indexValue, ok := GetConstantInt64(access.Index); ok {
+					if isSliceIndexInsideBounds(assertedLength, int(indexValue)) && thenBlock.Dominates(access.Block()) {
+						continue // proven safe by the sole guard on this variable
+					}
+				}
+			}
+			issues[access] = newIssue(
+				pass.Analyzer.Name,
+				"slice index out of range",
+				pass.Fset,
+				access.Pos(),
+				issue.Low,
+				issue.High)
+		}
+	}
+}
+
 func invBound(bound bound) bound {
 	switch bound {
 	case lowerUnbounded:
@@ -854,6 +1146,136 @@ func invBound(bound bound) bound {
 		return bounded
 	default:
 		return unbounded
+	}
+}
+
+// lenConditionSlice returns the slice whose len() participates in binop.
+// Constant +/- offsets around len() are handled by decomposeIndex.
+func lenConditionSlice(binop *ssa.BinOp) ssa.Value {
+	if binop == nil {
+		return nil
+	}
+	for _, operand := range []ssa.Value{binop.X, binop.Y} {
+		if _, isConst := operand.(*ssa.Const); isConst {
+			continue
+		}
+		base, _ := decomposeIndex(operand)
+		call, ok := base.(*ssa.Call)
+		if !ok {
+			continue
+		}
+		builtin, ok := call.Call.Value.(*ssa.Builtin)
+		if !ok || builtin.Name() != "len" || len(call.Call.Args) != 1 {
+			continue
+		}
+		return call.Call.Args[0]
+	}
+	return nil
+}
+
+// minimumLenForBranch returns the minimum slice length guaranteed by a
+// constant comparison involving len(slice) in the selected successor.
+// Comparisons that do not prove a useful lower bound are rejected.
+func minimumLenForBranch(binop *ssa.BinOp, successor int) (int, bool) {
+	if binop == nil || (successor != 0 && successor != 1) {
+		return 0, false
+	}
+
+	op := binop.Op
+	var lengthExpr ssa.Value
+	var threshold int64
+
+	if value, ok := GetConstantInt64(binop.Y); ok {
+		lengthExpr = binop.X
+		threshold = value
+	} else if value, ok := GetConstantInt64(binop.X); ok {
+		lengthExpr = binop.Y
+		threshold = value
+		op = reverseComparison(op)
+	} else {
+		return 0, false
+	}
+
+	base, offset := decomposeIndex(lengthExpr)
+	call, ok := base.(*ssa.Call)
+	if !ok {
+		return 0, false
+	}
+	builtin, ok := call.Call.Value.(*ssa.Builtin)
+	if !ok || builtin.Name() != "len" || len(call.Call.Args) != 1 {
+		return 0, false
+	}
+
+	threshold -= int64(offset)
+	if successor == 1 {
+		op = invertComparison(op)
+	}
+
+	var minLen int64
+	switch op {
+	case token.GTR:
+		if threshold == int64(^uint64(0)>>1) {
+			return 0, false
+		}
+		minLen = threshold + 1
+	case token.GEQ:
+		minLen = threshold
+	case token.EQL:
+		if threshold < 0 {
+			return 0, false
+		}
+		minLen = threshold
+	case token.NEQ:
+		// Only != 0 proves a positive lower bound.
+		if threshold != 0 {
+			return 0, false
+		}
+		minLen = 1
+	default:
+		return 0, false
+	}
+
+	if minLen < 0 {
+		minLen = 0
+	}
+	maxInt := int64(^uint(0) >> 1)
+	if minLen > maxInt {
+		return 0, false
+	}
+	return int(minLen), true
+}
+
+func reverseComparison(op token.Token) token.Token {
+	switch op {
+	case token.LSS:
+		return token.GTR
+	case token.LEQ:
+		return token.GEQ
+	case token.GTR:
+		return token.LSS
+	case token.GEQ:
+		return token.LEQ
+	default:
+		return op
+	}
+}
+
+func invertComparison(op token.Token) token.Token {
+	switch op {
+	case token.LSS:
+		return token.GEQ
+	case token.LEQ:
+		return token.GTR
+	case token.GTR:
+		return token.LEQ
+	case token.GEQ:
+		return token.LSS
+	case token.EQL:
+		return token.NEQ
+	case token.NEQ:
+		return token.EQL
+	default:
+		return op
 	}
 }
 
@@ -908,6 +1330,42 @@ func extractBinOpBound(binop *ssa.BinOp) (bound, int, error) {
 		}
 	}
 	return lowerUnbounded, 0, errExtractBinOp
+}
+
+// assertedLen returns the slice length asserted by an equality comparison whose
+// constant side is value. The compared expression is usually len(s) itself, but
+// it may carry a constant offset (e.g. "len(s) - 1 == 1" asserts a length of 2),
+// in which case the offset has to be undone to recover the length.
+func assertedLen(binop *ssa.BinOp, value int) int {
+	if binop == nil {
+		return value
+	}
+	for _, operand := range []ssa.Value{binop.X, binop.Y} {
+		if _, isConst := operand.(*ssa.Const); isConst {
+			continue
+		}
+		if _, offset := decomposeIndex(operand); offset != 0 {
+			return value - offset
+		}
+	}
+	return value
+}
+
+// sliceWithinAssertedLen only clears findings when every explicit bound is
+// constant and fits within the guaranteed length (and therefore capacity).
+func sliceWithinAssertedLen(slice *ssa.Slice, length int) bool {
+	bounds := []int{0, length, length}
+	for i, value := range []ssa.Value{slice.Low, slice.High, slice.Max} {
+		if value == nil {
+			continue
+		}
+		bound, ok := GetConstantInt64(value)
+		if !ok || bound < 0 || bound > int64(length) {
+			return false
+		}
+		bounds[i] = int(bound)
+	}
+	return isThreeIndexSliceInsideBounds(bounds[0], bounds[1], bounds[2], length)
 }
 
 func isSliceIndexInsideBounds(h int, index int) bool {
